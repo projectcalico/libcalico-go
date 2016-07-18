@@ -74,6 +74,10 @@ func (c *Client) HostEndpoints() HostEndpointInterface {
 	return newHostEndpoints(c)
 }
 
+func (c *Client) IPAM() IPAMInterface {
+	return NewIPAM(c)
+}
+
 // Load the client config from the specified file (if specified) and from environment
 // variables.  The values from both locations are merged together, with file values
 // taking precedence).
