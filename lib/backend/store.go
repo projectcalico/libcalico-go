@@ -17,8 +17,9 @@ package backend
 import (
 	"encoding/json"
 	"errors"
-	"github.com/golang/glog"
 	"reflect"
+
+	"github.com/golang/glog"
 )
 
 // ParseKey parses a datastore key into one of the <Type>Key structs.
