@@ -239,14 +239,24 @@ func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey backend.PolicyKey) 
 	}
 	update := store.Update{Key: asEtcdKey}
 	if known && active {
-		jsonBytes, err := json.Marshal(policy)
+		var policyCopy backend.Policy
+		jsonCopy, err := json.Marshal(policy)
+		if err != nil {
+			glog.Fatal("Failed to marshal policy")
+		}
+		err = json.Unmarshal(jsonCopy, &policyCopy)
+		if err != nil {
+			glog.Fatal("Failed to unmarshal policy")
+		}
+		// FIXME UpdateRules modifies the rules!
+		arc.listener.UpdateRules(policyKey, policyCopy.InboundRules, policyCopy.OutboundRules)
+		jsonBytes, err := json.Marshal(policyCopy)
 		if err != nil {
 			glog.Fatalf("Failed to marshal policy as json: %#v",
 				policyKey)
 		}
 		jsonStr := string(jsonBytes)
 		update.ValueOrNil = &jsonStr
-		arc.listener.UpdateRules(policyKey, policy.InboundRules, policy.OutboundRules)
 	} else {
 		arc.listener.UpdateRules(policyKey, []backend.Rule{}, []backend.Rule{})
 	}

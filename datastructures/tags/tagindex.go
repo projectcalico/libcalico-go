@@ -25,6 +25,8 @@ type Index interface {
 	DeleteProfileTags(profileID string)
 	UpdateEndpoint(key EndpointKey, profileIDs []string)
 	DeleteEndpoint(key EndpointKey)
+	OnTagActive(tag string)
+	OnTagInactive(tag string)
 }
 
 type indexKey struct {
@@ -37,6 +39,7 @@ type tagIndex struct {
 	profileIDToEndpointKey  map[string]map[EndpointKey]bool
 	endpointKeyToProfileIDs *EndpointKeyToProfileIDMap
 	matches                 map[indexKey]map[string]bool
+	activeTags              map[string]bool
 
 	onMatchStarted MatchCallback
 	onMatchStopped MatchCallback
@@ -50,11 +53,37 @@ func NewIndex(onMatchStarted, onMatchStopped MatchCallback) Index {
 		profileIDToEndpointKey:  make(map[string]map[EndpointKey]bool),
 		endpointKeyToProfileIDs: NewEndpointKeyToProfileIDMap(),
 		matches:                 make(map[indexKey]map[string]bool),
+		activeTags:              make(map[string]bool),
 
 		onMatchStarted: onMatchStarted,
 		onMatchStopped: onMatchStopped,
 	}
 	return idx
+}
+
+func (idx *tagIndex) OnTagActive(tag string) {
+	if idx.activeTags[tag] {
+		return
+	}
+	// Generate events for all endpoints.
+	idx.activeTags[tag] = true
+	for key, _ := range idx.matches {
+		if key.tag == tag {
+			idx.onMatchStarted(key.key, tag)
+		}
+	}
+}
+
+func (idx *tagIndex) OnTagInactive(tag string) {
+	if !idx.activeTags[tag] {
+		return
+	}
+	delete(idx.activeTags, tag)
+	for key, _ := range idx.matches {
+		if key.tag == tag {
+			idx.onMatchStopped(key.key, tag)
+		}
+	}
 }
 
 func (idx *tagIndex) UpdateProfileTags(profileID string, tags []string) {
@@ -148,7 +177,9 @@ func (idx *tagIndex) addToIndex(epKey EndpointKey, tag string, profID string) {
 	if !ok {
 		matchingProfIDs = make(map[string]bool)
 		idx.matches[idxKey] = matchingProfIDs
-		idx.onMatchStarted(epKey, tag)
+		if idx.activeTags[tag] {
+			idx.onMatchStarted(epKey, tag)
+		}
 	}
 	matchingProfIDs[profID] = true
 }
@@ -161,7 +192,9 @@ func (idx *tagIndex) removeFromIndex(epKey EndpointKey, tag string, profID strin
 		// There's no-longer a profile keeping this
 		// tag alive.
 		delete(idx.matches, idxKey)
-		idx.onMatchStopped(epKey, tag)
+		if idx.activeTags[tag] {
+			idx.onMatchStopped(epKey, tag)
+		}
 	}
 }
 

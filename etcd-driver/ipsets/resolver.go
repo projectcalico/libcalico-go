@@ -34,9 +34,9 @@ type Resolver struct {
 	// endpoints and notifies the ActiveSelectorCalculator when
 	// their rules become active/inactive.
 	activeRulesCalculator *ActiveRulesCalculator
-	// SelectorScanner scans the active policies/profiles for active
+	// RuleScanner scans the active policies/profiles for active
 	// selectors...
-	selScanner *SelectorScanner
+	ruleScanner *RuleScanner
 	// ...which we pass to the label inheritance index to calculate the
 	// endpoints that match...
 	labelIdx labels.LabelInheritanceIndex
@@ -63,18 +63,20 @@ func NewResolver(felixSender FelixSender, hostname string) *Resolver {
 
 	resolver.tagIndex = tags.NewIndex(resolver.onTagMatchStarted, resolver.onTagMatchStopped)
 
-	resolver.selScanner = NewSelectorScanner()
-	resolver.selScanner.OnSelectorActive = resolver.onSelectorActive
-	resolver.selScanner.OnSelectorInactive = resolver.onSelectorInactive
+	resolver.ruleScanner = NewSelectorScanner()
+	resolver.ruleScanner.OnSelectorActive = resolver.onSelectorActive
+	resolver.ruleScanner.OnSelectorInactive = resolver.onSelectorInactive
+	resolver.ruleScanner.OnTagActive = resolver.tagIndex.OnTagActive
+	resolver.ruleScanner.OnTagInactive = resolver.tagIndex.OnTagInactive
 
-	resolver.ipsetCalc = NewIpsetCalculator()
-	resolver.ipsetCalc.OnIPAdded = resolver.onIPAdded
-	resolver.ipsetCalc.OnIPRemoved = resolver.onIPRemoved
+	resolver.activeRulesCalculator = NewActiveRulesCalculator(resolver.ruleScanner, felixSender)
 
 	resolver.labelIdx = labels.NewInheritanceIndex(
 		resolver.onSelMatchStarted, resolver.onSelMatchStopped)
 
-	resolver.activeRulesCalculator = NewActiveRulesCalculator(resolver.selScanner, felixSender)
+	resolver.ipsetCalc = NewIpsetCalculator()
+	resolver.ipsetCalc.OnIPAdded = resolver.onIPAdded
+	resolver.ipsetCalc.OnIPRemoved = resolver.onIPRemoved
 
 	return resolver
 }
@@ -86,6 +88,7 @@ type dispatcher interface {
 // RegisterWith registers the update callbacks that this object requires with the dispatcher.
 func (res *Resolver) RegisterWith(disp dispatcher) {
 	disp.Register(backend.WorkloadEndpointKey{}, res.onEndpointUpdate)
+	// TODO Host endpoint
 	disp.Register(backend.PolicyKey{}, res.onPolicyUpdate)
 	disp.Register(backend.ProfileTagsKey{}, res.onProfileTagsUpdate)
 	disp.Register(backend.ProfileLabelsKey{}, res.onProfileLabelsUpdate)
@@ -95,22 +98,29 @@ func (res *Resolver) RegisterWith(disp dispatcher) {
 // Datastore callbacks:
 
 func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
+	key := update.Key.(backend.WorkloadEndpointKey)
+	onThisHost := key.Hostname == res.hostname
+	if !onThisHost {
+		update.SkipSendToFelix = true
+	}
 	if update.Value != nil {
 		glog.V(3).Infof("Endpoint %v updated", update.Key)
 		glog.V(4).Infof("Endpoint data: %#v", update.Value)
 		ep := update.Value.(*backend.WorkloadEndpoint)
+		if onThisHost {
+			res.activeRulesCalculator.UpdateWorkloadEndpoint(key, ep)
+		}
 		res.ipsetCalc.UpdateEndpointIPs(update.Key, ep.IPv4Nets)
 		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
 		res.tagIndex.UpdateEndpoint(update.Key, ep.ProfileIDs)
 	} else {
 		glog.V(3).Infof("Endpoint %v deleted", update.Key)
+		if onThisHost {
+			res.activeRulesCalculator.DeleteWorkloadEndpoint(key)
+		}
 		res.ipsetCalc.DeleteEndpoint(update.Key)
 		res.labelIdx.DeleteLabels(update.Key)
 		res.tagIndex.DeleteEndpoint(update.Key)
-	}
-	key := update.Key.(backend.WorkloadEndpointKey)
-	if key.Hostname != res.hostname {
-		update.SkipSendToFelix = true
 	}
 }
 
@@ -190,20 +200,6 @@ func (res *Resolver) onProfileTagsUpdate(update *store.ParsedUpdate) {
 //	res.activeSelCalc.UpdateProfile(key, policy)
 //}
 
-// IpsetCalculator callbacks:
-
-// onIPAdded is called when an IP is now present in an active selector.
-func (res *Resolver) onIPAdded(selID, ip string) {
-	glog.V(3).Infof("IP set %v now contains %v", selID, ip)
-	res.OnIPAdded(selID, ip)
-}
-
-// onIPRemoved is called when an IP is no longer present in a selector.
-func (res *Resolver) onIPRemoved(selID, ip string) {
-	glog.V(3).Infof("IP set %v no longer contains %v", selID, ip)
-	res.OnIPRemoved(selID, ip)
-}
-
 // LabelIndex callbacks:
 
 // onMatchStarted is called when an endpoint starts matching an active selector.
@@ -244,4 +240,18 @@ func (res *Resolver) onSelectorInactive(sel selector.Selector) {
 	glog.Infof("Selector %v now inactive", sel)
 	res.labelIdx.DeleteSelector(sel.UniqueId())
 	res.OnIPSetRemoved(sel.UniqueId())
+}
+
+// IpsetCalculator callbacks:
+
+// onIPAdded is called when an IP is now present in an active selector.
+func (res *Resolver) onIPAdded(selID, ip string) {
+	glog.V(3).Infof("IP set %v now contains %v", selID, ip)
+	res.OnIPAdded(selID, ip)
+}
+
+// onIPRemoved is called when an IP is no longer present in a selector.
+func (res *Resolver) onIPRemoved(selID, ip string) {
+	glog.V(3).Infof("IP set %v no longer contains %v", selID, ip)
+	res.OnIPRemoved(selID, ip)
 }
