@@ -64,7 +64,7 @@ type Client struct {
 	// ---- Internal package data ----
 	connected   bool
 	etcdClient  etcd.Client
-	etcdKeysAPI etcd.KeysAPI
+	EtcdKeysAPI etcd.KeysAPI
 }
 
 // NewClient creates a new backend datastore client.
@@ -122,7 +122,7 @@ func (c *Client) connectEtcd() error {
 	}
 	keys := etcd.NewKeysAPI(client)
 	c.etcdClient = client
-	c.etcdKeysAPI = keys
+	c.EtcdKeysAPI = keys
 	c.connected = true
 	return nil
 }
@@ -135,7 +135,7 @@ func (c *Client) Create(d KeyValue) error {
 	}
 	glog.V(2).Infof("Create Key: %s\n", key)
 	glog.V(2).Infof("Value: %s\n", d.Value)
-	_, err = c.etcdKeysAPI.Create(context.Background(), key, string(d.Value))
+	_, err = c.EtcdKeysAPI.Create(context.Background(), key, string(d.Value))
 	return convertError(err, key)
 }
 
@@ -148,7 +148,7 @@ func (c *Client) Update(d KeyValue) error {
 	}
 	glog.V(2).Infof("Update Key: %s\n", key)
 	glog.V(2).Infof("Value: %s\n", d.Value)
-	_, err = c.etcdKeysAPI.Update(context.Background(), key, string(d.Value))
+	_, err = c.EtcdKeysAPI.Update(context.Background(), key, string(d.Value))
 	return convertError(err, key)
 }
 
@@ -161,7 +161,7 @@ func (c *Client) Apply(d KeyValue) error {
 	}
 	glog.V(2).Infof("Set Key: %s\n", key)
 	glog.V(2).Infof("Value: %s\n", d.Value)
-	_, err = c.etcdKeysAPI.Set(context.Background(), key, string(d.Value), &etcdSetOpts)
+	_, err = c.EtcdKeysAPI.Set(context.Background(), key, string(d.Value), &etcdSetOpts)
 	return convertError(err, key)
 }
 
@@ -172,7 +172,7 @@ func (c *Client) Delete(k KeyInterface) error {
 		return err
 	}
 	glog.V(2).Infof("Delete Key: %s\n", key)
-	_, err = c.etcdKeysAPI.Delete(context.Background(), key, &etcdDeleteOpts)
+	_, err = c.EtcdKeysAPI.Delete(context.Background(), key, &etcdDeleteOpts)
 	return convertError(err, key)
 }
 
@@ -183,7 +183,7 @@ func (c *Client) Get(k KeyInterface) (KeyValue, error) {
 		return KeyValue{}, err
 	}
 	glog.V(2).Infof("Get Key: %s\n", key)
-	if results, err := c.etcdKeysAPI.Get(context.Background(), key, &etcdGetOpts); err != nil {
+	if results, err := c.EtcdKeysAPI.Get(context.Background(), key, &etcdGetOpts); err != nil {
 		return KeyValue{}, convertError(err, key)
 	} else {
 		return KeyValue{Key: k, Value: []byte(results.Node.Value)}, nil
@@ -197,7 +197,7 @@ func (c *Client) List(l ListInterface) ([]KeyValue, error) {
 	// IDs, and then filter the results.
 	key := l.asEtcdKeyRoot()
 	glog.V(2).Infof("List Key: %s\n", key)
-	if results, err := c.etcdKeysAPI.Get(context.Background(), key, &etcdListOpts); err != nil {
+	if results, err := c.EtcdKeysAPI.Get(context.Background(), key, &etcdListOpts); err != nil {
 		return nil, err
 	} else {
 		return filterListNode(results.Node, l), nil
