@@ -13,6 +13,9 @@ ut:
 .PHONEY: force
 force:
 	true
+bin/etcd-driver: force
+	mkdir -p bin
+	go build -o "$@" "./etcd-driver/etcd-driver.go"
 
 bin/calicoctl: force
 	mkdir -p bin
