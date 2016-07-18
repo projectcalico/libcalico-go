@@ -24,7 +24,6 @@ import (
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"net"
 	"os"
-	"strings"
 )
 
 const usage = `etcd driver.
@@ -63,7 +62,11 @@ func main() {
 	// The ipset resolver calculates the current contents of the ipsets
 	// required by felix and generates events when the contents change,
 	// which we then send to Felix.
-	ipsetResolver := ipsets.NewResolver()
+	hostname, err := os.Hostname()
+	if err != nil {
+		glog.Fatal("Failed to get hostname: ", err)
+	}
+	ipsetResolver := ipsets.NewResolver(felixConn, hostname)
 	ipsetResolver.RegisterWith(dispatcher)
 
 	// Get an etcd driver
@@ -187,33 +190,28 @@ func (cbs *FelixConnection) OnKeysUpdated(updates []store.Update) {
 			continue
 		}
 
-		// FIXME hard-coded hostname filter!
-		if strings.Index(update.Key, "/calico/v1/host/") == 0 {
-			if strings.Contains(update.Key, "/endpoint/") {
-				if !strings.Contains(update.Key, "smc-ubuntu") {
-					continue
-				}
-			}
-		}
-
-		var msg map[string]interface{}
-		if update.ValueOrNil == nil {
-			msg = map[string]interface{}{
-				"type": "u",
-				"k":    update.Key,
-				"v":    nil,
-			}
-		} else {
-			// Deref the value so that we get better diags if the
-			// message is traced out.
-			msg = map[string]interface{}{
-				"type": "u",
-				"k":    update.Key,
-				"v":    *update.ValueOrNil,
-			}
-		}
-		cbs.toFelix <- msg
+		cbs.SendUpdateToFelix(update)
 	}
+}
+
+func (cbs *FelixConnection) SendUpdateToFelix(update store.Update) {
+	var msg map[string]interface{}
+	if update.ValueOrNil == nil {
+		msg = map[string]interface{}{
+			"type": "u",
+			"k":    update.Key,
+			"v":    nil,
+		}
+	} else {
+		// Deref the value so that we get better diags if the
+		// message is traced out.
+		msg = map[string]interface{}{
+			"type": "u",
+			"k":    update.Key,
+			"v":    *update.ValueOrNil,
+		}
+	}
+	cbs.toFelix <- msg
 }
 
 func (cbs *FelixConnection) readMessagesFromFelix() {

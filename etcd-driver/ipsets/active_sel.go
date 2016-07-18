@@ -22,7 +22,7 @@ import (
 
 // ActiveSelectorCalculator calculates the active set of selectors from the current set of policies/profiles.
 // It generates events for selectors becoming active/inactive.
-type ActiveSelectorCalculator struct {
+type SelectorScanner struct {
 	// selectorsByUid maps from a selector's UID to the selector itself.
 	selectorsByUid selByUid
 	// activeUidsByResource maps from policy or profile ID to "set" of selector UIDs
@@ -34,8 +34,8 @@ type ActiveSelectorCalculator struct {
 	OnSelectorInactive func(selector selector.Selector)
 }
 
-func NewActiveSelectorCalculator() *ActiveSelectorCalculator {
-	calc := &ActiveSelectorCalculator{
+func NewSelectorScanner() *SelectorScanner {
+	calc := &SelectorScanner{
 		selectorsByUid:       make(selByUid),
 		activeUidsByResource: make(map[interface{}]map[string]bool),
 		activeResourcesByUid: make(map[string]map[interface{}]bool),
@@ -43,7 +43,7 @@ func NewActiveSelectorCalculator() *ActiveSelectorCalculator {
 	return calc
 }
 
-func (calc *ActiveSelectorCalculator) UpdateRules(key interface{}, inbound, outbound []backend.Rule) {
+func (calc *SelectorScanner) UpdateRules(key interface{}, inbound, outbound []backend.Rule) {
 	// Extract all the new selectors.
 	currentSelsByUid := make(selByUid)
 	currentSelsByUid.addSelectorsFromRules(inbound)

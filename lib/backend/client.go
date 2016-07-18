@@ -104,3 +104,7 @@ func (c *Client) Get(k KeyInterface) (*DatastoreObject, error) {
 func (c *Client) List(l ListInterface) ([]*DatastoreObject, error) {
 	return c.rw.List(l)
 }
+
+func KeyToFelixKey(key KeyInterface) (string, error) {
+	return key.asEtcdKey()
+}
