@@ -15,8 +15,8 @@
 package api
 
 import (
-	. "github.com/tigera/libcalico-go/lib/api/unversioned"
-	. "github.com/tigera/libcalico-go/lib/common"
+	. "github.com/projectcalico/calico-go/lib/api/unversioned"
+	. "github.com/projectcalico/calico-go/lib/common"
 )
 
 type HostEndpointMetadata struct {
