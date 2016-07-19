@@ -19,9 +19,10 @@ import (
 
 	"regexp"
 
+	"reflect"
+
 	"github.com/golang/glog"
 	. "github.com/tigera/libcalico-go/lib/common"
-	"reflect"
 )
 
 var (
@@ -110,7 +111,6 @@ func (options WorkloadEndpointListOptions) keyFromEtcdResult(ekey string) KeyInt
 }
 
 type WorkloadEndpoint struct {
-	WorkloadEndpointKey `json:"-"`
 	// TODO: Validation for workload endpoint.
 	State      string            `json:"state"`
 	Name       string            `json:"name"`
