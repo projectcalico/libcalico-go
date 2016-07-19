@@ -109,6 +109,8 @@ func (d delete) execute(client *client.Client, resource unversioned.Resource) (u
 	switch r := resource.(type) {
 	case api.HostEndpoint:
 		err = client.HostEndpoints().Delete(r.Metadata)
+	case api.WorkloadEndpoint:
+		err = client.WorkloadEndpoints().Delete(r.Metadata)
 	case api.Policy:
 		err = client.Policies().Delete(r.Metadata)
 	case api.Profile:

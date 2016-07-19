@@ -35,7 +35,7 @@ type MAC struct {
 }
 
 // MarshalJSON interface for an IP
-func (i *IP) MarshalJSON() ([]byte, error) {
+func (i IP) MarshalJSON() ([]byte, error) {
 	s, err := i.MarshalText()
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (i *IP) UnmarshalJSON(b []byte) error {
 }
 
 // MarshalJSON interface for an IPNet
-func (i *IPNet) MarshalJSON() ([]byte, error) {
+func (i IPNet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.String())
 }
 
@@ -73,7 +73,7 @@ func (i *IPNet) UnmarshalJSON(b []byte) error {
 }
 
 // MarshalJSON interface for a MAC
-func (m *MAC) MarshalJSON() ([]byte, error) {
+func (m MAC) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m.String())
 }
 

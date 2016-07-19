@@ -92,6 +92,8 @@ func (g get) execute(client *client.Client, resource unversioned.Resource) (unve
 	switch r := resource.(type) {
 	case api.HostEndpoint:
 		resource, err = client.HostEndpoints().List(r.Metadata)
+	case api.WorkloadEndpoint:
+		resource, err = client.WorkloadEndpoints().List(r.Metadata)
 	case api.Policy:
 		resource, err = client.Policies().List(r.Metadata)
 	case api.Profile:

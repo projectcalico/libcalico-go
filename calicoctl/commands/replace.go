@@ -101,6 +101,8 @@ func (c replace) execute(client *client.Client, resource unversioned.Resource) (
 	switch r := resource.(type) {
 	case api.HostEndpoint:
 		_, err = client.HostEndpoints().Update(&r)
+	case api.WorkloadEndpoint:
+		_, err = client.WorkloadEndpoints().Update(&r)
 	case api.Policy:
 		_, err = client.Policies().Update(&r)
 	case api.Profile:
