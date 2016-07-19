@@ -99,7 +99,7 @@ func (options WorkloadEndpointListOptions) keyFromEtcdResult(ekey string) KeyInt
 		glog.V(2).Infof("Didn't match orchestrator %s != %s", options.OrchestratorID, orch)
 		return nil
 	}
-	if options.WorkloadID != "" && orch != options.WorkloadID {
+	if options.WorkloadID != "" && workload != options.WorkloadID {
 		glog.V(2).Infof("Didn't match workload %s != %s", options.WorkloadID, workload)
 		return nil
 	}
