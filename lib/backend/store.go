@@ -68,16 +68,22 @@ func ParseKey(key string) KeyInterface {
 
 func ParseValue(key KeyInterface, rawData []byte) (interface{}, error) {
 	value := reflect.New(key.valueType())
+	elem := value.Elem()
+	if elem.Kind() == reflect.Struct && elem.NumField() > 0 {
+		if elem.Field(0).Type() == reflect.ValueOf(key).Type() {
+			elem.Field(0).Set(reflect.ValueOf(key))
+		}
+	}
 	iface := value.Interface()
 	err := json.Unmarshal(rawData, iface)
 	if err != nil {
-		glog.Errorf("Failed to unmarshal %#v into value %#v",
+		glog.V(0).Infof("Failed to unmarshal %#v into value %#v",
 			string(rawData), value)
 		return nil, err
 	}
-	if value.Elem().Kind() != reflect.Struct {
+	if elem.Kind() != reflect.Struct {
 		// Pointer to a map or slice, unwrap.
-		iface = value.Elem().Interface()
+		iface = elem.Interface()
 	}
 	return iface, nil
 }
