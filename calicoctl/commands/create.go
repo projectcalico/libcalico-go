@@ -101,8 +101,6 @@ func (c create) execute(client *client.Client, resource unversioned.Resource) (u
 	switch r := resource.(type) {
 	case api.HostEndpoint:
 		_, err = client.HostEndpoints().Create(&r)
-	case api.WorkloadEndpoint:
-		_, err = client.WorkloadEndpoints().Create(&r)
 	case api.Policy:
 		_, err = client.Policies().Create(&r)
 	case api.Pool:
@@ -111,6 +109,8 @@ func (c create) execute(client *client.Client, resource unversioned.Resource) (u
 		_, err = client.Profiles().Create(&r)
 	case api.Tier:
 		_, err = client.Tiers().Create(&r)
+	case api.WorkloadEndpoint:
+		_, err = client.WorkloadEndpoints().Create(&r)
 	default:
 		panic(fmt.Errorf("Unhandled resource type: %v", resource))
 	}

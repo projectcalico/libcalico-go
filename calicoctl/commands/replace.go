@@ -101,8 +101,6 @@ func (c replace) execute(client *client.Client, resource unversioned.Resource) (
 	switch r := resource.(type) {
 	case api.HostEndpoint:
 		_, err = client.HostEndpoints().Update(&r)
-	case api.WorkloadEndpoint:
-		_, err = client.WorkloadEndpoints().Update(&r)
 	case api.Policy:
 		_, err = client.Policies().Update(&r)
 	case api.Pool:
@@ -111,6 +109,8 @@ func (c replace) execute(client *client.Client, resource unversioned.Resource) (
 		_, err = client.Profiles().Update(&r)
 	case api.Tier:
 		_, err = client.Tiers().Update(&r)
+	case api.WorkloadEndpoint:
+		_, err = client.WorkloadEndpoints().Update(&r)
 	default:
 		panic(fmt.Errorf("Unhandled resource type: %v", resource))
 	}
