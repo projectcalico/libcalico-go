@@ -23,6 +23,9 @@ const (
 )
 
 type DriverConfiguration struct {
+	// OneShot causes the driver to do a single snapshot load, emit update
+	// and then shut down.
+	OneShot bool
 }
 
 type Driver interface {

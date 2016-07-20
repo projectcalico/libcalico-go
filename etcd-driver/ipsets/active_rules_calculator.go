@@ -22,14 +22,19 @@ import (
 	"github.com/tigera/libcalico-go/etcd-driver/store"
 	"github.com/tigera/libcalico-go/lib/backend"
 	"github.com/tigera/libcalico-go/lib/selector"
+	"reflect"
 )
 
-type ruleListener interface {
+type activeRuleListener interface {
 	UpdateRules(key interface{}, inbound, outbound []backend.Rule)
 }
 
 type FelixSender interface {
 	SendUpdateToFelix(update store.Update)
+}
+
+type MatchListener interface {
+	OnPolicyMatch(policyKey backend.PolicyKey, endpointKey interface{})
 }
 
 type ActiveRulesCalculator struct {
@@ -47,12 +52,15 @@ type ActiveRulesCalculator struct {
 	// Cache of profile IDs by local endpoint.
 	endpointKeyToProfileIDs *tags.EndpointKeyToProfileIDMap
 
-	// Callback object.
-	listener    ruleListener
-	felixSender FelixSender
+	// Callback objects.
+	listener      activeRuleListener
+	matchListener MatchListener
+	felixSender   FelixSender
 }
 
-func NewActiveRulesCalculator(ruleListener ruleListener, felixSender FelixSender) *ActiveRulesCalculator {
+func NewActiveRulesCalculator(ruleListener activeRuleListener,
+	felixSender FelixSender,
+	matchListener MatchListener) *ActiveRulesCalculator {
 	arc := &ActiveRulesCalculator{
 		// Caches of all known policies/profiles.
 		allPolicies:     make(map[backend.PolicyKey]backend.Policy),
@@ -68,82 +76,85 @@ func NewActiveRulesCalculator(ruleListener ruleListener, felixSender FelixSender
 		// Callback object.
 		listener:    ruleListener,
 		felixSender: felixSender,
+		matchListener: matchListener,
 	}
 	arc.labelIndex = labels.NewInheritanceIndex(arc.onMatchStarted, arc.onMatchStopped)
 	return arc
 }
 
-func (arc *ActiveRulesCalculator) UpdateWorkloadEndpoint(key backend.WorkloadEndpointKey, endpoint *backend.WorkloadEndpoint) {
-	// Figure out what's changed and update the cache.
-	profileIDs := endpoint.ProfileIDs
-	arc.updateEndpoint(key, profileIDs)
-	arc.labelIndex.UpdateLabels(key, endpoint.Labels, profileIDs)
-}
+func (arc *ActiveRulesCalculator) OnUpdate(update *store.ParsedUpdate) {
+	switch key := update.Key.(type) {
+	case backend.WorkloadEndpointKey:
+		if update.Value != nil {
+			endpoint := update.Value.(*backend.WorkloadEndpoint)
+			profileIDs := endpoint.ProfileIDs
+			arc.updateEndpoint(key, profileIDs)
+			arc.labelIndex.UpdateLabels(key, endpoint.Labels, profileIDs)
+		} else {
+			arc.updateEndpoint(key, []string{})
+			arc.labelIndex.DeleteLabels(key)
+		}
+	case backend.HostEndpointKey:
+		if update.Value != nil {
+			// Figure out what's changed and update the cache.
+			endpoint := update.Value.(*backend.HostEndpoint)
+			profileIDs := endpoint.ProfileIDs
+			arc.updateEndpoint(key, profileIDs)
+			arc.labelIndex.UpdateLabels(key, endpoint.Labels, profileIDs)
+		} else {
+			arc.updateEndpoint(key, []string{})
+			arc.labelIndex.DeleteLabels(key)
+		}
+	case backend.ProfileLabelsKey:
+		if update.Value != nil {
+			labels := update.Value.(map[string]string)
+			arc.labelIndex.UpdateParentLabels(key.Name, labels)
+		} else {
+			arc.labelIndex.DeleteParentLabels(key.Name)
+		}
+	case backend.ProfileRulesKey:
+		if update.Value != nil {
+			rules := update.Value.(*backend.ProfileRules)
+			arc.allProfileRules[key.Name] = *rules
+			if _, ok := arc.profileIDToEndpointKeys[key.Name]; ok {
+				glog.V(4).Info("Profile rules updated while active, telling listener/felix")
+				arc.sendProfileUpdate(key.Name)
+			}
+		} else {
+			delete(arc.allProfileRules, key.Name)
+			if _, ok := arc.profileIDToEndpointKeys[key.Name]; ok {
+				glog.V(4).Info("Profile rules deleted while active, telling listener/felix")
+				arc.sendProfileUpdate(key.Name)
+			}
+		}
+	case backend.PolicyKey:
+		if update.Value != nil {
+			policy := update.Value.(*backend.Policy)
+			arc.allPolicies[key] = *policy
+			// Update the index, which will call us back if the selector no
+			// longer matches.
+			sel, err := selector.Parse(policy.Selector)
+			if err != nil {
+				glog.Fatal(err)
+			}
+			arc.labelIndex.UpdateSelector(key, sel)
 
-func (arc *ActiveRulesCalculator) DeleteWorkloadEndpoint(key backend.WorkloadEndpointKey) {
-	arc.updateEndpoint(key, []string{})
-	arc.labelIndex.DeleteLabels(key)
-}
-
-func (arc *ActiveRulesCalculator) UpdateHostEndpoint(key backend.HostEndpointKey, endpoint *backend.HostEndpoint) {
-	// Figure out what's changed and update the cache.
-	profileIDs := endpoint.ProfileIDs
-	arc.updateEndpoint(key, profileIDs)
-	arc.labelIndex.UpdateLabels(key, endpoint.Labels, profileIDs)
-}
-
-func (arc *ActiveRulesCalculator) DeleteHostEndpoint(key backend.WorkloadEndpointKey) {
-	arc.updateEndpoint(key, []string{})
-	arc.labelIndex.DeleteLabels(key)
-}
-
-func (arc *ActiveRulesCalculator) UpdateProfileLabels(key backend.ProfileLabelsKey, labels map[string]string) {
-	arc.labelIndex.UpdateParentLabels(key.Name, labels)
-}
-
-func (arc *ActiveRulesCalculator) DeleteProfileLabels(key backend.ProfileLabelsKey) {
-	arc.labelIndex.DeleteParentLabels(key.Name)
-}
-
-func (arc *ActiveRulesCalculator) UpdateProfileRules(key backend.ProfileRulesKey, rules *backend.ProfileRules) {
-	arc.allProfileRules[key.Name] = *rules
-	if _, ok := arc.profileIDToEndpointKeys[key.Name]; ok {
-		glog.V(4).Info("Profile rules updated while active, telling listener/felix")
-		arc.sendProfileUpdate(key.Name)
+			if _, ok := arc.policyIDToEndpointKeys[key]; ok {
+				// If we get here, the selector still matches something,
+				// update the rules.
+				glog.V(4).Info("Policy updated while active, telling listener")
+				arc.sendPolicyUpdate(key)
+			}
+		} else {
+			delete(arc.allPolicies, key)
+			arc.labelIndex.DeleteSelector(key)
+			// No need to call updatePolicy() because we'll have got a matchStopped
+			// callback.
+		}
+	default:
+		glog.V(0).Infof("Ignoring unexpected update: %v %#v",
+			reflect.TypeOf(update.Key), update)
 	}
-}
-
-func (arc *ActiveRulesCalculator) DeleteProfileRules(key backend.ProfileRulesKey) {
-	delete(arc.allProfileRules, key.Name)
-	if _, ok := arc.profileIDToEndpointKeys[key.Name]; ok {
-		glog.V(4).Info("Profile rules deleted while active, telling listener/felix")
-		arc.sendProfileUpdate(key.Name)
-	}
-}
-
-func (arc *ActiveRulesCalculator) UpdatePolicy(key backend.PolicyKey, policy *backend.Policy) {
-	arc.allPolicies[key] = *policy
-	// Update the index, which will call us back if the selector no
-	// longer matches.
-	sel, err := selector.Parse(policy.Selector)
-	if err != nil {
-		glog.Fatal(err)
-	}
-	arc.labelIndex.UpdateSelector(key, sel)
-
-	if _, ok := arc.policyIDToEndpointKeys[key]; ok {
-		// If we get here, the selector still matches something,
-		// update the rules.
-		glog.V(4).Info("Policy updated while active, telling listener")
-		arc.sendPolicyUpdate(key)
-	}
-}
-
-func (arc *ActiveRulesCalculator) DeletePolicy(key backend.PolicyKey) {
-	delete(arc.allPolicies, key)
-	arc.labelIndex.DeleteSelector(key)
-	// No need to call updatePolicy() because we'll have got a matchStopped
-	// callback.
 }
 
 func (arc *ActiveRulesCalculator) updateEndpoint(key endpointKey, profileIDs []string) {
@@ -189,6 +200,9 @@ func (arc *ActiveRulesCalculator) onMatchStarted(selId, labelId interface{}) {
 		arc.sendPolicyUpdate(polKey)
 	}
 	keys[labelId] = true
+	if arc.matchListener != nil {
+		arc.matchListener.OnPolicyMatch(polKey, labelId)
+	}
 }
 
 func (arc *ActiveRulesCalculator) onMatchStopped(selId, labelId interface{}) {
@@ -219,15 +233,21 @@ func (arc *ActiveRulesCalculator) sendProfileUpdate(profileID string) {
 		}
 		jsonStr := string(jsonBytes)
 		update.ValueOrNil = &jsonStr
-		arc.listener.UpdateRules(profileID,
-			rules.InboundRules,
-			rules.OutboundRules)
+		if arc.listener != nil {
+			arc.listener.UpdateRules(profileID,
+				rules.InboundRules,
+				rules.OutboundRules)
+		}
 	} else {
-		arc.listener.UpdateRules(profileID,
-			[]backend.Rule{},
-			[]backend.Rule{})
+		if arc.listener != nil {
+			arc.listener.UpdateRules(profileID,
+				[]backend.Rule{},
+				[]backend.Rule{})
+		}
 	}
-	arc.felixSender.SendUpdateToFelix(update)
+	if arc.felixSender != nil {
+		arc.felixSender.SendUpdateToFelix(update)
+	}
 }
 
 func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey backend.PolicyKey) {
@@ -249,7 +269,9 @@ func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey backend.PolicyKey) 
 			glog.Fatal("Failed to unmarshal policy")
 		}
 		// FIXME UpdateRules modifies the rules!
-		arc.listener.UpdateRules(policyKey, policyCopy.InboundRules, policyCopy.OutboundRules)
+		if arc.listener != nil {
+			arc.listener.UpdateRules(policyKey, policyCopy.InboundRules, policyCopy.OutboundRules)
+		}
 		jsonBytes, err := json.Marshal(policyCopy)
 		if err != nil {
 			glog.Fatalf("Failed to marshal policy as json: %#v",
@@ -258,7 +280,11 @@ func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey backend.PolicyKey) 
 		jsonStr := string(jsonBytes)
 		update.ValueOrNil = &jsonStr
 	} else {
-		arc.listener.UpdateRules(policyKey, []backend.Rule{}, []backend.Rule{})
+		if arc.listener != nil {
+			arc.listener.UpdateRules(policyKey, []backend.Rule{}, []backend.Rule{})
+		}
 	}
-	arc.felixSender.SendUpdateToFelix(update)
+	if arc.felixSender != nil {
+		arc.felixSender.SendUpdateToFelix(update)
+	}
 }

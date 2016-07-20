@@ -69,7 +69,7 @@ func NewResolver(felixSender FelixSender, hostname string) *Resolver {
 	resolver.ruleScanner.OnTagActive = resolver.tagIndex.OnTagActive
 	resolver.ruleScanner.OnTagInactive = resolver.tagIndex.OnTagInactive
 
-	resolver.activeRulesCalculator = NewActiveRulesCalculator(resolver.ruleScanner, felixSender)
+	resolver.activeRulesCalculator = NewActiveRulesCalculator(resolver.ruleScanner, felixSender, nil)
 
 	resolver.labelIdx = labels.NewInheritanceIndex(
 		resolver.onSelMatchStarted, resolver.onSelMatchStopped)
@@ -108,7 +108,7 @@ func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
 		glog.V(4).Infof("Endpoint data: %#v", update.Value)
 		ep := update.Value.(*backend.WorkloadEndpoint)
 		if onThisHost {
-			res.activeRulesCalculator.UpdateWorkloadEndpoint(key, ep)
+			res.activeRulesCalculator.OnUpdate(update)
 		}
 		res.ipsetCalc.UpdateEndpointIPs(update.Key, ep.IPv4Nets)
 		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
@@ -116,7 +116,7 @@ func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
 	} else {
 		glog.V(3).Infof("Endpoint %v deleted", update.Key)
 		if onThisHost {
-			res.activeRulesCalculator.DeleteWorkloadEndpoint(key)
+			res.activeRulesCalculator.OnUpdate(update)
 		}
 		res.ipsetCalc.DeleteEndpoint(update.Key)
 		res.labelIdx.DeleteLabels(update.Key)
@@ -130,11 +130,10 @@ func (res *Resolver) onPolicyUpdate(update *store.ParsedUpdate) {
 	if update.Value != nil {
 		glog.V(3).Infof("Policy %v updated", update.Key)
 		glog.V(4).Infof("Policy data: %#v", update.Value)
-		policy := update.Value.(*backend.Policy)
-		res.activeRulesCalculator.UpdatePolicy(update.Key.(backend.PolicyKey), policy)
+		res.activeRulesCalculator.OnUpdate(update)
 	} else {
 		glog.V(3).Infof("Policy %v deleted", update.Key)
-		res.activeRulesCalculator.DeletePolicy(update.Key.(backend.PolicyKey))
+		res.activeRulesCalculator.OnUpdate(update)
 	}
 	update.SkipSendToFelix = true
 }
@@ -143,12 +142,11 @@ func (res *Resolver) onProfileRulesUpdate(update *store.ParsedUpdate) {
 	if update.Value != nil {
 		glog.V(3).Infof("Profile rules %v updated", update.Key)
 		glog.V(4).Infof("Rules data: %#v", update.Value)
-		profile := update.Value.(*backend.ProfileRules)
-		res.activeRulesCalculator.UpdateProfileRules(update.Key.(backend.ProfileRulesKey), profile)
+		res.activeRulesCalculator.OnUpdate(update)
 		update.ValueUpdated = true
 	} else {
 		glog.V(3).Infof("Profile rules %v deleted", update.Key)
-		res.activeRulesCalculator.DeleteProfileRules(update.Key.(backend.ProfileRulesKey))
+		res.activeRulesCalculator.OnUpdate(update)
 	}
 	update.SkipSendToFelix = true
 }

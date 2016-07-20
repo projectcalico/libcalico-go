@@ -48,7 +48,9 @@ func (driver *etcdDriver) Start() {
 	etcdEvents := make(chan event, 20000)
 	triggerResync := make(chan uint64, 5)
 	initialSnapshotIndex := make(chan uint64)
-	go driver.watchEtcd(etcdEvents, triggerResync, initialSnapshotIndex)
+	if !driver.config.OneShot {
+		go driver.watchEtcd(etcdEvents, triggerResync, initialSnapshotIndex)
+	}
 
 	// Start a background thread to read snapshots from etcd.  It will
 	// read a start-of-day snapshot and then wait to be signalled on the
@@ -127,6 +129,11 @@ func (driver *etcdDriver) readSnapshotsFromEtcd(snapshotUpdates chan<- event, tr
 			resp, err := kapi.Get(context.Background(),
 				"/calico/v1", &getOpts)
 			if err != nil {
+				if driver.config.OneShot {
+					// One-shot mode is used to grab a snapshot and then
+					// stop.  We don't want to go into a retry loop.
+					glog.Fatal("Failed to read snapshot from etcd: ", err)
+				}
 				glog.Warning("Error getting snapshot, retrying...", err)
 				time.Sleep(1 * time.Second)
 				continue readRetryLoop
@@ -152,7 +159,6 @@ func (driver *etcdDriver) readSnapshotsFromEtcd(snapshotUpdates chan<- event, tr
 				highestSnapshotIndex = resp.Index
 			}
 			break readRetryLoop
-
 		}
 	}
 }

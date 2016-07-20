@@ -50,7 +50,7 @@ func (d *Dispatcher) Register(keyExample backend.KeyInterface, receiver ParsedUp
 	if keyType.Kind() == reflect.Ptr {
 		panic("Register expects a non-pointer")
 	}
-	glog.Infof("Registering listener for type %v: %v", keyType, receiver)
+	glog.Infof("Registering listener for type %v: %#v", keyType, receiver)
 	d.listenersByType[keyType] = append(d.listenersByType[keyType], receiver)
 }
 
