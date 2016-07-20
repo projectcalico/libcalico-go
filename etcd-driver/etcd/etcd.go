@@ -22,10 +22,18 @@ import (
 	"github.com/coreos/etcd/client"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
+	"os"
 )
+
+var etcd_authority, etcd_url string
 
 func init() {
 	store.Register("etcd", New)
+	etcd_authority = os.Getenv("ETCD_AUTHORITY")
+	if etcd_authority == "" {
+		etcd_authority = "127.0.0.1:2379"
+	}
+	etcd_url = "http://" + etcd_authority
 }
 
 func New(callbacks store.Callbacks, config *store.DriverConfiguration) (store.Driver, error) {
@@ -88,7 +96,7 @@ type event struct {
 
 func (driver *etcdDriver) readSnapshotsFromEtcd(snapshotUpdates chan<- event, triggerResync <-chan uint64, initialSnapshotIndex chan<- uint64) {
 	cfg := client.Config{
-		Endpoints:               []string{"http://127.0.0.1:2379"},
+		Endpoints:               []string{etcd_url},
 		Transport:               client.DefaultTransport,
 		HeaderTimeoutPerRequest: 10 * time.Second,
 	}
@@ -181,7 +189,7 @@ func sendNode(node *client.Node, snapshotUpdates chan<- event, resp *client.Resp
 
 func (driver *etcdDriver) watchEtcd(etcdEvents chan<- event, triggerResync chan<- uint64, initialSnapshotIndex <-chan uint64) {
 	cfg := client.Config{
-		Endpoints: []string{"http://127.0.0.1:2379"},
+		Endpoints: []string{etcd_url},
 		Transport: client.DefaultTransport,
 		// set timeout per request to fail fast when the target endpoint is unavailable
 		HeaderTimeoutPerRequest: time.Second,
