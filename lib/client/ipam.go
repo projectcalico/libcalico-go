@@ -43,8 +43,9 @@ type ipamApi struct {
 
 // NewIPAM returns a new ipamApi.
 func NewIPAM(c *Client) *ipamApi {
-	ic, _ := ipam.NewIPAMClient(c.backend.EtcdKeysAPI)
-	return &ipamApi{ic}
+	// CD4 TODO:
+	// ic, _ := ipam.NewIPAMClient(c.backend.EtcdKeysAPI)
+	return &ipamApi{nil}
 }
 
 func (i ipamApi) AssignIP(args ipam.AssignIPArgs) error {

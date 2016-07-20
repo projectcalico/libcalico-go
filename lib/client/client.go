@@ -52,6 +52,10 @@ func (c *Client) Policies() PolicyInterface {
 	return newPolicies(c)
 }
 
+func (c *Client) Pools() PoolInterface {
+	return newPools(c)
+}
+
 func (c *Client) Profiles() ProfileInterface {
 	return newProfiles(c)
 }
