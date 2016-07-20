@@ -68,6 +68,10 @@ func (c *Client) IPAM() IPAMInterface {
 	return NewIPAM(c)
 }
 
+func (c *Client) WorkloadEndpoints() WorkloadEndpointInterface {
+	return newWorkloadEndpoints(c)
+}
+
 // Load the client config from the specified file (if specified) and from environment
 // variables.  The values from both locations are merged together, with file values
 // taking precedence).
