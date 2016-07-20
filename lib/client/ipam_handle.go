@@ -1,4 +1,4 @@
-package ipam
+package client
 
 import (
 	"errors"

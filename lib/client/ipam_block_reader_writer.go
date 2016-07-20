@@ -1,4 +1,4 @@
-package ipam
+package client
 
 import (
 	"encoding/json"
@@ -128,7 +128,7 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet net.IPNet, host string, co
 
 			// Some other host beat us to this block.  Cleanup and return error.
 			rw.etcd.Delete(context.Background(), affinityPath, &client.DeleteOptions{})
-			return &AffinityClaimedError{Block: *b}
+			return &affinityClaimedError{Block: *b}
 		} else {
 			return err
 		}
@@ -146,7 +146,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCidr net.IPNe
 
 		// Check that the block affinity matches the given affinity.
 		if b.HostAffinity != nil && *b.HostAffinity != host {
-			return AffinityClaimedError{Block: *b}
+			return affinityClaimedError{Block: *b}
 		}
 
 		if b.empty() {

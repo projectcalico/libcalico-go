@@ -65,7 +65,7 @@ func (c *Client) HostEndpoints() HostEndpointInterface {
 }
 
 func (c *Client) IPAM() IPAMInterface {
-	return NewIPAM(c)
+	return newIPAM(c)
 }
 
 func (c *Client) WorkloadEndpoints() WorkloadEndpointInterface {

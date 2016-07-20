@@ -1,19 +1,9 @@
-package ipam
+package client
 
 import (
 	"fmt"
 	"net"
 )
-
-// AffinityClaimedError indicates that a given block has already
-// been claimed by another host.
-type AffinityClaimedError struct {
-	Block allocationBlock
-}
-
-func (e AffinityClaimedError) Error() string {
-	return fmt.Sprintf("%s already claimed by %s", e.Block.Cidr, e.Block.HostAffinity)
-}
 
 // CASError incidates an error performing a compare-and-swap atomic update.
 type CASError string
@@ -22,7 +12,7 @@ func (e CASError) Error() string {
 	return string(e)
 }
 
-// InvalidSizeError indicates that the requested size is not valid.
+// InvalidSizeError indicates that the requested IP network size is not valid.
 type InvalidSizeError string
 
 func (e InvalidSizeError) Error() string {
@@ -52,4 +42,14 @@ type noFreeBlocksError string
 
 func (e noFreeBlocksError) Error() string {
 	return string(e)
+}
+
+// affinityClaimedError indicates that a given block has already
+// been claimed by another host.
+type affinityClaimedError struct {
+	Block allocationBlock
+}
+
+func (e affinityClaimedError) Error() string {
+	return fmt.Sprintf("%s already claimed by %s", e.Block.Cidr, e.Block.HostAffinity)
 }
