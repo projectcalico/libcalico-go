@@ -108,7 +108,7 @@ func (h *hostEndpoints) convertAPIToDatastoreObject(a interface{}) (*backend.Dat
 	var ipv4Addrs []IP
 	var ipv6Addrs []IP
 	for _, ip := range ah.Spec.ExpectedIPs {
-		if ip.To4() != nil {
+		if ip.Version() == 4 {
 			ipv4Addrs = append(ipv4Addrs, ip)
 		} else {
 			ipv6Addrs = append(ipv6Addrs, ip)

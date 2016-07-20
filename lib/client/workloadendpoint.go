@@ -112,7 +112,7 @@ func (w *workloadEndpoints) convertAPIToDatastoreObject(a interface{}) (*backend
 	var ipv4Nets []IPNet
 	var ipv6Nets []IPNet
 	for _, n := range ah.Spec.IPNetworks {
-		if n.IP.To4() != nil {
+		if n.Version() == 4 {
 			ipv4Nets = append(ipv4Nets, n)
 		} else {
 			ipv6Nets = append(ipv6Nets, n)
