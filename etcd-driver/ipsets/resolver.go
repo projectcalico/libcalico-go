@@ -88,7 +88,7 @@ type dispatcher interface {
 // RegisterWith registers the update callbacks that this object requires with the dispatcher.
 func (res *Resolver) RegisterWith(disp dispatcher) {
 	disp.Register(backend.WorkloadEndpointKey{}, res.onEndpointUpdate)
-	// TODO Host endpoint
+	disp.Register(backend.HostEndpointKey{}, res.onHostEndpointUpdate)
 	disp.Register(backend.PolicyKey{}, res.onPolicyUpdate)
 	disp.Register(backend.ProfileTagsKey{}, res.onProfileTagsUpdate)
 	disp.Register(backend.ProfileLabelsKey{}, res.onProfileLabelsUpdate)
@@ -111,6 +111,38 @@ func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
 			res.activeRulesCalculator.OnUpdate(update)
 		}
 		res.ipsetCalc.UpdateEndpointIPs(update.Key, ep.IPv4Nets)
+		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
+		res.tagIndex.UpdateEndpoint(update.Key, ep.ProfileIDs)
+	} else {
+		glog.V(3).Infof("Endpoint %v deleted", update.Key)
+		if onThisHost {
+			res.activeRulesCalculator.OnUpdate(update)
+		}
+		res.ipsetCalc.DeleteEndpoint(update.Key)
+		res.labelIdx.DeleteLabels(update.Key)
+		res.tagIndex.DeleteEndpoint(update.Key)
+	}
+}
+
+func (res *Resolver) onHostEndpointUpdate(update *store.ParsedUpdate) {
+	key := update.Key.(backend.HostEndpointKey)
+	onThisHost := key.Hostname == res.hostname
+	if !onThisHost {
+		update.SkipSendToFelix = true
+	}
+	if update.Value != nil {
+		glog.V(3).Infof("Endpoint %v updated", update.Key)
+		glog.V(4).Infof("Endpoint data: %#v", update.Value)
+		ep := update.Value.(*backend.HostEndpoint)
+		if onThisHost {
+			res.activeRulesCalculator.OnUpdate(update)
+		}
+		// FIXME: just use IPs everywhere?
+		ipStrs := make([]string, len(ep.ExpectedIPv4Addrs))
+		for ii, ip := range ep.ExpectedIPv4Addrs {
+			ipStrs[ii] = ip.String()
+		}
+		res.ipsetCalc.UpdateEndpointIPs(update.Key, ipStrs)
 		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
 		res.tagIndex.UpdateEndpoint(update.Key, ep.ProfileIDs)
 	} else {
@@ -168,6 +200,7 @@ func (res *Resolver) onProfileLabelsUpdate(update *store.ParsedUpdate) {
 		glog.V(3).Infof("Profile labels %v deleted", update.Key)
 		res.labelIdx.DeleteParentLabels(profileID)
 	}
+	res.activeRulesCalculator.OnUpdate(update)
 	update.SkipSendToFelix = true
 }
 
