@@ -24,8 +24,74 @@ import (
 	"github.com/tigera/libcalico-go/lib/backend"
 )
 
+// Client contains
 type Client struct {
 	backend *backend.Client
+}
+
+// New returns a connected Client.
+func New(config *api.ClientConfig) (c *Client, err error) {
+	cc := Client{}
+	cc.backend, err = backend.NewClient(config)
+	return &cc, err
+}
+
+// Tiers returns an interface for managing tier resources.
+func (c *Client) Tiers() TierInterface {
+	return newTiers(c)
+}
+
+// Policies returns an interface for managing policy resources.
+func (c *Client) Policies() PolicyInterface {
+	return newPolicies(c)
+}
+
+// Pools returns an interface for managing pool resources.
+func (c *Client) Pools() PoolInterface {
+	return newPools(c)
+}
+
+// Profiles returns an interface for managing profile resources.
+func (c *Client) Profiles() ProfileInterface {
+	return newProfiles(c)
+}
+
+// HostEndpoints returns an interface for managing host endpoint resources.
+func (c *Client) HostEndpoints() HostEndpointInterface {
+	return newHostEndpoints(c)
+}
+
+// WorkloadEndpoints returns an interface for managing workload endpoint resources.
+func (c *Client) WorkloadEndpoints() WorkloadEndpointInterface {
+	return newWorkloadEndpoints(c)
+}
+
+// IPAM returns an interface for managing IP address assignment and releasing.
+func (c *Client) IPAM() IPAMInterface {
+	return NewIPAM(c)
+}
+
+// LoadClientConfig loads the client config from the specified file (if specified)
+// or from environment variables (if the file does not exist, or is not specified).
+func LoadClientConfig(f *string) (*api.ClientConfig, error) {
+	var c api.ClientConfig
+
+	// Override / merge with values loaded from the specified file.
+	if f != nil {
+		if b, err := ioutil.ReadFile(*f); err != nil {
+			return nil, err
+		} else if err := yaml.Unmarshal(b, &c); err != nil {
+			return nil, err
+		} else {
+			return &c, nil
+		}
+	}
+
+	// Load client config from environment variables.
+	if err := envconfig.Process("calico", &c); err != nil {
+		return nil, err
+	}
+	return &c, nil
 }
 
 // Interface used to convert between backand and API representations of our
@@ -35,64 +101,6 @@ type conversionHelper interface {
 	convertDatastoreObjectToAPI(*backend.DatastoreObject) (interface{}, error)
 	convertMetadataToKeyInterface(interface{}) (backend.KeyInterface, error)
 	convertMetadataToListInterface(interface{}) (backend.ListInterface, error)
-}
-
-// Return a new connected Client.
-func New(config *api.ClientConfig) (c *Client, err error) {
-	cc := Client{}
-	cc.backend, err = backend.NewClient(config)
-	return &cc, err
-}
-
-func (c *Client) Tiers() TierInterface {
-	return newTiers(c)
-}
-
-func (c *Client) Policies() PolicyInterface {
-	return newPolicies(c)
-}
-
-func (c *Client) Pools() PoolInterface {
-	return newPools(c)
-}
-
-func (c *Client) Profiles() ProfileInterface {
-	return newProfiles(c)
-}
-
-func (c *Client) HostEndpoints() HostEndpointInterface {
-	return newHostEndpoints(c)
-}
-
-func (c *Client) IPAM() IPAMInterface {
-	return NewIPAM(c)
-}
-
-func (c *Client) WorkloadEndpoints() WorkloadEndpointInterface {
-	return newWorkloadEndpoints(c)
-}
-
-// Load the client config from the specified file (if specified) and from environment
-// variables.  The values from both locations are merged together, with file values
-// taking precedence).
-func LoadClientConfig(f *string) (*api.ClientConfig, error) {
-	var c api.ClientConfig
-
-	// Load client config from environment variables first.
-	if err := envconfig.Process("calico", &c); err != nil {
-		return nil, err
-	}
-
-	// Override / merge with values loaded from the specified file.
-	if f != nil {
-		if b, err := ioutil.ReadFile(*f); err != nil {
-			return nil, err
-		} else if err := yaml.Unmarshal(b, &c); err != nil {
-			return nil, err
-		}
-	}
-
-	return &c, nil
 }
 
 // Untyped interface for creating an API object.  This is called from the
@@ -159,8 +167,7 @@ func (c *Client) get(metadata interface{}, helper conversionHelper) (interface{}
 }
 
 // Untyped get interface for getting a list of API objects.  This is called from the typed
-// interface.
-// Returns a list of pointers to backend objects.
+// interface.  This updates the Items slice in the supplied List resource object.
 func (c *Client) list(metadata interface{}, helper conversionHelper, listp interface{}) error {
 	if l, err := helper.convertMetadataToListInterface(metadata); err != nil {
 		return err

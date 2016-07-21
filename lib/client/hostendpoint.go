@@ -20,13 +20,33 @@ import (
 	. "github.com/tigera/libcalico-go/lib/common"
 )
 
-// HostEndpointInterface has methods to work with HostEndpoint resources.
+// HostEndpointInterface has methods to work with host endpoint resources.
 type HostEndpointInterface interface {
+
+	// List enumerates host endpoint resources matching the supplied metadata and
+	// wildcarding missing identifiers.
 	List(api.HostEndpointMetadata) (*api.HostEndpointList, error)
+
+	// Get returns the host endpoint resource matching the supplied metadata.  The metadata
+	// should contain all identifiers to uniquely identify a single resource.  If the
+	// resource does not exist, a common.ErrorResourceNotFound error is returned.
 	Get(api.HostEndpointMetadata) (*api.HostEndpoint, error)
+
+	// Create will create a new host endpoint resource.  If the resource already exists,
+	// a common.ErrorResourceAlreadyExists error is returned.
 	Create(*api.HostEndpoint) (*api.HostEndpoint, error)
+
+	// Update will update an existing host endpoint resource.  If the resource does not exist,
+	// a common.ErrorResourceDoesNotExist error is returned.
 	Update(*api.HostEndpoint) (*api.HostEndpoint, error)
+
+	// Apply with update an existing host endpoint resource, or create a new one if it does
+	// not exist.
 	Apply(*api.HostEndpoint) (*api.HostEndpoint, error)
+
+	// Delete will delete a host endpoint resource.  The metadata should contain all identifiers
+	// to uniquely identify a single resource.  If the resource does not exist, a
+	// common.ErrorResourceDoesNotExist error is returned.
 	Delete(api.HostEndpointMetadata) error
 }
 

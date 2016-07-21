@@ -21,7 +21,7 @@ import (
 
 type HostEndpointMetadata struct {
 	ObjectMetadata
-	Hostname string            `json:"hostname,omitempty" valid:"omitempty,hostname"`
+	Hostname string            `json:"hostname,omitempty" validate:"omitempty,hostname"`
 	Labels   map[string]string `json:"labels,omitempty" validate:"omitempty,labels"`
 }
 
