@@ -336,7 +336,7 @@ func (driver *etcdDriver) mergeUpdates(snapshotUpdates <-chan event, watcherUpda
 				hwms.StopTrackingDeletions()
 				keys := hwms.DeleteOldKeys(e.snapshotIndex)
 				glog.Infof("Snapshot finished at index %v; "+
-					"%v keys deleted.\n",
+					"%v keys deleted in cleanup.\n",
 					e.snapshotIndex, len(keys))
 				for _, key := range keys {
 					updates := []store.Update{{

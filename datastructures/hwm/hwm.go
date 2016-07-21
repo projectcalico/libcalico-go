@@ -98,21 +98,23 @@ func (trie *HighWatermarkTracker) DeleteOldKeys(hwmLimit uint64) []string {
 	if trie.deletionHwms != nil {
 		panic("Deletion tracking not compatible with DeleteOldKeys")
 	}
-	deletedPrefixes := make([]patricia.Prefix, 0, 100)
+	deletedPrefixes := make([]patricia.Prefix, 0)
+	deletedKeys := make([]string, 0)
 	trie.hwms.Visit(func(prefix patricia.Prefix, item patricia.Item) error {
+		glog.V(4).Infof("Deleted prefix: %v", prefix)
 		if prefix == nil {
 			panic("nil prefix passed to visitor")
 		}
 		if item.(uint64) < hwmLimit {
-			deletedPrefixes = append(deletedPrefixes, prefix)
+			prefixCopy := make(patricia.Prefix, len(prefix))
+			copy(prefixCopy, prefix)
+			deletedPrefixes = append(deletedPrefixes, prefixCopy)
+			deletedKeys = append(deletedKeys, prefixToKey(prefixCopy))
 		}
 		return nil
 	})
-	deletedKeys := make([]string, 0, len(deletedPrefixes))
-	for _, childPrefix := range deletedPrefixes {
-		key := prefixToKey(childPrefix)
-		deletedKeys = append(deletedKeys, key)
-		glog.V(2).Infof("Prefix: %v\n", key)
+	for ii, childPrefix := range deletedPrefixes {
+		glog.V(3).Infof("Key deleted, updating trie: %v", deletedKeys[ii])
 		trie.hwms.Delete(childPrefix)
 	}
 	return deletedKeys
