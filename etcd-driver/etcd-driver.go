@@ -24,6 +24,8 @@ import (
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"net"
 	"os"
+	"sync"
+	"time"
 )
 
 const usage = `etcd driver.
@@ -84,6 +86,11 @@ func main() {
 	felixConn.Join()
 }
 
+type ipUpdate struct {
+	ipset string
+	ip    string
+}
+
 type FelixConnection struct {
 	toFelix    chan map[string]interface{}
 	failed     chan bool
@@ -91,6 +98,9 @@ type FelixConnection struct {
 	decoder    *msgpack.Decoder
 	dispatcher *store.Dispatcher
 	datastore  Startable
+	addedIPs   map[ipUpdate]bool
+	removedIPs map[ipUpdate]bool
+	flushMutex sync.Mutex
 }
 
 type Startable interface {
@@ -104,6 +114,8 @@ func NewFelixConnection(felixSocket net.Conn, disp *store.Dispatcher) *FelixConn
 		dispatcher: disp,
 		encoder:    msgpack.NewEncoder(felixSocket),
 		decoder:    msgpack.NewDecoder(felixSocket),
+		addedIPs:   make(map[ipUpdate]bool),
+		removedIPs: make(map[ipUpdate]bool),
 	}
 	return felixConn
 }
@@ -121,6 +133,7 @@ func (cbs *FelixConnection) onIPSetAdded(ipsetID string) {
 func (cbs *FelixConnection) onIPSetRemoved(ipsetID string) {
 	glog.V(2).Infof("IP set %v removed; sending messsage to Felix",
 		ipsetID)
+	cbs.flushIPUpdates()
 	msg := map[string]interface{}{
 		"type":     "ipset_removed",
 		"ipset_id": ipsetID,
@@ -129,24 +142,55 @@ func (cbs *FelixConnection) onIPSetRemoved(ipsetID string) {
 }
 
 func (cbs *FelixConnection) onIPAddedToIPSet(ipsetID string, ip string) {
-	glog.V(3).Infof("IP %v added to set %v; sending messsage to Felix",
+	glog.V(3).Infof("IP %v added to set %v; updating cache",
 		ip, ipsetID)
-	msg := map[string]interface{}{
-		"type":     "ip_added",
-		"ipset_id": ipsetID,
-		"ip":       ip,
-	}
-	cbs.toFelix <- msg
+	key := ipUpdate{ipsetID, ip}
+	cbs.flushMutex.Lock()
+	defer cbs.flushMutex.Unlock()
+	cbs.addedIPs[key] = true
+	delete(cbs.removedIPs, key)
 }
 func (cbs *FelixConnection) onIPRemovedFromIPSet(ipsetID string, ip string) {
-	glog.V(3).Infof("IP %v removed from set %v; sending messsage to Felix",
+	glog.V(3).Infof("IP %v removed from set %v; caching update",
 		ip, ipsetID)
+	key := ipUpdate{ipsetID, ip}
+	cbs.flushMutex.Lock()
+	defer cbs.flushMutex.Unlock()
+	cbs.removedIPs[key] = true
+	delete(cbs.addedIPs, key)
+}
+
+func (cbs *FelixConnection) periodicallyFlush() {
+	for {
+		cbs.flushIPUpdates()
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func (cbs *FelixConnection) flushIPUpdates() {
+	cbs.flushMutex.Lock()
+	defer cbs.flushMutex.Unlock()
+	glog.V(3).Infof("Sending %v adds and %v IP removes to Felix",
+		len(cbs.addedIPs), len(cbs.removedIPs))
+	adds := make(map[string][]string)
+	for upd, _ := range cbs.addedIPs {
+		adds[upd.ipset] = append(adds[upd.ipset], upd.ip)
+	}
+	removes := make(map[string][]string)
+	for upd, _ := range cbs.removedIPs {
+		removes[upd.ipset] = append(removes[upd.ipset], upd.ip)
+	}
+	if len(adds) == 0 && len(removes) == 0 {
+		return
+	}
 	msg := map[string]interface{}{
-		"type":     "ip_removed",
-		"ipset_id": ipsetID,
-		"ip":       ip,
+		"type":        "ip_updates",
+		"added_ips":   adds,
+		"removed_ips": removes,
 	}
 	cbs.toFelix <- msg
+	cbs.addedIPs = make(map[ipUpdate]bool)
+	cbs.removedIPs = make(map[ipUpdate]bool)
 }
 
 func (cbs *FelixConnection) OnConfigLoaded(globalConfig map[string]string, hostConfig map[string]string) {
@@ -246,8 +290,10 @@ func (cbs *FelixConnection) sendMessagesToFelix() {
 func (cbs *FelixConnection) Start() {
 	// Start background thread to read messages from Felix.
 	go cbs.readMessagesFromFelix()
-	// Use main thread for writing to Felix.
+	// And one to write to Felix.
 	go cbs.sendMessagesToFelix()
+	// And one to kick us to flush updates.
+	go cbs.periodicallyFlush()
 }
 
 func (cbs *FelixConnection) Join() {
