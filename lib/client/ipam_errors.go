@@ -5,35 +5,35 @@ import (
 	"net"
 )
 
-// CASError incidates an error performing a compare-and-swap atomic update.
-type CASError string
+// casError incidates an error performing a compare-and-swap atomic update.
+type casError string
 
-func (e CASError) Error() string {
+func (e casError) Error() string {
 	return string(e)
 }
 
-// InvalidSizeError indicates that the requested IP network size is not valid.
-type InvalidSizeError string
+// invalidSizeError indicates that the requested IP network size is not valid.
+type invalidSizeError string
 
-func (e InvalidSizeError) Error() string {
+func (e invalidSizeError) Error() string {
 	return string(e)
 }
 
-// IPAMConfigConflictError indicates an attempt to change IPAM configuration
+// ipamConfigConflictError indicates an attempt to change IPAM configuration
 // that conflicts with existing allocations.
-type IPAMConfigConflictError string
+type ipamConfigConflictError string
 
-func (e IPAMConfigConflictError) Error() string {
+func (e ipamConfigConflictError) Error() string {
 	return string(e)
 }
 
 // noSuchBlock error indicates that the requested block does not exist.
 type noSuchBlockError struct {
-	Cidr net.IPNet
+	CIDR net.IPNet
 }
 
 func (e noSuchBlockError) Error() string {
-	return fmt.Sprintf("No such block: %s", e.Cidr)
+	return fmt.Sprintf("No such block: %s", e.CIDR)
 }
 
 // noFreeBlocksError indicates an attempt to claim a block
@@ -51,5 +51,5 @@ type affinityClaimedError struct {
 }
 
 func (e affinityClaimedError) Error() string {
-	return fmt.Sprintf("%s already claimed by %s", e.Block.Cidr, e.Block.HostAffinity)
+	return fmt.Sprintf("%s already claimed by %s", e.Block.CIDR, e.Block.HostAffinity)
 }
