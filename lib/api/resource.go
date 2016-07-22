@@ -57,6 +57,8 @@ func init() {
 	registerHelper(NewPolicy(), NewPolicyList())
 	registerHelper(NewProfile(), NewProfileList())
 	registerHelper(NewHostEndpoint(), NewHostEndpointList())
+	registerHelper(NewPool(), NewPoolList())
+	registerHelper(NewWorkloadEndpoint(), NewWorkloadEndpointList())
 }
 
 // ResourceHelper encapsulates details about a specific version of a specific resource:
