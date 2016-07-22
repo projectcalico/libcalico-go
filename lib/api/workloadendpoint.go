@@ -21,7 +21,7 @@ import (
 
 type WorkloadEndpointMetadata struct {
 	ObjectMetadata
-	Name string `json:"name,omitempty" validate:"omitempty,name"`
+	Name           string            `json:"name,omitempty" validate:"omitempty,name"`
 	WorkloadID     string            `json:"workloadID,omitempty" valid:"omitempty,name"`
 	OrchestratorID string            `json:"orchestratorID,omitempty" valid:"omitempty,name"`
 	Hostname       string            `json:"hostname,omitempty" valid:"omitempty,name"`

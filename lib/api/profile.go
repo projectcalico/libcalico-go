@@ -20,7 +20,7 @@ import (
 
 type ProfileMetadata struct {
 	ObjectMetadata
-	Name string `json:"name,omitempty" validate:"omitempty,name"`
+	Name   string            `json:"name,omitempty" validate:"omitempty,name"`
 	Labels map[string]string `json:"labels,omitempty" validate:"omitempty,labels"`
 }
 
