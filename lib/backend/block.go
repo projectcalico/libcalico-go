@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	matchBlock = regexp.MustCompile("^/?calico/ipam/v2/assignment/ipv./block/([^/]+)$")
+	matchBlock = regexp.MustCompile("^/?/calico/ipam/v2/assignment/ipv./block/([^/]+)$")
 	typeBlock  = reflect.TypeOf(AllocationBlock{})
 )
 
@@ -38,7 +38,7 @@ func (key BlockKey) asEtcdKey() (string, error) {
 		return "", common.ErrorInsufficientIdentifiers{}
 	}
 	c := strings.Replace(key.CIDR.String(), "/", "-", 1)
-	e := fmt.Sprintf("/calico/ipam/v2/assignment/v%d/block/%s", key.CIDR.Version(), c)
+	e := fmt.Sprintf("/calico/ipam/v2/assignment/ipv%d/block/%s", key.CIDR.Version(), c)
 	return e, nil
 }
 
@@ -72,8 +72,7 @@ func (options BlockListOptions) keyFromEtcdResult(ekey string) KeyInterface {
 }
 
 type AllocationBlock struct {
-	CIDR           common.IPNet          `json:"-"`
-	DbResult       string                `json:"-"`
+	CIDR           common.IPNet          `json:"cidr"`
 	HostAffinity   *string               `json:"hostAffinity"`
 	StrictAffinity bool                  `json:"strictAffinity"`
 	Allocations    []*int                `json:"allocations"`

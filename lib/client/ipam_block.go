@@ -83,6 +83,8 @@ func (b *allocationBlock) autoAssign(
 		b.Allocations[o] = &attrIndex
 		ips = append(ips, incrementIP(common.IP{b.CIDR.IP}, o))
 	}
+
+	glog.V(3).Infof("Block %s returned ips: %v", b.CIDR.String(), ips)
 	return ips, nil
 }
 
@@ -286,7 +288,7 @@ func (b allocationBlock) ipsByHandle(handleID string) []common.IP {
 	attrIndexes := b.attributeIndexesByHandle(handleID)
 	var o int
 	for o = 0; o < blockSize; o++ {
-		if intInSlice(*b.Allocations[o], attrIndexes) {
+		if b.Allocations[o] != nil && intInSlice(*b.Allocations[o], attrIndexes) {
 			ip := ordinalToIP(o, b)
 			ips = append(ips, ip)
 		}

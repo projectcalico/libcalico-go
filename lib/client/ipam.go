@@ -62,7 +62,8 @@ type IPAMInterface interface {
 	IPsByHandle(handleID string) ([]common.IP, error)
 
 	// ReleaseByHandle releases all IP addresses that have been assigned
-	// using the provided handle.
+	// using the provided handle.  Returns an error if no addresses
+	// are assigned with the given handle.
 	ReleaseByHandle(handleID string) error
 
 	// ClaimAffinity claims affinity to the given host for all blocks
@@ -189,12 +190,13 @@ func (c ipams) autoAssign(num int, handleID *string, attrs map[string]string, po
 				return nil, err
 			} else {
 				// Claim successful.  Assign addresses from the new block.
-				glog.V(2).Infof("Claimed new block %s - assigning %s addresses", b.String(), rem)
+				glog.V(2).Infof("Claimed new block %s - assigning %d addresses", b.String(), rem)
 				newIPs, err := c.assignFromExistingBlock(*b, rem, handleID, attrs, host, &config.StrictAffinity)
 				if err != nil {
 					glog.Warningf("Failed to assign IPs:", err)
 					break
 				}
+				glog.V(3).Infof("Assigned IPs from new block: %s", newIPs)
 				ips = append(ips, newIPs...)
 				rem = num - len(ips)
 			}
@@ -382,6 +384,7 @@ func (c ipams) assignFromExistingBlock(
 		glog.V(4).Infof("Auto-assign from %s - retry %d", blockCIDR.String(), i)
 		obj, err := c.client.backend.Get(backend.BlockKey{blockCIDR})
 		if err != nil {
+			glog.Errorf("Error getting block: %s", err)
 			return nil, err
 		}
 
@@ -607,10 +610,12 @@ func (c ipams) hostBlockPairs(pool common.IPNet) (map[string]string, error) {
 // IpsByHandle returns a list of all IP addresses that have been
 // assigned using the provided handle.
 func (c ipams) IPsByHandle(handleID string) ([]common.IP, error) {
-	handle, err := c.readHandle(handleID)
+	obj, err := c.client.backend.Get(backend.IPAMHandleKey{HandleID: handleID})
 	if err != nil {
 		return nil, err
 	}
+	bh, _ := obj.Object.(backend.IPAMHandle)
+	handle := allocationHandle{bh}
 
 	assignments := []common.IP{}
 	for k, _ := range handle.Block {
@@ -634,10 +639,12 @@ func (c ipams) IPsByHandle(handleID string) ([]common.IP, error) {
 // using the provided handle.
 func (c ipams) ReleaseByHandle(handleID string) error {
 	glog.V(2).Infof("Releasing all IPs with handle '%s'", handleID)
-	handle, err := c.readHandle(handleID)
+	obj, err := c.client.backend.Get(backend.IPAMHandleKey{HandleID: handleID})
 	if err != nil {
 		return err
 	}
+	bh, _ := obj.Object.(backend.IPAMHandle)
+	handle := allocationHandle{bh}
 
 	for blockStr, _ := range handle.Block {
 		_, blockCIDR, _ := common.ParseCIDR(blockStr)
@@ -695,22 +702,6 @@ func (c ipams) releaseByHandle(handleID string, blockCIDR common.IPNet) error {
 		return nil
 	}
 	return errors.New("Hit max retries")
-}
-
-func (c ipams) readHandle(handleID string) (*allocationHandle, error) {
-	//  key := ipamHandlePath + handleID
-	//  opts := client.GetOptions{Quorum: true}
-	//  resp, err := c.blockReaderWriter.etcd.Get(context.Background(), key, &opts)
-	//  if err != nil {
-	//  	glog.Errorf("Error reading IPAM handle:", err)
-	//  	return nil, err
-	//  }
-	//  h := allocationHandle{}
-	//  json.Unmarshal([]byte(resp.Node.Value), &h)
-	//  h.DbResult = resp.Node.Value
-	//  return &h, nil
-	// TODO
-	return nil, nil
 }
 
 func (c ipams) incrementHandle(handleID string, blockCIDR common.IPNet, num int) error {
@@ -823,7 +814,7 @@ func (c ipams) GetIPAMConfig() (*IPAMConfig, error) {
 	// 		return nil, err
 	// 	}
 	// }
-	cfg := IPAMConfig{}
+	cfg := IPAMConfig{StrictAffinity: false, AutoAllocateBlocks: true}
 	// json.Unmarshal([]byte(resp.Node.Value), &cfg)
 	return &cfg, nil
 }

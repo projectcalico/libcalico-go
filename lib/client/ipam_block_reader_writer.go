@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/backend"
 	"github.com/tigera/libcalico-go/lib/common"
 )
@@ -20,15 +21,15 @@ func (rw blockReaderWriter) getAffineBlocks(host string, ver ipVersion, pool *co
 	opts := backend.BlockListOptions{}
 	datastoreObjs, err := rw.client.backend.List(opts)
 	if err != nil {
-		// TODO: Handle errors.
-		// if client.IsKeyNotFound(err) {
-		// 	// The block path does not exist yet.  This is OK - it means
-		// 	// there are no affine blocks.
-		// 	return []common.IPNet{}, nil
-		// } else {
-		// 	glog.Errorf("Error reading blocks from etcd: %s", err)
-		// 	return nil, err
-		// }
+		if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
+			// The block path does not exist yet.  This is OK - it means
+			// there are no affine blocks.
+			return []common.IPNet{}, nil
+
+		} else {
+			glog.Errorf("Error getting affine blocks: %s", err)
+			return nil, err
+		}
 	}
 
 	// Iterate through and extract the block CIDRs.
@@ -57,11 +58,16 @@ func (rw blockReaderWriter) claimNewAffineBlock(
 	} else {
 		// Default to all configured pools.
 		// TODO: Re-implement this.
-		//allPools := libcalico.GetPools(rw.etcd, fmt.Sprintf("%d", version.Number))
-		//for _, p := range allPools {
-		//	_, c, _ := net.ParseCIDR(p.Cidr)
-		//	pools = append(pools, *c)
-		//}
+		allPools, err := rw.client.Pools().List(api.PoolMetadata{})
+		if err != nil {
+			// TODO: handle error.
+			return nil, err
+		}
+
+		// Grab all the IP networks in these pools.
+		for _, p := range allPools.Items {
+			pools = append(pools, p.Metadata.CIDR)
+		}
 	}
 
 	// If there are no pools, we cannot assign addresses.
@@ -77,19 +83,16 @@ func (rw blockReaderWriter) claimNewAffineBlock(
 			key := backend.BlockKey{CIDR: subnet}
 			_, err := rw.client.backend.Get(key)
 			if err != nil {
-				// TODO: Check error type to make sure
-				// it's a "key not found" before claim affinity.
-				rw.claimBlockAffinity(subnet, host, config)
+				if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
+					// The block does not yet exist in etcd.  Try to grab it.
+					glog.V(3).Infof("Found free block: %+v", subnet)
+					err = rw.claimBlockAffinity(subnet, host, config)
+					return &subnet, err
+				} else {
+					glog.Errorf("Error getting block: %s", err)
+					return nil, err
+				}
 			}
-			//  if client.IsKeyNotFound(err) {
-			//  	// The block does not yet exist in etcd.  Try to grab it.
-			//  	glog.V(3).Infof("Found free block: %+v", subnet)
-			//  	err = rw.claimBlockAffinity(subnet, host, config)
-			//  	return &subnet, err
-			//  } else if err != nil {
-			//  	glog.Errorf("Error checking block:", err)
-			//  	return nil, err
-			//  }
 		}
 	}
 	return nil, noFreeBlocksError("No Free Blocks")
