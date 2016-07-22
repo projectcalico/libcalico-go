@@ -21,9 +21,10 @@ import (
 
 type WorkloadEndpointMetadata struct {
 	ObjectMetadata
-	WorkloadID     string            `json:"workloadID,omitempty" valid:"omitempty,hostname"`
-	OrchestratorID string            `json:"orchestratorID,omitempty" valid:"omitempty,hostname"`
-	Hostname       string            `json:"hostname,omitempty" valid:"omitempty,hostname"`
+	Name string `json:"name,omitempty" validate:"omitempty,name"`
+	WorkloadID     string            `json:"workloadID,omitempty" valid:"omitempty,name"`
+	OrchestratorID string            `json:"orchestratorID,omitempty" valid:"omitempty,name"`
+	Hostname       string            `json:"hostname,omitempty" valid:"omitempty,name"`
 	Labels         map[string]string `json:"labels,omitempty" validate:"omitempty,labels"`
 }
 
