@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/labels"
+	"github.com/tigera/libcalico-go/datastructures/multidict"
 	"github.com/tigera/libcalico-go/datastructures/tags"
 	"github.com/tigera/libcalico-go/etcd-driver/store"
 	"github.com/tigera/libcalico-go/lib/backend"
@@ -43,8 +44,8 @@ type ActiveRulesCalculator struct {
 	allProfileRules map[string]backend.ProfileRules
 
 	// Policy/profile ID to matching endpoint sets.
-	policyIDToEndpointKeys  map[backend.PolicyKey]map[endpointKey]bool
-	profileIDToEndpointKeys map[string]map[endpointKey]bool
+	policyIDToEndpointKeys  multidict.IfaceToIface
+	profileIDToEndpointKeys multidict.IfaceToIface
 
 	// Label index, matching policy selectors against local endpoints.
 	labelIndex labels.LabelInheritanceIndex
@@ -67,15 +68,15 @@ func NewActiveRulesCalculator(ruleListener activeRuleListener,
 		allProfileRules: make(map[string]backend.ProfileRules),
 
 		// Policy/profile ID to matching endpoint sets.
-		policyIDToEndpointKeys:  make(map[backend.PolicyKey]map[endpointKey]bool),
-		profileIDToEndpointKeys: make(map[string]map[endpointKey]bool),
+		policyIDToEndpointKeys:  multidict.NewIfaceToIface(),
+		profileIDToEndpointKeys: multidict.NewIfaceToIface(),
 
 		// Cache of profile IDs by local endpoint.
 		endpointKeyToProfileIDs: tags.NewEndpointKeyToProfileIDMap(),
 
 		// Callback object.
-		listener:    ruleListener,
-		felixSender: felixSender,
+		listener:      ruleListener,
+		felixSender:   felixSender,
 		matchListener: matchListener,
 	}
 	arc.labelIndex = labels.NewInheritanceIndex(arc.onMatchStarted, arc.onMatchStopped)
@@ -116,13 +117,13 @@ func (arc *ActiveRulesCalculator) OnUpdate(update *store.ParsedUpdate) {
 		if update.Value != nil {
 			rules := update.Value.(*backend.ProfileRules)
 			arc.allProfileRules[key.Name] = *rules
-			if _, ok := arc.profileIDToEndpointKeys[key.Name]; ok {
+			if arc.profileIDToEndpointKeys.ContainsKey(key.Name) {
 				glog.V(4).Info("Profile rules updated while active, telling listener/felix")
 				arc.sendProfileUpdate(key.Name)
 			}
 		} else {
 			delete(arc.allProfileRules, key.Name)
-			if _, ok := arc.profileIDToEndpointKeys[key.Name]; ok {
+			if arc.profileIDToEndpointKeys.ContainsKey(key.Name) {
 				glog.V(4).Info("Profile rules deleted while active, telling listener/felix")
 				arc.sendProfileUpdate(key.Name)
 			}
@@ -139,7 +140,7 @@ func (arc *ActiveRulesCalculator) OnUpdate(update *store.ParsedUpdate) {
 			}
 			arc.labelIndex.UpdateSelector(key, sel)
 
-			if _, ok := arc.policyIDToEndpointKeys[key]; ok {
+			if arc.policyIDToEndpointKeys.ContainsKey(key) {
 				// If we get here, the selector still matches something,
 				// update the rules.
 				glog.V(4).Info("Policy updated while active, telling listener")
@@ -164,25 +165,20 @@ func (arc *ActiveRulesCalculator) updateEndpoint(key endpointKey, profileIDs []s
 	// Update the index of required profile IDs for added profiles,
 	// triggering events for profiles that just became active.
 	for id, _ := range addedIDs {
-		keys, ok := arc.profileIDToEndpointKeys[id]
-		if !ok {
+		if !arc.profileIDToEndpointKeys.ContainsKey(id) {
 			// This profile is now active.
-			keys = make(map[endpointKey]bool)
-			arc.profileIDToEndpointKeys[id] = keys
 			arc.sendProfileUpdate(id)
 		}
-		keys[key] = true
+		arc.profileIDToEndpointKeys.Put(id, key)
 	}
 
 	// Update the index for no-longer required profile IDs, triggering
 	// events for profiles that just became inactive.
 	for id, _ := range removedIDs {
-		keys := arc.profileIDToEndpointKeys[id]
-		delete(keys, key)
-		if len(keys) == 0 {
+		arc.profileIDToEndpointKeys.Discard(id, key)
+		if !arc.profileIDToEndpointKeys.ContainsKey(id) {
 			// No endpoint refers to this ID any more.  Clean it
 			// up.
-			delete(arc.profileIDToEndpointKeys, id)
 			arc.sendProfileUpdate(id)
 		}
 	}
@@ -190,35 +186,30 @@ func (arc *ActiveRulesCalculator) updateEndpoint(key endpointKey, profileIDs []s
 
 func (arc *ActiveRulesCalculator) onMatchStarted(selId, labelId interface{}) {
 	polKey := selId.(backend.PolicyKey)
-	keys, ok := arc.policyIDToEndpointKeys[polKey]
-	if !ok {
-		keys = make(map[endpointKey]bool)
-		arc.policyIDToEndpointKeys[polKey] = keys
+	if !arc.policyIDToEndpointKeys.ContainsKey(polKey) {
 		// Policy wasn't active before, tell the listener.  The policy
 		// must be in allPolicies because we can only match on a policy
 		// that we've seen.
 		arc.sendPolicyUpdate(polKey)
 	}
-	keys[labelId] = true
+	arc.policyIDToEndpointKeys.Put(selId, labelId)
 	if arc.matchListener != nil {
 		arc.matchListener.OnPolicyMatch(polKey, labelId)
 	}
 }
 
 func (arc *ActiveRulesCalculator) onMatchStopped(selId, labelId interface{}) {
-	polKey := selId.(backend.PolicyKey)
-	keys := arc.policyIDToEndpointKeys[polKey]
-	delete(keys, labelId)
-	if len(keys) == 0 {
-		delete(arc.policyIDToEndpointKeys, polKey)
+	arc.policyIDToEndpointKeys.Discard(selId, labelId)
+	if !arc.policyIDToEndpointKeys.ContainsKey(selId) {
 		// Policy no longer active.
+		polKey := selId.(backend.PolicyKey)
 		arc.sendPolicyUpdate(polKey)
 	}
 }
 
 func (arc *ActiveRulesCalculator) sendProfileUpdate(profileID string) {
 	rules, known := arc.allProfileRules[profileID]
-	_, active := arc.profileIDToEndpointKeys[profileID]
+	active := arc.profileIDToEndpointKeys.ContainsKey(profileID)
 	profileKey := backend.ProfileKey{Name: profileID}
 	asEtcdKey, err := backend.KeyToFelixKey(profileKey)
 	if err != nil {
@@ -252,7 +243,7 @@ func (arc *ActiveRulesCalculator) sendProfileUpdate(profileID string) {
 
 func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey backend.PolicyKey) {
 	policy, known := arc.allPolicies[policyKey]
-	_, active := arc.policyIDToEndpointKeys[policyKey]
+	active := arc.policyIDToEndpointKeys.ContainsKey(policyKey)
 	asEtcdKey, err := backend.KeyToFelixKey(policyKey)
 	if err != nil {
 		glog.Fatalf("Failed to marshal key %#v", policyKey)

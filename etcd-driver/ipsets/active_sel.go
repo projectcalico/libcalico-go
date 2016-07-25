@@ -15,6 +15,8 @@ package ipsets
 
 import (
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/datastructures/multidict"
+	"github.com/tigera/libcalico-go/datastructures/set"
 	"github.com/tigera/libcalico-go/lib/backend"
 	"github.com/tigera/libcalico-go/lib/hash"
 	"github.com/tigera/libcalico-go/lib/selector"
@@ -31,9 +33,9 @@ type RuleScanner struct {
 	// selectorsByUid maps from a selector's UID to the selector itself.
 	tagsOrSelsByUID map[string]tagOrSel
 	// activeUidsByResource maps from policy or profile ID to "set" of selector UIDs
-	rulesIDToUIDs map[interface{}]map[string]bool
+	rulesIDToUIDs multidict.IfaceToString
 	// activeResourcesByUid maps from selector UID back to the "set" of resources using it.
-	uidsToRulesIDs map[string]map[interface{}]bool
+	uidsToRulesIDs multidict.StringToIface
 
 	OnSelectorActive   func(selector selector.Selector)
 	OnSelectorInactive func(selector selector.Selector)
@@ -44,8 +46,8 @@ type RuleScanner struct {
 func NewSelectorScanner() *RuleScanner {
 	calc := &RuleScanner{
 		tagsOrSelsByUID: make(map[string]tagOrSel),
-		rulesIDToUIDs:   make(map[interface{}]map[string]bool),
-		uidsToRulesIDs:  make(map[string]map[interface{}]bool),
+		rulesIDToUIDs:   multidict.NewIfaceToString(),
+		uidsToRulesIDs:  multidict.NewStringToIface(),
 	}
 	return calc
 }
@@ -56,70 +58,56 @@ func (calc *RuleScanner) UpdateRules(key interface{}, inbound, outbound []backen
 	currentUIDToTagOrSel.addSelectorsFromRules(inbound)
 	currentUIDToTagOrSel.addSelectorsFromRules(outbound)
 
-	// Find the set of old selectors/tags.
-	knownUids, knownUidsPresent := calc.rulesIDToUIDs[key]
-	glog.V(4).Infof("Known UIDs for %v: %v", key, knownUids)
-
 	// Figure out which selectors/tags are new.
-	addedUids := make(map[string]bool)
+	addedUids := set.New()
 	for uid, _ := range currentUIDToTagOrSel {
-		if !knownUids[uid] {
+		if !calc.rulesIDToUIDs.Contains(key, uid) {
 			glog.V(4).Infof("Added UID: %v", uid)
-			addedUids[uid] = true
+			addedUids.Add(uid)
 		}
 	}
 
 	// Figure out which selectors/tags are no-longer in use.
-	removedUids := make(map[string]bool)
-	for uid, _ := range knownUids {
+	removedUids := set.New()
+	calc.rulesIDToUIDs.Iter(key, func(uid string) {
 		if _, ok := currentUIDToTagOrSel[uid]; !ok {
 			glog.V(4).Infof("Removed UID: %v", uid)
-			removedUids[uid] = true
+			removedUids.Add(uid)
 		}
-	}
+	})
 
 	// Add the new into the index, triggering events as we discover
 	// newly-active tags/selectors.
-	if len(addedUids) > 0 {
-		if !knownUidsPresent {
-			knownUids = make(map[string]bool)
-			calc.rulesIDToUIDs[key] = knownUids
-		}
-		for uid, _ := range addedUids {
-			knownUids[uid] = true
-			ruleIDs, ok := calc.uidsToRulesIDs[uid]
-			if !ok {
-				ruleIDs = make(map[interface{}]bool)
-				calc.uidsToRulesIDs[uid] = ruleIDs
-
-				tagOrSel := currentUIDToTagOrSel[uid]
-				calc.tagsOrSelsByUID[uid] = tagOrSel
-				if tagOrSel.selector != nil {
-					sel := tagOrSel.selector
-					glog.V(3).Infof("Selector became active: %v -> %v",
-						uid, sel)
-					// This selector just became active, trigger event.
-					calc.OnSelectorActive(sel)
-				} else {
-					tag := tagOrSel.tag
-					glog.V(3).Infof("Tag became active: %v -> %v",
-						uid, tag)
-					calc.OnTagActive(tag)
-				}
+	addedUids.Iter(func(item interface{}) error {
+		uid := item.(string)
+		calc.rulesIDToUIDs.Put(key, uid)
+		if !calc.uidsToRulesIDs.ContainsKey(uid) {
+			tagOrSel := currentUIDToTagOrSel[uid]
+			calc.tagsOrSelsByUID[uid] = tagOrSel
+			if tagOrSel.selector != nil {
+				sel := tagOrSel.selector
+				glog.V(3).Infof("Selector became active: %v -> %v",
+					uid, sel)
+				// This selector just became active, trigger event.
+				calc.OnSelectorActive(sel)
+			} else {
+				tag := tagOrSel.tag
+				glog.V(3).Infof("Tag became active: %v -> %v",
+					uid, tag)
+				calc.OnTagActive(tag)
 			}
-			ruleIDs[key] = true
 		}
-	}
+		calc.uidsToRulesIDs.Put(uid, key)
+		return nil
+	})
 
 	// And remove the old, triggering events as we clean up unused
 	// selectors/tags.
-	for uid, _ := range removedUids {
-		delete(knownUids, uid)
-		resources := calc.uidsToRulesIDs[uid]
-		delete(resources, key)
-		if len(resources) == 0 {
+	addedUids.Iter(func(item interface{}) error {
+		uid := item.(string)
+		calc.rulesIDToUIDs.Discard(key, uid)
+		if !calc.uidsToRulesIDs.ContainsKey(uid) {
 			glog.V(3).Infof("Selector/tag became inactive: %v", uid)
-			delete(calc.uidsToRulesIDs, uid)
 			tagOrSel := calc.tagsOrSelsByUID[uid]
 			if tagOrSel.selector != nil {
 				sel := tagOrSel.selector
@@ -133,7 +121,8 @@ func (calc *RuleScanner) UpdateRules(key interface{}, inbound, outbound []backen
 				calc.OnTagInactive(tag)
 			}
 		}
-	}
+		return nil
+	})
 }
 
 // selByUid is an augmented map with methods to assist in extracting rules from policies.

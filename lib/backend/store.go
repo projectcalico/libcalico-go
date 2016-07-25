@@ -35,8 +35,8 @@ func ParseKey(key string) KeyInterface {
 		}
 	} else if m := matchHostEndpoint.FindStringSubmatch(key); m != nil {
 		return HostEndpointKey{
-			Hostname:       m[1],
-			EndpointID:     m[2],
+			Hostname:   m[1],
+			EndpointID: m[2],
 		}
 	} else if m := matchPolicy.FindStringSubmatch(key); m != nil {
 		return PolicyKey{
