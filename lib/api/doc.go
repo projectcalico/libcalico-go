@@ -13,6 +13,12 @@
 // limitations under the License.
 
 /*
-Package api implements the struct definitions used by the northbound client API.
+Package api implements the struct definitions used on the northbound client API.
+
+In particular this includes:
+-  The various resource types as exposed on the Northbound API
+-  The client configuration
+
+The resource type structures include the YAML tags for the public facing interface.
 */
 package api
