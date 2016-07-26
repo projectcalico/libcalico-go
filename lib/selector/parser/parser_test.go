@@ -143,14 +143,22 @@ var badSelectors = []string{
 	"!",              // Garbage
 	`foo == "bar" &`, // Garbage
 	`foo == "bar" |`, // Garbage
+	`foo != ||`,      // Garbage
+	`foo in {"", ||`, // Garbage
+	`foo in ""`,      // Expect set literal
 	`"FOO`,           // Unterminated string
 	`"FOO'`,          // Unterminated string
 	`"FOO`,           // Unterminated string
 	`'FOO`,           // Unterminated string
 	`(`,              // Unterminated paren
+	`(a == "foo"`,    // Unterminated paren
 	`)`,              // Unterminated paren
 	`()`,             // Unterminated paren
 	`%`,              // Unexpected char
+	`a == "b" && %`,  // Unexpected char
+	`a == "b" || %`,  // Unexpected char
+	`a `,             // should be followed by operator
+	`has(foo) &&`,    // should be followed by operator
 }
 
 var canonicalisationTests = []struct {
