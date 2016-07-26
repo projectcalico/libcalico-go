@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package ipsets
 
 import (
@@ -77,6 +78,7 @@ func (calc *IpsetCalculator) UpdateEndpointIPs(endpointKey endpointKey, ips []st
 	currentIPs := set.New()
 	for _, ip := range ips {
 		if !oldIPsSet.Contains(ip) {
+			glog.V(4).Infof("Added IP: %v", ip)
 			addedIPs = append(addedIPs, ip)
 		}
 		currentIPs.Add(ip)
@@ -85,11 +87,13 @@ func (calc *IpsetCalculator) UpdateEndpointIPs(endpointKey endpointKey, ips []st
 	removedIPs := make([]string, 0)
 	for _, ip := range oldIPs {
 		if !currentIPs.Contains(ip) {
+			glog.V(4).Infof("Removed IP: %v", ip)
 			removedIPs = append(removedIPs, ip)
 		}
 	}
 
 	calc.keyToMatchingIPSetIDs.Iter(endpointKey, func(ipSetID string) {
+		glog.V(4).Infof("Updating matching IP set: %v", ipSetID)
 		calc.addMatchToIndex(ipSetID, endpointKey, addedIPs)
 		calc.removeMatchFromIndex(ipSetID, endpointKey, removedIPs)
 	})
@@ -98,6 +102,19 @@ func (calc *IpsetCalculator) UpdateEndpointIPs(endpointKey endpointKey, ips []st
 // DeleteEndpoint removes an endpoint from the index.
 func (calc *IpsetCalculator) DeleteEndpoint(endpointKey endpointKey) {
 	calc.UpdateEndpointIPs(endpointKey, []string{})
+}
+
+func (calc *IpsetCalculator) Empty() bool {
+	if len(calc.keyToIPs) != 0 {
+		return false
+	}
+	if !calc.keyToMatchingIPSetIDs.Empty() {
+		return false
+	}
+	if len(calc.ipSetIDToIPToKey) != 0 {
+		return false
+	}
+	return true
 }
 
 func (calc *IpsetCalculator) addMatchToIndex(ipSetID string, key endpointKey, ips []string) {
