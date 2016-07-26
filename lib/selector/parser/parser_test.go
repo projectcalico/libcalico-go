@@ -137,11 +137,11 @@ var canonicalisationTests = []struct {
 	expected    string
 	expectedUid string
 }{
-	{"", "all()", "yAKsl-CNoToGJvI4pNl6xXkWbnkbEnlK7IRXBA"},
-	{" all() ", "all()", "yAKsl-CNoToGJvI4pNl6xXkWbnkbEnlK7IRXBA"},
-	{" (all() )", "all()", "yAKsl-CNoToGJvI4pNl6xXkWbnkbEnlK7IRXBA"},
-	{`! (has( b)||! has(a ))`, "!(has(b) || !has(a))", "hSyHDjavfOProPgh2ui1yqeCS31caoii1SGzZw"},
-	{`! (a == "b"&&! c != "d")`, `!(a == "b" && !c != "d")`, "Vrj0UGjYYduG4mcP4DKl6qrmTxJhacqDcYiWqg"},
+	{"", "all()", "s:5y5I3VdRZfDU01O--xXAPx2yxCQQqMf0M6IWug"},
+	{" all() ", "all()", "s:5y5I3VdRZfDU01O--xXAPx2yxCQQqMf0M6IWug"},
+	{" (all() )", "all()", "s:5y5I3VdRZfDU01O--xXAPx2yxCQQqMf0M6IWug"},
+	{`! (has( b)||! has(a ))`, "!(has(b) || !has(a))", "s:Iss0uCleLYv1GSv_pNm7hAO58kE9jAx1NKyG3Q"},
+	{`! (a == "b"&&! c != "d")`, `!(a == "b" && !c != "d")`, "s:lh3haoY1ikTRkd4UZu0nWSaIBknYLPJLX16d-w"},
 }
 
 var _ = Describe("Parser", func() {
@@ -193,34 +193,29 @@ var _ = Describe("Parser", func() {
 		}
 	})
 
-	It("should canonicalise properly", func() {
-		seenUids := make(map[string]string)
-		for _, test := range canonicalisationTests {
+	for _, test := range canonicalisationTests {
+		test := test
+		It(fmt.Sprintf("should canonicalise %v as %v with UID %v and round-trip",
+			test.input, test.expected, test.expectedUid), func() {
 			sel, err := Parse(test.input)
 			Expect(err).To(BeNil())
 			canon := sel.String()
 			Expect(canon).To(Equal(test.expected))
-
 			roundTripped, err := Parse(canon)
 			Expect(err).To(BeNil())
 			Expect(roundTripped.String()).To(Equal(canon))
 			uid := sel.UniqueId()
 			Expect(roundTripped.UniqueId()).To(Equal(uid))
+		})
+	}
 
-			if otherCanon := seenUids[uid]; otherCanon != "" {
-				Expect(otherCanon).To(Equal(canon))
-			} else {
-				seenUids[uid] = canon
-			}
-		}
-	})
-
-	It("should calculate the correct UID", func() {
-		for _, test := range canonicalisationTests {
+	for _, test := range canonicalisationTests {
+		test := test
+		It(fmt.Sprintf("should calculate the correct UID for %s", test.input), func() {
 			sel, err := Parse(test.input)
 			Expect(err).To(BeNil())
 			Expect(sel.UniqueId()).To(Equal(test.expectedUid),
 				"incorrect UID for "+test.input)
-		}
-	})
+		})
+	}
 })

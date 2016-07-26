@@ -122,6 +122,7 @@ type IfaceToString interface {
 	Contains(key interface{}, value string) bool
 	ContainsKey(key interface{}) bool
 	Iter(key interface{}, f func(value string))
+	Empty() bool
 }
 
 type ifaceToStringMap map[interface{}]map[string]bool
@@ -138,6 +139,9 @@ func (md ifaceToStringMap) Put(key interface{}, value string) {
 		md[key] = set
 	}
 	set[value] = true
+}
+func (md ifaceToStringMap) Empty() bool {
+	return len(md) == 0
 }
 
 func (md ifaceToStringMap) Discard(key interface{}, value string) {
