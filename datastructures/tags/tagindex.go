@@ -16,17 +16,19 @@ package tags
 
 import "github.com/golang/glog"
 
-// endpointKey expected to be a WorkloadEndpointKey or a HostEndpointKey
+// EndpointKey expected to be a WorkloadEndpointKey or a HostEndpointKey
 // but we just need it to be hashable.
 type EndpointKey interface{}
 
+// Index generates events when endpoints start and stop matching particular
+// tags.
 type Index interface {
 	UpdateProfileTags(profileID string, tags []string)
 	DeleteProfileTags(profileID string)
 	UpdateEndpoint(key EndpointKey, profileIDs []string)
 	DeleteEndpoint(key EndpointKey)
-	OnTagActive(tag string)
-	OnTagInactive(tag string)
+	SetTagActive(tag string)
+	SetTagInactive(tag string)
 }
 
 type indexKey struct {
@@ -61,7 +63,7 @@ func NewIndex(onMatchStarted, onMatchStopped MatchCallback) Index {
 	return idx
 }
 
-func (idx *tagIndex) OnTagActive(tag string) {
+func (idx *tagIndex) SetTagActive(tag string) {
 	if idx.activeTags[tag] {
 		return
 	}
@@ -74,7 +76,7 @@ func (idx *tagIndex) OnTagActive(tag string) {
 	}
 }
 
-func (idx *tagIndex) OnTagInactive(tag string) {
+func (idx *tagIndex) SetTagInactive(tag string) {
 	if !idx.activeTags[tag] {
 		return
 	}

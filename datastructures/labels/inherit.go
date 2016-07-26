@@ -116,9 +116,11 @@ func (idx *labelInheritanceIndex) flushUpdates() {
 		itemLabels, ok := idx.labelsByItemID[itemID]
 		if !ok {
 			// Item deleted.
+			glog.V(4).Infof("Flushing delete of item %v", itemID)
 			idx.index.DeleteLabels(itemID)
 		} else {
 			// Item updated/created, re-evaluate labels.
+			glog.V(4).Infof("Flushing update of item %v", itemID)
 			combinedLabels := make(map[string]string)
 			parentIDs := idx.parentIDsByItemID[itemID]
 			for _, parentID := range parentIDs {

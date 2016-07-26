@@ -53,6 +53,8 @@ func NewSelectorScanner() *RuleScanner {
 }
 
 func (calc *RuleScanner) UpdateRules(key interface{}, inbound, outbound []backend.Rule) {
+	glog.V(4).Infof("Scanning rules (%v in, %v out) for key %v",
+		len(inbound), len(outbound), key)
 	// Extract all the new selectors/tags.
 	currentUIDToTagOrSel := make(uidToSelector)
 	currentUIDToTagOrSel.addSelectorsFromRules(inbound)
@@ -61,8 +63,9 @@ func (calc *RuleScanner) UpdateRules(key interface{}, inbound, outbound []backen
 	// Figure out which selectors/tags are new.
 	addedUids := set.New()
 	for uid, _ := range currentUIDToTagOrSel {
+		glog.V(4).Infof("Checking if UID %v is new.", uid)
 		if !calc.rulesIDToUIDs.Contains(key, uid) {
-			glog.V(4).Infof("Added UID: %v", uid)
+			glog.V(4).Infof("UID %v is new", uid)
 			addedUids.Add(uid)
 		}
 	}
@@ -135,6 +138,7 @@ func (sbu uidToSelector) addSelectorsFromRules(rules []backend.Rule) {
 			&rule.NotSrcSelector,
 			&rule.NotDstSelector}
 		for _, selStrP := range selStrPs {
+			glog.V(5).Infof("Selector: %#v", selStrP)
 			if *selStrP != "" {
 				sel, err := selector.Parse(*selStrP)
 				if err != nil {

@@ -87,30 +87,36 @@ func (arc *ActiveRulesCalculator) OnUpdate(update *store.ParsedUpdate) {
 	switch key := update.Key.(type) {
 	case backend.WorkloadEndpointKey:
 		if update.Value != nil {
+			glog.V(4).Infof("Updating ARC with endpoint %v", key)
 			endpoint := update.Value.(*backend.WorkloadEndpoint)
 			profileIDs := endpoint.ProfileIDs
-			arc.updateEndpoint(key, profileIDs)
+			arc.updateEndpointProfileIDs(key, profileIDs)
 			arc.labelIndex.UpdateLabels(key, endpoint.Labels, profileIDs)
 		} else {
-			arc.updateEndpoint(key, []string{})
+			glog.V(4).Infof("Deleting endpoint %v from ARC", key)
+			arc.updateEndpointProfileIDs(key, []string{})
 			arc.labelIndex.DeleteLabels(key)
 		}
 	case backend.HostEndpointKey:
 		if update.Value != nil {
 			// Figure out what's changed and update the cache.
+			glog.V(4).Infof("Updating ARC for host endpoint %v", key)
 			endpoint := update.Value.(*backend.HostEndpoint)
 			profileIDs := endpoint.ProfileIDs
-			arc.updateEndpoint(key, profileIDs)
+			arc.updateEndpointProfileIDs(key, profileIDs)
 			arc.labelIndex.UpdateLabels(key, endpoint.Labels, profileIDs)
 		} else {
-			arc.updateEndpoint(key, []string{})
+			glog.V(4).Infof("Deleting host endpoint %v from ARC", key)
+			arc.updateEndpointProfileIDs(key, []string{})
 			arc.labelIndex.DeleteLabels(key)
 		}
 	case backend.ProfileLabelsKey:
 		if update.Value != nil {
+			glog.V(4).Infof("Updating ARC for profile %v", key)
 			labels := update.Value.(map[string]string)
 			arc.labelIndex.UpdateParentLabels(key.Name, labels)
 		} else {
+			glog.V(4).Infof("Removing profile %v from ARC", key)
 			arc.labelIndex.DeleteParentLabels(key.Name)
 		}
 	case backend.ProfileRulesKey:
@@ -130,6 +136,7 @@ func (arc *ActiveRulesCalculator) OnUpdate(update *store.ParsedUpdate) {
 		}
 	case backend.PolicyKey:
 		if update.Value != nil {
+			glog.V(4).Infof("Updating ARC for policy %v", key)
 			policy := update.Value.(*backend.Policy)
 			arc.allPolicies[key] = *policy
 			// Update the index, which will call us back if the selector no
@@ -143,10 +150,12 @@ func (arc *ActiveRulesCalculator) OnUpdate(update *store.ParsedUpdate) {
 			if arc.policyIDToEndpointKeys.ContainsKey(key) {
 				// If we get here, the selector still matches something,
 				// update the rules.
+				// TODO: squash duplicate update if labelIndex.UpdateSelector already made this active
 				glog.V(4).Info("Policy updated while active, telling listener")
 				arc.sendPolicyUpdate(key)
 			}
 		} else {
+			glog.V(4).Infof("Removing policy %v from ARC", key)
 			delete(arc.allPolicies, key)
 			arc.labelIndex.DeleteSelector(key)
 			// No need to call updatePolicy() because we'll have got a matchStopped
@@ -158,8 +167,9 @@ func (arc *ActiveRulesCalculator) OnUpdate(update *store.ParsedUpdate) {
 	}
 }
 
-func (arc *ActiveRulesCalculator) updateEndpoint(key endpointKey, profileIDs []string) {
+func (arc *ActiveRulesCalculator) updateEndpointProfileIDs(key endpointKey, profileIDs []string) {
 	// Figure out which profiles have been added/removed.
+	glog.V(4).Infof("Endpoint %#v now has profile IDs: %v", key, profileIDs)
 	removedIDs, addedIDs := arc.endpointKeyToProfileIDs.Update(key, profileIDs)
 
 	// Update the index of required profile IDs for added profiles,
@@ -186,28 +196,32 @@ func (arc *ActiveRulesCalculator) updateEndpoint(key endpointKey, profileIDs []s
 
 func (arc *ActiveRulesCalculator) onMatchStarted(selId, labelId interface{}) {
 	polKey := selId.(backend.PolicyKey)
-	if !arc.policyIDToEndpointKeys.ContainsKey(polKey) {
+	policyWasActive := arc.policyIDToEndpointKeys.ContainsKey(polKey)
+	arc.policyIDToEndpointKeys.Put(selId, labelId)
+	if !policyWasActive {
 		// Policy wasn't active before, tell the listener.  The policy
 		// must be in allPolicies because we can only match on a policy
 		// that we've seen.
+		glog.V(3).Infof("Policy %v now matches a local endpoint", polKey)
 		arc.sendPolicyUpdate(polKey)
 	}
-	arc.policyIDToEndpointKeys.Put(selId, labelId)
 	if arc.matchListener != nil {
 		arc.matchListener.OnPolicyMatch(polKey, labelId)
 	}
 }
 
-func (arc *ActiveRulesCalculator) onMatchStopped(selId, labelId interface{}) {
-	arc.policyIDToEndpointKeys.Discard(selId, labelId)
-	if !arc.policyIDToEndpointKeys.ContainsKey(selId) {
+func (arc *ActiveRulesCalculator) onMatchStopped(selID, labelId interface{}) {
+	arc.policyIDToEndpointKeys.Discard(selID, labelId)
+	if !arc.policyIDToEndpointKeys.ContainsKey(selID) {
 		// Policy no longer active.
-		polKey := selId.(backend.PolicyKey)
+		polKey := selID.(backend.PolicyKey)
+		glog.V(3).Infof("Policy %v no longer matches a local endpoint", polKey)
 		arc.sendPolicyUpdate(polKey)
 	}
 }
 
 func (arc *ActiveRulesCalculator) sendProfileUpdate(profileID string) {
+	glog.V(3).Infof("Sending profile update for profile %v", profileID)
 	rules, known := arc.allProfileRules[profileID]
 	active := arc.profileIDToEndpointKeys.ContainsKey(profileID)
 	profileKey := backend.ProfileKey{Name: profileID}
@@ -216,6 +230,7 @@ func (arc *ActiveRulesCalculator) sendProfileUpdate(profileID string) {
 		glog.Fatalf("Failed to marshal key %#v", profileKey)
 	}
 	update := store.Update{Key: asEtcdKey}
+	var inRules, outRules []backend.Rule
 	if known && active {
 		jsonBytes, err := json.Marshal(rules)
 		if err != nil {
@@ -224,17 +239,11 @@ func (arc *ActiveRulesCalculator) sendProfileUpdate(profileID string) {
 		}
 		jsonStr := string(jsonBytes)
 		update.ValueOrNil = &jsonStr
-		if arc.listener != nil {
-			arc.listener.UpdateRules(profileID,
-				rules.InboundRules,
-				rules.OutboundRules)
-		}
-	} else {
-		if arc.listener != nil {
-			arc.listener.UpdateRules(profileID,
-				[]backend.Rule{},
-				[]backend.Rule{})
-		}
+		inRules = rules.InboundRules
+		outRules = rules.OutboundRules
+	}
+	if arc.listener != nil {
+		arc.listener.UpdateRules(profileID, inRules, outRules)
 	}
 	if arc.felixSender != nil {
 		arc.felixSender.SendUpdateToFelix(update)
@@ -244,6 +253,8 @@ func (arc *ActiveRulesCalculator) sendProfileUpdate(profileID string) {
 func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey backend.PolicyKey) {
 	policy, known := arc.allPolicies[policyKey]
 	active := arc.policyIDToEndpointKeys.ContainsKey(policyKey)
+	glog.V(3).Infof("Sending policy update for policy %v (known: %v, active: %v)",
+		policyKey, known, active)
 	asEtcdKey, err := backend.KeyToFelixKey(policyKey)
 	if err != nil {
 		glog.Fatalf("Failed to marshal key %#v", policyKey)
@@ -259,6 +270,7 @@ func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey backend.PolicyKey) 
 		if err != nil {
 			glog.Fatal("Failed to unmarshal policy")
 		}
+
 		// FIXME UpdateRules modifies the rules!
 		if arc.listener != nil {
 			arc.listener.UpdateRules(policyKey, policyCopy.InboundRules, policyCopy.OutboundRules)

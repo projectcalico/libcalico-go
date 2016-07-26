@@ -171,6 +171,9 @@ func (cbs *FelixConnection) periodicallyFlush() {
 func (cbs *FelixConnection) flushIPUpdates() {
 	cbs.flushMutex.Lock()
 	defer cbs.flushMutex.Unlock()
+	if cbs.addedIPs.Len() == 0 && cbs.removedIPs.Len() == 0 {
+		return
+	}
 	glog.V(3).Infof("Sending %v adds and %v IP removes to Felix",
 		cbs.addedIPs.Len(), cbs.removedIPs.Len())
 	adds := make(map[string][]string)
@@ -185,9 +188,6 @@ func (cbs *FelixConnection) flushIPUpdates() {
 		removes[typedUpd.ipset] = append(removes[typedUpd.ipset], typedUpd.ip)
 		return nil
 	})
-	if len(adds) == 0 && len(removes) == 0 {
-		return
-	}
 	msg := map[string]interface{}{
 		"type":        "ip_updates",
 		"added_ips":   adds,
@@ -196,6 +196,7 @@ func (cbs *FelixConnection) flushIPUpdates() {
 	cbs.toFelix <- msg
 	cbs.addedIPs = set.New()
 	cbs.removedIPs = set.New()
+
 }
 
 func (cbs *FelixConnection) OnConfigLoaded(globalConfig map[string]string, hostConfig map[string]string) {
@@ -227,7 +228,7 @@ func (cbs *FelixConnection) OnStatusUpdated(status store.DriverStatus) {
 }
 
 func (cbs *FelixConnection) OnKeysUpdated(updates []store.Update) {
-	glog.V(3).Infof("Sending %v key/value updates to felix", len(updates))
+	glog.V(3).Infof("Got %v key/value updates from datastore", len(updates))
 	for _, update := range updates {
 		if len(update.Key) == 0 {
 			glog.Fatal("Bug: Key/Value update had empty key")
@@ -235,7 +236,8 @@ func (cbs *FelixConnection) OnKeysUpdated(updates []store.Update) {
 
 		skipFelix := cbs.dispatcher.DispatchUpdate(&update)
 		if skipFelix {
-			glog.V(4).Info("Skipping update to Felix")
+			glog.V(4).Info("Skipping update to Felix for ",
+				update.Key)
 			continue
 		}
 

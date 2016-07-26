@@ -44,6 +44,7 @@ func NewIpsetCalculator() *IpsetCalculator {
 
 // MatchStarted tells this object that an endpoint now belongs to an IP set.
 func (calc *IpsetCalculator) MatchStarted(key endpointKey, ipSetID string) {
+	glog.V(4).Infof("Adding endpoint %v to IP set %v", key, ipSetID)
 	calc.keyToMatchingIPSetIDs.Put(key, ipSetID)
 	ips := calc.keyToIPs[key]
 	calc.addMatchToIndex(ipSetID, key, ips)
@@ -51,6 +52,7 @@ func (calc *IpsetCalculator) MatchStarted(key endpointKey, ipSetID string) {
 
 // MatchStopped tells this object that an endpoint no longer belongs to an IP set.
 func (calc *IpsetCalculator) MatchStopped(key endpointKey, ipSetID string) {
+	glog.V(4).Infof("Removing endpoint %v from IP set %v", key, ipSetID)
 	calc.keyToMatchingIPSetIDs.Discard(key, ipSetID)
 	ips := calc.keyToIPs[key]
 	calc.removeMatchFromIndex(ipSetID, key, ips)
@@ -99,7 +101,7 @@ func (calc *IpsetCalculator) DeleteEndpoint(endpointKey endpointKey) {
 }
 
 func (calc *IpsetCalculator) addMatchToIndex(ipSetID string, key endpointKey, ips []string) {
-	glog.V(3).Infof("Selector %v now matches IPs %v via %v", ipSetID, ips, key)
+	glog.V(3).Infof("IP set %v now matches IPs %v via %v", ipSetID, ips, key)
 	ipToKeys, ok := calc.ipSetIDToIPToKey[ipSetID]
 	if !ok {
 		ipToKeys = multidict.NewStringToIface()
@@ -108,6 +110,7 @@ func (calc *IpsetCalculator) addMatchToIndex(ipSetID string, key endpointKey, ip
 
 	for _, ip := range ips {
 		if !ipToKeys.ContainsKey(ip) {
+			glog.V(3).Infof("New IP in IP set %v: %v", ipSetID, ip)
 			calc.OnIPAdded(ipSetID, ip)
 		}
 		ipToKeys.Put(ip, key)
@@ -115,11 +118,12 @@ func (calc *IpsetCalculator) addMatchToIndex(ipSetID string, key endpointKey, ip
 }
 
 func (calc *IpsetCalculator) removeMatchFromIndex(ipSetID string, key endpointKey, ips []string) {
-	glog.V(3).Infof("Selector %v no longer matches IPs %v via %v", ipSetID, ips, key)
+	glog.V(3).Infof("IP set %v no longer matches IPs %v via %v", ipSetID, ips, key)
 	ipToKeys := calc.ipSetIDToIPToKey[ipSetID]
 	for _, ip := range ips {
 		ipToKeys.Discard(ip, key)
 		if !ipToKeys.ContainsKey(ip) {
+			glog.V(3).Infof("IP no longer in IP set %v: %v", ipSetID, ip)
 			calc.OnIPRemoved(ipSetID, ip)
 			if ipToKeys.Len() == 0 {
 				delete(calc.ipSetIDToIPToKey, ipSetID)

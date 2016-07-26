@@ -66,10 +66,11 @@ func NewResolver(felixSender FelixSender, hostname string) *Resolver {
 	resolver.ruleScanner = NewSelectorScanner()
 	resolver.ruleScanner.OnSelectorActive = resolver.onSelectorActive
 	resolver.ruleScanner.OnSelectorInactive = resolver.onSelectorInactive
-	resolver.ruleScanner.OnTagActive = resolver.tagIndex.OnTagActive
-	resolver.ruleScanner.OnTagInactive = resolver.tagIndex.OnTagInactive
+	resolver.ruleScanner.OnTagActive = resolver.tagIndex.SetTagActive
+	resolver.ruleScanner.OnTagInactive = resolver.tagIndex.SetTagInactive
 
-	resolver.activeRulesCalculator = NewActiveRulesCalculator(resolver.ruleScanner, felixSender, nil)
+	resolver.activeRulesCalculator = NewActiveRulesCalculator(
+		resolver.ruleScanner, felixSender, nil)
 
 	resolver.labelIdx = labels.NewInheritanceIndex(
 		resolver.onSelMatchStarted, resolver.onSelMatchStopped)
@@ -89,35 +90,38 @@ type dispatcher interface {
 func (res *Resolver) RegisterWith(disp dispatcher) {
 	disp.Register(backend.WorkloadEndpointKey{}, res.onEndpointUpdate)
 	disp.Register(backend.HostEndpointKey{}, res.onHostEndpointUpdate)
-	disp.Register(backend.PolicyKey{}, res.onPolicyUpdate)
+	disp.Register(backend.PolicyKey{}, res.activeRulesCalculator.OnUpdate)
+	disp.Register(backend.PolicyKey{}, res.skipFelix)
+	disp.Register(backend.ProfileRulesKey{}, res.activeRulesCalculator.OnUpdate)
+	disp.Register(backend.ProfileRulesKey{}, res.skipFelix)
 	disp.Register(backend.ProfileTagsKey{}, res.onProfileTagsUpdate)
 	disp.Register(backend.ProfileLabelsKey{}, res.onProfileLabelsUpdate)
-	disp.Register(backend.ProfileRulesKey{}, res.onProfileRulesUpdate)
+	disp.Register(backend.ProfileLabelsKey{}, res.activeRulesCalculator.OnUpdate)
 }
 
 // Datastore callbacks:
+
+func (res *Resolver) skipFelix(update *store.ParsedUpdate) {
+	update.SkipSendToFelix = true
+}
 
 func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
 	key := update.Key.(backend.WorkloadEndpointKey)
 	onThisHost := key.Hostname == res.hostname
 	if !onThisHost {
 		update.SkipSendToFelix = true
+	} else {
+		res.activeRulesCalculator.OnUpdate(update)
 	}
 	if update.Value != nil {
 		glog.V(3).Infof("Endpoint %v updated", update.Key)
 		glog.V(4).Infof("Endpoint data: %#v", update.Value)
 		ep := update.Value.(*backend.WorkloadEndpoint)
-		if onThisHost {
-			res.activeRulesCalculator.OnUpdate(update)
-		}
 		res.ipsetCalc.UpdateEndpointIPs(update.Key, ep.IPv4Nets)
 		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
 		res.tagIndex.UpdateEndpoint(update.Key, ep.ProfileIDs)
 	} else {
 		glog.V(3).Infof("Endpoint %v deleted", update.Key)
-		if onThisHost {
-			res.activeRulesCalculator.OnUpdate(update)
-		}
 		res.ipsetCalc.DeleteEndpoint(update.Key)
 		res.labelIdx.DeleteLabels(update.Key)
 		res.tagIndex.DeleteEndpoint(update.Key)
@@ -156,33 +160,6 @@ func (res *Resolver) onHostEndpointUpdate(update *store.ParsedUpdate) {
 	}
 }
 
-// onPolicyUpdate is called when we get a policy update from the datastore.
-// It passes through to the ActiveSetCalculator, which extracts the active ipsets from its rules.
-func (res *Resolver) onPolicyUpdate(update *store.ParsedUpdate) {
-	if update.Value != nil {
-		glog.V(3).Infof("Policy %v updated", update.Key)
-		glog.V(4).Infof("Policy data: %#v", update.Value)
-		res.activeRulesCalculator.OnUpdate(update)
-	} else {
-		glog.V(3).Infof("Policy %v deleted", update.Key)
-		res.activeRulesCalculator.OnUpdate(update)
-	}
-	update.SkipSendToFelix = true
-}
-
-func (res *Resolver) onProfileRulesUpdate(update *store.ParsedUpdate) {
-	if update.Value != nil {
-		glog.V(3).Infof("Profile rules %v updated", update.Key)
-		glog.V(4).Infof("Rules data: %#v", update.Value)
-		res.activeRulesCalculator.OnUpdate(update)
-		update.ValueUpdated = true
-	} else {
-		glog.V(3).Infof("Profile rules %v deleted", update.Key)
-		res.activeRulesCalculator.OnUpdate(update)
-	}
-	update.SkipSendToFelix = true
-}
-
 // onProfileLabelsUpdate updates the index when the labels attached to a profile change.
 func (res *Resolver) onProfileLabelsUpdate(update *store.ParsedUpdate) {
 	// The profile IDs in the endpoint are simple strings; convert the
@@ -200,7 +177,6 @@ func (res *Resolver) onProfileLabelsUpdate(update *store.ParsedUpdate) {
 		glog.V(3).Infof("Profile labels %v deleted", update.Key)
 		res.labelIdx.DeleteParentLabels(profileID)
 	}
-	res.activeRulesCalculator.OnUpdate(update)
 	update.SkipSendToFelix = true
 }
 
@@ -266,7 +242,7 @@ func (res *Resolver) onSelectorActive(sel selector.Selector) {
 }
 
 // onSelectorActive is called when a selector stops being used in a rule.
-// It removes the selector to the label index and stops tracking it.
+// It removes the selector from the label index and stops tracking it.
 func (res *Resolver) onSelectorInactive(sel selector.Selector) {
 	glog.Infof("Selector %v now inactive", sel)
 	res.labelIdx.DeleteSelector(sel.UniqueId())
