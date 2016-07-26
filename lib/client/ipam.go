@@ -29,10 +29,6 @@ const (
 	// to etcd.
 	ipamEtcdRetries   = 100
 	ipamKeyErrRetries = 3
-
-	// IPAM paths
-	ipamVersionPath = "/calico/ipam/v2/"
-	ipamConfigPath  = ipamVersionPath + "config"
 )
 
 // IPAMInterface has methods to perform IP address management.
@@ -83,7 +79,7 @@ type IPAMInterface interface {
 
 	// ReleasePoolAffinities releases affinity for all blocks within
 	// the specified pool across all hosts.
-	ReleasePoolAffinities(pool common.IPNet) error
+	ReleasePoolAffinities(pool *common.IPNet) error
 
 	// GetIPAMConfig returns the global IPAM configuration.  If no IPAM configuration
 	// has been set, returns a default configuration with StrictAffinity disabled
@@ -513,7 +509,7 @@ func (c ipams) ReleaseHostAffinities(host *string) error {
 
 // ReleasePoolAffinities releases affinity for all blocks within
 // the specified pool across all hosts.
-func (c ipams) ReleasePoolAffinities(pool common.IPNet) error {
+func (c ipams) ReleasePoolAffinities(pool *common.IPNet) error {
 	glog.V(2).Infof("Releasing block affinities within pool '%s'", pool.String())
 	for i := 0; i < ipamKeyErrRetries; i++ {
 		retry := false
@@ -577,28 +573,25 @@ func (c ipams) RemoveIPAMHost(host *string) error {
 	return nil
 }
 
-func (c ipams) hostBlockPairs(pool common.IPNet) (map[string]string, error) {
+func (c ipams) hostBlockPairs(pool *common.IPNet) (map[string]string, error) {
 	pairs := map[string]string{}
 
-	// TODO:
-	// opts := client.GetOptions{Quorum: true, Recursive: true}
-	// res, err := c.blockReaderWriter.etcd.Get(context.Background(), ipamHostsPath, &opts)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	// Get all blocks and their affinities.
+	objs, err := c.client.backend.List(backend.BlockAffinityListOptions{})
+	if err != nil {
+		glog.Errorf("Error querying block affinities: %s", err)
+		return nil, err
+	}
 
-	// if res.Node != nil {
-	// 	for _, n := range leaves(*res.Node) {
-	// 		if !n.Dir {
-	// 			// Extract the block identifier (subnet) which is encoded
-	// 			// into the etcd key.  We need to replace "-" with "/" to
-	// 			// turn it back into a cidr.  Also pull out the hostname.
-	// 			ss := strings.Split(n.Key, "/")
-	// 			ipString := strings.Replace(ss[len(ss)-1], "-", "/", 1)
-	// 			pairs[ipString] = ss[5]
-	// 		}
-	// 	}
-	// }
+	// Iterate through each block affinity and build up a mapping
+	// of blockCidr -> host.
+	glog.V(4).Infof("Getting block -> host mappings")
+	for _, o := range objs {
+		k := o.Key.(backend.BlockAffinityKey)
+		pairs[k.CIDR.String()] = k.Host
+		glog.V(4).Infof("Block %s -> %s", k.CIDR.String(), k.Host)
+	}
+
 	return pairs, nil
 }
 
@@ -785,24 +778,17 @@ func (c ipams) GetAssignmentAttributes(addr common.IP) (map[string]string, error
 // has been set, returns a default configuration with StrictAffinity disabled
 // and AutoAllocateBlocks enabled.
 func (c ipams) GetIPAMConfig() (*IPAMConfig, error) {
-	// TODO
-	// opts := client.GetOptions{Quorum: true}
-	// resp, err := c.blockReaderWriter.etcd.Get(context.Background(), ipamConfigPath, &opts)
-	// if err != nil {
-	// 	if client.IsKeyNotFound(err) {
-	// 		cfg := IPAMConfig{
-	// 			StrictAffinity:     false,
-	// 			AutoAllocateBlocks: true,
-	// 		}
-	// 		return &cfg, nil
-	// 	} else {
-	// 		glog.Errorf("Error reading IPAM config:", err)
-	// 		return nil, err
-	// 	}
-	// }
-	cfg := IPAMConfig{StrictAffinity: false, AutoAllocateBlocks: true}
-	// json.Unmarshal([]byte(resp.Node.Value), &cfg)
-	return &cfg, nil
+	obj, err := c.client.backend.Get(backend.IPAMConfigKey{})
+	if err != nil {
+		if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
+			// IPAMConfig has not been explicitly set.  Return
+			// a default IPAM configuration.
+			return &IPAMConfig{AutoAllocateBlocks: true, StrictAffinity: false}, nil
+		}
+		glog.Errorf("Error getting IPAMConfig: %s", err)
+		return nil, err
+	}
+	return c.convertBackendToIPAMConfig(obj.Object.(backend.IPAMConfig)), nil
 }
 
 // SetIPAMConfig sets global IPAM configuration.  This can only
@@ -817,7 +803,7 @@ func (c ipams) SetIPAMConfig(cfg IPAMConfig) error {
 		return nil
 	}
 
-	if cfg.StrictAffinity && !cfg.AutoAllocateBlocks {
+	if !cfg.StrictAffinity && !cfg.AutoAllocateBlocks {
 		return errors.New("Cannot disable 'StrictAffinity' and 'AutoAllocateBlocks' at the same time")
 	}
 
@@ -826,15 +812,31 @@ func (c ipams) SetIPAMConfig(cfg IPAMConfig) error {
 		return errors.New("Cannot change IPAM config while allocations exist")
 	}
 
-	// Write to etcd.
-	// _, err := json.Marshal(c)
+	// Write to datastore.
+	obj := backend.DatastoreObject{
+		Key:    backend.IPAMConfigKey{},
+		Object: c.convertIPAMConfigToBackend(cfg),
+	}
+	_, err = c.client.backend.Apply(&obj)
 	if err != nil {
-		glog.Errorf("Error converting IPAM config to json:", err)
+		glog.Errorf("Error applying IPAMConfig: %s", err)
 		return err
 	}
-	// TODO: Support this in backend.
-	// _, err = c.blockReaderWriter.etcd.Set(context.Background(), ipamConfigPath, string(j), nil)
 	return nil
+}
+
+func (c ipams) convertIPAMConfigToBackend(cfg IPAMConfig) *backend.IPAMConfig {
+	return &backend.IPAMConfig{
+		StrictAffinity:     cfg.StrictAffinity,
+		AutoAllocateBlocks: cfg.AutoAllocateBlocks,
+	}
+}
+
+func (c ipams) convertBackendToIPAMConfig(cfg backend.IPAMConfig) *IPAMConfig {
+	return &IPAMConfig{
+		StrictAffinity:     cfg.StrictAffinity,
+		AutoAllocateBlocks: cfg.AutoAllocateBlocks,
+	}
 }
 
 func decideHostname(host *string) string {
