@@ -580,25 +580,22 @@ func (c ipams) RemoveIPAMHost(host *string) error {
 func (c ipams) hostBlockPairs(pool common.IPNet) (map[string]string, error) {
 	pairs := map[string]string{}
 
-	// TODO:
-	// opts := client.GetOptions{Quorum: true, Recursive: true}
-	// res, err := c.blockReaderWriter.etcd.Get(context.Background(), ipamHostsPath, &opts)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	// Get all blocks and their affinities.
+	objs, err := c.client.backend.List(backend.BlockAffinityListOptions{})
+	if err != nil {
+		glog.Errorf("Error querying block affinities: %s", err)
+		return nil, err
+	}
 
-	// if res.Node != nil {
-	// 	for _, n := range leaves(*res.Node) {
-	// 		if !n.Dir {
-	// 			// Extract the block identifier (subnet) which is encoded
-	// 			// into the etcd key.  We need to replace "-" with "/" to
-	// 			// turn it back into a cidr.  Also pull out the hostname.
-	// 			ss := strings.Split(n.Key, "/")
-	// 			ipString := strings.Replace(ss[len(ss)-1], "-", "/", 1)
-	// 			pairs[ipString] = ss[5]
-	// 		}
-	// 	}
-	// }
+	// Iterate through each block affinity and build up a mapping
+	// of blockCidr -> host.
+	glog.V(4).Infof("Getting block -> host mappings")
+	for _, o := range objs {
+		k := o.Key.(backend.BlockAffinityKey)
+		pairs[k.CIDR.String()] = k.Host
+		glog.V(4).Infof("Block %s -> %s", k.CIDR.String(), k.Host)
+	}
+
 	return pairs, nil
 }
 
