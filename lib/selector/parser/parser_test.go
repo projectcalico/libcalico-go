@@ -60,6 +60,26 @@ var selectorTests = []selectorTest{
 			{"c": "e"},
 			{"a": "e"},
 		}},
+	{`a in {"'", '"', "c"}`,
+		[]map[string]string{
+			{"a": "c"},
+			{"a": `"`},
+			{"a": `'`},
+		},
+		[]map[string]string{
+			{},
+			{"a": "e"},
+		}},
+	{`a not in {"'", '"', "c"}`,
+		[]map[string]string{
+			{},
+			{"a": "e"},
+		},
+		[]map[string]string{
+			{"a": "c"},
+			{"a": `"`},
+			{"a": `'`},
+		}},
 
 	// Tests copied from Python version.
 	{`a == 'a'`, []map[string]string{{"a": "a"}}, []map[string]string{}},
@@ -83,6 +103,7 @@ var selectorTests = []selectorTest{
 	{`a == 'a'`, []map[string]string{}, []map[string]string{{"a": "b"}}},
 	{`a == 'a'`, []map[string]string{}, []map[string]string{{}}},
 	{`a != "a"`, []map[string]string{}, []map[string]string{{"a": "a"}}},
+	{`a != 'a'`, []map[string]string{}, []map[string]string{{"a": "a"}}},
 	{`a in {"a"}`, []map[string]string{}, []map[string]string{{"a": "b"}}},
 	{`a not in {"a"}`, []map[string]string{}, []map[string]string{{"a": "a"}}},
 	{`a in {"a", "b"}`, []map[string]string{}, []map[string]string{{"a": "c"}}},
@@ -142,6 +163,9 @@ var canonicalisationTests = []struct {
 	{" (all() )", "all()", "s:5y5I3VdRZfDU01O--xXAPx2yxCQQqMf0M6IWug"},
 	{`! (has( b)||! has(a ))`, "!(has(b) || !has(a))", "s:Iss0uCleLYv1GSv_pNm7hAO58kE9jAx1NKyG3Q"},
 	{`! (a == "b"&&! c != "d")`, `!(a == "b" && !c != "d")`, "s:lh3haoY1ikTRkd4UZu0nWSaIBknYLPJLX16d-w"},
+	{`a == "'"`, `a == "'"`, ""},
+	{`a == '"'`, `a == '"'`, ""},
+	{`a!='"'`, `a != '"'`, ""},
 }
 
 var _ = Describe("Parser", func() {
@@ -211,6 +235,9 @@ var _ = Describe("Parser", func() {
 
 	for _, test := range canonicalisationTests {
 		test := test
+		if test.expectedUid == "" {
+			continue
+		}
 		It(fmt.Sprintf("should calculate the correct UID for %s", test.input), func() {
 			sel, err := Parse(test.input)
 			Expect(err).To(BeNil())
