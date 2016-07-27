@@ -21,6 +21,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/common"
+	"strings"
 )
 
 // ParseKey parses a datastore key into one of the <Type>Key structs.
@@ -59,7 +60,12 @@ func ParseKey(key string) KeyInterface {
 	} else if m := matchHostIp.FindStringSubmatch(key); m != nil {
 		return HostIPKey{Hostname: m[1]}
 	} else if m := matchPool.FindStringSubmatch(key); m != nil {
-		_, c, _ := common.ParseCIDR(m[1])
+		mungedCIDR := m[1]
+		cidr := strings.Replace(mungedCIDR, "-", "/", 1)
+		_, c, err := common.ParseCIDR(cidr)
+		if err != nil {
+			panic(err)
+		}
 		return PoolKey{CIDR: *c}
 	}
 	// Not a key we know about.
