@@ -16,6 +16,7 @@ package ipsets
 
 import (
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/datastructures/ip"
 	"github.com/tigera/libcalico-go/datastructures/multidict"
 	"github.com/tigera/libcalico-go/datastructures/set"
 )
@@ -25,20 +26,20 @@ import (
 type endpointKey interface{}
 
 type IpsetCalculator struct {
-	keyToIPs              map[endpointKey][]string
+	keyToIPs              map[endpointKey][]ip.Addr
 	keyToMatchingIPSetIDs multidict.IfaceToString
-	ipSetIDToIPToKey      map[string]multidict.StringToIface
+	ipSetIDToIPToKey      map[string]multidict.IfaceToIface
 
 	// Callbacks.
-	OnIPAdded   func(ipSetID string, ip string)
-	OnIPRemoved func(ipSetID string, ip string)
+	OnIPAdded   func(ipSetID string, ip ip.Addr)
+	OnIPRemoved func(ipSetID string, ip ip.Addr)
 }
 
 func NewIpsetCalculator() *IpsetCalculator {
 	calc := &IpsetCalculator{
-		keyToIPs:              make(map[endpointKey][]string),
+		keyToIPs:              make(map[endpointKey][]ip.Addr),
 		keyToMatchingIPSetIDs: multidict.NewIfaceToString(),
-		ipSetIDToIPToKey:      make(map[string]multidict.StringToIface),
+		ipSetIDToIPToKey:      make(map[string]multidict.IfaceToIface),
 	}
 	return calc
 }
@@ -60,7 +61,7 @@ func (calc *IpsetCalculator) MatchStopped(key endpointKey, ipSetID string) {
 }
 
 // UpdateEndpointIPs tells this object that an endpoint has a new set of IP addresses.
-func (calc *IpsetCalculator) UpdateEndpointIPs(endpointKey endpointKey, ips []string) {
+func (calc *IpsetCalculator) UpdateEndpointIPs(endpointKey endpointKey, ips []ip.Addr) {
 	glog.V(4).Infof("Endpoint %v IPs updated to %v", endpointKey, ips)
 	oldIPs := calc.keyToIPs[endpointKey]
 	if len(ips) == 0 {
@@ -74,7 +75,7 @@ func (calc *IpsetCalculator) UpdateEndpointIPs(endpointKey endpointKey, ips []st
 		oldIPsSet.Add(ip)
 	}
 
-	addedIPs := make([]string, 0)
+	addedIPs := make([]ip.Addr, 0)
 	currentIPs := set.New()
 	for _, ip := range ips {
 		if !oldIPsSet.Contains(ip) {
@@ -84,7 +85,7 @@ func (calc *IpsetCalculator) UpdateEndpointIPs(endpointKey endpointKey, ips []st
 		currentIPs.Add(ip)
 	}
 
-	removedIPs := make([]string, 0)
+	removedIPs := make([]ip.Addr, 0)
 	for _, ip := range oldIPs {
 		if !currentIPs.Contains(ip) {
 			glog.V(4).Infof("Removed IP: %v", ip)
@@ -101,7 +102,7 @@ func (calc *IpsetCalculator) UpdateEndpointIPs(endpointKey endpointKey, ips []st
 
 // DeleteEndpoint removes an endpoint from the index.
 func (calc *IpsetCalculator) DeleteEndpoint(endpointKey endpointKey) {
-	calc.UpdateEndpointIPs(endpointKey, []string{})
+	calc.UpdateEndpointIPs(endpointKey, []ip.Addr{})
 }
 
 func (calc *IpsetCalculator) Empty() bool {
@@ -117,11 +118,11 @@ func (calc *IpsetCalculator) Empty() bool {
 	return true
 }
 
-func (calc *IpsetCalculator) addMatchToIndex(ipSetID string, key endpointKey, ips []string) {
+func (calc *IpsetCalculator) addMatchToIndex(ipSetID string, key endpointKey, ips []ip.Addr) {
 	glog.V(3).Infof("IP set %v now matches IPs %v via %v", ipSetID, ips, key)
 	ipToKeys, ok := calc.ipSetIDToIPToKey[ipSetID]
 	if !ok {
-		ipToKeys = multidict.NewStringToIface()
+		ipToKeys = multidict.NewIfaceToIface()
 		calc.ipSetIDToIPToKey[ipSetID] = ipToKeys
 	}
 
@@ -134,7 +135,7 @@ func (calc *IpsetCalculator) addMatchToIndex(ipSetID string, key endpointKey, ip
 	}
 }
 
-func (calc *IpsetCalculator) removeMatchFromIndex(ipSetID string, key endpointKey, ips []string) {
+func (calc *IpsetCalculator) removeMatchFromIndex(ipSetID string, key endpointKey, ips []ip.Addr) {
 	glog.V(3).Infof("IP set %v no longer matches IPs %v via %v", ipSetID, ips, key)
 	ipToKeys := calc.ipSetIDToIPToKey[ipSetID]
 	for _, ip := range ips {

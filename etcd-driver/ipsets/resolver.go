@@ -16,6 +16,7 @@ package ipsets
 
 import (
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/datastructures/ip"
 	"github.com/tigera/libcalico-go/datastructures/labels"
 	"github.com/tigera/libcalico-go/datastructures/tags"
 	"github.com/tigera/libcalico-go/etcd-driver/store"
@@ -47,16 +48,16 @@ type Resolver struct {
 	hostname string
 
 	OnIPSetAdded   func(selID string)
-	OnIPAdded      func(selID, ip string)
-	OnIPRemoved    func(selID, ip string)
+	OnIPAdded      func(selID string, ip ip.Addr)
+	OnIPRemoved    func(selID string, ip ip.Addr)
 	OnIPSetRemoved func(selID string)
 }
 
 func NewResolver(felixSender FelixSender, hostname string) *Resolver {
 	resolver := &Resolver{
 		OnIPSetAdded:   func(selID string) {},
-		OnIPAdded:      func(selID, ip string) {},
-		OnIPRemoved:    func(selID, ip string) {},
+		OnIPAdded:      func(selID string, ip ip.Addr) {},
+		OnIPRemoved:    func(selID string, ip ip.Addr) {},
 		OnIPSetRemoved: func(selID string) {},
 		hostname:       hostname,
 	}
@@ -117,7 +118,12 @@ func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
 		glog.V(3).Infof("Endpoint %v updated", update.Key)
 		glog.V(4).Infof("Endpoint data: %#v", update.Value)
 		ep := update.Value.(*backend.WorkloadEndpoint)
-		res.ipsetCalc.UpdateEndpointIPs(update.Key, ep.IPv4Nets)
+		// FIXME IPv6
+		ips := make([]ip.Addr, len(ep.IPv4Nets))
+		for ii, net := range ep.IPv4Nets {
+			ips[ii] = ip.FromNetIP(net.IP)
+		}
+		res.ipsetCalc.UpdateEndpointIPs(update.Key, ips)
 		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
 		res.tagIndex.UpdateEndpoint(update.Key, ep.ProfileIDs)
 	} else {
@@ -141,12 +147,12 @@ func (res *Resolver) onHostEndpointUpdate(update *store.ParsedUpdate) {
 		if onThisHost {
 			res.activeRulesCalculator.OnUpdate(update)
 		}
-		// FIXME: just use IPs everywhere?
-		ipStrs := make([]string, len(ep.ExpectedIPv4Addrs))
-		for ii, ip := range ep.ExpectedIPv4Addrs {
-			ipStrs[ii] = ip.String()
+		// FIXME IPv6
+		ips := make([]ip.Addr, len(ep.ExpectedIPv4Addrs))
+		for ii, netIP := range ep.ExpectedIPv4Addrs {
+			ips[ii] = ip.FromNetIP(netIP.IP)
 		}
-		res.ipsetCalc.UpdateEndpointIPs(update.Key, ipStrs)
+		res.ipsetCalc.UpdateEndpointIPs(update.Key, ips)
 		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
 		res.tagIndex.UpdateEndpoint(update.Key, ep.ProfileIDs)
 	} else {
@@ -252,13 +258,13 @@ func (res *Resolver) onSelectorInactive(sel selector.Selector) {
 // IpsetCalculator callbacks:
 
 // onIPAdded is called when an IP is now present in an active selector.
-func (res *Resolver) onIPAdded(selID, ip string) {
+func (res *Resolver) onIPAdded(selID string, ip ip.Addr) {
 	glog.V(3).Infof("IP set %v now contains %v", selID, ip)
 	res.OnIPAdded(selID, ip)
 }
 
 // onIPRemoved is called when an IP is no longer present in a selector.
-func (res *Resolver) onIPRemoved(selID, ip string) {
+func (res *Resolver) onIPRemoved(selID string, ip ip.Addr) {
 	glog.V(3).Infof("IP set %v no longer contains %v", selID, ip)
 	res.OnIPRemoved(selID, ip)
 }

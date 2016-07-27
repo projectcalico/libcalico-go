@@ -18,6 +18,7 @@ import (
 	"flag"
 	"github.com/docopt/docopt-go"
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/datastructures/ip"
 	"github.com/tigera/libcalico-go/datastructures/set"
 	"github.com/tigera/libcalico-go/etcd-driver/etcd"
 	"github.com/tigera/libcalico-go/etcd-driver/ipsets"
@@ -89,7 +90,7 @@ func main() {
 
 type ipUpdate struct {
 	ipset string
-	ip    string
+	ip    ip.Addr
 }
 
 type FelixConnection struct {
@@ -142,7 +143,7 @@ func (cbs *FelixConnection) onIPSetRemoved(ipsetID string) {
 	cbs.toFelix <- msg
 }
 
-func (cbs *FelixConnection) onIPAddedToIPSet(ipsetID string, ip string) {
+func (cbs *FelixConnection) onIPAddedToIPSet(ipsetID string, ip ip.Addr) {
 	glog.V(3).Infof("IP %v added to set %v; updating cache",
 		ip, ipsetID)
 	cbs.flushMutex.Lock()
@@ -151,7 +152,7 @@ func (cbs *FelixConnection) onIPAddedToIPSet(ipsetID string, ip string) {
 	cbs.addedIPs.Add(upd)
 	cbs.removedIPs.Discard(upd)
 }
-func (cbs *FelixConnection) onIPRemovedFromIPSet(ipsetID string, ip string) {
+func (cbs *FelixConnection) onIPRemovedFromIPSet(ipsetID string, ip ip.Addr) {
 	glog.V(3).Infof("IP %v removed from set %v; caching update",
 		ip, ipsetID)
 	cbs.flushMutex.Lock()
@@ -179,13 +180,19 @@ func (cbs *FelixConnection) flushIPUpdates() {
 	adds := make(map[string][]string)
 	cbs.addedIPs.Iter(func(upd interface{}) error {
 		typedUpd := upd.(ipUpdate)
-		adds[typedUpd.ipset] = append(adds[typedUpd.ipset], typedUpd.ip)
+		ipStr := typedUpd.ip.String()
+		// FIXME: can we get a bad IP address here?
+		adds[typedUpd.ipset] = append(adds[typedUpd.ipset],
+			ipStr)
 		return nil
 	})
 	removes := make(map[string][]string)
 	cbs.removedIPs.Iter(func(upd interface{}) error {
 		typedUpd := upd.(ipUpdate)
-		removes[typedUpd.ipset] = append(removes[typedUpd.ipset], typedUpd.ip)
+		ipStr := typedUpd.ip.String()
+		// FIXME: can we get a bad IP address here?
+		removes[typedUpd.ipset] = append(removes[typedUpd.ipset],
+			ipStr)
 		return nil
 	})
 	msg := map[string]interface{}{

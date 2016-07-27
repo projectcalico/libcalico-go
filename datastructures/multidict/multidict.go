@@ -66,6 +66,7 @@ func (md stringToString) Iter(key string, f func(value string)) {
 }
 
 type IfaceToIface interface {
+	Len() int
 	Put(key, value interface{})
 	Discard(key, value interface{})
 	Contains(key, value interface{}) bool
@@ -78,6 +79,10 @@ type ifaceToIfaceMap map[interface{}]map[interface{}]bool
 func NewIfaceToIface() IfaceToIface {
 	iToI := make(ifaceToIfaceMap)
 	return iToI
+}
+
+func (md ifaceToIfaceMap) Len() int {
+	return len(md)
 }
 
 func (md ifaceToIfaceMap) Put(key, value interface{}) {
