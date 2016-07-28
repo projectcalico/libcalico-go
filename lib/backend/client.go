@@ -43,7 +43,3 @@ func NewClient(config *api.ClientConfig) (c Client, err error) {
 	}
 	return
 }
-
-func KeyToFelixKey(key KeyInterface) (string, error) {
-	return key.asEtcdKey()
-}

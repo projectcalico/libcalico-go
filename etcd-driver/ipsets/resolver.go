@@ -20,7 +20,7 @@ import (
 	"github.com/tigera/libcalico-go/datastructures/labels"
 	"github.com/tigera/libcalico-go/datastructures/tags"
 	"github.com/tigera/libcalico-go/etcd-driver/store"
-	"github.com/tigera/libcalico-go/lib/backend"
+	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/hash"
 	"github.com/tigera/libcalico-go/lib/selector"
 )
@@ -84,20 +84,20 @@ func NewResolver(felixSender FelixSender, hostname string) *Resolver {
 }
 
 type dispatcher interface {
-	Register(keyExample backend.KeyInterface, receiver store.ParsedUpdateHandler)
+	Register(keyExample model.Key, receiver store.ParsedUpdateHandler)
 }
 
 // RegisterWith registers the update callbacks that this object requires with the dispatcher.
 func (res *Resolver) RegisterWith(disp dispatcher) {
-	disp.Register(backend.WorkloadEndpointKey{}, res.onEndpointUpdate)
-	disp.Register(backend.HostEndpointKey{}, res.onHostEndpointUpdate)
-	disp.Register(backend.PolicyKey{}, res.activeRulesCalculator.OnUpdate)
-	disp.Register(backend.PolicyKey{}, res.skipFelix)
-	disp.Register(backend.ProfileRulesKey{}, res.activeRulesCalculator.OnUpdate)
-	disp.Register(backend.ProfileRulesKey{}, res.skipFelix)
-	disp.Register(backend.ProfileTagsKey{}, res.onProfileTagsUpdate)
-	disp.Register(backend.ProfileLabelsKey{}, res.onProfileLabelsUpdate)
-	disp.Register(backend.ProfileLabelsKey{}, res.activeRulesCalculator.OnUpdate)
+	disp.Register(model.WorkloadEndpointKey{}, res.onEndpointUpdate)
+	disp.Register(model.HostEndpointKey{}, res.onHostEndpointUpdate)
+	disp.Register(model.PolicyKey{}, res.activeRulesCalculator.OnUpdate)
+	disp.Register(model.PolicyKey{}, res.skipFelix)
+	disp.Register(model.ProfileRulesKey{}, res.activeRulesCalculator.OnUpdate)
+	disp.Register(model.ProfileRulesKey{}, res.skipFelix)
+	disp.Register(model.ProfileTagsKey{}, res.onProfileTagsUpdate)
+	disp.Register(model.ProfileLabelsKey{}, res.onProfileLabelsUpdate)
+	disp.Register(model.ProfileLabelsKey{}, res.activeRulesCalculator.OnUpdate)
 }
 
 // Datastore callbacks:
@@ -107,7 +107,7 @@ func (res *Resolver) skipFelix(update *store.ParsedUpdate) {
 }
 
 func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
-	key := update.Key.(backend.WorkloadEndpointKey)
+	key := update.Key.(model.WorkloadEndpointKey)
 	onThisHost := key.Hostname == res.hostname
 	if !onThisHost {
 		update.SkipSendToFelix = true
@@ -117,7 +117,7 @@ func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
 	if update.Value != nil {
 		glog.V(3).Infof("Endpoint %v updated", update.Key)
 		glog.V(4).Infof("Endpoint data: %#v", update.Value)
-		ep := update.Value.(*backend.WorkloadEndpoint)
+		ep := update.Value.(*model.WorkloadEndpoint)
 		// FIXME IPv6
 		ips := make([]ip.Addr, len(ep.IPv4Nets))
 		for ii, net := range ep.IPv4Nets {
@@ -135,7 +135,7 @@ func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
 }
 
 func (res *Resolver) onHostEndpointUpdate(update *store.ParsedUpdate) {
-	key := update.Key.(backend.HostEndpointKey)
+	key := update.Key.(model.HostEndpointKey)
 	onThisHost := key.Hostname == res.hostname
 	if !onThisHost {
 		update.SkipSendToFelix = true
@@ -143,7 +143,7 @@ func (res *Resolver) onHostEndpointUpdate(update *store.ParsedUpdate) {
 	if update.Value != nil {
 		glog.V(3).Infof("Endpoint %v updated", update.Key)
 		glog.V(4).Infof("Endpoint data: %#v", update.Value)
-		ep := update.Value.(*backend.HostEndpoint)
+		ep := update.Value.(*model.HostEndpoint)
 		if onThisHost {
 			res.activeRulesCalculator.OnUpdate(update)
 		}
@@ -170,7 +170,7 @@ func (res *Resolver) onHostEndpointUpdate(update *store.ParsedUpdate) {
 func (res *Resolver) onProfileLabelsUpdate(update *store.ParsedUpdate) {
 	// The profile IDs in the endpoint are simple strings; convert the
 	// key to string so that it matches.
-	profileKey := update.Key.(backend.ProfileLabelsKey)
+	profileKey := update.Key.(model.ProfileLabelsKey)
 	profileID := profileKey.Name
 	if update.Value != nil {
 		// Update.
@@ -190,7 +190,7 @@ func (res *Resolver) onProfileTagsUpdate(update *store.ParsedUpdate) {
 	glog.V(3).Infof("Profile tags %v updated", update)
 	// The profile IDs in the endpoint are simple strings; convert the
 	// key to string so that it matches.
-	profileKey := update.Key.(backend.ProfileTagsKey)
+	profileKey := update.Key.(model.ProfileTagsKey)
 	profileID := profileKey.Name
 	if update.Value != nil {
 		// Update.
@@ -208,7 +208,7 @@ func (res *Resolver) onProfileTagsUpdate(update *store.ParsedUpdate) {
 
 //// OnProfileUpdate is called when we get a profile update from the datastore.
 //// It passes through to the ActiveSetCalculator, which extracts the active ipsets from its rules.
-//func (res *Resolver) OnProfileUpdate(key backend.ProfileKey, policy *backend.Profile) {
+//func (res *Resolver) OnProfileUpdate(key model.ProfileKey, policy *model.Profile) {
 //	glog.Infof("Profile %v updated", key)
 //	res.activeSelCalc.UpdateProfile(key, policy)
 //}
@@ -218,13 +218,13 @@ func (res *Resolver) onProfileTagsUpdate(update *store.ParsedUpdate) {
 // onMatchStarted is called when an endpoint starts matching an active selector.
 func (res *Resolver) onSelMatchStarted(selId, labelId interface{}) {
 	glog.V(3).Infof("Endpoint %v now matches selector %v", labelId, selId)
-	res.ipsetCalc.MatchStarted(labelId.(backend.KeyInterface), selId.(string))
+	res.ipsetCalc.MatchStarted(labelId.(model.Key), selId.(string))
 }
 
 // onMatchStopped is called when an endpoint stops matching an active selector.
 func (res *Resolver) onSelMatchStopped(selId, labelId interface{}) {
 	glog.V(3).Infof("Endpoint %v no longer matches selector %v", labelId, selId)
-	res.ipsetCalc.MatchStopped(labelId.(backend.KeyInterface), selId.(string))
+	res.ipsetCalc.MatchStopped(labelId.(model.Key), selId.(string))
 }
 
 func (res *Resolver) onTagMatchStarted(key tags.EndpointKey, tagID string) {

@@ -17,7 +17,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/multidict"
 	"github.com/tigera/libcalico-go/datastructures/set"
-	"github.com/tigera/libcalico-go/lib/backend"
+	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/hash"
 	"github.com/tigera/libcalico-go/lib/selector"
 )
@@ -52,7 +52,7 @@ func NewSelectorScanner() *RuleScanner {
 	return calc
 }
 
-func (calc *RuleScanner) UpdateRules(key interface{}, inbound, outbound []backend.Rule) {
+func (calc *RuleScanner) UpdateRules(key interface{}, inbound, outbound []model.Rule) {
 	glog.V(4).Infof("Scanning rules (%v in, %v out) for key %v",
 		len(inbound), len(outbound), key)
 	// Extract all the new selectors/tags.
@@ -131,7 +131,7 @@ func (calc *RuleScanner) UpdateRules(key interface{}, inbound, outbound []backen
 // selByUid is an augmented map with methods to assist in extracting rules from policies.
 type uidToSelector map[string]tagOrSel
 
-func (sbu uidToSelector) addSelectorsFromRules(rules []backend.Rule) {
+func (sbu uidToSelector) addSelectorsFromRules(rules []model.Rule) {
 	for i, rule := range rules {
 		selStrPs := []*string{&rule.SrcSelector,
 			&rule.DstSelector,

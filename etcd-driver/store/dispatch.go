@@ -17,7 +17,7 @@ package store
 import (
 	"encoding/json"
 	"github.com/golang/glog"
-	"github.com/tigera/libcalico-go/lib/backend"
+	"github.com/tigera/libcalico-go/lib/backend/model"
 	"reflect"
 )
 
@@ -36,7 +36,7 @@ func NewDispatcher() *Dispatcher {
 }
 
 type ParsedUpdate struct {
-	Key      backend.KeyInterface
+	Key      model.Key
 	Value    interface{}
 	ParseErr error
 	// RawUpdate is the Update that will be passed to Felix, mutable!
@@ -45,7 +45,7 @@ type ParsedUpdate struct {
 	SkipSendToFelix bool
 }
 
-func (d *Dispatcher) Register(keyExample backend.KeyInterface, receiver ParsedUpdateHandler) {
+func (d *Dispatcher) Register(keyExample model.Key, receiver ParsedUpdateHandler) {
 	keyType := reflect.TypeOf(keyExample)
 	if keyType.Kind() == reflect.Ptr {
 		panic("Register expects a non-pointer")
@@ -56,7 +56,7 @@ func (d *Dispatcher) Register(keyExample backend.KeyInterface, receiver ParsedUp
 
 func (d *Dispatcher) DispatchUpdate(update *Update) bool {
 	glog.V(3).Infof("Dispatching %v", update)
-	key := backend.ParseKey(update.Key)
+	key := model.ParseKey(update.Key)
 	if key == nil {
 		return false
 	}
@@ -65,7 +65,7 @@ func (d *Dispatcher) DispatchUpdate(update *Update) bool {
 	var value interface{}
 	var err error
 	if update.ValueOrNil != nil {
-		value, err = backend.ParseValue(key, []byte(*update.ValueOrNil))
+		value, err = model.ParseValue(key, []byte(*update.ValueOrNil))
 	}
 
 	parsedUpdate := &ParsedUpdate{
