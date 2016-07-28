@@ -26,6 +26,7 @@ import (
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/client"
+	"github.com/tigera/libcalico-go/lib/common"
 )
 
 // Create a new CalicoClient usng connection information in the specified
@@ -137,6 +138,13 @@ func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource
 		return *p, nil
 	case "pool":
 		p := api.NewPool()
+		if name != "" {
+			_, cidr, err := common.ParseCIDR(name)
+			if err != nil {
+				return nil, err
+			}
+			p.Metadata.CIDR = *cidr
+		}
 		return *p, nil
 
 	default:

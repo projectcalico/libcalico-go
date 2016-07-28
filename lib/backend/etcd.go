@@ -34,7 +34,6 @@ import (
 var (
 	etcdApplyOpts  = &etcd.SetOptions{PrevExist: etcd.PrevIgnore}
 	etcdCreateOpts = &etcd.SetOptions{PrevExist: etcd.PrevNoExist}
-	etcdDeleteOpts = &etcd.DeleteOptions{Recursive: true}
 	etcdGetOpts    = &etcd.GetOptions{Quorum: true}
 	etcdListOpts   = &etcd.GetOptions{Quorum: true, Recursive: true, Sort: true}
 	clientTimeout  = 30 * time.Second
@@ -130,14 +129,18 @@ func (c *EtcdClient) Apply(d *DatastoreObject) (*DatastoreObject, error) {
 }
 
 // Delete an entry in the datastore.  This errors if the entry does not exists.
-func (c *EtcdClient) Delete(k KeyInterface) error {
-	key, err := k.asEtcdDeleteKey()
+func (c *EtcdClient) Delete(d *DatastoreObject) error {
+	key, err := d.Key.asEtcdDeleteKey()
 	if err != nil {
 		return err
 	}
+	etcdDeleteOpts := &etcd.DeleteOptions{Recursive: true}
+	if d.Revision != nil {
+		etcdDeleteOpts.PrevIndex = d.Revision.(uint64)
+	}
 	glog.V(2).Infof("Delete Key: %s\n", key)
 	_, err = c.etcdKeysAPI.Delete(context.Background(), key, etcdDeleteOpts)
-	return convertEtcdError(err, key)
+	return convertEtcdError(err, d.Key)
 }
 
 // Get an entry from the datastore.  This errors if the entry does not exist.
@@ -153,7 +156,7 @@ func (c *EtcdClient) Get(k KeyInterface) (*DatastoreObject, error) {
 	}
 	glog.V(2).Infof("Get Key: %s\n", key)
 	if results, err := c.etcdKeysAPI.Get(context.Background(), key, etcdGetOpts); err != nil {
-		return nil, convertEtcdError(err, key)
+		return nil, convertEtcdError(err, k)
 	} else if object, err := ParseValue(k, []byte(results.Node.Value)); err != nil {
 		return nil, err
 	} else {
@@ -171,7 +174,7 @@ func (c *EtcdClient) List(l ListInterface) ([]*DatastoreObject, error) {
 	glog.V(2).Infof("List Key: %s\n", key)
 	if results, err := c.etcdKeysAPI.Get(context.Background(), key, etcdListOpts); err != nil {
 		// If the root key does not exist - that's fine, return no list entries.
-		err = convertEtcdError(err, key)
+		err = convertEtcdError(err, nil)
 		switch err.(type) {
 		case common.ErrorResourceDoesNotExist:
 			return []*DatastoreObject{}, nil
@@ -208,7 +211,7 @@ func (c *EtcdClient) set(d *DatastoreObject, options *etcd.SetOptions) (*Datasto
 	glog.V(2).Infof("Options: %v\n", options)
 	result, err := c.etcdKeysAPI.Set(context.Background(), key, value, options)
 	if err != nil {
-		return nil, convertEtcdError(err, key)
+		return nil, convertEtcdError(err, d.Key)
 	}
 
 	// Datastore object will be identical except for the modified index.
@@ -238,7 +241,7 @@ func filterEtcdList(n *etcd.Node, l ListInterface) []*DatastoreObject {
 	return dos
 }
 
-func convertEtcdError(err error, key string) error {
+func convertEtcdError(err error, key KeyInterface) error {
 	if err == nil {
 		glog.V(2).Info("Comand completed without error")
 		return nil
@@ -252,19 +255,19 @@ func convertEtcdError(err error, key string) error {
 			return common.ErrorResourceUpdateConflict{Identifier: key}
 		case etcd.ErrorCodeNodeExist:
 			glog.V(2).Info("Node exists error")
-			return common.ErrorResourceAlreadyExists{Err: err, Name: key}
+			return common.ErrorResourceAlreadyExists{Err: err, Identifier: key}
 		case etcd.ErrorCodeKeyNotFound:
 			glog.V(2).Info("Key not found error")
-			return common.ErrorResourceDoesNotExist{Err: err, Name: key}
+			return common.ErrorResourceDoesNotExist{Err: err, Identifier: key}
 		case etcd.ErrorCodeUnauthorized:
 			glog.V(2).Info("Unauthorized error")
 			return common.ErrorConnectionUnauthorized{Err: err}
 		default:
 			glog.V(2).Infof("Generic etcd error error: %v", err)
-			return common.ErrorDatastoreError{Err: err}
+			return common.ErrorDatastoreError{Err: err, Identifier: key}
 		}
 	default:
 		glog.V(2).Infof("Unhandled error: %v", err)
-		return common.ErrorDatastoreError{Err: err}
+		return common.ErrorDatastoreError{Err: err, Identifier: key}
 	}
 }

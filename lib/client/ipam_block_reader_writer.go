@@ -1,3 +1,17 @@
+// Copyright (c) 2016 Tigera, Inc. All rights reserved.
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package client
 
 import (
@@ -19,7 +33,7 @@ type blockReaderWriter struct {
 func (rw blockReaderWriter) getAffineBlocks(host string, ver ipVersion, pool *common.IPNet) ([]common.IPNet, error) {
 	// Lookup all blocks by providing an empty BlockListOptions
 	// to the List operation.
-	opts := backend.BlockListOptions{}
+	opts := backend.BlockListOptions{IPVersion: ver.Number}
 	datastoreObjs, err := rw.client.backend.List(opts)
 	if err != nil {
 		if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
@@ -49,10 +63,12 @@ func (rw blockReaderWriter) claimNewAffineBlock(
 	// all configured pools.
 	var pools []common.IPNet
 	if pool != nil {
-		// Validate the given pool is actually configured.
-		// TODO: Exact match pools check.
-		if !rw.isConfiguredPool(pool) {
+		// Validate the given pool is actually configured and matches the version.
+		if !rw.isConfiguredPool(*pool) {
 			estr := fmt.Sprintf("The given pool (%s) does not exist", pool.String())
+			return nil, errors.New(estr)
+		} else if version.Number != pool.Version() {
+			estr := fmt.Sprintf("The given pool (%s) does not match IP version %d", pool.String(), version.Number)
 			return nil, errors.New(estr)
 		}
 		pools = []common.IPNet{*pool}
@@ -66,7 +82,11 @@ func (rw blockReaderWriter) claimNewAffineBlock(
 
 		// Grab all the IP networks in these pools.
 		for _, p := range allPools.Items {
-			pools = append(pools, p.Metadata.CIDR)
+			// Don't include disabled pools or pools that don't match
+			// the requested IP version.
+			if !p.Spec.Disabled && version.Number == p.Metadata.CIDR.Version() {
+				pools = append(pools, p.Metadata.CIDR)
+			}
 		}
 	}
 
@@ -80,6 +100,7 @@ func (rw blockReaderWriter) claimNewAffineBlock(
 	for _, pool := range pools {
 		for _, subnet := range blocks(pool) {
 			// Check if a block already exists for this subnet.
+			glog.V(4).Infof("Getting block: %s", subnet.String())
 			key := backend.BlockKey{CIDR: subnet}
 			_, err := rw.client.backend.Get(key)
 			if err != nil {
@@ -119,7 +140,7 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet common.IPNet, host string,
 	}
 	_, err = rw.client.backend.Create(&o)
 	if err != nil {
-		if _, ok := err.(casError); ok {
+		if _, ok := err.(common.ErrorResourceAlreadyExists); ok {
 			// Block already exists, check affinity.
 			glog.Warningf("Problem claiming block affinity:", err)
 			obj, err := rw.client.backend.Get(backend.BlockKey{subnet})
@@ -139,12 +160,13 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet common.IPNet, host string,
 			}
 
 			// Some other host beat us to this block.  Cleanup and return error.
-			err = rw.client.backend.Delete(backend.BlockAffinityKey{Host: host, CIDR: b.CIDR})
+			err = rw.client.backend.Delete(&backend.DatastoreObject{
+				Key: backend.BlockAffinityKey{Host: host, CIDR: b.CIDR},
+			})
 			if err != nil {
 				glog.Errorf("Error cleaning up block affinity: %s", err)
 				return err
 			}
-
 			return affinityClaimedError{Block: b}
 		} else {
 			return err
@@ -173,7 +195,9 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 
 		if b.empty() {
 			// If the block is empty, we can delete it.
-			err := rw.client.backend.Delete(backend.BlockKey{CIDR: b.CIDR})
+			err := rw.client.backend.Delete(&backend.DatastoreObject{
+				Key: backend.BlockKey{CIDR: b.CIDR},
+			})
 			if err != nil {
 				if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
 					// Block already deleted.  Carry on.
@@ -194,7 +218,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 			obj.Object = b
 			_, err = rw.client.backend.Update(obj)
 			if err != nil {
-				if _, ok := err.(casError); ok {
+				if _, ok := err.(common.ErrorResourceUpdateConflict); ok {
 					// CASError - continue.
 					continue
 				} else {
@@ -205,7 +229,9 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 
 		// We've removed / updated the block, so update the host config
 		// to remove the CIDR.
-		err = rw.client.backend.Delete(backend.BlockAffinityKey{Host: host, CIDR: b.CIDR})
+		err = rw.client.backend.Delete(&backend.DatastoreObject{
+			Key: backend.BlockAffinityKey{Host: host, CIDR: b.CIDR},
+		})
 		if err != nil {
 			if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
 				// Already deleted - carry on.
@@ -224,7 +250,8 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 func (rw blockReaderWriter) withinConfiguredPools(ip common.IP) bool {
 	allPools, _ := rw.client.Pools().List(api.PoolMetadata{})
 	for _, p := range allPools.Items {
-		if p.Metadata.CIDR.IPNet.Contains(ip.IP) {
+		// Compare any enabled pools.
+		if !p.Spec.Disabled && p.Metadata.CIDR.Contains(ip.IP) {
 			return true
 		}
 	}
@@ -233,10 +260,11 @@ func (rw blockReaderWriter) withinConfiguredPools(ip common.IP) bool {
 
 // isConfiguredPool returns true if the given IPNet is a configured
 // Calico pool, and false otherwise.
-func (rw blockReaderWriter) isConfiguredPool(cidr *common.IPNet) bool {
+func (rw blockReaderWriter) isConfiguredPool(cidr common.IPNet) bool {
 	allPools, _ := rw.client.Pools().List(api.PoolMetadata{})
 	for _, p := range allPools.Items {
-		if reflect.DeepEqual(p.Metadata.CIDR, cidr) {
+		// Compare any enabled pools.
+		if !p.Spec.Disabled && reflect.DeepEqual(p.Metadata.CIDR, cidr) {
 			return true
 		}
 	}
@@ -247,11 +275,11 @@ func (rw blockReaderWriter) isConfiguredPool(cidr *common.IPNet) bool {
 // the given pool.
 func blocks(pool common.IPNet) []common.IPNet {
 	// Determine the IP type to use.
-	ipVersion := getIPVersion(common.IP{pool.IP})
+	version := getIPVersion(common.IP{pool.IP})
 	nets := []common.IPNet{}
 	ip := common.IP{pool.IP}
 	for pool.Contains(ip.IP) {
-		netIP := net.IPNet{ip.IP, ipVersion.BlockPrefixMask}
+		netIP := net.IPNet{ip.IP, version.BlockPrefixMask}
 		nets = append(nets, common.IPNet{netIP})
 		ip = incrementIP(ip, blockSize)
 	}
