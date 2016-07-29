@@ -13,7 +13,8 @@
 // limitations under the License.
 
 /*
-Package api implements the resource struct definitions used by the northbound
-client API.
-*/
-package api
+Package validator implements common field and structure validation that is
+used to validate the API structures supplied on the client interface, and
+is also used internally to validate the information stored in the backend
+datastore.
+*/package validator

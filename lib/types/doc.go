@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /*
-Package api implements the resource struct definitions used by the northbound
-client API.
+Package types implements a set of common type definitions used by the public
+client API and the private backend infrastructure.
 */
-package api
+package types
