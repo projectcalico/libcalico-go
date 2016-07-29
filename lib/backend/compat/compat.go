@@ -15,23 +15,17 @@
 package compat
 
 import (
+	"github.com/tigera/libcalico-go/lib/backend/api"
 	. "github.com/tigera/libcalico-go/lib/backend/model"
 )
 
-type client interface {
-	Create(object *KVPair) (*KVPair, error)
-	Update(object *KVPair) (*KVPair, error)
-	Apply(object *KVPair) (*KVPair, error)
-	Delete(object *KVPair) error
-	Get(key Key) (*KVPair, error)
-	List(list ListInterface) ([]*KVPair, error)
-}
-
 type ModelAdaptor struct {
-	client client
+	client api.Client
 }
 
-func NewAdaptor(c client) *ModelAdaptor {
+var _ api.Client = (*ModelAdaptor)(nil)
+
+func NewAdaptor(c api.Client) *ModelAdaptor {
 	return &ModelAdaptor{client: c}
 }
 
@@ -132,6 +126,10 @@ func (c *ModelAdaptor) Get(k Key) (*KVPair, error) {
 // no entries matching the request in the ListInterface.
 func (c *ModelAdaptor) List(l ListInterface) ([]*KVPair, error) {
 	return c.client.List(l)
+}
+
+func (c *ModelAdaptor) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
+	return c.client.Syncer(callbacks)
 }
 
 // Convert a Profile KVPair to separate KVPair types for Keys, Labels and Rules.
