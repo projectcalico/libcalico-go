@@ -20,6 +20,8 @@ import (
 	"flag"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/tigera/libcalico-go/datastructures/ip"
+	"net"
 	"os"
 )
 
@@ -40,22 +42,31 @@ func init() {
 var _ = Describe("An empty IpsetCalculator", func() {
 	var calc *IpsetCalculator
 	var updates []ipUpdate
+
+	updateEndpointIPs := func(epName string, ips []string) {
+		ipAddrs := make([]ip.Addr, len(ips))
+		for ii, ipStr := range ips {
+			ipAddrs[ii] = ip.FromNetIP(net.ParseIP(ipStr))
+		}
+		calc.UpdateEndpointIPs(epName, ipAddrs)
+	}
+
 	BeforeEach(func() {
 		updates = nil
 		calc = NewIpsetCalculator()
-		calc.OnIPAdded = func(ipSetID string, ip string) {
-			updates = append(updates, ipUpdate{"add", ipSetID, ip})
+		calc.OnIPAdded = func(ipSetID string, ip ip.Addr) {
+			updates = append(updates, ipUpdate{"add", ipSetID, ip.String()})
 		}
-		calc.OnIPRemoved = func(ipSetID string, ip string) {
-			updates = append(updates, ipUpdate{"remove", ipSetID, ip})
+		calc.OnIPRemoved = func(ipSetID string, ip ip.Addr) {
+			updates = append(updates, ipUpdate{"remove", ipSetID, ip.String()})
 		}
 	})
 	Describe("with a match added", func() {
 		BeforeEach(func() {
 			calc.MatchStarted("ep0", "ipset1")
 		})
-		It("should trigger events ehen adding IPs", func() {
-			calc.UpdateEndpointIPs("ep0", []string{"10.0.0.1", "10.0.0.2"})
+		It("should trigger events when adding IPs", func() {
+			updateEndpointIPs("ep0", []string{"10.0.0.1", "10.0.0.2"})
 			Expect(updates).To(Equal([]ipUpdate{
 				{"add", "ipset1", "10.0.0.1"},
 				{"add", "ipset1", "10.0.0.2"},
@@ -66,16 +77,16 @@ var _ = Describe("An empty IpsetCalculator", func() {
 				calc.MatchStopped("ep0", "ipset1")
 			})
 			It("should not trigger an event ehen adding IPs", func() {
-				calc.UpdateEndpointIPs("ep0", []string{"10.0.0.1", "10.0.0.2"})
+				updateEndpointIPs("ep0", []string{"10.0.0.1", "10.0.0.2"})
 				Expect(updates).To(BeEmpty())
 			})
 		})
 	})
 	Describe("with endpoints added", func() {
 		BeforeEach(func() {
-			calc.UpdateEndpointIPs("ep0", []string{})
-			calc.UpdateEndpointIPs("ep1", []string{"10.0.0.1", "10.0.0.2"})
-			calc.UpdateEndpointIPs("ep2", []string{"10.0.0.1", "10.0.1.2"})
+			updateEndpointIPs("ep0", []string{})
+			updateEndpointIPs("ep1", []string{"10.0.0.1", "10.0.0.2"})
+			updateEndpointIPs("ep2", []string{"10.0.0.1", "10.0.1.2"})
 		})
 		It("Should emit no events", func() {
 			Expect(updates).To(BeEmpty())
@@ -89,7 +100,7 @@ var _ = Describe("An empty IpsetCalculator", func() {
 			})
 			Describe("and update to add an IP", func() {
 				BeforeEach(func() {
-					calc.UpdateEndpointIPs("ep0", []string{"10.0.2.2"})
+					updateEndpointIPs("ep0", []string{"10.0.2.2"})
 				})
 				It("should generate an event", func() {
 					Expect(updates).To(Equal([]ipUpdate{
@@ -98,7 +109,7 @@ var _ = Describe("An empty IpsetCalculator", func() {
 				})
 				Describe("and 2nd update to add an IP", func() {
 					BeforeEach(func() {
-						calc.UpdateEndpointIPs("ep0", []string{"10.0.2.2", "10.0.2.3"})
+						updateEndpointIPs("ep0", []string{"10.0.2.2", "10.0.2.3"})
 					})
 					It("should generate an event", func() {
 						Expect(updates).To(Equal([]ipUpdate{
@@ -109,7 +120,7 @@ var _ = Describe("An empty IpsetCalculator", func() {
 				})
 				Describe("and 2nd update to change IP", func() {
 					BeforeEach(func() {
-						calc.UpdateEndpointIPs("ep0", []string{"10.0.2.3"})
+						updateEndpointIPs("ep0", []string{"10.0.2.3"})
 					})
 					It("should generate an event", func() {
 						Expect(updates).To(Equal([]ipUpdate{
@@ -121,7 +132,7 @@ var _ = Describe("An empty IpsetCalculator", func() {
 				})
 				Describe("and 2nd update to remove IPs", func() {
 					BeforeEach(func() {
-						calc.UpdateEndpointIPs("ep0", []string{})
+						updateEndpointIPs("ep0", []string{})
 					})
 					It("should generate an event", func() {
 						Expect(updates).To(Equal([]ipUpdate{
