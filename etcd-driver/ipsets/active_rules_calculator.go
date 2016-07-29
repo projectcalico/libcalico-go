@@ -20,7 +20,6 @@ import (
 	"github.com/tigera/libcalico-go/datastructures/labels"
 	"github.com/tigera/libcalico-go/datastructures/multidict"
 	"github.com/tigera/libcalico-go/datastructures/tags"
-	"github.com/tigera/libcalico-go/etcd-driver/store"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/selector"
 	"reflect"
@@ -31,7 +30,7 @@ type activeRuleListener interface {
 }
 
 type FelixSender interface {
-	SendUpdateToFelix(update store.Update)
+	SendUpdateToFelix(update model.KVPair)
 }
 
 type MatchListener interface {
@@ -83,7 +82,7 @@ func NewActiveRulesCalculator(ruleListener activeRuleListener,
 	return arc
 }
 
-func (arc *ActiveRulesCalculator) OnUpdate(update *store.ParsedUpdate) {
+func (arc *ActiveRulesCalculator) OnUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
 	switch key := update.Key.(type) {
 	case model.WorkloadEndpointKey:
 		if update.Value != nil {
@@ -165,6 +164,8 @@ func (arc *ActiveRulesCalculator) OnUpdate(update *store.ParsedUpdate) {
 		glog.V(0).Infof("Ignoring unexpected update: %v %#v",
 			reflect.TypeOf(update.Key), update)
 	}
+	filteredUpdate = update
+	return
 }
 
 func (arc *ActiveRulesCalculator) updateEndpointProfileIDs(key endpointKey, profileIDs []string) {
@@ -224,23 +225,12 @@ func (arc *ActiveRulesCalculator) sendProfileUpdate(profileID string) {
 	glog.V(3).Infof("Sending profile update for profile %v", profileID)
 	rules, known := arc.allProfileRules[profileID]
 	active := arc.profileIDToEndpointKeys.ContainsKey(profileID)
-	profileKey := model.ProfileKey{Name: profileID}
-	asEtcdKey, err := profileKey.DefaultPath()
-	if err != nil {
-		glog.Fatalf("Failed to marshal key %#v", profileKey)
+	update := model.KVPair{
+		Key: model.ProfileRulesKey{ProfileKey: model.ProfileKey{Name: profileID}},
 	}
-	update := store.Update{Key: asEtcdKey}
 	var inRules, outRules []model.Rule
 	if known && active {
-		jsonBytes, err := json.Marshal(rules)
-		if err != nil {
-			glog.Fatalf("Failed to marshal rules as json: %#v",
-				rules)
-		}
-		jsonStr := string(jsonBytes)
-		update.ValueOrNil = &jsonStr
-		inRules = rules.InboundRules
-		outRules = rules.OutboundRules
+		update.Value = rules
 	}
 	if arc.listener != nil {
 		arc.listener.UpdateRules(profileID, inRules, outRules)
@@ -255,11 +245,7 @@ func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey model.PolicyKey) {
 	active := arc.policyIDToEndpointKeys.ContainsKey(policyKey)
 	glog.V(3).Infof("Sending policy update for policy %v (known: %v, active: %v)",
 		policyKey, known, active)
-	asEtcdKey, err := policyKey.DefaultPath()
-	if err != nil {
-		glog.Fatalf("Failed to marshal key %#v", policyKey)
-	}
-	update := store.Update{Key: asEtcdKey}
+	update := model.KVPair{Key: policyKey}
 	if known && active {
 		var policyCopy model.Policy
 		jsonCopy, err := json.Marshal(policy)
@@ -273,15 +259,10 @@ func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey model.PolicyKey) {
 
 		// FIXME UpdateRules modifies the rules!
 		if arc.listener != nil {
-			arc.listener.UpdateRules(policyKey, policyCopy.InboundRules, policyCopy.OutboundRules)
+			arc.listener.UpdateRules(policyKey,
+				policyCopy.InboundRules, policyCopy.OutboundRules)
 		}
-		jsonBytes, err := json.Marshal(policyCopy)
-		if err != nil {
-			glog.Fatalf("Failed to marshal policy as json: %#v",
-				policyKey)
-		}
-		jsonStr := string(jsonBytes)
-		update.ValueOrNil = &jsonStr
+		update.Value = policyCopy
 	} else {
 		if arc.listener != nil {
 			arc.listener.UpdateRules(policyKey, []model.Rule{}, []model.Rule{})

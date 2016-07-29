@@ -15,40 +15,30 @@
 package etcd
 
 import (
-	"github.com/tigera/libcalico-go/datastructures/hwm"
-	"github.com/tigera/libcalico-go/etcd-driver/store"
-	"time"
-
 	"github.com/coreos/etcd/client"
+	etcd "github.com/coreos/etcd/client"
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/datastructures/hwm"
+	"github.com/tigera/libcalico-go/lib/backend/api"
+	"github.com/tigera/libcalico-go/lib/backend/model"
 	"golang.org/x/net/context"
-	"os"
+	"time"
 )
 
-var etcd_authority, etcd_url string
-
-func init() {
-	store.Register("etcd", New)
-	etcd_authority = os.Getenv("ETCD_AUTHORITY")
-	if etcd_authority == "" {
-		etcd_authority = "127.0.0.1:2379"
-	}
-	etcd_url = "http://" + etcd_authority
-}
-
-func New(callbacks store.Callbacks, config *store.DriverConfiguration) (store.Driver, error) {
-	return &etcdDriver{
+func newSyncer(keysAPI etcd.KeysAPI, callbacks api.SyncerCallbacks) *etcdSyncer {
+	return &etcdSyncer{
+		keysAPI:   keysAPI,
 		callbacks: callbacks,
-		config:    config,
-	}, nil
+	}
 }
 
-type etcdDriver struct {
-	callbacks store.Callbacks
-	config    *store.DriverConfiguration
+type etcdSyncer struct {
+	callbacks api.SyncerCallbacks
+	keysAPI   etcd.KeysAPI
+	OneShot   bool
 }
 
-func (driver *etcdDriver) Start() {
+func (syn *etcdSyncer) Start() {
 	// Start a background thread to read events from etcd.  It will
 	// queue events onto the etcdEvents channel.  If it drops out of sync,
 	// it will signal on the resyncIndex channel.
@@ -56,25 +46,16 @@ func (driver *etcdDriver) Start() {
 	etcdEvents := make(chan event, 20000)
 	triggerResync := make(chan uint64, 5)
 	initialSnapshotIndex := make(chan uint64)
-	if !driver.config.OneShot {
-		go driver.watchEtcd(etcdEvents, triggerResync, initialSnapshotIndex)
+	if !syn.OneShot {
+		go syn.watchEtcd(etcdEvents, triggerResync, initialSnapshotIndex)
 	}
 
 	// Start a background thread to read snapshots from etcd.  It will
 	// read a start-of-day snapshot and then wait to be signalled on the
 	// resyncIndex channel.
 	snapshotUpdates := make(chan event)
-	go driver.readSnapshotsFromEtcd(snapshotUpdates, triggerResync, initialSnapshotIndex)
-
-	go driver.mergeUpdates(snapshotUpdates, etcdEvents)
-
-	// TODO actually send some config
-	driver.callbacks.OnConfigLoaded(
-		map[string]string{
-			"InterfacePrefix": "cali",
-		},
-		map[string]string{},
-	)
+	go syn.readSnapshotsFromEtcd(snapshotUpdates, triggerResync, initialSnapshotIndex)
+	go syn.mergeUpdates(snapshotUpdates, etcdEvents)
 }
 
 const (
@@ -89,22 +70,12 @@ type event struct {
 	modifiedIndex    uint64
 	snapshotIndex    uint64
 	key              string
-	valueOrNil       string
+	value            string
 	snapshotStarting bool
 	snapshotFinished bool
 }
 
-func (driver *etcdDriver) readSnapshotsFromEtcd(snapshotUpdates chan<- event, triggerResync <-chan uint64, initialSnapshotIndex chan<- uint64) {
-	cfg := client.Config{
-		Endpoints:               []string{etcd_url},
-		Transport:               client.DefaultTransport,
-		HeaderTimeoutPerRequest: 10 * time.Second,
-	}
-	c, err := client.New(cfg)
-	if err != nil {
-		glog.Fatal(err)
-	}
-	kapi := client.NewKeysAPI(c)
+func (syn *etcdSyncer) readSnapshotsFromEtcd(snapshotUpdates chan<- event, triggerResync <-chan uint64, initialSnapshotIndex chan<- uint64) {
 	getOpts := client.GetOptions{
 		Recursive: true,
 		Sort:      false,
@@ -134,10 +105,10 @@ func (driver *etcdDriver) readSnapshotsFromEtcd(snapshotUpdates chan<- event, tr
 
 	readRetryLoop:
 		for {
-			resp, err := kapi.Get(context.Background(),
+			resp, err := syn.keysAPI.Get(context.Background(),
 				"/calico/v1", &getOpts)
 			if err != nil {
-				if driver.config.OneShot {
+				if syn.OneShot {
 					// One-shot mode is used to grab a snapshot and then
 					// stop.  We don't want to go into a retry loop.
 					glog.Fatal("Failed to read snapshot from etcd: ", err)
@@ -177,7 +148,7 @@ func sendNode(node *client.Node, snapshotUpdates chan<- event, resp *client.Resp
 			key:           node.Key,
 			modifiedIndex: node.ModifiedIndex,
 			snapshotIndex: resp.Index,
-			valueOrNil:    node.Value,
+			value:         node.Value,
 			action:        actionSet,
 		}
 	} else {
@@ -187,27 +158,14 @@ func sendNode(node *client.Node, snapshotUpdates chan<- event, resp *client.Resp
 	}
 }
 
-func (driver *etcdDriver) watchEtcd(etcdEvents chan<- event, triggerResync chan<- uint64, initialSnapshotIndex <-chan uint64) {
-	cfg := client.Config{
-		Endpoints: []string{etcd_url},
-		Transport: client.DefaultTransport,
-		// set timeout per request to fail fast when the target endpoint is unavailable
-		HeaderTimeoutPerRequest: time.Second,
-	}
-	glog.V(1).Infof("Watcher connecting to etcd with config: %v", cfg)
-	c, err := client.New(cfg)
-	if err != nil {
-		glog.Fatal(err)
-	}
-	kapi := client.NewKeysAPI(c)
-
+func (syn *etcdSyncer) watchEtcd(etcdEvents chan<- event, triggerResync chan<- uint64, initialSnapshotIndex <-chan uint64) {
 	start_index := <-initialSnapshotIndex
 
 	watcherOpts := client.WatcherOptions{
 		AfterIndex: start_index + 1,
 		Recursive:  true,
 	}
-	watcher := kapi.Watcher("/calico/v1", &watcherOpts)
+	watcher := syn.keysAPI.Watcher("/calico/v1", &watcherOpts)
 	inSync := true
 	for {
 		resp, err := watcher.Next(context.Background())
@@ -219,7 +177,7 @@ func (driver *etcdDriver) watchEtcd(etcdEvents chan<- event, triggerResync chan<
 					errCode == client.ErrorCodeEventIndexCleared {
 					glog.Warning("Lost sync with etcd, restarting watcher")
 					watcherOpts.AfterIndex = 0
-					watcher = kapi.Watcher("/calico/v1",
+					watcher = syn.keysAPI.Watcher("/calico/v1",
 						&watcherOpts)
 					inSync = false
 					// FIXME, we'll only trigger a resync after the next event
@@ -264,19 +222,19 @@ func (driver *etcdDriver) watchEtcd(etcdEvents chan<- event, triggerResync chan<
 				action:           actionType,
 				modifiedIndex:    node.ModifiedIndex,
 				key:              resp.Node.Key,
-				valueOrNil:       node.Value,
+				value:            node.Value,
 				snapshotStarting: !inSync,
 			}
 		}
 	}
 }
 
-func (driver *etcdDriver) mergeUpdates(snapshotUpdates <-chan event, watcherUpdates <-chan event) {
+func (syn *etcdSyncer) mergeUpdates(snapshotUpdates <-chan event, watcherUpdates <-chan event) {
 	var e event
 	var minSnapshotIndex uint64
 	hwms := hwm.NewHighWatermarkTracker()
 
-	driver.callbacks.OnStatusUpdated(store.WaitForDatastore)
+	syn.callbacks.OnStatusUpdated(api.WaitForDatastore)
 	for {
 		select {
 		case e = <-snapshotUpdates:
@@ -289,7 +247,7 @@ func (driver *etcdDriver) mergeUpdates(snapshotUpdates <-chan event, watcherUpda
 			// we get a snapshot from after this index.
 			glog.V(1).Infof("Watcher out-of-sync, starting to track deletions")
 			minSnapshotIndex = e.modifiedIndex
-			driver.callbacks.OnStatusUpdated(store.ResyncInProgress)
+			syn.callbacks.OnStatusUpdated(api.ResyncInProgress)
 		}
 		switch e.action {
 		case actionSet:
@@ -310,43 +268,68 @@ func (driver *etcdDriver) mergeUpdates(snapshotUpdates <-chan event, watcherUpda
 			if oldIdx < e.modifiedIndex {
 				// Event is newer than value for that key.
 				// Send the update to Felix.
-				update := store.Update{
-					Key:        e.key,
-					ValueOrNil: &e.valueOrNil,
-				}
-				driver.callbacks.OnKeysUpdated(
-					[]store.Update{update})
+				syn.sendUpdate(e.key, &e.value, e.modifiedIndex)
 			}
 		case actionDel:
 			deletedKeys := hwms.StoreDeletion(e.key,
 				e.modifiedIndex)
 			glog.V(3).Infof("Prefix %v deleted; %v keys",
 				e.key, len(deletedKeys))
-			updates := make([]store.Update, 0, len(deletedKeys))
-			for _, child := range deletedKeys {
-				updates = append(updates, store.Update{
-					Key:        child,
-					ValueOrNil: nil,
-				})
-			}
-			driver.callbacks.OnKeysUpdated(updates)
+			syn.sendDeletions(deletedKeys, e.modifiedIndex)
 		case actionSnapFinished:
 			if e.snapshotIndex >= minSnapshotIndex {
 				// Now in sync.
 				hwms.StopTrackingDeletions()
-				keys := hwms.DeleteOldKeys(e.snapshotIndex)
+				deletedKeys := hwms.DeleteOldKeys(e.snapshotIndex)
 				glog.Infof("Snapshot finished at index %v; "+
 					"%v keys deleted in cleanup.\n",
-					e.snapshotIndex, len(keys))
-				for _, key := range keys {
-					updates := []store.Update{{
-						Key:        key,
-						ValueOrNil: nil,
-					}}
-					driver.callbacks.OnKeysUpdated(updates)
-				}
+					e.snapshotIndex, len(deletedKeys))
+				syn.sendDeletions(deletedKeys, e.snapshotIndex)
 			}
-			driver.callbacks.OnStatusUpdated(store.InSync)
+			syn.callbacks.OnStatusUpdated(api.InSync)
 		}
 	}
+}
+
+func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64) {
+	parsedKey := model.ParseKey(key)
+	if parsedKey == nil {
+		glog.V(3).Infof("Failed to parse key %v", key)
+		if cb, ok := syn.callbacks.(api.SyncerParseFailCallbacks); ok {
+			cb.ParseFailed(key, value)
+		}
+		return
+	}
+	var parsedValue interface{}
+	var err error
+	if value != nil {
+		parsedValue, err = model.ParseValue(parsedKey, []byte(*value))
+		if err != nil {
+			glog.Warningf("Failed to parse value for %v: %#v", key, *value)
+		}
+	}
+	updates := []model.KVPair{
+		{Key: parsedKey, Value: parsedValue, Revision: revision},
+	}
+	syn.callbacks.OnUpdates(updates)
+}
+
+func (syn *etcdSyncer) sendDeletions(deletedKeys []string, revision uint64) {
+	updates := make([]model.KVPair, 0, len(deletedKeys))
+	for _, key := range deletedKeys {
+		parsedKey := model.ParseKey(key)
+		if parsedKey == nil {
+			glog.V(3).Infof("Failed to parse key %v", key)
+			if cb, ok := syn.callbacks.(api.SyncerParseFailCallbacks); ok {
+				cb.ParseFailed(key, nil)
+			}
+			continue
+		}
+		updates = append(updates, model.KVPair{
+			Key:      parsedKey,
+			Value:    nil,
+			Revision: revision,
+		})
+	}
+	syn.callbacks.OnUpdates(updates)
 }

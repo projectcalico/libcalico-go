@@ -15,17 +15,23 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"github.com/docopt/docopt-go"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/ip"
 	"github.com/tigera/libcalico-go/datastructures/set"
-	"github.com/tigera/libcalico-go/etcd-driver/etcd"
 	"github.com/tigera/libcalico-go/etcd-driver/ipsets"
 	"github.com/tigera/libcalico-go/etcd-driver/store"
+	fapi "github.com/tigera/libcalico-go/lib/api"
+	"github.com/tigera/libcalico-go/lib/backend"
+	bapi "github.com/tigera/libcalico-go/lib/backend/api"
+	"github.com/tigera/libcalico-go/lib/backend/etcd"
+	"github.com/tigera/libcalico-go/lib/backend/model"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -63,29 +69,65 @@ func main() {
 	dispatcher := store.NewDispatcher()
 	felixConn := NewFelixConnection(felixSocket, dispatcher)
 
-	// The ipset resolver calculates the current contents of the ipsets
-	// required by felix and generates events when the contents change,
-	// which we then send to Felix.
-	hostname, err := os.Hostname()
-	if err != nil {
-		glog.Fatal("Failed to get hostname: ", err)
-	}
-	ipsetResolver := ipsets.NewResolver(felixConn, hostname)
-	ipsetResolver.RegisterWith(dispatcher)
-
-	// Get an etcd driver
-	datastore, err := etcd.New(felixConn, &store.DriverConfiguration{})
-	felixConn.datastore = datastore
-
-	// TODO callback functions or callback interface?
-	ipsetResolver.OnIPSetAdded = felixConn.onIPSetAdded
-	ipsetResolver.OnIPSetRemoved = felixConn.onIPSetRemoved
-	ipsetResolver.OnIPAdded = felixConn.onIPAddedToIPSet
-	ipsetResolver.OnIPRemoved = felixConn.onIPRemovedFromIPSet
-
 	glog.Info("Starting the datastore driver")
 	felixConn.Start()
 	felixConn.Join()
+}
+
+func (fc *FelixConnection) handleInitFromFelix(msg map[interface{}]interface{}) {
+	// Extract the bootstrap config from the message.
+	urls := msg["etcd_urls"].([]interface{})
+	urlStrs := make([]string, len(urls))
+	for ii, url := range urls {
+		urlStrs[ii] = url.(string)
+	}
+	etcdKeyFile, _ := msg["etcd_key_file"].(string)
+	etcdCertFile, _ := msg["etcd_cert_file"].(string)
+	etcdCACertFile, _ := msg["etcd_ca_file"].(string)
+	hostname := msg["hostname"].(string)
+
+	// Use the config to get a connection to the datastore.
+	etcdCfg := &etcd.EtcdConfig{
+		EtcdEndpoints:  strings.Join(urlStrs, ","),
+		EtcdKeyFile:    etcdKeyFile,
+		EtcdCertFile:   etcdCertFile,
+		EtcdCACertFile: etcdCACertFile,
+	}
+	cfg := &fapi.ClientConfig{
+		BackendType:   fapi.EtcdV2,
+		BackendConfig: etcdCfg,
+	}
+	datastore, err := backend.NewClient(cfg)
+	if err != nil {
+		glog.Fatal(err)
+	}
+	fc.syncer = datastore.Syncer(fc)
+
+	// Hook up the ipset resolver to receive updates from the dispatcher.
+	// The ipset resolver calculates the current contents of the ipsets
+	// required by felix and generates events when the contents change,
+	// which we then send to Felix.
+	ipsetResolver := ipsets.NewResolver(fc, hostname)
+	ipsetResolver.RegisterWith(fc.dispatcher)
+	// TODO callback functions or callback interface?
+	ipsetResolver.OnIPSetAdded = fc.onIPSetAdded
+	ipsetResolver.OnIPSetRemoved = fc.onIPSetRemoved
+	ipsetResolver.OnIPAdded = fc.onIPAddedToIPSet
+	ipsetResolver.OnIPRemoved = fc.onIPRemovedFromIPSet
+
+	// Respond to Felix with the etcd config.
+	globalConfig := make(map[string]string)
+	hostConfig := make(map[string]string)
+	configMsg := map[string]interface{}{
+		"type":   "config_loaded",
+		"global": globalConfig,
+		"host":   hostConfig,
+	}
+	fc.toFelix <- configMsg
+
+	// Start the Syncer, which will send us events for datastore state
+	// and changes.
+	fc.syncer.Start()
 }
 
 type ipUpdate struct {
@@ -99,7 +141,7 @@ type FelixConnection struct {
 	encoder    *msgpack.Encoder
 	decoder    *msgpack.Decoder
 	dispatcher *store.Dispatcher
-	datastore  Startable
+	syncer     Startable
 	addedIPs   set.Set
 	removedIPs set.Set
 	flushMutex sync.Mutex
@@ -122,63 +164,63 @@ func NewFelixConnection(felixSocket net.Conn, disp *store.Dispatcher) *FelixConn
 	return felixConn
 }
 
-func (cbs *FelixConnection) onIPSetAdded(ipsetID string) {
+func (fc *FelixConnection) onIPSetAdded(ipsetID string) {
 	glog.V(2).Infof("IP set %v added; sending messsage to Felix",
 		ipsetID)
 	msg := map[string]interface{}{
 		"type":     "ipset_added",
 		"ipset_id": ipsetID,
 	}
-	cbs.toFelix <- msg
+	fc.toFelix <- msg
 }
 
-func (cbs *FelixConnection) onIPSetRemoved(ipsetID string) {
+func (fc *FelixConnection) onIPSetRemoved(ipsetID string) {
 	glog.V(2).Infof("IP set %v removed; sending messsage to Felix",
 		ipsetID)
-	cbs.flushIPUpdates()
+	fc.flushIPUpdates()
 	msg := map[string]interface{}{
 		"type":     "ipset_removed",
 		"ipset_id": ipsetID,
 	}
-	cbs.toFelix <- msg
+	fc.toFelix <- msg
 }
 
-func (cbs *FelixConnection) onIPAddedToIPSet(ipsetID string, ip ip.Addr) {
+func (fc *FelixConnection) onIPAddedToIPSet(ipsetID string, ip ip.Addr) {
 	glog.V(3).Infof("IP %v added to set %v; updating cache",
 		ip, ipsetID)
-	cbs.flushMutex.Lock()
-	defer cbs.flushMutex.Unlock()
+	fc.flushMutex.Lock()
+	defer fc.flushMutex.Unlock()
 	upd := ipUpdate{ipsetID, ip}
-	cbs.addedIPs.Add(upd)
-	cbs.removedIPs.Discard(upd)
+	fc.addedIPs.Add(upd)
+	fc.removedIPs.Discard(upd)
 }
-func (cbs *FelixConnection) onIPRemovedFromIPSet(ipsetID string, ip ip.Addr) {
+func (fc *FelixConnection) onIPRemovedFromIPSet(ipsetID string, ip ip.Addr) {
 	glog.V(3).Infof("IP %v removed from set %v; caching update",
 		ip, ipsetID)
-	cbs.flushMutex.Lock()
-	defer cbs.flushMutex.Unlock()
+	fc.flushMutex.Lock()
+	defer fc.flushMutex.Unlock()
 	upd := ipUpdate{ipsetID, ip}
-	cbs.addedIPs.Discard(upd)
-	cbs.removedIPs.Add(upd)
+	fc.addedIPs.Discard(upd)
+	fc.removedIPs.Add(upd)
 }
 
-func (cbs *FelixConnection) periodicallyFlush() {
+func (fc *FelixConnection) periodicallyFlush() {
 	for {
-		cbs.flushIPUpdates()
+		fc.flushIPUpdates()
 		time.Sleep(50 * time.Millisecond)
 	}
 }
 
-func (cbs *FelixConnection) flushIPUpdates() {
-	cbs.flushMutex.Lock()
-	defer cbs.flushMutex.Unlock()
-	if cbs.addedIPs.Len() == 0 && cbs.removedIPs.Len() == 0 {
+func (fc *FelixConnection) flushIPUpdates() {
+	fc.flushMutex.Lock()
+	defer fc.flushMutex.Unlock()
+	if fc.addedIPs.Len() == 0 && fc.removedIPs.Len() == 0 {
 		return
 	}
 	glog.V(3).Infof("Sending %v adds and %v IP removes to Felix",
-		cbs.addedIPs.Len(), cbs.removedIPs.Len())
+		fc.addedIPs.Len(), fc.removedIPs.Len())
 	adds := make(map[string][]string)
-	cbs.addedIPs.Iter(func(upd interface{}) error {
+	fc.addedIPs.Iter(func(upd interface{}) error {
 		typedUpd := upd.(ipUpdate)
 		ipStr := typedUpd.ip.String()
 		// FIXME: can we get a bad IP address here?
@@ -187,7 +229,7 @@ func (cbs *FelixConnection) flushIPUpdates() {
 		return nil
 	})
 	removes := make(map[string][]string)
-	cbs.removedIPs.Iter(func(upd interface{}) error {
+	fc.removedIPs.Iter(func(upd interface{}) error {
 		typedUpd := upd.(ipUpdate)
 		ipStr := typedUpd.ip.String()
 		// FIXME: can we get a bad IP address here?
@@ -200,30 +242,20 @@ func (cbs *FelixConnection) flushIPUpdates() {
 		"added_ips":   adds,
 		"removed_ips": removes,
 	}
-	cbs.toFelix <- msg
-	cbs.addedIPs = set.New()
-	cbs.removedIPs = set.New()
+	fc.toFelix <- msg
+	fc.addedIPs = set.New()
+	fc.removedIPs = set.New()
 
 }
 
-func (cbs *FelixConnection) OnConfigLoaded(globalConfig map[string]string, hostConfig map[string]string) {
-	glog.V(1).Infof("Config loaded from datastore, sending to Felix")
-	msg := map[string]interface{}{
-		"type":   "config_loaded",
-		"global": globalConfig,
-		"host":   hostConfig,
-	}
-	cbs.toFelix <- msg
-}
-
-func (cbs *FelixConnection) OnStatusUpdated(status store.DriverStatus) {
+func (fc *FelixConnection) OnStatusUpdated(status bapi.SyncStatus) {
 	statusString := "unknown"
 	switch status {
-	case store.WaitForDatastore:
+	case bapi.WaitForDatastore:
 		statusString = "wait-for-ready"
-	case store.InSync:
+	case bapi.InSync:
 		statusString = "in-sync"
-	case store.ResyncInProgress:
+	case bapi.ResyncInProgress:
 		statusString = "resync"
 	}
 	glog.Infof("Datastore status updated to %v: %v", status, statusString)
@@ -231,51 +263,75 @@ func (cbs *FelixConnection) OnStatusUpdated(status store.DriverStatus) {
 		"type":   "stat",
 		"status": statusString,
 	}
-	cbs.toFelix <- msg
+	fc.toFelix <- msg
 }
 
-func (cbs *FelixConnection) OnKeysUpdated(updates []store.Update) {
+func (fc *FelixConnection) OnUpdates(updates []model.KVPair) {
 	glog.V(3).Infof("Got %v key/value updates from datastore", len(updates))
 	for _, update := range updates {
-		if len(update.Key) == 0 {
-			glog.Fatal("Bug: Key/Value update had empty key")
-		}
-
-		skipFelix := cbs.dispatcher.DispatchUpdate(&update)
+		update, skipFelix := fc.dispatcher.DispatchUpdate(update)
 		if skipFelix {
 			glog.V(4).Info("Skipping update to Felix for ",
 				update.Key)
 			continue
 		}
-
-		cbs.SendUpdateToFelix(update)
+		fc.SendUpdateToFelix(update)
 	}
 }
 
-func (cbs *FelixConnection) SendUpdateToFelix(update store.Update) {
+func (fc *FelixConnection) ParseFailed(rawKey string, rawValue *string) {
 	var msg map[string]interface{}
-	if update.ValueOrNil == nil {
+	if rawValue == nil {
+		glog.V(3).Infof("Sending KV to felix (parse failure): %v = %s", rawKey, nil)
 		msg = map[string]interface{}{
 			"type": "u",
-			"k":    update.Key,
+			"k":    rawKey,
 			"v":    nil,
 		}
 	} else {
 		// Deref the value so that we get better diags if the
 		// message is traced out.
+		glog.V(3).Infof("Sending KV to felix (parse failure): %v = %s", rawKey, *rawValue)
 		msg = map[string]interface{}{
 			"type": "u",
-			"k":    update.Key,
-			"v":    *update.ValueOrNil,
+			"k":    rawKey,
+			"v":    rawValue,
 		}
 	}
-	cbs.toFelix <- msg
+	fc.toFelix <- msg
 }
 
-func (cbs *FelixConnection) readMessagesFromFelix() {
-	defer func() { cbs.failed <- true }()
+func (fc *FelixConnection) SendUpdateToFelix(kv model.KVPair) {
+	var msg map[string]interface{}
+	path, err := kv.Key.DefaultPath()
+	if err != nil {
+		glog.Fatalf("Unable to marshal key: %#v", kv.Key)
+	}
+	glog.V(4).Infof("Sending KV to felix: %v = %#v", path, kv.Value)
+
+	var jsonStr interface{}
+	if kv.Value != nil {
+		jsonData, err := json.Marshal(kv.Value)
+		if err != nil {
+			glog.Warningf("Failed to marshall data for key %v, %#v: %v",
+				path, kv.Value, err)
+		} else {
+			jsonStr = string(jsonData)
+		}
+	}
+	glog.V(3).Infof("Sending KV to felix: %v = %s", path, jsonStr)
+	msg = map[string]interface{}{
+		"type": "u",
+		"k":    path,
+		"v":    jsonStr,
+	}
+	fc.toFelix <- msg
+}
+
+func (fc *FelixConnection) readMessagesFromFelix() {
+	defer func() { fc.failed <- true }()
 	for {
-		msg, err := cbs.decoder.DecodeMap()
+		msg, err := fc.decoder.DecodeMap()
 		if err != nil {
 			panic("Error reading from felix")
 		}
@@ -283,34 +339,34 @@ func (cbs *FelixConnection) readMessagesFromFelix() {
 		msgType := msg.(map[interface{}]interface{})["type"].(string)
 		switch msgType {
 		case "init": // Hello message from felix
-			cbs.datastore.Start() // Should trigger OnConfigLoaded.
+			fc.handleInitFromFelix(msg.(map[interface{}]interface{}))
 		default:
 			glog.Warning("XXXX Unknown message from felix: ", msg)
 		}
 	}
 }
 
-func (cbs *FelixConnection) sendMessagesToFelix() {
-	defer func() { cbs.failed <- true }()
+func (fc *FelixConnection) sendMessagesToFelix() {
+	defer func() { fc.failed <- true }()
 	for {
-		msg := <-cbs.toFelix
+		msg := <-fc.toFelix
 		glog.V(3).Infof("Writing msg to felix: %#v\n", msg)
-		if err := cbs.encoder.Encode(msg); err != nil {
-			panic("Failed to send message to felix")
+		if err := fc.encoder.Encode(msg); err != nil {
+			glog.Fatalf("Failed to send message to felix: %v", err)
 		}
 	}
 }
 
-func (cbs *FelixConnection) Start() {
+func (fc *FelixConnection) Start() {
 	// Start background thread to read messages from Felix.
-	go cbs.readMessagesFromFelix()
+	go fc.readMessagesFromFelix()
 	// And one to write to Felix.
-	go cbs.sendMessagesToFelix()
+	go fc.sendMessagesToFelix()
 	// And one to kick us to flush IP set updates.
-	go cbs.periodicallyFlush()
+	go fc.periodicallyFlush()
 }
 
-func (cbs *FelixConnection) Join() {
-	_ = <-cbs.failed
+func (fc *FelixConnection) Join() {
+	_ = <-fc.failed
 	glog.Fatal("Background thread failed")
 }

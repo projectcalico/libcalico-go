@@ -84,7 +84,7 @@ func NewResolver(felixSender FelixSender, hostname string) *Resolver {
 }
 
 type dispatcher interface {
-	Register(keyExample model.Key, receiver store.ParsedUpdateHandler)
+	Register(keyExample model.Key, receiver store.UpdateHandler)
 }
 
 // RegisterWith registers the update callbacks that this object requires with the dispatcher.
@@ -102,15 +102,17 @@ func (res *Resolver) RegisterWith(disp dispatcher) {
 
 // Datastore callbacks:
 
-func (res *Resolver) skipFelix(update *store.ParsedUpdate) {
-	update.SkipSendToFelix = true
+func (res *Resolver) skipFelix(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
+	filteredUpdate = update
+	skipFelix = true
+	return
 }
 
-func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
+func (res *Resolver) onEndpointUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
 	key := update.Key.(model.WorkloadEndpointKey)
 	onThisHost := key.Hostname == res.hostname
 	if !onThisHost {
-		update.SkipSendToFelix = true
+		skipFelix = true
 	} else {
 		res.activeRulesCalculator.OnUpdate(update)
 	}
@@ -132,13 +134,15 @@ func (res *Resolver) onEndpointUpdate(update *store.ParsedUpdate) {
 		res.labelIdx.DeleteLabels(update.Key)
 		res.tagIndex.DeleteEndpoint(update.Key)
 	}
+	filteredUpdate = update
+	return
 }
 
-func (res *Resolver) onHostEndpointUpdate(update *store.ParsedUpdate) {
+func (res *Resolver) onHostEndpointUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
 	key := update.Key.(model.HostEndpointKey)
 	onThisHost := key.Hostname == res.hostname
 	if !onThisHost {
-		update.SkipSendToFelix = true
+		skipFelix = true
 	}
 	if update.Value != nil {
 		glog.V(3).Infof("Endpoint %v updated", update.Key)
@@ -164,10 +168,12 @@ func (res *Resolver) onHostEndpointUpdate(update *store.ParsedUpdate) {
 		res.labelIdx.DeleteLabels(update.Key)
 		res.tagIndex.DeleteEndpoint(update.Key)
 	}
+	filteredUpdate = update
+	return
 }
 
 // onProfileLabelsUpdate updates the index when the labels attached to a profile change.
-func (res *Resolver) onProfileLabelsUpdate(update *store.ParsedUpdate) {
+func (res *Resolver) onProfileLabelsUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
 	// The profile IDs in the endpoint are simple strings; convert the
 	// key to string so that it matches.
 	profileKey := update.Key.(model.ProfileLabelsKey)
@@ -183,10 +189,12 @@ func (res *Resolver) onProfileLabelsUpdate(update *store.ParsedUpdate) {
 		glog.V(3).Infof("Profile labels %v deleted", update.Key)
 		res.labelIdx.DeleteParentLabels(profileID)
 	}
-	update.SkipSendToFelix = true
+	filteredUpdate = update
+	skipFelix = true
+	return
 }
 
-func (res *Resolver) onProfileTagsUpdate(update *store.ParsedUpdate) {
+func (res *Resolver) onProfileTagsUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
 	glog.V(3).Infof("Profile tags %v updated", update)
 	// The profile IDs in the endpoint are simple strings; convert the
 	// key to string so that it matches.
@@ -203,7 +211,9 @@ func (res *Resolver) onProfileTagsUpdate(update *store.ParsedUpdate) {
 		glog.V(3).Infof("Profile tags %v deleted", update.Key)
 		res.tagIndex.DeleteProfileTags(profileID)
 	}
-	update.SkipSendToFelix = true
+	filteredUpdate = update
+	skipFelix = true
+	return
 }
 
 //// OnProfileUpdate is called when we get a profile update from the datastore.

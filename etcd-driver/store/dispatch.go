@@ -15,37 +15,26 @@
 package store
 
 import (
-	"encoding/json"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	"reflect"
 )
 
-type ParsedUpdateHandler func(update *ParsedUpdate)
+type UpdateHandler func(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool)
 
 type Dispatcher struct {
-	listenersByType map[reflect.Type][]ParsedUpdateHandler
+	listenersByType map[reflect.Type][]UpdateHandler
 }
 
 // NewDispatcher creates a Dispatcher with all its event handlers set to no-ops.
 func NewDispatcher() *Dispatcher {
 	d := Dispatcher{
-		listenersByType: make(map[reflect.Type][]ParsedUpdateHandler),
+		listenersByType: make(map[reflect.Type][]UpdateHandler),
 	}
 	return &d
 }
 
-type ParsedUpdate struct {
-	Key      model.Key
-	Value    interface{}
-	ParseErr error
-	// RawUpdate is the Update that will be passed to Felix, mutable!
-	RawUpdate       *Update
-	ValueUpdated    bool
-	SkipSendToFelix bool
-}
-
-func (d *Dispatcher) Register(keyExample model.Key, receiver ParsedUpdateHandler) {
+func (d *Dispatcher) Register(keyExample model.Key, receiver UpdateHandler) {
 	keyType := reflect.TypeOf(keyExample)
 	if keyType.Kind() == reflect.Ptr {
 		panic("Register expects a non-pointer")
@@ -54,45 +43,17 @@ func (d *Dispatcher) Register(keyExample model.Key, receiver ParsedUpdateHandler
 	d.listenersByType[keyType] = append(d.listenersByType[keyType], receiver)
 }
 
-func (d *Dispatcher) DispatchUpdate(update *Update) bool {
+func (d *Dispatcher) DispatchUpdate(update model.KVPair) (model.KVPair, bool) {
 	glog.V(3).Infof("Dispatching %v", update)
-	key := model.ParseKey(update.Key)
-	if key == nil {
-		return false
-	}
-
-	glog.V(4).Info("Key ", key)
-	var value interface{}
-	var err error
-	if update.ValueOrNil != nil {
-		value, err = model.ParseValue(key, []byte(*update.ValueOrNil))
-	}
-
-	parsedUpdate := &ParsedUpdate{
-		Key:       key,
-		Value:     value,
-		ParseErr:  err,
-		RawUpdate: update,
-	}
-
-	keyType := reflect.TypeOf(key)
+	keyType := reflect.TypeOf(update.Key)
 	glog.V(4).Info("Type: ", keyType)
 	listeners := d.listenersByType[keyType]
 	glog.V(4).Infof("Listeners: %#v", listeners)
+	skipFelix := false
+	skip := false
 	for _, recv := range listeners {
-		recv(parsedUpdate)
+		update, skip = recv(update)
+		skipFelix = skipFelix || skip
 	}
-
-	if parsedUpdate.ValueUpdated {
-		// A handler has tweaked the value, update the JSON.
-		rawJSON, err := json.Marshal(parsedUpdate.Value)
-		if err != nil {
-			update.ValueOrNil = nil
-		} else {
-			str := string(rawJSON)
-			update.ValueOrNil = &str
-		}
-	}
-
-	return parsedUpdate.SkipSendToFelix
+	return update, skipFelix
 }
