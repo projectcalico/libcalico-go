@@ -47,19 +47,20 @@ type Resolver struct {
 
 	hostname string
 
-	OnIPSetAdded   func(selID string)
-	OnIPAdded      func(selID string, ip ip.Addr)
-	OnIPRemoved    func(selID string, ip ip.Addr)
-	OnIPSetRemoved func(selID string)
+	callbacks IPSetUpdateCallbacks
 }
 
-func NewResolver(felixSender FelixSender, hostname string) *Resolver {
+type IPSetUpdateCallbacks interface {
+	OnIPSetAdded(selID string)
+	OnIPAdded(selID string, ip ip.Addr)
+	OnIPRemoved(selID string, ip ip.Addr)
+	OnIPSetRemoved(selID string)
+}
+
+func NewResolver(felixSender FelixSender, hostname string, callbacks IPSetUpdateCallbacks) *Resolver {
 	resolver := &Resolver{
-		OnIPSetAdded:   func(selID string) {},
-		OnIPAdded:      func(selID string, ip ip.Addr) {},
-		OnIPRemoved:    func(selID string, ip ip.Addr) {},
-		OnIPSetRemoved: func(selID string) {},
-		hostname:       hostname,
+		callbacks: callbacks,
+		hostname:  hostname,
 	}
 
 	resolver.tagIndex = tags.NewIndex(resolver.onTagMatchStarted, resolver.onTagMatchStopped)
@@ -253,7 +254,7 @@ func (res *Resolver) onTagMatchStopped(key tags.EndpointKey, tagID string) {
 // It adds the selector to the label index and starts tracking it.
 func (res *Resolver) onSelectorActive(sel selector.Selector) {
 	glog.Infof("Selector %v now active", sel)
-	res.OnIPSetAdded(sel.UniqueId())
+	res.callbacks.OnIPSetAdded(sel.UniqueId())
 	res.labelIdx.UpdateSelector(sel.UniqueId(), sel)
 }
 
@@ -262,7 +263,7 @@ func (res *Resolver) onSelectorActive(sel selector.Selector) {
 func (res *Resolver) onSelectorInactive(sel selector.Selector) {
 	glog.Infof("Selector %v now inactive", sel)
 	res.labelIdx.DeleteSelector(sel.UniqueId())
-	res.OnIPSetRemoved(sel.UniqueId())
+	res.callbacks.OnIPSetRemoved(sel.UniqueId())
 }
 
 // IpsetCalculator callbacks:
@@ -270,11 +271,11 @@ func (res *Resolver) onSelectorInactive(sel selector.Selector) {
 // onIPAdded is called when an IP is now present in an active selector.
 func (res *Resolver) onIPAdded(selID string, ip ip.Addr) {
 	glog.V(3).Infof("IP set %v now contains %v", selID, ip)
-	res.OnIPAdded(selID, ip)
+	res.callbacks.OnIPAdded(selID, ip)
 }
 
 // onIPRemoved is called when an IP is no longer present in a selector.
 func (res *Resolver) onIPRemoved(selID string, ip ip.Addr) {
 	glog.V(3).Infof("IP set %v no longer contains %v", selID, ip)
-	res.OnIPRemoved(selID, ip)
+	res.callbacks.OnIPRemoved(selID, ip)
 }

@@ -74,62 +74,6 @@ func main() {
 	felixConn.Join()
 }
 
-func (fc *FelixConnection) handleInitFromFelix(msg map[interface{}]interface{}) {
-	// Extract the bootstrap config from the message.
-	urls := msg["etcd_urls"].([]interface{})
-	urlStrs := make([]string, len(urls))
-	for ii, url := range urls {
-		urlStrs[ii] = url.(string)
-	}
-	etcdKeyFile, _ := msg["etcd_key_file"].(string)
-	etcdCertFile, _ := msg["etcd_cert_file"].(string)
-	etcdCACertFile, _ := msg["etcd_ca_file"].(string)
-	hostname := msg["hostname"].(string)
-
-	// Use the config to get a connection to the datastore.
-	etcdCfg := &etcd.EtcdConfig{
-		EtcdEndpoints:  strings.Join(urlStrs, ","),
-		EtcdKeyFile:    etcdKeyFile,
-		EtcdCertFile:   etcdCertFile,
-		EtcdCACertFile: etcdCACertFile,
-	}
-	cfg := &fapi.ClientConfig{
-		BackendType:   fapi.EtcdV2,
-		BackendConfig: etcdCfg,
-	}
-	datastore, err := backend.NewClient(cfg)
-	if err != nil {
-		glog.Fatal(err)
-	}
-	fc.syncer = datastore.Syncer(fc)
-
-	// Hook up the ipset resolver to receive updates from the dispatcher.
-	// The ipset resolver calculates the current contents of the ipsets
-	// required by felix and generates events when the contents change,
-	// which we then send to Felix.
-	ipsetResolver := ipsets.NewResolver(fc, hostname)
-	ipsetResolver.RegisterWith(fc.dispatcher)
-	// TODO callback functions or callback interface?
-	ipsetResolver.OnIPSetAdded = fc.onIPSetAdded
-	ipsetResolver.OnIPSetRemoved = fc.onIPSetRemoved
-	ipsetResolver.OnIPAdded = fc.onIPAddedToIPSet
-	ipsetResolver.OnIPRemoved = fc.onIPRemovedFromIPSet
-
-	// Respond to Felix with the etcd config.
-	globalConfig := make(map[string]string)
-	hostConfig := make(map[string]string)
-	configMsg := map[string]interface{}{
-		"type":   "config_loaded",
-		"global": globalConfig,
-		"host":   hostConfig,
-	}
-	fc.toFelix <- configMsg
-
-	// Start the Syncer, which will send us events for datastore state
-	// and changes.
-	fc.syncer.Start()
-}
-
 type ipUpdate struct {
 	ipset string
 	ip    ip.Addr
@@ -164,7 +108,7 @@ func NewFelixConnection(felixSocket net.Conn, disp *store.Dispatcher) *FelixConn
 	return felixConn
 }
 
-func (fc *FelixConnection) onIPSetAdded(ipsetID string) {
+func (fc *FelixConnection) OnIPSetAdded(ipsetID string) {
 	glog.V(2).Infof("IP set %v added; sending messsage to Felix",
 		ipsetID)
 	msg := map[string]interface{}{
@@ -174,7 +118,7 @@ func (fc *FelixConnection) onIPSetAdded(ipsetID string) {
 	fc.toFelix <- msg
 }
 
-func (fc *FelixConnection) onIPSetRemoved(ipsetID string) {
+func (fc *FelixConnection) OnIPSetRemoved(ipsetID string) {
 	glog.V(2).Infof("IP set %v removed; sending messsage to Felix",
 		ipsetID)
 	fc.flushIPUpdates()
@@ -185,7 +129,7 @@ func (fc *FelixConnection) onIPSetRemoved(ipsetID string) {
 	fc.toFelix <- msg
 }
 
-func (fc *FelixConnection) onIPAddedToIPSet(ipsetID string, ip ip.Addr) {
+func (fc *FelixConnection) OnIPAdded(ipsetID string, ip ip.Addr) {
 	glog.V(3).Infof("IP %v added to set %v; updating cache",
 		ip, ipsetID)
 	fc.flushMutex.Lock()
@@ -194,7 +138,7 @@ func (fc *FelixConnection) onIPAddedToIPSet(ipsetID string, ip ip.Addr) {
 	fc.addedIPs.Add(upd)
 	fc.removedIPs.Discard(upd)
 }
-func (fc *FelixConnection) onIPRemovedFromIPSet(ipsetID string, ip ip.Addr) {
+func (fc *FelixConnection) OnIPRemoved(ipsetID string, ip ip.Addr) {
 	glog.V(3).Infof("IP %v removed from set %v; caching update",
 		ip, ipsetID)
 	fc.flushMutex.Lock()
@@ -344,6 +288,57 @@ func (fc *FelixConnection) readMessagesFromFelix() {
 			glog.Warning("XXXX Unknown message from felix: ", msg)
 		}
 	}
+}
+
+func (fc *FelixConnection) handleInitFromFelix(msg map[interface{}]interface{}) {
+	// Extract the bootstrap config from the message.
+	urls := msg["etcd_urls"].([]interface{})
+	urlStrs := make([]string, len(urls))
+	for ii, url := range urls {
+		urlStrs[ii] = url.(string)
+	}
+	etcdKeyFile, _ := msg["etcd_key_file"].(string)
+	etcdCertFile, _ := msg["etcd_cert_file"].(string)
+	etcdCACertFile, _ := msg["etcd_ca_file"].(string)
+	hostname := msg["hostname"].(string)
+
+	// Use the config to get a connection to the datastore.
+	etcdCfg := &etcd.EtcdConfig{
+		EtcdEndpoints:  strings.Join(urlStrs, ","),
+		EtcdKeyFile:    etcdKeyFile,
+		EtcdCertFile:   etcdCertFile,
+		EtcdCACertFile: etcdCACertFile,
+	}
+	cfg := &fapi.ClientConfig{
+		BackendType:   fapi.EtcdV2,
+		BackendConfig: etcdCfg,
+	}
+	datastore, err := backend.NewClient(cfg)
+	if err != nil {
+		glog.Fatal(err)
+	}
+	fc.syncer = datastore.Syncer(fc)
+
+	// Hook up the ipset resolver to receive updates from the dispatcher.
+	// The ipset resolver calculates the current contents of the ipsets
+	// required by felix and generates events when the contents change,
+	// which we then send to Felix.
+	ipsetResolver := ipsets.NewResolver(fc, hostname, fc)
+	ipsetResolver.RegisterWith(fc.dispatcher)
+
+	// Respond to Felix with the etcd config.
+	globalConfig := make(map[string]string)
+	hostConfig := make(map[string]string)
+	configMsg := map[string]interface{}{
+		"type":   "config_loaded",
+		"global": globalConfig,
+		"host":   hostConfig,
+	}
+	fc.toFelix <- configMsg
+
+	// Start the Syncer, which will send us events for datastore state
+	// and changes.
+	fc.syncer.Start()
 }
 
 func (fc *FelixConnection) sendMessagesToFelix() {
