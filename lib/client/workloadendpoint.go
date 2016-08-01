@@ -16,6 +16,7 @@ package client
 
 import (
 	"github.com/tigera/libcalico-go/lib/api"
+	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	. "github.com/tigera/libcalico-go/lib/types"
 )
@@ -102,7 +103,7 @@ func (w *workloadEndpoints) convertMetadataToKey(m interface{}) (model.Key, erro
 }
 
 // Convert an API WorkloadEndpoint structure to a Backend WorkloadEndpoint structure
-func (w *workloadEndpoints) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
+func (w *workloadEndpoints) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ah := a.(api.WorkloadEndpoint)
 	k, err := w.convertMetadataToKey(ah.Metadata)
 	if err != nil {
@@ -136,7 +137,7 @@ func (w *workloadEndpoints) convertAPIToKVPair(a interface{}) (*model.KVPair, er
 }
 
 // Convert a Backend WorkloadEndpoint structure to an API WorkloadEndpoint structure
-func (w *workloadEndpoints) convertKVPairToAPI(d *model.KVPair) (interface{}, error) {
+func (w *workloadEndpoints) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	bh := d.Value.(model.WorkloadEndpoint)
 	bk := d.Key.(model.WorkloadEndpointKey)
 
