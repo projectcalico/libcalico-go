@@ -132,6 +132,7 @@ func (fc *FelixConnection) OnIPSetRemoved(ipsetID string) {
 func (fc *FelixConnection) OnIPAdded(ipsetID string, ip ip.Addr) {
 	glog.V(3).Infof("IP %v added to set %v; updating cache",
 		ip, ipsetID)
+	// TODO: Replace lock with go-routine?
 	fc.flushMutex.Lock()
 	defer fc.flushMutex.Unlock()
 	upd := ipUpdate{ipsetID, ip}
@@ -290,6 +291,8 @@ func (fc *FelixConnection) readMessagesFromFelix() {
 	}
 }
 
+// handleInitFromFelix() Handles the start-of-day init message from the main Felix process.
+// this is the first message, which gives us the datastore configuration.
 func (fc *FelixConnection) handleInitFromFelix(msg map[interface{}]interface{}) {
 	// Extract the bootstrap config from the message.
 	urls := msg["etcd_urls"].([]interface{})
@@ -327,6 +330,7 @@ func (fc *FelixConnection) handleInitFromFelix(msg map[interface{}]interface{}) 
 	ipsetResolver.RegisterWith(fc.dispatcher)
 
 	// Respond to Felix with the etcd config.
+	// TODO: Actually load the config from etcd.
 	globalConfig := make(map[string]string)
 	hostConfig := make(map[string]string)
 	configMsg := map[string]interface{}{

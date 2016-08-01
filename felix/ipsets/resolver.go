@@ -122,9 +122,12 @@ func (res *Resolver) onEndpointUpdate(update model.KVPair) (filteredUpdate model
 		glog.V(4).Infof("Endpoint data: %#v", update.Value)
 		ep := update.Value.(*model.WorkloadEndpoint)
 		// FIXME IPv6
-		ips := make([]ip.Addr, len(ep.IPv4Nets))
-		for ii, net := range ep.IPv4Nets {
-			ips[ii] = ip.FromNetIP(net.IP)
+		ips := make([]ip.Addr, 0, len(ep.IPv4Nets)+len(ep.IPv6Nets))
+		for _, net := range ep.IPv4Nets {
+			ips = append(ips, ip.FromNetIP(net.IP))
+		}
+		for _, net := range ep.IPv6Nets {
+			ips = append(ips, ip.FromNetIP(net.IP))
 		}
 		res.ipsetCalc.UpdateEndpointIPs(update.Key, ips)
 		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
@@ -153,9 +156,13 @@ func (res *Resolver) onHostEndpointUpdate(update model.KVPair) (filteredUpdate m
 			res.activeRulesCalculator.OnUpdate(update)
 		}
 		// FIXME IPv6
-		ips := make([]ip.Addr, len(ep.ExpectedIPv4Addrs))
-		for ii, netIP := range ep.ExpectedIPv4Addrs {
-			ips[ii] = ip.FromNetIP(netIP.IP)
+		ips := make([]ip.Addr,
+			len(ep.ExpectedIPv4Addrs)+len(ep.ExpectedIPv6Addrs))
+		for _, netIP := range ep.ExpectedIPv4Addrs {
+			ips = append(ips, ip.FromNetIP(netIP.IP))
+		}
+		for _, netIP := range ep.ExpectedIPv6Addrs {
+			ips = append(ips, ip.FromNetIP(netIP.IP))
 		}
 		res.ipsetCalc.UpdateEndpointIPs(update.Key, ips)
 		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
