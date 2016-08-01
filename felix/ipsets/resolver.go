@@ -19,7 +19,7 @@ import (
 	"github.com/tigera/libcalico-go/datastructures/ip"
 	"github.com/tigera/libcalico-go/datastructures/labels"
 	"github.com/tigera/libcalico-go/datastructures/tags"
-	"github.com/tigera/libcalico-go/etcd-driver/store"
+	"github.com/tigera/libcalico-go/felix/store"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/hash"
 	"github.com/tigera/libcalico-go/lib/selector"

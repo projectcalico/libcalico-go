@@ -21,8 +21,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/ip"
 	"github.com/tigera/libcalico-go/datastructures/set"
-	"github.com/tigera/libcalico-go/etcd-driver/ipsets"
-	"github.com/tigera/libcalico-go/etcd-driver/store"
+	"github.com/tigera/libcalico-go/felix/ipsets"
+	"github.com/tigera/libcalico-go/felix/store"
 	fapi "github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/backend"
 	bapi "github.com/tigera/libcalico-go/lib/backend/api"
@@ -36,10 +36,10 @@ import (
 	"time"
 )
 
-const usage = `etcd driver.
+const usage = `Felix backend driver.
 
 Usage:
-  etcd-driver <felix-socket>`
+  felix-backend <felix-socket>`
 
 func main() {
 	// Parse command-line args.

@@ -15,7 +15,7 @@
 package ipsets_test
 
 import (
-	. "github.com/tigera/libcalico-go/etcd-driver/ipsets"
+	. "github.com/tigera/libcalico-go/felix/ipsets"
 
 	"flag"
 	. "github.com/onsi/ginkgo"

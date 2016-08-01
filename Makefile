@@ -13,9 +13,9 @@ ut:
 .PHONEY: force
 force:
 	true
-bin/etcd-driver: force
+bin/felix-backend: force
 	mkdir -p bin
-	go build -o "$@" "./etcd-driver/etcd-driver.go"
+	go build -o "$@" "./felix/backend.go"
 
 bin/calicoctl: force
 	mkdir -p bin
