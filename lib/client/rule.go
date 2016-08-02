@@ -37,6 +37,7 @@ func ruleActionBackendToAPI(action string) string {
 func ruleAPIToBackend(ar api.Rule) model.Rule {
 	return model.Rule{
 		Action:      ruleActionAPIToBackend(ar.Action),
+		LogPrefix:   ar.LogPrefix,
 		Protocol:    ar.Protocol,
 		ICMPCode:    ar.ICMPCode,
 		ICMPType:    ar.ICMPType,
@@ -68,6 +69,7 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 func ruleBackendToAPI(br model.Rule) api.Rule {
 	return api.Rule{
 		Action:      ruleActionBackendToAPI(br.Action),
+		LogPrefix:   br.LogPrefix,
 		Protocol:    br.Protocol,
 		ICMPCode:    br.ICMPCode,
 		ICMPType:    br.ICMPType,

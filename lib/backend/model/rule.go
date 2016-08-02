@@ -20,7 +20,8 @@ import (
 )
 
 type Rule struct {
-	Action string `json:"action,omitempty" validate:"backendaction"`
+	Action    string `json:"action,omitempty" validate:"backendaction"`
+	LogPrefix string `json:"logPrefix,omitempty" validate:"omitempty"`
 
 	Protocol    *numorstring.Protocol `json:"protocol,omitempty" validate:"omitempty"`
 	SrcTag      string                `json:"src_tag,omitempty" validate:"omitempty,tag"`
