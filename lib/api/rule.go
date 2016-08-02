@@ -24,8 +24,8 @@ import (
 )
 
 type Rule struct {
-	Action    string `json:"action" validate:"action"`
-	LogPrefix string `json:"logPrefix,omitempty" validate:"omitempty"`
+	Action    string  `json:"action" validate:"action"`
+	LogPrefix *string `json:"logPrefix,omitempty" validate:"omitempty"`
 
 	Protocol *Protocol `json:"protocol,omitempty" validate:"omitempty"`
 	ICMPType *int      `json:"icmpType,omitempty" validate:"omitempty,gte=0,lte=255"`

@@ -27,9 +27,11 @@
           net: 10.20.30.40/32
           selector:
           ports:
+      - action: deny
+        protocol: icmp
     egress:
       - action: log
-        logPrefix: 
+        logPrefix: ""
         protocol: tcp
         source:
           "!tag": abcd
