@@ -16,6 +16,7 @@ package client
 
 import (
 	"github.com/tigera/libcalico-go/lib/api"
+	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 )
 
@@ -77,7 +78,7 @@ func (h *profiles) List(metadata api.ProfileMetadata) (*api.ProfileList, error) 
 }
 
 // Convert a ProfileMetadata to a ProfileListInterface
-func (h *profiles) convertMetadataToListInterface(m interface{}) (model.ListInterface, error) {
+func (h *profiles) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	hm := m.(api.ProfileMetadata)
 	l := model.ProfileListOptions{
 		Name: hm.Name,
@@ -86,7 +87,7 @@ func (h *profiles) convertMetadataToListInterface(m interface{}) (model.ListInte
 }
 
 // Convert a ProfileMetadata to a ProfileKeyInterface
-func (h *profiles) convertMetadataToKey(m interface{}) (model.Key, error) {
+func (h *profiles) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	hm := m.(api.ProfileMetadata)
 	k := model.ProfileKey{
 		Name: hm.Name,
@@ -95,7 +96,7 @@ func (h *profiles) convertMetadataToKey(m interface{}) (model.Key, error) {
 }
 
 // Convert an API Profile structure to a Backend Profile structure
-func (h *profiles) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
+func (h *profiles) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.Profile)
 	k, err := h.convertMetadataToKey(ap.Metadata)
 	if err != nil {
@@ -106,6 +107,7 @@ func (h *profiles) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
 		Key: k,
 		Value: model.Profile{
 			Rules: model.ProfileRules{
+				ProfileID:     ap.Metadata.Name,
 				InboundRules:  rulesAPIToBackend(ap.Spec.IngressRules),
 				OutboundRules: rulesAPIToBackend(ap.Spec.EgressRules),
 			},
@@ -118,7 +120,7 @@ func (h *profiles) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
 }
 
 // Convert a Backend Profile structure to an API Profile structure
-func (h *profiles) convertKVPairToAPI(d *model.KVPair) (interface{}, error) {
+func (h *profiles) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	bp := d.Value.(model.Profile)
 	bk := d.Key.(model.ProfileKey)
 

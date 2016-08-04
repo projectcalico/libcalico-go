@@ -15,13 +15,13 @@
 package client
 
 import (
-	"github.com/tigera/libcalico-go/lib/common"
+	"github.com/tigera/libcalico-go/lib/net"
 )
 
 // AssignIPArgs defines the set of arguments for assigning a specific IP address.
 type AssignIPArgs struct {
 	// The IP address to assign.
-	IP common.IP
+	IP net.IP
 
 	// If specified, a handle which can be used to retrieve / release
 	// the allocated IP addresses in the future.
@@ -33,7 +33,7 @@ type AssignIPArgs struct {
 	// If specified, the hostname of the host on which IP addresses
 	// will be allocated.  If not specified, this will default
 	// to the value provided by os.Hostname.
-	Hostname *string
+	Hostname string
 }
 
 // AutoAssignArgs defines the set of arguments for assigning one or more
@@ -55,15 +55,15 @@ type AutoAssignArgs struct {
 	// If specified, the hostname of the host on which IP addresses
 	// will be allocated.  If not specified, this will default
 	// to the value provided by os.Hostname.
-	Hostname *string
+	Hostname string
 
 	// If specified, the previously configured IPv4 pool from which
 	// to assign IPv4 addresses.  If not specified, this defaults to all IPv4 pools.
-	IPv4Pool *common.IPNet
+	IPv4Pool *net.IPNet
 
 	// If specified, the previously configured IPv6 pool from which
 	// to assign IPv6 addresses.  If not specified, this defaults to all IPv6 pools.
-	IPv6Pool *common.IPNet
+	IPv6Pool *net.IPNet
 }
 
 // IPAMConfig contains global configuration options for Calico IPAM.

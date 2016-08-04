@@ -23,7 +23,7 @@ import (
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/client"
-	"github.com/tigera/libcalico-go/lib/common"
+	"github.com/tigera/libcalico-go/lib/errors"
 )
 
 func Delete(args []string) error {
@@ -63,7 +63,7 @@ Options:
 
 	cmd := delete{skipIfNotExists: parsedArgs["--skip-not-exists"].(bool)}
 	results := executeConfigCommand(parsedArgs, cmd)
-	glog.V(2).Infof("results: %v", results)
+	glog.V(2).Infof("results: %+v", results)
 
 	if results.fileInvalid {
 		fmt.Printf("Error processing input file: %v\n", results.err)
@@ -129,7 +129,7 @@ func (d delete) execute(client *client.Client, resource unversioned.Resource) (u
 
 	// Handle resource does not exist errors explicitly.
 	switch err.(type) {
-	case common.ErrorResourceDoesNotExist:
+	case errors.ErrorResourceDoesNotExist:
 		if d.skipIfNotExists {
 			return resource, nil
 		}

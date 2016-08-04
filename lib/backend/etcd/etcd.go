@@ -15,7 +15,7 @@
 package etcd
 
 import (
-	"errors"
+	goerrors "errors"
 	"reflect"
 	"strings"
 
@@ -28,7 +28,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/backend/api"
 	. "github.com/tigera/libcalico-go/lib/backend/model"
-	"github.com/tigera/libcalico-go/lib/common"
+	"github.com/tigera/libcalico-go/lib/errors"
 	"golang.org/x/net/context"
 )
 
@@ -68,7 +68,7 @@ func NewEtcdClient(config *EtcdConfig) (*EtcdClient, error) {
 	}
 
 	if len(etcdLocation) == 0 {
-		return nil, errors.New("no etcd authority or endpoints specified")
+		return nil, goerrors.New("no etcd authority or endpoints specified")
 	}
 
 	// Create the etcd client
@@ -176,7 +176,7 @@ func (c *EtcdClient) List(l ListInterface) ([]*KVPair, error) {
 		// If the root key does not exist - that's fine, return no list entries.
 		err = convertEtcdError(err, nil)
 		switch err.(type) {
-		case common.ErrorResourceDoesNotExist:
+		case errors.ErrorResourceDoesNotExist:
 			return []*KVPair{}, nil
 		default:
 			return nil, err
@@ -208,7 +208,7 @@ func (c *EtcdClient) set(d *KVPair, options *etcd.SetOptions) (*KVPair, error) {
 
 	glog.V(2).Infof("Key: %#v\n", key)
 	glog.V(2).Infof("Value: %s\n", value)
-	glog.V(2).Infof("Options: %v\n", options)
+	glog.V(2).Infof("Options: %+v\n", options)
 	result, err := c.etcdKeysAPI.Set(context.Background(), key, value, options)
 	if err != nil {
 		return nil, convertEtcdError(err, d.Key)
@@ -252,22 +252,22 @@ func convertEtcdError(err error, key Key) error {
 		switch err.(etcd.Error).Code {
 		case etcd.ErrorCodeTestFailed:
 			glog.V(2).Info("Test failed error")
-			return common.ErrorResourceUpdateConflict{Identifier: key}
+			return errors.ErrorResourceUpdateConflict{Identifier: key}
 		case etcd.ErrorCodeNodeExist:
 			glog.V(2).Info("Node exists error")
-			return common.ErrorResourceAlreadyExists{Err: err, Identifier: key}
+			return errors.ErrorResourceAlreadyExists{Err: err, Identifier: key}
 		case etcd.ErrorCodeKeyNotFound:
 			glog.V(2).Info("Key not found error")
-			return common.ErrorResourceDoesNotExist{Err: err, Identifier: key}
+			return errors.ErrorResourceDoesNotExist{Err: err, Identifier: key}
 		case etcd.ErrorCodeUnauthorized:
 			glog.V(2).Info("Unauthorized error")
-			return common.ErrorConnectionUnauthorized{Err: err}
+			return errors.ErrorConnectionUnauthorized{Err: err}
 		default:
 			glog.V(2).Infof("Generic etcd error error: %v", err)
-			return common.ErrorDatastoreError{Err: err, Identifier: key}
+			return errors.ErrorDatastoreError{Err: err, Identifier: key}
 		}
 	default:
 		glog.V(2).Infof("Unhandled error: %v", err)
-		return common.ErrorDatastoreError{Err: err, Identifier: key}
+		return errors.ErrorDatastoreError{Err: err, Identifier: key}
 	}
 }

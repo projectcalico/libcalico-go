@@ -21,7 +21,8 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"github.com/tigera/libcalico-go/lib/common"
+	"github.com/tigera/libcalico-go/lib/errors"
+	"github.com/tigera/libcalico-go/lib/net"
 )
 
 var (
@@ -30,13 +31,13 @@ var (
 )
 
 type BlockAffinityKey struct {
-	CIDR common.IPNet `json:"-" validate:"required,name"`
-	Host string       `json:"-"`
+	CIDR net.IPNet `json:"-" validate:"required,name"`
+	Host string    `json:"-"`
 }
 
 func (key BlockAffinityKey) DefaultPath() (string, error) {
 	if key.CIDR.IP == nil || key.Host == "" {
-		return "", common.ErrorInsufficientIdentifiers{}
+		return "", errors.ErrorInsufficientIdentifiers{}
 	}
 	c := strings.Replace(key.CIDR.String(), "/", "-", 1)
 	e := fmt.Sprintf("/calico/ipam/v2/host/%s/ipv%d/block/%s", key.Host, key.CIDR.Version(), c)
@@ -52,13 +53,18 @@ func (key BlockAffinityKey) valueType() reflect.Type {
 }
 
 type BlockAffinityListOptions struct {
-	Host string
+	Host      string
+	IPVersion int
 }
 
 func (options BlockAffinityListOptions) DefaultPathRoot() string {
 	k := "/calico/ipam/v2/host/"
 	if options.Host != "" {
 		k = k + options.Host
+
+		if options.IPVersion != 0 {
+			k = k + fmt.Sprintf("/ipv%d/block", options.IPVersion)
+		}
 	}
 	return k
 }
@@ -71,8 +77,18 @@ func (options BlockAffinityListOptions) ParseDefaultKey(ekey string) Key {
 		return nil
 	}
 	cidrStr := strings.Replace(r[0][2], "-", "/", 1)
-	_, cidr, _ := common.ParseCIDR(cidrStr)
-	return BlockAffinityKey{CIDR: *cidr, Host: r[0][1]}
+	_, cidr, _ := net.ParseCIDR(cidrStr)
+	host := r[0][1]
+
+	if options.Host != host {
+		glog.V(3).Infof("Didn't match hostname: %s != %s", options.Host, host)
+		return nil
+	}
+	if options.IPVersion != cidr.Version() {
+		glog.V(3).Infof("Didn't match IP version. %d != %d", options.IPVersion, cidr.Version())
+		return nil
+	}
+	return BlockAffinityKey{CIDR: *cidr, Host: host}
 }
 
 type BlockAffinity struct {

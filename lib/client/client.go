@@ -20,10 +20,12 @@ import (
 
 	"errors"
 	"fmt"
+
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/tigera/libcalico-go/lib/api"
+	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend"
 	bapi "github.com/tigera/libcalico-go/lib/backend/api"
 	"github.com/tigera/libcalico-go/lib/backend/model"
@@ -34,10 +36,15 @@ type Client struct {
 	backend bapi.Client
 }
 
-// New returns a connected Client.
-func New(config *api.ClientConfig) (c *Client, err error) {
+// New returns a connected Client.  This is the only mechanism by which to create a
+// Client.  The ClientConfig can either be created explicitly, or can be loaded from
+// a config file or environment variables using the LoadClientConfig() function.
+func New(config api.ClientConfig) (*Client, error) {
+	var err error
 	cc := Client{}
-	cc.backend, err = backend.NewClient(config)
+	if cc.backend, err = backend.NewClient(config); err != nil {
+		return nil, err
+	}
 	return &cc, err
 }
 
@@ -76,18 +83,18 @@ func (c *Client) IPAM() IPAMInterface {
 	return newIPAM(c)
 }
 
-// LoadClientConfig loads the client config from the specified file (if specified)
-// or from environment variables (if the file does not exist, or is not specified).
-func LoadClientConfig(f *string) (*api.ClientConfig, error) {
+// LoadClientConfig loads the ClientConfig from the specified file (if specified)
+// or from environment variables (if the file is not specified).
+func LoadClientConfig(filename string) (*api.ClientConfig, error) {
 	var c api.ClientConfig
 
 	// Override / merge with values loaded from the specified file.
-	if f != nil {
-		b, err := ioutil.ReadFile(*f)
+	if filename != "" {
+		b, err := ioutil.ReadFile(filename)
 		if err != nil {
 			return nil, err
 		}
-		// First unmarshall should fill in the BackendType field only.
+		// First unmarshal should fill in the BackendType field only.
 		if err := yaml.Unmarshal(b, &c); err != nil {
 			return nil, err
 		}
@@ -96,7 +103,7 @@ func LoadClientConfig(f *string) (*api.ClientConfig, error) {
 		if c.BackendConfig == nil {
 			return nil, errors.New(fmt.Sprintf("Unknown datastore type: %v", c.BackendType))
 		}
-		// Now unmarshall into the store-specific config struct.
+		// Now unmarshal into the store-specific config struct.
 		if err := yaml.Unmarshal(b, c.BackendConfig); err != nil {
 			return nil, err
 		}
@@ -122,10 +129,10 @@ func LoadClientConfig(f *string) (*api.ClientConfig, error) {
 // Interface used to convert between backend and API representations of our
 // objects.
 type conversionHelper interface {
-	convertAPIToKVPair(interface{}) (*model.KVPair, error)
-	convertKVPairToAPI(*model.KVPair) (interface{}, error)
-	convertMetadataToKey(interface{}) (model.Key, error)
-	convertMetadataToListInterface(interface{}) (model.ListInterface, error)
+	convertAPIToKVPair(unversioned.Resource) (*model.KVPair, error)
+	convertKVPairToAPI(*model.KVPair) (unversioned.Resource, error)
+	convertMetadataToKey(unversioned.ResourceMetadata) (model.Key, error)
+	convertMetadataToListInterface(unversioned.ResourceMetadata) (model.ListInterface, error)
 }
 
 //TODO Plumb through revision data so that front end can do atomic operations.
@@ -133,7 +140,7 @@ type conversionHelper interface {
 // Untyped interface for creating an API object.  This is called from the
 // typed interface.  This assumes a 1:1 mapping between the API resource and
 // the backend object.
-func (c *Client) create(apiObject interface{}, helper conversionHelper) error {
+func (c *Client) create(apiObject unversioned.Resource, helper conversionHelper) error {
 	if d, err := helper.convertAPIToKVPair(apiObject); err != nil {
 		return err
 	} else if d, err = c.backend.Create(d); err != nil {
@@ -145,7 +152,7 @@ func (c *Client) create(apiObject interface{}, helper conversionHelper) error {
 
 // Untyped interface for updating an API object.  This is called from the
 // typed interface.
-func (c *Client) update(apiObject interface{}, helper conversionHelper) error {
+func (c *Client) update(apiObject unversioned.Resource, helper conversionHelper) error {
 	if d, err := helper.convertAPIToKVPair(apiObject); err != nil {
 		return err
 	} else if d, err = c.backend.Update(d); err != nil {
@@ -157,7 +164,7 @@ func (c *Client) update(apiObject interface{}, helper conversionHelper) error {
 
 // Untyped interface for applying an API object.  This is called from the
 // typed interface.
-func (c *Client) apply(apiObject interface{}, helper conversionHelper) error {
+func (c *Client) apply(apiObject unversioned.Resource, helper conversionHelper) error {
 	if d, err := helper.convertAPIToKVPair(apiObject); err != nil {
 		return err
 	} else if d, err = c.backend.Apply(d); err != nil {
@@ -169,7 +176,7 @@ func (c *Client) apply(apiObject interface{}, helper conversionHelper) error {
 
 // Untyped get interface for deleting a single API object.  This is called from the typed
 // interface.
-func (c *Client) delete(metadata interface{}, helper conversionHelper) error {
+func (c *Client) delete(metadata unversioned.ResourceMetadata, helper conversionHelper) error {
 	if k, err := helper.convertMetadataToKey(metadata); err != nil {
 		return err
 	} else if err := c.backend.Delete(&model.KVPair{Key: k}); err != nil {
@@ -181,7 +188,7 @@ func (c *Client) delete(metadata interface{}, helper conversionHelper) error {
 
 // Untyped get interface for getting a single API object.  This is called from the typed
 // interface.  The result is
-func (c *Client) get(metadata interface{}, helper conversionHelper) (interface{}, error) {
+func (c *Client) get(metadata unversioned.ResourceMetadata, helper conversionHelper) (unversioned.Resource, error) {
 	if k, err := helper.convertMetadataToKey(metadata); err != nil {
 		return nil, err
 	} else if d, err := c.backend.Get(k); err != nil {
@@ -195,7 +202,7 @@ func (c *Client) get(metadata interface{}, helper conversionHelper) (interface{}
 
 // Untyped get interface for getting a list of API objects.  This is called from the typed
 // interface.  This updates the Items slice in the supplied List resource object.
-func (c *Client) list(metadata interface{}, helper conversionHelper, listp interface{}) error {
+func (c *Client) list(metadata unversioned.ResourceMetadata, helper conversionHelper, listp interface{}) error {
 	if l, err := helper.convertMetadataToListInterface(metadata); err != nil {
 		return err
 	} else if dos, err := c.backend.List(l); err != nil {

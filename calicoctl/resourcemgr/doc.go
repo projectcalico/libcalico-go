@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /*
-Package api implements the resource struct definitions used by the northbound
-client API.
+Package resourcemgr implements generic resource handling methods.  This provides
+a mechanism for creating specific resources from a JSON or YAML input.
 */
-package api
+package resourcemgr

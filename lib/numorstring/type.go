@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package api implements the resource struct definitions used by the northbound
-client API.
-*/
-package api
+package numorstring
+
+// Type represents the stored type of Int32OrString.
+type NumOrStringType int
+
+const (
+	NumOrStringNum    NumOrStringType = iota // The structure holds a number.
+	NumOrStringString                        // The structure holds a string.
+)

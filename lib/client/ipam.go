@@ -15,13 +15,15 @@
 package client
 
 import (
-	"errors"
+	goerrors "errors"
 	"fmt"
 	"os"
 
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/backend/model"
-	"github.com/tigera/libcalico-go/lib/common"
+	"github.com/tigera/libcalico-go/lib/errors"
+	"github.com/tigera/libcalico-go/lib/net"
 )
 
 const (
@@ -43,19 +45,19 @@ type IPAMInterface interface {
 	// AutoAssign automatically assigns one or more IP addresses as specified by the
 	// provided AutoAssignArgs.  AutoAssign returns the list of the assigned IPv4 addresses,
 	// and the list of the assigned IPv6 addresses.
-	AutoAssign(args AutoAssignArgs) ([]common.IP, []common.IP, error)
+	AutoAssign(args AutoAssignArgs) ([]net.IP, []net.IP, error)
 
 	// ReleaseIPs releases any of the given IP addresses that are currently assigned,
 	// so that they are available to be used in another assignment.
-	ReleaseIPs(ips []common.IP) ([]common.IP, error)
+	ReleaseIPs(ips []net.IP) ([]net.IP, error)
 
 	// GetAssignmentAttributes returns the attributes stored with the given IP address
 	// upon assignment.
-	GetAssignmentAttributes(addr common.IP) (map[string]string, error)
+	GetAssignmentAttributes(addr net.IP) (map[string]string, error)
 
 	// IpsByHandle returns a list of all IP addresses that have been
 	// assigned using the provided handle.
-	IPsByHandle(handleID string) ([]common.IP, error)
+	IPsByHandle(handleID string) ([]net.IP, error)
 
 	// ReleaseByHandle releases all IP addresses that have been assigned
 	// using the provided handle.  Returns an error if no addresses
@@ -64,22 +66,22 @@ type IPAMInterface interface {
 
 	// ClaimAffinity claims affinity to the given host for all blocks
 	// within the given CIDR.  The given CIDR must fall within a configured
-	// pool.
-	ClaimAffinity(cidr common.IPNet, host *string) ([]common.IPNet, []common.IPNet, error)
+	// pool. If an empty string is passed as the host, then the value returned by os.Hostname is used.
+	ClaimAffinity(cidr net.IPNet, host string) ([]net.IPNet, []net.IPNet, error)
 
 	// ReleaseAffinity releases affinity for all blocks within the given CIDR
-	// on the given host.  If host is not specified, then the value returned by os.Hostname
-	// will be used.
-	ReleaseAffinity(cidr common.IPNet, host *string) error
+	// on the given host.  If an empty string is passed as the host, then the
+	// value returned by os.Hostname will be used.
+	ReleaseAffinity(cidr net.IPNet, host string) error
 
 	// ReleaseHostAffinities releases affinity for all blocks that are affine
-	// to the given host.  If host is not specified, the value returned by os.Hostname
-	// will be used.
-	ReleaseHostAffinities(host *string) error
+	// to the given host.  If an empty string is passed as the host, the value returned by
+	// os.Hostname will be used.
+	ReleaseHostAffinities(host string) error
 
 	// ReleasePoolAffinities releases affinity for all blocks within
 	// the specified pool across all hosts.
-	ReleasePoolAffinities(pool common.IPNet) error
+	ReleasePoolAffinities(pool net.IPNet) error
 
 	// GetIPAMConfig returns the global IPAM configuration.  If no IPAM configuration
 	// has been set, returns a default configuration with StrictAffinity disabled
@@ -93,7 +95,8 @@ type IPAMInterface interface {
 	// RemoveIPAMHost releases affinity for all blocks on the given host,
 	// and removes all host-specific IPAM data from the datastore.
 	// RemoveIPAMHost does not release any IP addresses claimed on the given host.
-	RemoveIPAMHost(host *string) error
+	// If an empty string is passed as the host then the value returned by os.Hostname is used.
+	RemoveIPAMHost(host string) error
 }
 
 // newIPAM returns a new ipamClient, which implements the IPAMInterface
@@ -110,13 +113,13 @@ type ipams struct {
 // AutoAssign automatically assigns one or more IP addresses as specified by the
 // provided AutoAssignArgs.  AutoAssign returns the list of the assigned IPv4 addresses,
 // and the list of the assigned IPv6 addresses.
-func (c ipams) AutoAssign(args AutoAssignArgs) ([]common.IP, []common.IP, error) {
+func (c ipams) AutoAssign(args AutoAssignArgs) ([]net.IP, []net.IP, error) {
 	// Determine the hostname to use - prefer the provided hostname if
 	// non-nil, otherwise use the hostname reported by os.
 	hostname := decideHostname(args.Hostname)
 	glog.V(2).Infof("Auto-assign %d ipv4, %d ipv6 addrs for host '%s'", args.Num4, args.Num6, hostname)
 
-	var v4list, v6list []common.IP
+	var v4list, v6list []net.IP
 	var err error
 
 	if args.Num4 != 0 {
@@ -142,7 +145,7 @@ func (c ipams) AutoAssign(args AutoAssignArgs) ([]common.IP, []common.IP, error)
 	return v4list, v6list, nil
 }
 
-func (c ipams) autoAssign(num int, handleID *string, attrs map[string]string, pool *common.IPNet, version ipVersion, host string) ([]common.IP, error) {
+func (c ipams) autoAssign(num int, handleID *string, attrs map[string]string, pool *net.IPNet, version ipVersion, host string) ([]net.IP, error) {
 
 	// Start by trying to assign from one of the host-affine blocks.  We
 	// always do strict checking at this stage, so it doesn't matter whether
@@ -153,7 +156,7 @@ func (c ipams) autoAssign(num int, handleID *string, attrs map[string]string, po
 		return nil, err
 	}
 	glog.V(4).Infof("Found %d affine IPv%d blocks for host '%s': %v", len(affBlocks), version.Number, host, affBlocks)
-	ips := []common.IP{}
+	ips := []net.IP{}
 	for len(ips) < num {
 		if len(affBlocks) == 0 {
 			glog.V(2).Infof("Ran out of existing affine blocks for host '%s'", host)
@@ -184,6 +187,10 @@ func (c ipams) autoAssign(num int, handleID *string, attrs map[string]string, po
 			b, err := c.blockReaderWriter.claimNewAffineBlock(host, version, pool, *config)
 			if err != nil {
 				// Error claiming new block.
+				if _, ok := err.(noFreeBlocksError); ok {
+					// No free blocks.  Break.
+					break
+				}
 				glog.Errorf("Error claiming new block: %s", err)
 				return nil, err
 			} else {
@@ -201,7 +208,7 @@ func (c ipams) autoAssign(num int, handleID *string, attrs map[string]string, po
 		}
 
 		if retries == 0 {
-			return nil, errors.New("Max retries hit")
+			return nil, goerrors.New("Max retries hit")
 		}
 	}
 
@@ -222,7 +229,51 @@ func (c ipams) autoAssign(num int, handleID *string, attrs map[string]string, po
 	rem := num - len(ips)
 	if config.StrictAffinity != true && rem != 0 {
 		glog.V(1).Infof("Attempting to assign %d more addresses from non-affine blocks", rem)
-		// TODO: this
+		// Figure out the pools to allocate from.
+		pools := []net.IPNet{}
+		if pool == nil {
+			// Default to all configured pools.
+			allPools, err := c.client.Pools().List(api.PoolMetadata{})
+			if err != nil {
+				glog.Errorf("Error reading configured pools: %s", err)
+				return ips, nil
+			}
+
+			// Grab all the IP networks in these pools.
+			for _, p := range allPools.Items {
+				// Don't include disabled pools.
+				if !p.Spec.Disabled {
+					pools = append(pools, p.Metadata.CIDR)
+				}
+			}
+		} else {
+			// Use the given pool.
+			pools = []net.IPNet{*pool}
+		}
+
+		// Iterate over pools and assign addresses until we either run out of pools,
+		// or the request has been satisfied.
+		for _, p := range pools {
+			glog.V(3).Infof("Assigning from random blocks in pool %s", p.String())
+			newBlock := randomBlockGenerator(p)
+			for rem > 0 {
+				// Grab a new random block.
+				blockCIDR := newBlock()
+				if blockCIDR == nil {
+					glog.Warningf("All addresses exhausted in pool %s", p.String())
+					break
+				}
+
+				// Attempt to assign from the block.
+				newIPs, err := c.assignFromExistingBlock(*blockCIDR, rem, handleID, attrs, host, nil)
+				if err != nil {
+					glog.Warningf("Failed to assign IPs in pool %s: %s", p.String(), err)
+					break
+				}
+				ips = append(ips, newIPs...)
+				rem = num - len(ips)
+			}
+		}
 	}
 
 	glog.V(2).Infof("Auto-assigned %d out of %d IPv%ds: %v", len(ips), num, version.Number, ips)
@@ -239,7 +290,7 @@ func (c ipams) AssignIP(args AssignIPArgs) error {
 	glog.V(2).Infof("Assigning IP %s to host: %s", args.IP, hostname)
 
 	if !c.blockReaderWriter.withinConfiguredPools(args.IP) {
-		return errors.New("The provided IP address is not in a configured pool\n")
+		return goerrors.New("The provided IP address is not in a configured pool\n")
 	}
 
 	blockCIDR := getBlockCIDRForAddress(args.IP)
@@ -247,13 +298,13 @@ func (c ipams) AssignIP(args AssignIPArgs) error {
 	for i := 0; i < ipamEtcdRetries; i++ {
 		obj, err := c.client.backend.Get(model.BlockKey{blockCIDR})
 		if err != nil {
-			if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
+			if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
 				// Block doesn't exist, we need to create it.  First,
 				// validate the given IP address is within a configured pool.
 				if !c.blockReaderWriter.withinConfiguredPools(args.IP) {
 					estr := fmt.Sprintf("The given IP address (%s) is not in any configured pools", args.IP.String())
 					glog.Errorf(estr)
-					return errors.New(estr)
+					return goerrors.New(estr)
 				}
 				glog.V(3).Infof("Block for IP %s does not yet exist, creating", args.IP)
 				cfg, err := c.GetIPAMConfig()
@@ -302,18 +353,35 @@ func (c ipams) AssignIP(args AssignIPArgs) error {
 		}
 		return nil
 	}
-	return errors.New("Max retries hit")
+	return goerrors.New("Max retries hit")
 }
 
 // ReleaseIPs releases any of the given IP addresses that are currently assigned,
 // so that they are available to be used in another assignment.
-func (c ipams) ReleaseIPs(ips []common.IP) ([]common.IP, error) {
+func (c ipams) ReleaseIPs(ips []net.IP) ([]net.IP, error) {
 	glog.V(2).Infof("Releasing IP addresses: %v", ips)
-	unallocated := []common.IP{}
+	unallocated := []net.IP{}
+
+	// Group IP addresses by block to minimize the number of writes
+	// to the datastore required to release the given addresses.
+	ipsByBlock := map[string][]net.IP{}
 	for _, ip := range ips {
+		// Check if we've already got an entry for this block.
 		blockCIDR := getBlockCIDRForAddress(ip)
-		// TODO: Group IP addresses per-block to minimize writes to etcd.
-		unalloc, err := c.releaseIPsFromBlock([]common.IP{ip}, blockCIDR)
+		cidrStr := blockCIDR.String()
+		if _, exists := ipsByBlock[cidrStr]; !exists {
+			// Entry does not exist, create it.
+			ipsByBlock[cidrStr] = []net.IP{}
+		}
+
+		// Append to the list.
+		ipsByBlock[cidrStr] = append(ipsByBlock[cidrStr], ip)
+	}
+
+	// Release IPs for each block.
+	for cidrStr, ips := range ipsByBlock {
+		_, cidr, _ := net.ParseCIDR(cidrStr)
+		unalloc, err := c.releaseIPsFromBlock(ips, *cidr)
 		if err != nil {
 			glog.Errorf("Error releasing IPs: %s", err)
 			return nil, err
@@ -323,11 +391,11 @@ func (c ipams) ReleaseIPs(ips []common.IP) ([]common.IP, error) {
 	return unallocated, nil
 }
 
-func (c ipams) releaseIPsFromBlock(ips []common.IP, blockCIDR common.IPNet) ([]common.IP, error) {
+func (c ipams) releaseIPsFromBlock(ips []net.IP, blockCIDR net.IPNet) ([]net.IP, error) {
 	for i := 0; i < ipamEtcdRetries; i++ {
 		obj, err := c.client.backend.Get(model.BlockKey{CIDR: blockCIDR})
 		if err != nil {
-			if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
+			if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
 				// The block does not exist - all addresses must be unassigned.
 				return ips, nil
 			} else {
@@ -365,7 +433,7 @@ func (c ipams) releaseIPsFromBlock(ips []common.IP, blockCIDR common.IPNet) ([]c
 		}
 
 		if updateErr != nil {
-			if _, ok := updateErr.(common.ErrorResourceUpdateConflict); ok {
+			if _, ok := updateErr.(errors.ErrorResourceUpdateConflict); ok {
 				// Comparison error - retry.
 				glog.Warningf("Failed to update block '%s' - retry #%d", b.CIDR.String(), i)
 				continue
@@ -383,13 +451,13 @@ func (c ipams) releaseIPsFromBlock(ips []common.IP, blockCIDR common.IPNet) ([]c
 		}
 		return unallocated, nil
 	}
-	return nil, errors.New("Max retries hit")
+	return nil, goerrors.New("Max retries hit")
 }
 
 func (c ipams) assignFromExistingBlock(
-	blockCIDR common.IPNet, num int, handleID *string, attrs map[string]string, host string, affCheck *bool) ([]common.IP, error) {
+	blockCIDR net.IPNet, num int, handleID *string, attrs map[string]string, host string, affCheck *bool) ([]net.IP, error) {
 	// Limit number of retries.
-	var ips []common.IP
+	var ips []net.IP
 	for i := 0; i < ipamEtcdRetries; i++ {
 		glog.V(4).Infof("Auto-assign from %s - retry %d", blockCIDR.String(), i)
 		obj, err := c.client.backend.Get(model.BlockKey{blockCIDR})
@@ -401,7 +469,7 @@ func (c ipams) assignFromExistingBlock(
 		// Pull out the block.
 		b := allocationBlock{obj.Value.(model.AllocationBlock)}
 
-		glog.V(4).Infof("Got block: %v", b)
+		glog.V(4).Infof("Got block: %+v", b)
 		ips, err = b.autoAssign(num, handleID, host, attrs, true)
 		if err != nil {
 			glog.Errorf("Error in auto assign: %s", err)
@@ -409,7 +477,7 @@ func (c ipams) assignFromExistingBlock(
 		}
 		if len(ips) == 0 {
 			glog.V(2).Infof("Block %s is full", blockCIDR)
-			return []common.IP{}, nil
+			return []net.IP{}, nil
 		}
 
 		// Increment handle count.
@@ -437,7 +505,8 @@ func (c ipams) assignFromExistingBlock(
 // within the given CIDR.  The given CIDR must fall within a configured
 // pool.  Returns a list of blocks that were claimed, as well as a
 // list of blocks that were claimed by another host.
-func (c ipams) ClaimAffinity(cidr common.IPNet, host *string) ([]common.IPNet, []common.IPNet, error) {
+// If an empty string is passed as the host, then the value of os.Hostname is used.
+func (c ipams) ClaimAffinity(cidr net.IPNet, host string) ([]net.IPNet, []net.IPNet, error) {
 	// Validate that the given CIDR is at least as big as a block.
 	if !largerThanBlock(cidr) {
 		estr := fmt.Sprintf("The requested CIDR (%s) is smaller than the minimum.", cidr.String())
@@ -446,13 +515,13 @@ func (c ipams) ClaimAffinity(cidr common.IPNet, host *string) ([]common.IPNet, [
 
 	// Determine the hostname to use.
 	hostname := decideHostname(host)
-	failed := []common.IPNet{}
-	claimed := []common.IPNet{}
+	failed := []net.IPNet{}
+	claimed := []net.IPNet{}
 
 	// Verify the requested CIDR falls within a configured pool.
-	if !c.blockReaderWriter.withinConfiguredPools(common.IP{cidr.IP}) {
+	if !c.blockReaderWriter.withinConfiguredPools(net.IP{cidr.IP}) {
 		estr := fmt.Sprintf("The requested CIDR (%s) is not within any configured pools.", cidr.String())
-		return nil, nil, errors.New(estr)
+		return nil, nil, goerrors.New(estr)
 	}
 
 	// Get IPAM config.
@@ -485,9 +554,8 @@ func (c ipams) ClaimAffinity(cidr common.IPNet, host *string) ([]common.IPNet, [
 // ReleaseAffinity releases affinity for all blocks within the given CIDR
 // on the given host.  If a block does not have affinity for the given host,
 // its affinity will not be released and no error will be returned.
-// If host is not specified, then the value returned by os.Hostname
-// will be used.
-func (c ipams) ReleaseAffinity(cidr common.IPNet, host *string) error {
+// If an empty string is passed as the host, then the value of os.Hostname is used.
+func (c ipams) ReleaseAffinity(cidr net.IPNet, host string) error {
 	// Validate that the given CIDR is at least as big as a block.
 	if !largerThanBlock(cidr) {
 		estr := fmt.Sprintf("The requested CIDR (%s) is smaller than the minimum.", cidr.String())
@@ -504,7 +572,7 @@ func (c ipams) ReleaseAffinity(cidr common.IPNet, host *string) error {
 		if err != nil {
 			if _, ok := err.(affinityClaimedError); ok {
 				// Not claimed by this host - ignore.
-			} else if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
+			} else if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
 				// Block does not exist - ignore.
 			} else {
 				glog.Errorf("Error releasing affinity for '%s': %s", *blockCIDR, err)
@@ -516,9 +584,9 @@ func (c ipams) ReleaseAffinity(cidr common.IPNet, host *string) error {
 }
 
 // ReleaseHostAffinities releases affinity for all blocks that are affine
-// to the given host.  If host is not specified, the value returned by os.Hostname
-// will be used.
-func (c ipams) ReleaseHostAffinities(host *string) error {
+// to the given host.  If an empty string is passed as the host,
+// then the value of os.Hostname is used.
+func (c ipams) ReleaseHostAffinities(host string) error {
 	hostname := decideHostname(host)
 
 	versions := []ipVersion{ipv4, ipv6}
@@ -529,7 +597,7 @@ func (c ipams) ReleaseHostAffinities(host *string) error {
 		}
 
 		for _, blockCIDR := range blockCIDRs {
-			err := c.ReleaseAffinity(blockCIDR, &hostname)
+			err := c.ReleaseAffinity(blockCIDR, hostname)
 			if err != nil {
 				if _, ok := err.(affinityClaimedError); ok {
 					// Claimed by a different host.
@@ -544,7 +612,7 @@ func (c ipams) ReleaseHostAffinities(host *string) error {
 
 // ReleasePoolAffinities releases affinity for all blocks within
 // the specified pool across all hosts.
-func (c ipams) ReleasePoolAffinities(pool common.IPNet) error {
+func (c ipams) ReleasePoolAffinities(pool net.IPNet) error {
 	glog.V(2).Infof("Releasing block affinities within pool '%s'", pool.String())
 	for i := 0; i < ipamKeyErrRetries; i++ {
 		retry := false
@@ -559,12 +627,12 @@ func (c ipams) ReleasePoolAffinities(pool common.IPNet) error {
 		}
 
 		for blockString, host := range pairs {
-			_, blockCIDR, _ := common.ParseCIDR(blockString)
+			_, blockCIDR, _ := net.ParseCIDR(blockString)
 			err = c.blockReaderWriter.releaseBlockAffinity(host, *blockCIDR)
 			if err != nil {
 				if _, ok := err.(affinityClaimedError); ok {
 					retry = true
-				} else if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
+				} else if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
 					glog.V(4).Infof("No such block '%s'", blockCIDR.String())
 					continue
 				} else {
@@ -579,36 +647,35 @@ func (c ipams) ReleasePoolAffinities(pool common.IPNet) error {
 			return nil
 		}
 	}
-	return errors.New("Max retries hit")
+	return goerrors.New("Max retries hit")
 }
 
 // RemoveIPAMHost releases affinity for all blocks on the given host,
 // and removes all host-specific IPAM data from the datastore.
 // RemoveIPAMHost does not release any IP addresses claimed on the given host.
-func (c ipams) RemoveIPAMHost(host *string) error {
+// If an empty string is passed as the host, then the value of os.Hostname is used.
+func (c ipams) RemoveIPAMHost(host string) error {
 	// Determine the hostname to use.
 	hostname := decideHostname(host)
 
-	// Release host affinities.
-	c.ReleaseHostAffinities(&hostname)
+	// Release affinities for this host.
+	c.ReleaseHostAffinities(hostname)
 
-	// Remove the host ipam tree.
-	// TODO: Support this in the backend.
-	// key := fmt.Sprintf(ipamHostPath, hostname)
-	// opts := client.DeleteOptions{Recursive: true}
-	// _, err := c.blockReaderWriter.etcd.Delete(context.Background(), key, &opts)
-	// if err != nil {
-	// 	if eerr, ok := err.(client.Error); ok && eerr.Code == client.ErrorCodeNodeExist {
-	// 		// Already deleted.  Carry on.
-
-	// 	} else {
-	// 		return err
-	// 	}
-	// }
+	// Remove the host tree from the datastore.
+	err := c.client.backend.Delete(&model.KVPair{
+		Key: model.IPAMHostKey{Host: hostname},
+	})
+	if err != nil {
+		// Return the error unless the resource does not exist.
+		if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+			glog.Errorf("Error removing IPAM host: %s", err)
+			return err
+		}
+	}
 	return nil
 }
 
-func (c ipams) hostBlockPairs(pool common.IPNet) (map[string]string, error) {
+func (c ipams) hostBlockPairs(pool net.IPNet) (map[string]string, error) {
 	pairs := map[string]string{}
 
 	// Get all blocks and their affinities.
@@ -632,16 +699,16 @@ func (c ipams) hostBlockPairs(pool common.IPNet) (map[string]string, error) {
 
 // IpsByHandle returns a list of all IP addresses that have been
 // assigned using the provided handle.
-func (c ipams) IPsByHandle(handleID string) ([]common.IP, error) {
+func (c ipams) IPsByHandle(handleID string) ([]net.IP, error) {
 	obj, err := c.client.backend.Get(model.IPAMHandleKey{HandleID: handleID})
 	if err != nil {
 		return nil, err
 	}
 	handle := allocationHandle{obj.Value.(model.IPAMHandle)}
 
-	assignments := []common.IP{}
+	assignments := []net.IP{}
 	for k, _ := range handle.Block {
-		_, blockCIDR, _ := common.ParseCIDR(k)
+		_, blockCIDR, _ := net.ParseCIDR(k)
 		obj, err := c.client.backend.Get(model.BlockKey{*blockCIDR})
 		if err != nil {
 			glog.Warningf("Couldn't read block %s referenced by handle %s", blockCIDR, handleID)
@@ -667,17 +734,17 @@ func (c ipams) ReleaseByHandle(handleID string) error {
 	handle := allocationHandle{obj.Value.(model.IPAMHandle)}
 
 	for blockStr, _ := range handle.Block {
-		_, blockCIDR, _ := common.ParseCIDR(blockStr)
+		_, blockCIDR, _ := net.ParseCIDR(blockStr)
 		err = c.releaseByHandle(handleID, *blockCIDR)
 	}
 	return nil
 }
 
-func (c ipams) releaseByHandle(handleID string, blockCIDR common.IPNet) error {
+func (c ipams) releaseByHandle(handleID string, blockCIDR net.IPNet) error {
 	for i := 0; i < ipamEtcdRetries; i++ {
 		obj, err := c.client.backend.Get(model.BlockKey{CIDR: blockCIDR})
 		if err != nil {
-			if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
+			if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
 				// Block doesn't exist, so all addresses are already
 				// unallocated.  This can happen when a handle is
 				// overestimating the number of assigned addresses.
@@ -699,10 +766,10 @@ func (c ipams) releaseByHandle(handleID string, blockCIDR common.IPNet) error {
 				Key: model.BlockKey{blockCIDR},
 			})
 			if err != nil {
-				if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
-					// Already deleted - carry on.
-				} else {
+				// Return the error unless the resource does not exist.
+				if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
 					glog.Errorf("Error deleting block: %s", err)
+					return err
 				}
 			}
 		} else {
@@ -711,7 +778,7 @@ func (c ipams) releaseByHandle(handleID string, blockCIDR common.IPNet) error {
 			obj.Value = block.AllocationBlock
 			_, err = c.client.backend.Update(obj)
 			if err != nil {
-				if _, ok := err.(common.ErrorResourceUpdateConflict); ok {
+				if _, ok := err.(errors.ErrorResourceUpdateConflict); ok {
 					// Comparison failed - retry.
 					glog.Warningf("CAS error for block, retry #%d: %s", i, err)
 					continue
@@ -726,18 +793,18 @@ func (c ipams) releaseByHandle(handleID string, blockCIDR common.IPNet) error {
 		c.decrementHandle(handleID, blockCIDR, num)
 		return nil
 	}
-	return errors.New("Hit max retries")
+	return goerrors.New("Hit max retries")
 }
 
-func (c ipams) incrementHandle(handleID string, blockCIDR common.IPNet, num int) error {
+func (c ipams) incrementHandle(handleID string, blockCIDR net.IPNet, num int) error {
 	var obj *model.KVPair
 	var err error
 	for i := 0; i < ipamEtcdRetries; i++ {
 		obj, err = c.client.backend.Get(model.IPAMHandleKey{HandleID: handleID})
 		if err != nil {
-			if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
+			if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
 				// Handle doesn't exist - create it.
-				glog.V(2).Infof("Creating new handle:", handleID)
+				glog.V(2).Infof("Creating new handle: %s", handleID)
 				bh := model.IPAMHandle{
 					HandleID: handleID,
 					Block:    map[string]int{},
@@ -766,11 +833,11 @@ func (c ipams) incrementHandle(handleID string, blockCIDR common.IPNet, num int)
 		}
 		return nil
 	}
-	return errors.New("Max retries hit")
+	return goerrors.New("Max retries hit")
 
 }
 
-func (c ipams) decrementHandle(handleID string, blockCIDR common.IPNet, num int) error {
+func (c ipams) decrementHandle(handleID string, blockCIDR net.IPNet, num int) error {
 	for i := 0; i < ipamEtcdRetries; i++ {
 		obj, err := c.client.backend.Get(model.IPAMHandleKey{HandleID: handleID})
 		if err != nil {
@@ -802,17 +869,17 @@ func (c ipams) decrementHandle(handleID string, blockCIDR common.IPNet, num int)
 		glog.V(2).Infof("Decremented handle '%s' by %d", handleID, num)
 		return nil
 	}
-	return errors.New("Max retries hit")
+	return goerrors.New("Max retries hit")
 }
 
 // GetAssignmentAttributes returns the attributes stored with the given IP address
 // upon assignment.
-func (c ipams) GetAssignmentAttributes(addr common.IP) (map[string]string, error) {
+func (c ipams) GetAssignmentAttributes(addr net.IP) (map[string]string, error) {
 	blockCIDR := getBlockCIDRForAddress(addr)
 	obj, err := c.client.backend.Get(model.BlockKey{blockCIDR})
 	if err != nil {
 		glog.Errorf("Error reading block %s: %s", blockCIDR, err)
-		return nil, errors.New(fmt.Sprintf("%s is not assigned", addr))
+		return nil, goerrors.New(fmt.Sprintf("%s is not assigned", addr))
 	}
 	block := allocationBlock{obj.Value.(model.AllocationBlock)}
 	return block.attributesForIP(addr)
@@ -824,7 +891,7 @@ func (c ipams) GetAssignmentAttributes(addr common.IP) (map[string]string, error
 func (c ipams) GetIPAMConfig() (*IPAMConfig, error) {
 	obj, err := c.client.backend.Get(model.IPAMConfigKey{})
 	if err != nil {
-		if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
+		if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
 			// IPAMConfig has not been explicitly set.  Return
 			// a default IPAM configuration.
 			return &IPAMConfig{AutoAllocateBlocks: true, StrictAffinity: false}, nil
@@ -848,12 +915,12 @@ func (c ipams) SetIPAMConfig(cfg IPAMConfig) error {
 	}
 
 	if !cfg.StrictAffinity && !cfg.AutoAllocateBlocks {
-		return errors.New("Cannot disable 'StrictAffinity' and 'AutoAllocateBlocks' at the same time")
+		return goerrors.New("Cannot disable 'StrictAffinity' and 'AutoAllocateBlocks' at the same time")
 	}
 
 	allObjs, err := c.client.backend.List(model.BlockListOptions{})
 	if len(allObjs) != 0 {
-		return errors.New("Cannot change IPAM config while allocations exist")
+		return goerrors.New("Cannot change IPAM config while allocations exist")
 	}
 
 	// Write to datastore.
@@ -883,18 +950,19 @@ func (c ipams) convertBackendToIPAMConfig(cfg model.IPAMConfig) *IPAMConfig {
 	}
 }
 
-func decideHostname(host *string) string {
+func decideHostname(host string) string {
 	// Determine the hostname to use - prefer the provided hostname if
 	// non-nil, otherwise use the hostname reported by os.
 	var hostname string
 	var err error
-	if host != nil {
-		hostname = *host
+	if host != "" {
+		hostname = host
 	} else {
 		hostname, err = os.Hostname()
 		if err != nil {
 			glog.Fatalf("Failed to acquire hostname")
 		}
 	}
+	glog.V(4).Infof("Using hostname=%s", hostname)
 	return hostname
 }

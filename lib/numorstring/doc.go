@@ -13,7 +13,10 @@
 // limitations under the License.
 
 /*
-Package api implements the resource struct definitions used by the northbound
-client API.
+Package numorstring implements a set of type definitions that represent either a
+number or a string.  In a JSON/YAML representation each type is a single field,
+but the marshalling/unmarshalling deals with 3 fields in each type struct, one
+indicating the type, a string value (for string type), and a numerical value
+(for number type).
 */
-package api
+package numorstring

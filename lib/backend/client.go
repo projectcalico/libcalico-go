@@ -17,6 +17,7 @@ package backend
 import (
 	"errors"
 	"fmt"
+
 	"github.com/tigera/libcalico-go/lib/api"
 	bapi "github.com/tigera/libcalico-go/lib/backend/api"
 	"github.com/tigera/libcalico-go/lib/backend/compat"
@@ -24,7 +25,7 @@ import (
 )
 
 // NewClient creates a new backend datastore client.
-func NewClient(config *api.ClientConfig) (c bapi.Client, err error) {
+func NewClient(config api.ClientConfig) (c bapi.Client, err error) {
 	switch config.BackendType {
 	case api.EtcdV2:
 		c, err = etcd.NewEtcdClient(config.BackendConfig.(*etcd.EtcdConfig))

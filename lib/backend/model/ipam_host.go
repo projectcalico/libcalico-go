@@ -21,25 +21,29 @@ import (
 )
 
 var (
-	typeIPAMConfig = reflect.TypeOf(IPAMConfig{})
+	typeIPAMHost = reflect.TypeOf(IPAMHost{})
 )
 
-type IPAMConfigKey struct {
+type IPAMHostKey struct {
+	Host string
 }
 
-func (key IPAMConfigKey) DefaultPath() (string, error) {
-	return "/calico/ipam/v2/config", nil
+func (key IPAMHostKey) DefaultPath() (string, error) {
+	if key.Host == "" {
+		return "", errors.ErrorInsufficientIdentifiers{Name: "host"}
+	}
+
+	k := "/calico/ipam/v2/host/" + key.Host
+	return k, nil
 }
 
-func (key IPAMConfigKey) DefaultDeletePath() (string, error) {
-	return "", errors.ErrorResourceUpdateConflict{"Cannot delete IPAMConfig"}
+func (key IPAMHostKey) DefaultDeletePath() (string, error) {
+	return key.DefaultPath()
 }
 
-func (key IPAMConfigKey) valueType() reflect.Type {
-	return typeIPAMConfig
+func (key IPAMHostKey) valueType() reflect.Type {
+	return typeIPAMHost
 }
 
-type IPAMConfig struct {
-	StrictAffinity     bool `json:"strict_affinity,omitempty"`
-	AutoAllocateBlocks bool `json:"auto_allocate_blocks,omitempty"`
+type IPAMHost struct {
 }

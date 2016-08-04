@@ -16,6 +16,7 @@ package client
 
 import (
 	"github.com/tigera/libcalico-go/lib/api"
+	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 )
 
@@ -77,7 +78,7 @@ func (h *pools) List(metadata api.PoolMetadata) (*api.PoolList, error) {
 }
 
 // Convert a PoolMetadata to a PoolListInterface
-func (h *pools) convertMetadataToListInterface(m interface{}) (model.ListInterface, error) {
+func (h *pools) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.PoolMetadata)
 	l := model.PoolListOptions{
 		CIDR: pm.CIDR,
@@ -86,7 +87,7 @@ func (h *pools) convertMetadataToListInterface(m interface{}) (model.ListInterfa
 }
 
 // Convert a PoolMetadata to a PoolKeyInterface
-func (h *pools) convertMetadataToKey(m interface{}) (model.Key, error) {
+func (h *pools) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.PoolMetadata)
 	k := model.PoolKey{
 		CIDR: pm.CIDR,
@@ -95,7 +96,7 @@ func (h *pools) convertMetadataToKey(m interface{}) (model.Key, error) {
 }
 
 // Convert an API Pool structure to a Backend Pool structure
-func (h *pools) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
+func (h *pools) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.Pool)
 	k, err := h.convertMetadataToKey(ap.Metadata)
 	if err != nil {
@@ -125,7 +126,7 @@ func (h *pools) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
 }
 
 // Convert a Backend Pool structure to an API Pool structure
-func (h *pools) convertKVPairToAPI(d *model.KVPair) (interface{}, error) {
+func (h *pools) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	backendPool := d.Value.(model.Pool)
 
 	apiPool := api.NewPool()
