@@ -58,6 +58,7 @@ type IPSetUpdateCallbacks interface {
 }
 
 func NewResolver(felixSender FelixSender, hostname string, callbacks IPSetUpdateCallbacks) *Resolver {
+	glog.Infof("Creating ipset resolver for hostname %v", hostname)
 	resolver := &Resolver{
 		callbacks: callbacks,
 		hostname:  hostname,
@@ -112,10 +113,11 @@ func (res *Resolver) skipFelix(update model.KVPair) (filteredUpdate model.KVPair
 func (res *Resolver) onEndpointUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
 	key := update.Key.(model.WorkloadEndpointKey)
 	onThisHost := key.Hostname == res.hostname
-	if !onThisHost {
-		skipFelix = true
-	} else {
+	if onThisHost {
+		glog.V(3).Infof("(Workload) endpoint is local, updating ARC.")
 		res.activeRulesCalculator.OnUpdate(update)
+	} else {
+		skipFelix = true
 	}
 	if update.Value != nil {
 		glog.V(3).Infof("Endpoint %v updated", update.Key)
@@ -145,18 +147,18 @@ func (res *Resolver) onEndpointUpdate(update model.KVPair) (filteredUpdate model
 func (res *Resolver) onHostEndpointUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
 	key := update.Key.(model.HostEndpointKey)
 	onThisHost := key.Hostname == res.hostname
-	if !onThisHost {
+	if onThisHost {
+		glog.V(3).Infof("(Host) endpoint is local, updating ARC.")
+		res.activeRulesCalculator.OnUpdate(update)
+	} else {
 		skipFelix = true
 	}
 	if update.Value != nil {
 		glog.V(3).Infof("Endpoint %v updated", update.Key)
 		glog.V(4).Infof("Endpoint data: %#v", update.Value)
 		ep := update.Value.(*model.HostEndpoint)
-		if onThisHost {
-			res.activeRulesCalculator.OnUpdate(update)
-		}
 		// FIXME IPv6
-		ips := make([]ip.Addr,
+		ips := make([]ip.Addr, 0,
 			len(ep.ExpectedIPv4Addrs)+len(ep.ExpectedIPv6Addrs))
 		for _, netIP := range ep.ExpectedIPv4Addrs {
 			ips = append(ips, ip.FromNetIP(netIP.IP))
@@ -169,9 +171,6 @@ func (res *Resolver) onHostEndpointUpdate(update model.KVPair) (filteredUpdate m
 		res.tagIndex.UpdateEndpoint(update.Key, ep.ProfileIDs)
 	} else {
 		glog.V(3).Infof("Endpoint %v deleted", update.Key)
-		if onThisHost {
-			res.activeRulesCalculator.OnUpdate(update)
-		}
 		res.ipsetCalc.DeleteEndpoint(update.Key)
 		res.labelIdx.DeleteLabels(update.Key)
 		res.tagIndex.DeleteEndpoint(update.Key)

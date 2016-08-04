@@ -132,6 +132,9 @@ func (fc *FelixConnection) OnIPSetRemoved(ipsetID string) {
 func (fc *FelixConnection) OnIPAdded(ipsetID string, ip ip.Addr) {
 	glog.V(3).Infof("IP %v added to set %v; updating cache",
 		ip, ipsetID)
+	if ip == nil {
+		panic("Nil IP")
+	}
 	// TODO: Replace lock with go-routine?
 	fc.flushMutex.Lock()
 	defer fc.flushMutex.Unlock()
@@ -142,6 +145,9 @@ func (fc *FelixConnection) OnIPAdded(ipsetID string, ip ip.Addr) {
 func (fc *FelixConnection) OnIPRemoved(ipsetID string, ip ip.Addr) {
 	glog.V(3).Infof("IP %v removed from set %v; caching update",
 		ip, ipsetID)
+	if ip == nil {
+		panic("Nil IP")
+	}
 	fc.flushMutex.Lock()
 	defer fc.flushMutex.Unlock()
 	upd := ipUpdate{ipsetID, ip}
