@@ -57,7 +57,7 @@ type IPSetUpdateCallbacks interface {
 	OnIPSetRemoved(selID string)
 }
 
-func NewResolver(felixSender FelixSender, hostname string, callbacks IPSetUpdateCallbacks) *Resolver {
+func NewResolver(felixSender FelixSender, hostname string, callbacks IPSetUpdateCallbacks, polMatchListener MatchListener) *Resolver {
 	glog.Infof("Creating ipset resolver for hostname %v", hostname)
 	resolver := &Resolver{
 		callbacks: callbacks,
@@ -73,7 +73,7 @@ func NewResolver(felixSender FelixSender, hostname string, callbacks IPSetUpdate
 	resolver.ruleScanner.OnTagInactive = resolver.tagIndex.SetTagInactive
 
 	resolver.activeRulesCalculator = NewActiveRulesCalculator(
-		resolver.ruleScanner, felixSender, nil)
+		resolver.ruleScanner, felixSender, polMatchListener)
 
 	resolver.labelIdx = labels.NewInheritanceIndex(
 		resolver.onSelMatchStarted, resolver.onSelMatchStopped)
@@ -157,7 +157,6 @@ func (res *Resolver) onHostEndpointUpdate(update model.KVPair) (filteredUpdate m
 		glog.V(3).Infof("Endpoint %v updated", update.Key)
 		glog.V(4).Infof("Endpoint data: %#v", update.Value)
 		ep := update.Value.(*model.HostEndpoint)
-		// FIXME IPv6
 		ips := make([]ip.Addr, 0,
 			len(ep.ExpectedIPv4Addrs)+len(ep.ExpectedIPv6Addrs))
 		for _, netIP := range ep.ExpectedIPv4Addrs {

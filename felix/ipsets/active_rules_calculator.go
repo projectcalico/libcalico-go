@@ -35,6 +35,7 @@ type FelixSender interface {
 
 type MatchListener interface {
 	OnPolicyMatch(policyKey model.PolicyKey, endpointKey interface{})
+	OnPolicyMatchStopped(policyKey model.PolicyKey, endpointKey interface{})
 }
 
 type ActiveRulesCalculator struct {
@@ -195,10 +196,10 @@ func (arc *ActiveRulesCalculator) updateEndpointProfileIDs(key endpointKey, prof
 	}
 }
 
-func (arc *ActiveRulesCalculator) onMatchStarted(selId, labelId interface{}) {
-	polKey := selId.(model.PolicyKey)
+func (arc *ActiveRulesCalculator) onMatchStarted(selID, labelId interface{}) {
+	polKey := selID.(model.PolicyKey)
 	policyWasActive := arc.policyIDToEndpointKeys.ContainsKey(polKey)
-	arc.policyIDToEndpointKeys.Put(selId, labelId)
+	arc.policyIDToEndpointKeys.Put(selID, labelId)
 	if !policyWasActive {
 		// Policy wasn't active before, tell the listener.  The policy
 		// must be in allPolicies because we can only match on a policy
@@ -212,12 +213,16 @@ func (arc *ActiveRulesCalculator) onMatchStarted(selId, labelId interface{}) {
 }
 
 func (arc *ActiveRulesCalculator) onMatchStopped(selID, labelId interface{}) {
+	polKey := selID.(model.PolicyKey)
 	arc.policyIDToEndpointKeys.Discard(selID, labelId)
 	if !arc.policyIDToEndpointKeys.ContainsKey(selID) {
 		// Policy no longer active.
 		polKey := selID.(model.PolicyKey)
 		glog.V(3).Infof("Policy %v no longer matches a local endpoint", polKey)
 		arc.sendPolicyUpdate(polKey)
+	}
+	if arc.matchListener != nil {
+		arc.matchListener.OnPolicyMatchStopped(polKey, labelId)
 	}
 }
 

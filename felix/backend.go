@@ -21,6 +21,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/ip"
 	"github.com/tigera/libcalico-go/datastructures/set"
+	"github.com/tigera/libcalico-go/felix/endpoint"
 	"github.com/tigera/libcalico-go/felix/ipsets"
 	"github.com/tigera/libcalico-go/felix/store"
 	fapi "github.com/tigera/libcalico-go/lib/api"
@@ -80,15 +81,16 @@ type ipUpdate struct {
 }
 
 type FelixConnection struct {
-	toFelix    chan map[string]interface{}
-	failed     chan bool
-	encoder    *msgpack.Encoder
-	decoder    *msgpack.Decoder
-	dispatcher *store.Dispatcher
-	syncer     Startable
-	addedIPs   set.Set
-	removedIPs set.Set
-	flushMutex sync.Mutex
+	toFelix     chan map[string]interface{}
+	failed      chan bool
+	encoder     *msgpack.Encoder
+	decoder     *msgpack.Decoder
+	dispatcher  *store.Dispatcher
+	syncer      Startable
+	polResolver *endpoint.PolicyResolver
+	addedIPs    set.Set
+	removedIPs  set.Set
+	flushMutex  sync.Mutex
 }
 
 type Startable interface {
@@ -105,6 +107,9 @@ func NewFelixConnection(felixSocket net.Conn, disp *store.Dispatcher) *FelixConn
 		addedIPs:   set.New(),
 		removedIPs: set.New(),
 	}
+	felixConn.polResolver = endpoint.NewPolicyResolver(felixConn)
+	disp.Register(model.PolicyKey{}, felixConn.polResolver.OnUpdate)
+	disp.Register(model.TierKey{}, felixConn.polResolver.OnUpdate)
 	return felixConn
 }
 
@@ -206,6 +211,8 @@ func (fc *FelixConnection) OnStatusUpdated(status bapi.SyncStatus) {
 		statusString = "wait-for-ready"
 	case bapi.InSync:
 		statusString = "in-sync"
+		fc.polResolver.InSync = true
+		fc.polResolver.Flush()
 	case bapi.ResyncInProgress:
 		statusString = "resync"
 	}
@@ -332,7 +339,7 @@ func (fc *FelixConnection) handleInitFromFelix(msg map[interface{}]interface{}) 
 	// The ipset resolver calculates the current contents of the ipsets
 	// required by felix and generates events when the contents change,
 	// which we then send to Felix.
-	ipsetResolver := ipsets.NewResolver(fc, hostname, fc)
+	ipsetResolver := ipsets.NewResolver(fc, hostname, fc, fc.polResolver)
 	ipsetResolver.RegisterWith(fc.dispatcher)
 
 	// Respond to Felix with the etcd config.
@@ -349,6 +356,10 @@ func (fc *FelixConnection) handleInitFromFelix(msg map[interface{}]interface{}) 
 	// Start the Syncer, which will send us events for datastore state
 	// and changes.
 	fc.syncer.Start()
+}
+
+func (fc *FelixConnection) OnEndpointTierUpdate(endpointKey model.Key, filteredTiers []endpoint.TierInfo) {
+	glog.Infof("Endpoint %v now has tiers %v", endpointKey, filteredTiers)
 }
 
 func (fc *FelixConnection) sendMessagesToFelix() {

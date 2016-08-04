@@ -71,6 +71,7 @@ type IfaceToIface interface {
 	Discard(key, value interface{})
 	Contains(key, value interface{}) bool
 	ContainsKey(key interface{}) bool
+	IterKeys(f func(key interface{}))
 	Iter(key interface{}, f func(value interface{}))
 }
 
@@ -113,6 +114,12 @@ func (md ifaceToIfaceMap) Contains(key, value interface{}) bool {
 func (md ifaceToIfaceMap) ContainsKey(key interface{}) bool {
 	_, ok := md[key]
 	return ok
+}
+
+func (md ifaceToIfaceMap) IterKeys(f func(value interface{})) {
+	for k, _ := range md {
+		f(k)
+	}
 }
 
 func (md ifaceToIfaceMap) Iter(key interface{}, f func(value interface{})) {
