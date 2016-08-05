@@ -16,7 +16,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"flag"
 	"github.com/docopt/docopt-go"
 	"github.com/golang/glog"
@@ -279,21 +278,22 @@ func (fc *FelixConnection) SendUpdateToFelix(kv model.KVPair) {
 	}
 	glog.V(4).Infof("Sending KV to felix: %v = %#v", path, kv.Value)
 
-	var jsonStr interface{}
-	if kv.Value != nil {
-		jsonData, err := json.Marshal(kv.Value)
-		if err != nil {
-			glog.Warningf("Failed to marshall data for key %v, %#v: %v",
-				path, kv.Value, err)
-		} else {
-			jsonStr = string(jsonData)
-		}
-	}
-	glog.V(3).Infof("Sending KV to felix: %v = %s", path, jsonStr)
+	//var jsonStr interface{}
+	//if kv.Value != nil {
+	//	jsonData, err := json.Marshal(kv.Value)
+	//	if err != nil {
+	//		glog.Warningf("Failed to marshall data for key %v, %#v: %v",
+	//			path, kv.Value, err)
+	//	} else {
+	//		jsonStr = string(jsonData)
+	//	}
+	//}
+	//glog.V(3).Infof("Sending KV to felix: %v = %s", path, jsonStr)
+
 	msg = map[string]interface{}{
 		"type": "u",
 		"k":    path,
-		"v":    jsonStr,
+		"v":    kv.Value,
 	}
 	fc.toFelix <- msg
 }

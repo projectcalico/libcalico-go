@@ -57,7 +57,7 @@ func (pr *PolicyResolver) OnUpdate(update model.KVPair) (filteredUpdate model.KV
 	case model.TierKey:
 		policiesDirty = pr.policySorter.OnUpdate(update)
 		pr.markAllEndpointsDirty()
-		skipFelix = true
+		//skipFelix = true
 	}
 	if policiesDirty {
 		glog.V(3).Info("Policies dirty, refreshing sort order")
