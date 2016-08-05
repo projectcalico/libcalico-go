@@ -81,17 +81,19 @@ type ipUpdate struct {
 }
 
 type FelixConnection struct {
-	toFelix     chan map[string]interface{}
-	failed      chan bool
-	encoder     *codec.Encoder
-	felixBW     *bufio.Writer
-	decoder     *codec.Decoder
-	dispatcher  *store.Dispatcher
-	syncer      Startable
-	polResolver *endpoint.PolicyResolver
-	addedIPs    set.Set
-	removedIPs  set.Set
-	flushMutex  sync.Mutex
+	toFelix       chan map[string]interface{}
+	failed        chan bool
+	encoder       *codec.Encoder
+	felixBW       *bufio.Writer
+	decoder       *codec.Decoder
+	dispatcher    *store.Dispatcher
+	syncer        Startable
+	polResolver   *endpoint.PolicyResolver
+	addedIPs      set.Set
+	removedIPs    set.Set
+	flushMutex    sync.Mutex
+	endpoints     map[model.Key]interface{}
+	endpointTiers map[model.Key][]TierInfo
 }
 
 type Startable interface {
@@ -109,14 +111,16 @@ func NewFelixConnection(felixSocket net.Conn, disp *store.Dispatcher) *FelixConn
 	codecHandle.RawToString = true
 
 	felixConn := &FelixConnection{
-		toFelix:    make(chan map[string]interface{}),
-		failed:     make(chan bool),
-		dispatcher: disp,
-		encoder:    codec.NewEncoder(w, codecHandle),
-		felixBW:    w,
-		decoder:    codec.NewDecoder(r, codecHandle),
-		addedIPs:   set.New(),
-		removedIPs: set.New(),
+		toFelix:       make(chan map[string]interface{}),
+		failed:        make(chan bool),
+		dispatcher:    disp,
+		encoder:       codec.NewEncoder(w, codecHandle),
+		felixBW:       w,
+		decoder:       codec.NewDecoder(r, codecHandle),
+		addedIPs:      set.New(),
+		removedIPs:    set.New(),
+		endpoints:     make(map[model.Key]interface{}),
+		endpointTiers: make(map[model.Key][]TierInfo),
 	}
 	felixConn.polResolver = endpoint.NewPolicyResolver(felixConn)
 	disp.Register(model.PolicyKey{}, felixConn.polResolver.OnUpdate)
@@ -271,31 +275,73 @@ func (fc *FelixConnection) ParseFailed(rawKey string, rawValue *string) {
 }
 
 func (fc *FelixConnection) SendUpdateToFelix(kv model.KVPair) {
-	var msg map[string]interface{}
-	path, err := kv.Key.DefaultPath()
-	if err != nil {
-		glog.Fatalf("Unable to marshal key: %#v", kv.Key)
+	switch key := kv.Key.(type) {
+	case model.ProfileRulesKey:
+		msg := map[string]interface{}{
+			"type": "prof_update",
+			"name": key.Name,
+			"v":    kv.Value,
+		}
+		fc.toFelix <- msg
+	case model.PolicyKey:
+		msg := map[string]interface{}{
+			"type": "pol_update",
+			"tier": key.Tier,
+			"name": key.Name,
+			"v":    kv.Value,
+		}
+		fc.toFelix <- msg
+	case model.WorkloadEndpointKey, model.HostEndpointKey:
+		if kv.Value != nil {
+			fc.endpoints[kv.Key] = kv.Value
+		} else {
+			delete(fc.endpoints, kv.Key)
+		}
+		fc.sendEndpointUpdate(kv.Key)
 	}
-	glog.V(4).Infof("Sending KV to felix: %v = %#v", path, kv.Value)
+}
 
-	//var jsonStr interface{}
-	//if kv.Value != nil {
-	//	jsonData, err := json.Marshal(kv.Value)
-	//	if err != nil {
-	//		glog.Warningf("Failed to marshall data for key %v, %#v: %v",
-	//			path, kv.Value, err)
-	//	} else {
-	//		jsonStr = string(jsonData)
-	//	}
-	//}
-	//glog.V(3).Infof("Sending KV to felix: %v = %s", path, jsonStr)
-
-	msg = map[string]interface{}{
-		"type": "u",
-		"k":    path,
-		"v":    kv.Value,
+func (fc *FelixConnection) sendEndpointUpdate(key model.Key) {
+	msg := make(map[string]interface{})
+	value := fc.endpoints[key]
+	switch key := key.(type) {
+	case model.WorkloadEndpointKey:
+		msg["type"] = "wl_ep_update"
+		msg["host"] = key.Hostname
+		msg["orch"] = key.OrchestratorID
+		msg["wl"] = key.WorkloadID
+		msg["ep"] = key.EndpointID
+	case model.HostEndpointKey:
+		msg["type"] = "host_ep_update"
+		msg["host"] = key.Hostname
+		msg["ep"] = key.EndpointID
+	}
+	switch value := value.(type) {
+	case *model.WorkloadEndpoint:
+		tieredValue := workloadEndpointWithTier{}
+		tieredValue.WorkloadEndpoint = *value
+		tieredValue.Tiers = fc.endpointTiers[key]
+		msg["v"] = tieredValue
+	case *model.HostEndpoint:
+		tieredValue := hostEndpointWithTier{}
+		tieredValue.HostEndpoint = *value
+		tieredValue.Tiers = fc.endpointTiers[key]
+		msg["v"] = tieredValue
+	default:
+		glog.V(3).Infof("Unknown endpoint %v, %v (deletion?)", key, value)
+		msg["v"] = nil
 	}
 	fc.toFelix <- msg
+}
+
+type workloadEndpointWithTier struct {
+	model.WorkloadEndpoint
+	Tiers []TierInfo `codec:"tiers"`
+}
+
+type hostEndpointWithTier struct {
+	model.HostEndpoint
+	Tiers []TierInfo `codec:"tiers"`
 }
 
 func (fc *FelixConnection) readMessagesFromFelix() {
@@ -373,6 +419,21 @@ func (fc *FelixConnection) handleInitFromFelix(msg map[string]interface{}) {
 
 func (fc *FelixConnection) OnEndpointTierUpdate(endpointKey model.Key, filteredTiers []endpoint.TierInfo) {
 	glog.Infof("Endpoint %v now has tiers %v", endpointKey, filteredTiers)
+	if len(filteredTiers) > 0 {
+		tiers := make([]TierInfo, len(filteredTiers))
+		for ii, ti := range filteredTiers {
+			pols := make([]string, len(ti.OrderedPolicies))
+			for jj, pol := range ti.OrderedPolicies {
+				pols[jj] = pol.Key.Name
+			}
+			tiers[ii] = TierInfo{ti.Name, pols}
+		}
+		glog.Infof("Endpoint %v now has tiers %v", endpointKey, tiers)
+		fc.endpointTiers[endpointKey] = tiers
+	} else {
+		delete(fc.endpointTiers, endpointKey)
+	}
+	fc.sendEndpointUpdate(endpointKey)
 }
 
 func (fc *FelixConnection) sendMessagesToFelix() {
@@ -399,4 +460,9 @@ func (fc *FelixConnection) Start() {
 func (fc *FelixConnection) Join() {
 	_ = <-fc.failed
 	glog.Fatal("Background thread failed")
+}
+
+type TierInfo struct {
+	Name     string   `codec:"name"`
+	Policies []string `codec:"policies"`
 }
