@@ -325,7 +325,7 @@ func (fc *FelixConnection) handleInitFromFelix(msg map[interface{}]interface{}) 
 		EtcdCertFile:   etcdCertFile,
 		EtcdCACertFile: etcdCACertFile,
 	}
-	cfg := &fapi.ClientConfig{
+	cfg := fapi.ClientConfig{
 		BackendType:   fapi.EtcdV2,
 		BackendConfig: etcdCfg,
 	}
