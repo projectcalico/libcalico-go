@@ -85,6 +85,7 @@ type FelixConnection struct {
 	toFelix     chan map[string]interface{}
 	failed      chan bool
 	encoder     *codec.Encoder
+	felixBW     *bufio.Writer
 	decoder     *codec.Decoder
 	dispatcher  *store.Dispatcher
 	syncer      Startable
@@ -113,6 +114,7 @@ func NewFelixConnection(felixSocket net.Conn, disp *store.Dispatcher) *FelixConn
 		failed:     make(chan bool),
 		dispatcher: disp,
 		encoder:    codec.NewEncoder(w, codecHandle),
+		felixBW:    w,
 		decoder:    codec.NewDecoder(r, codecHandle),
 		addedIPs:   set.New(),
 		removedIPs: set.New(),
@@ -381,6 +383,7 @@ func (fc *FelixConnection) sendMessagesToFelix() {
 		if err := fc.encoder.Encode(msg); err != nil {
 			glog.Fatalf("Failed to send message to felix: %v", err)
 		}
+		fc.felixBW.Flush()
 	}
 }
 
