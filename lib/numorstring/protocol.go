@@ -14,6 +14,34 @@
 
 package numorstring
 
+import (
+	"github.com/golang/glog"
+	"github.com/ugorji/go/codec"
+)
+
 type Protocol struct {
 	Int32OrString
+}
+
+func (p Protocol) CodecEncodeSelf(enc *codec.Encoder) {
+	if p.Type == NumOrStringNum {
+		enc.Encode(p.NumVal)
+	} else {
+		enc.Encode(p.StrVal)
+	}
+}
+
+func (p *Protocol) CodecDecodeSelf(dec *codec.Decoder) {
+	var v interface{}
+	dec.Decode(v)
+	switch v := v.(type) {
+	case string:
+		p.StrVal = v
+		p.Type = NumOrStringString
+	case float64:
+		p.NumVal = int32(v)
+		p.Type = NumOrStringNum
+	default:
+		glog.Fatalf("Unexpected type for protocol: %#v", v)
+	}
 }
