@@ -17,3 +17,6 @@ import:
   subpackages:
   - context
 - package: gopkg.in/go-playground/validator.v8
+- package: github.com/ugorji/go
+  subpackages:
+  - codec

@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"github.com/docopt/docopt-go"
@@ -29,7 +30,7 @@ import (
 	bapi "github.com/tigera/libcalico-go/lib/backend/api"
 	"github.com/tigera/libcalico-go/lib/backend/etcd"
 	"github.com/tigera/libcalico-go/lib/backend/model"
-	"gopkg.in/vmihailenco/msgpack.v2"
+	"github.com/ugorji/go/codec"
 	"net"
 	"os"
 	"strings"
@@ -83,8 +84,8 @@ type ipUpdate struct {
 type FelixConnection struct {
 	toFelix     chan map[string]interface{}
 	failed      chan bool
-	encoder     *msgpack.Encoder
-	decoder     *msgpack.Decoder
+	encoder     *codec.Encoder
+	decoder     *codec.Decoder
 	dispatcher  *store.Dispatcher
 	syncer      Startable
 	polResolver *endpoint.PolicyResolver
@@ -98,12 +99,21 @@ type Startable interface {
 }
 
 func NewFelixConnection(felixSocket net.Conn, disp *store.Dispatcher) *FelixConnection {
+	// codec doesn't do any internal buffering so we need to wrap the
+	// socket.
+	r := bufio.NewReader(felixSocket)
+	w := bufio.NewWriter(felixSocket)
+
+	// Configure codec to return strings for map keys.
+	codecHandle := &codec.MsgpackHandle{}
+	codecHandle.RawToString = true
+
 	felixConn := &FelixConnection{
 		toFelix:    make(chan map[string]interface{}),
 		failed:     make(chan bool),
 		dispatcher: disp,
-		encoder:    msgpack.NewEncoder(felixSocket),
-		decoder:    msgpack.NewDecoder(felixSocket),
+		encoder:    codec.NewEncoder(w, codecHandle),
+		decoder:    codec.NewDecoder(r, codecHandle),
 		addedIPs:   set.New(),
 		removedIPs: set.New(),
 	}
@@ -289,15 +299,16 @@ func (fc *FelixConnection) SendUpdateToFelix(kv model.KVPair) {
 func (fc *FelixConnection) readMessagesFromFelix() {
 	defer func() { fc.failed <- true }()
 	for {
-		msg, err := fc.decoder.DecodeMap()
+		msg := make(map[string]interface{})
+		err := fc.decoder.Decode(msg)
 		if err != nil {
-			panic("Error reading from felix")
+			glog.Fatalf("Error reading from felix: %v", err)
 		}
 		glog.V(3).Infof("Message from Felix: %#v", msg)
-		msgType := msg.(map[interface{}]interface{})["type"].(string)
+		msgType := msg["type"].(string)
 		switch msgType {
 		case "init": // Hello message from felix
-			fc.handleInitFromFelix(msg.(map[interface{}]interface{}))
+			fc.handleInitFromFelix(msg)
 		default:
 			glog.Warning("XXXX Unknown message from felix: ", msg)
 		}
@@ -306,7 +317,7 @@ func (fc *FelixConnection) readMessagesFromFelix() {
 
 // handleInitFromFelix() Handles the start-of-day init message from the main Felix process.
 // this is the first message, which gives us the datastore configuration.
-func (fc *FelixConnection) handleInitFromFelix(msg map[interface{}]interface{}) {
+func (fc *FelixConnection) handleInitFromFelix(msg map[string]interface{}) {
 	// Extract the bootstrap config from the message.
 	urls := msg["etcd_urls"].([]interface{})
 	urlStrs := make([]string, len(urls))
