@@ -16,6 +16,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/docopt/docopt-go"
@@ -33,6 +34,7 @@ import (
 	"github.com/ugorji/go/codec"
 	"net"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -84,6 +86,7 @@ type ipUpdate struct {
 type FelixConnection struct {
 	toFelix       chan map[string]interface{}
 	failed        chan bool
+	codecHandle   *codec.MsgpackHandle
 	encoder       *codec.Encoder
 	felixBW       *bufio.Writer
 	decoder       *codec.Decoder
@@ -110,11 +113,13 @@ func NewFelixConnection(felixSocket net.Conn, disp *store.Dispatcher) *FelixConn
 	// Configure codec to return strings for map keys.
 	codecHandle := &codec.MsgpackHandle{}
 	codecHandle.RawToString = true
+	codecHandle.MapType = reflect.TypeOf(make(map[string]interface{}))
 
 	felixConn := &FelixConnection{
 		toFelix:       make(chan map[string]interface{}),
 		failed:        make(chan bool),
 		dispatcher:    disp,
+		codecHandle:   codecHandle,
 		encoder:       codec.NewEncoder(w, codecHandle),
 		felixBW:       w,
 		decoder:       codec.NewDecoder(r, codecHandle),
@@ -442,6 +447,20 @@ func (fc *FelixConnection) sendMessagesToFelix() {
 	for {
 		msg := <-fc.toFelix
 		glog.V(3).Infof("Writing msg to felix: %#v\n", msg)
+		if glog.V(4) {
+			bs := make([]byte, 0)
+			enc := codec.NewEncoderBytes(&bs, fc.codecHandle)
+			enc.Encode(msg)
+			dec := codec.NewDecoderBytes(bs, fc.codecHandle)
+			msgAsMap := make(map[string]interface{})
+			dec.Decode(msgAsMap)
+			jsonMsg, err := json.Marshal(msgAsMap)
+			if err == nil {
+				glog.Infof("Dumped message: %v", string(jsonMsg))
+			} else {
+				glog.Infof("Failed to dump map to JSON: (%v) %v", err, msgAsMap)
+			}
+		}
 		if err := fc.encoder.Encode(msg); err != nil {
 			glog.Fatalf("Failed to send message to felix: %v", err)
 		}
