@@ -52,8 +52,7 @@ func (pr *PolicyResolver) OnUpdate(update model.KVPair) (filteredUpdate model.KV
 	switch key := update.Key.(type) {
 	case model.PolicyKey:
 		glog.V(3).Infof("Policy update: %v", key)
-		policiesDirty = pr.policySorter.OnUpdate(update) &&
-			pr.policyIDToEndpointIDs.ContainsKey(update.Key)
+		policiesDirty = pr.policySorter.OnUpdate(update)
 		pr.markEndpointsMatchingPolicyDirty(key)
 	case model.TierKey:
 		glog.V(3).Infof("Tier update: %v", key)
@@ -63,12 +62,16 @@ func (pr *PolicyResolver) OnUpdate(update model.KVPair) (filteredUpdate model.KV
 	}
 	if policiesDirty {
 		glog.V(3).Info("Policies dirty, refreshing sort order")
-		pr.sortedTierData = pr.policySorter.Sorted()
-		glog.V(3).Infof("New sort order: %v", pr.sortedTierData)
+		pr.refreshSortOrder()
 		pr.Flush()
 	}
 	filteredUpdate = update
 	return
+}
+
+func (pr *PolicyResolver) refreshSortOrder() {
+	pr.sortedTierData = pr.policySorter.Sorted()
+	glog.V(3).Infof("New sort order: %v", pr.sortedTierData)
 }
 
 func (pr *PolicyResolver) markAllEndpointsDirty() {

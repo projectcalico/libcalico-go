@@ -17,6 +17,7 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"github.com/docopt/docopt-go"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/ip"
@@ -465,4 +466,8 @@ func (fc *FelixConnection) Join() {
 type TierInfo struct {
 	Name     string   `codec:"name"`
 	Policies []string `codec:"policies"`
+}
+
+func (t TierInfo) String() string {
+	return fmt.Sprintf("%v -> %v", t.Name, t.Policies)
 }

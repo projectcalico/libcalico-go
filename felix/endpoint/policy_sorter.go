@@ -15,6 +15,7 @@
 package endpoint
 
 import (
+	"fmt"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	"sort"
 )
@@ -159,4 +160,12 @@ func NewTierInfo(name string) *TierInfo {
 		Name:     name,
 		Policies: make(map[model.PolicyKey]*model.Policy),
 	}
+}
+
+func (t TierInfo) String() string {
+	policies := make([]string, len(t.OrderedPolicies))
+	for ii, pol := range t.OrderedPolicies {
+		policies[ii] = pol.Key.Name
+	}
+	return fmt.Sprintf("%v -> %v", t.Name, policies)
 }
