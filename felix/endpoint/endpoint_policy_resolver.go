@@ -51,10 +51,12 @@ func (pr *PolicyResolver) OnUpdate(update model.KVPair) (filteredUpdate model.KV
 	policiesDirty := false
 	switch key := update.Key.(type) {
 	case model.PolicyKey:
+		glog.V(3).Infof("Policy update: %v", key)
 		policiesDirty = pr.policySorter.OnUpdate(update) &&
 			pr.policyIDToEndpointIDs.ContainsKey(update.Key)
 		pr.markEndpointsMatchingPolicyDirty(key)
 	case model.TierKey:
+		glog.V(3).Infof("Tier update: %v", key)
 		policiesDirty = pr.policySorter.OnUpdate(update)
 		pr.markAllEndpointsDirty()
 		//skipFelix = true
@@ -62,6 +64,7 @@ func (pr *PolicyResolver) OnUpdate(update model.KVPair) (filteredUpdate model.KV
 	if policiesDirty {
 		glog.V(3).Info("Policies dirty, refreshing sort order")
 		pr.sortedTierData = pr.policySorter.Sorted()
+		glog.V(3).Infof("New sort order: %v", pr.sortedTierData)
 		pr.Flush()
 	}
 	filteredUpdate = update
@@ -69,12 +72,14 @@ func (pr *PolicyResolver) OnUpdate(update model.KVPair) (filteredUpdate model.KV
 }
 
 func (pr *PolicyResolver) markAllEndpointsDirty() {
+	glog.V(3).Infof("Marking all endpoints dirty")
 	pr.endpointIDToPolicyIDs.IterKeys(func(epID interface{}) {
 		pr.dirtyEndpoints.Add(epID)
 	})
 }
 
 func (pr *PolicyResolver) markEndpointsMatchingPolicyDirty(polKey model.PolicyKey) {
+	glog.V(3).Infof("Marking all endpoints matching %v dirty", polKey)
 	pr.policyIDToEndpointIDs.Iter(polKey, func(epID interface{}) {
 		pr.dirtyEndpoints.Add(epID)
 	})
@@ -129,6 +134,7 @@ func (pr *PolicyResolver) Flush() {
 				applicableTiers = append(applicableTiers, filteredTier)
 			}
 		}
+		glog.V(4).Infof("Tier update: %v -> %v", endpointID, applicableTiers)
 		pr.callbacks.OnEndpointTierUpdate(endpointID.(model.Key), applicableTiers)
 		return nil
 	})
