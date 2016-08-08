@@ -16,6 +16,7 @@ package endpoint
 
 import (
 	"fmt"
+	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	"sort"
 )
@@ -95,7 +96,23 @@ func (poc *PolicySorter) Sorted() []*TierInfo {
 			tierInfo.OrderedPolicies = append(tierInfo.OrderedPolicies,
 				PolKV{Key: k, Value: v})
 		}
+		if glog.V(4) {
+			names := make([]string, len(tierInfo.OrderedPolicies))
+			for ii, kv := range tierInfo.OrderedPolicies {
+				names[ii] = fmt.Sprintf("%v(%v)",
+					kv.Key.Name, *kv.Value.Order)
+			}
+			glog.Infof("Before sorting policies: %v", names)
+		}
 		sort.Sort(PolicyByOrder(tierInfo.OrderedPolicies))
+		if glog.V(4) {
+			names := make([]string, len(tierInfo.OrderedPolicies))
+			for ii, kv := range tierInfo.OrderedPolicies {
+				names[ii] = fmt.Sprintf("%v(%v)",
+					kv.Key.Name, *kv.Value.Order)
+			}
+			glog.Infof("After sorting policies: %v", names)
+		}
 	}
 	return tiers
 }
@@ -131,9 +148,15 @@ type PolicyByOrder []PolKV
 func (a PolicyByOrder) Len() int      { return len(a) }
 func (a PolicyByOrder) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a PolicyByOrder) Less(i, j int) bool {
-	// If orders are equal, use name as tie-break.
-	if a[i].Value.Order == a[j].Value.Order {
-		return a[i].Key.Name < a[j].Key.Name
+	bothNil := a[i].Value.Order == nil && a[j].Value.Order == nil
+	bothSet := a[i].Value.Order != nil && a[j].Value.Order != nil
+	ordersEqual := bothNil || bothSet && (*a[i].Value.Order == *a[j].Value.Order)
+
+	if ordersEqual {
+		// Use name as tie-break.
+		result := a[i].Key.Name < a[j].Key.Name
+		glog.V(5).Infof("Sort: comparing name %v < %v = %v", a[i].Key.Name, a[j].Key.Name, result)
+		return result
 	}
 
 	// nil order maps to "infinity"
