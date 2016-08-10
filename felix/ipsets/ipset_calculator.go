@@ -70,11 +70,10 @@ func (calc *MemberCalculator) OnUpdate(update model.KVPair) (filterOut bool) {
 		calc.updateEndpointIPs(update.Key, []ip.Addr{})
 		return
 	}
-	var ips []ip.Addr
 	switch update.Key.(type) {
 	case model.WorkloadEndpointKey:
 		ep := update.Value.(model.WorkloadEndpoint)
-		ips = make([]ip.Addr, 0, len(ep.IPv4Nets)+len(ep.IPv6Nets))
+		ips := make([]ip.Addr, 0, len(ep.IPv4Nets)+len(ep.IPv6Nets))
 		for _, net := range ep.IPv4Nets {
 			ips = append(ips, ip.FromNetIP(net.IP))
 		}
@@ -84,7 +83,7 @@ func (calc *MemberCalculator) OnUpdate(update model.KVPair) (filterOut bool) {
 		calc.updateEndpointIPs(update.Key, ips)
 	case model.HostEndpointKey:
 		ep := update.Value.(*model.HostEndpoint)
-		ips = make([]ip.Addr, 0,
+		ips := make([]ip.Addr, 0,
 			len(ep.ExpectedIPv4Addrs)+len(ep.ExpectedIPv6Addrs))
 		for _, netIP := range ep.ExpectedIPv4Addrs {
 			ips = append(ips, ip.FromNetIP(netIP.IP))
@@ -92,8 +91,8 @@ func (calc *MemberCalculator) OnUpdate(update model.KVPair) (filterOut bool) {
 		for _, netIP := range ep.ExpectedIPv6Addrs {
 			ips = append(ips, ip.FromNetIP(netIP.IP))
 		}
+		calc.updateEndpointIPs(update.Key, ips)
 	}
-	calc.updateEndpointIPs(update.Key, ips)
 	return
 }
 

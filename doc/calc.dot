@@ -104,10 +104,10 @@ edge [fontname=Helvetica,fontsize=10]
           <tr><td><font point-size="14">Pipeline callbacks API</font></td></tr>
           <tr><td align="left"><font point-size="10">Interface to frontend.<BR ALIGN="LEFT"/>
 <BR ALIGN="LEFT"/>
-OnIPSetAdded(selID string)<BR ALIGN="LEFT"/>
-OnIPAdded(selID string, ip ip.Addr)<BR ALIGN="LEFT"/>
-OnIPRemoved(selID string, ip ip.Addr)<BR ALIGN="LEFT"/>
-OnIPSetRemoved(selID string)<BR ALIGN="LEFT"/>
+OnIPSetAdded(setID string)<BR ALIGN="LEFT"/>
+OnIPAdded(setID string, ip ip.Addr)<BR ALIGN="LEFT"/>
+OnIPRemoved(setID string, ip ip.Addr)<BR ALIGN="LEFT"/>
+OnIPSetRemoved(setID string)<BR ALIGN="LEFT"/>
 <BR ALIGN="LEFT"/>
 // TODO replace with dedicated methods.<BR ALIGN="LEFT"/>
 SendUpdateToFelix(update model.KVPair)<BR ALIGN="LEFT"/>

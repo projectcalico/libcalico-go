@@ -28,10 +28,10 @@ import (
 )
 
 type PipelineCallbacks interface {
-	OnIPSetAdded(selID string)
-	OnIPAdded(selID string, ip ip.Addr)
-	OnIPRemoved(selID string, ip ip.Addr)
-	OnIPSetRemoved(selID string)
+	OnIPSetAdded(setID string)
+	OnIPAdded(setID string, ip ip.Addr)
+	OnIPRemoved(setID string, ip ip.Addr)
+	OnIPSetRemoved(setID string)
 
 	// TODO replace with dedicated methods.
 	SendUpdateToFelix(update model.KVPair)
