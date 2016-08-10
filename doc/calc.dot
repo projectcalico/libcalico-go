@@ -28,24 +28,24 @@ edge [fontname=Helvetica,fontsize=10]
           <tr><td WIDTH="200"><font point-size="14" >Dispatcher</font></td></tr>
           <tr><td><font point-size="10">Fans out updates</font></td></tr>
         </table>>, shape=none, margin=0]
-        Dispatcher -> PolicyResolver [label="policy, tier\nKVs"]
-        Dispatcher -> ActiveRulesCalc [label="policy, profile\nKVs"]
-        Dispatcher -> ActiveSelIdx [label="profile\nlabels KVs"]
+        Dispatcher -> PolicyResolver [label="policy, tier\nKVs", penwidth=2]
+        Dispatcher -> ActiveRulesCalc [label="policy, profile\nKVs", penwidth=2]
+        Dispatcher -> ActiveSelIdx [label="profile\nlabels KVs", penwidth=2]
 
         EPKVs [shape=point];
-        Dispatcher -> EPKVs [label="all\nendpoint KVs"];
+        Dispatcher -> EPKVs [label="all\nendpoint KVs", penwidth=4];
 
-        EPKVs -> ActiveSelIdx;
-        EPKVs -> LocalDispatcher;
-        EPKVs -> TagIndex;
-        EPKVs -> MemberCalc;
+        EPKVs -> ActiveSelIdx [penwidth=4];
+        EPKVs -> LocalDispatcher [penwidth=4];
+        EPKVs -> TagIndex [penwidth=4];
+        EPKVs -> MemberCalc [penwidth=4];
 
         LocalDispatcher [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
           <tr><td><font point-size="14">Local endpoint dispatcher</font></td></tr>
           <tr><td><font point-size="10">Filters out non-local endpoints.</font></td></tr>
         </table>>, shape=none, margin=0]
-        LocalDispatcher -> ActiveRulesCalc [label="local\nendpoint KVs"];
-        LocalDispatcher -> PolicyResolver [label="local\nendpoint KVs"]
+        LocalDispatcher -> ActiveRulesCalc [label="local\nendpoint KVs", penwidth=2];
+        LocalDispatcher -> PolicyResolver [label="local\nendpoint KVs", penwidth=2]
 
         ActiveRulesCalc [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
           <tr><td><font point-size="14">Active rules calculator</font></td></tr>
