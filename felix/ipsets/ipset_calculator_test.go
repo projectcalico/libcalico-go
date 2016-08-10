@@ -40,7 +40,7 @@ func init() {
 }
 
 var _ = Describe("An empty IpsetCalculator", func() {
-	var calc *IpsetCalculator
+	var calc *MemberCalculator
 	var updates []ipUpdate
 
 	updateEndpointIPs := func(epName string, ips []string) {
@@ -48,12 +48,12 @@ var _ = Describe("An empty IpsetCalculator", func() {
 		for ii, ipStr := range ips {
 			ipAddrs[ii] = ip.FromNetIP(net.ParseIP(ipStr))
 		}
-		calc.UpdateEndpointIPs(epName, ipAddrs)
+		calc.updateEndpointIPs(epName, ipAddrs)
 	}
 
 	BeforeEach(func() {
 		updates = nil
-		calc = NewIpsetCalculator()
+		calc = NewMemberCalculator()
 		calc.OnIPAdded = func(ipSetID string, ip ip.Addr) {
 			updates = append(updates, ipUpdate{"add", ipSetID, ip.String()})
 		}

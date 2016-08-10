@@ -17,19 +17,12 @@ package labels
 import (
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/multidict"
+	"github.com/tigera/libcalico-go/lib/backend/api"
+	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/selector"
 )
 
-type LabelInheritanceIndex interface {
-	UpdateSelector(id interface{}, sel selector.Selector)
-	DeleteSelector(id interface{})
-	UpdateLabels(id interface{}, labels map[string]string, parents []string)
-	DeleteLabels(id interface{})
-	UpdateParentLabels(id string, labels map[string]string)
-	DeleteParentLabels(id string)
-}
-
-type labelInheritanceIndex struct {
+type InheritIndex struct {
 	index             Index
 	labelsByItemID    map[interface{}]map[string]string
 	labelsByParentID  map[interface{}]map[string]string
@@ -38,9 +31,9 @@ type labelInheritanceIndex struct {
 	dirtyItemIDs      map[interface{}]bool
 }
 
-func NewInheritanceIndex(onMatchStarted, onMatchStopped MatchCallback) LabelInheritanceIndex {
+func NewInheritIndex(onMatchStarted, onMatchStopped MatchCallback) *InheritIndex {
 	index := NewIndex(onMatchStarted, onMatchStopped)
-	inheritIDx := labelInheritanceIndex{
+	inheritIDx := InheritIndex{
 		index:             index,
 		labelsByItemID:    make(map[interface{}]map[string]string),
 		labelsByParentID:  make(map[interface{}]map[string]string),
@@ -51,15 +44,56 @@ func NewInheritanceIndex(onMatchStarted, onMatchStopped MatchCallback) LabelInhe
 	return &inheritIDx
 }
 
-func (idx *labelInheritanceIndex) UpdateSelector(id interface{}, sel selector.Selector) {
+// OnUpdate makes LabelInheritanceIndex compatible with the UpdateHandler interface
+// allowing it to be used in a calculation graph more easily.
+func (l *InheritIndex) OnUpdate(update model.KVPair) (filterOut bool) {
+	switch key := update.Key.(type) {
+	case model.WorkloadEndpointKey:
+		if update.Value != nil {
+			glog.V(4).Infof("Updating ARC with endpoint %v", key)
+			endpoint := update.Value.(*model.WorkloadEndpoint)
+			profileIDs := endpoint.ProfileIDs
+			l.UpdateLabels(key, endpoint.Labels, profileIDs)
+		} else {
+			glog.V(4).Infof("Deleting endpoint %v from ARC", key)
+			l.DeleteLabels(key)
+		}
+	case model.HostEndpointKey:
+		if update.Value != nil {
+			// Figure out what's changed and update the cache.
+			glog.V(4).Infof("Updating ARC for host endpoint %v", key)
+			endpoint := update.Value.(*model.HostEndpoint)
+			profileIDs := endpoint.ProfileIDs
+			l.UpdateLabels(key, endpoint.Labels, profileIDs)
+		} else {
+			glog.V(4).Infof("Deleting host endpoint %v from ARC", key)
+			l.DeleteLabels(key)
+		}
+	case model.ProfileLabelsKey:
+		if update.Value != nil {
+			glog.V(4).Infof("Updating ARC for profile %v", key)
+			labels := update.Value.(map[string]string)
+			l.UpdateParentLabels(key.Name, labels)
+		} else {
+			glog.V(4).Infof("Removing profile %v from ARC", key)
+			l.DeleteParentLabels(key.Name)
+		}
+	}
+	return
+}
+
+func (l *InheritIndex) OnDatamodelStatus(status api.SyncStatus) {
+}
+
+func (idx *InheritIndex) UpdateSelector(id interface{}, sel selector.Selector) {
 	idx.index.UpdateSelector(id, sel)
 }
 
-func (idx *labelInheritanceIndex) DeleteSelector(id interface{}) {
+func (idx *InheritIndex) DeleteSelector(id interface{}) {
 	idx.index.DeleteSelector(id)
 }
 
-func (idx *labelInheritanceIndex) UpdateLabels(id interface{}, labels map[string]string, parents []string) {
+func (idx *InheritIndex) UpdateLabels(id interface{}, labels map[string]string, parents []string) {
 	glog.V(3).Info("Inherit index updating labels for ", id)
 	glog.V(4).Info("Num dirty items ", len(idx.dirtyItemIDs), " items")
 	idx.labelsByItemID[id] = labels
@@ -69,7 +103,7 @@ func (idx *labelInheritanceIndex) UpdateLabels(id interface{}, labels map[string
 	glog.V(4).Info("Num ending dirty items ", len(idx.dirtyItemIDs), " items")
 }
 
-func (idx *labelInheritanceIndex) DeleteLabels(id interface{}) {
+func (idx *InheritIndex) DeleteLabels(id interface{}) {
 	glog.V(3).Info("Inherit index deleting labels for ", id)
 	delete(idx.labelsByItemID, id)
 	idx.onItemParentsUpdate(id, []string{})
@@ -77,7 +111,7 @@ func (idx *labelInheritanceIndex) DeleteLabels(id interface{}) {
 	idx.flushUpdates()
 }
 
-func (idx *labelInheritanceIndex) onItemParentsUpdate(id interface{}, parents []string) {
+func (idx *InheritIndex) onItemParentsUpdate(id interface{}, parents []string) {
 	oldParents := idx.parentIDsByItemID[id]
 	for _, parent := range oldParents {
 		idx.itemIDsByParentID.Discard(parent, id)
@@ -92,17 +126,17 @@ func (idx *labelInheritanceIndex) onItemParentsUpdate(id interface{}, parents []
 	}
 }
 
-func (idx *labelInheritanceIndex) UpdateParentLabels(parentID string, labels map[string]string) {
+func (idx *InheritIndex) UpdateParentLabels(parentID string, labels map[string]string) {
 	idx.labelsByParentID[parentID] = labels
 	idx.flushChildren(parentID)
 }
 
-func (idx *labelInheritanceIndex) DeleteParentLabels(parentID string) {
+func (idx *InheritIndex) DeleteParentLabels(parentID string) {
 	delete(idx.labelsByParentID, parentID)
 	idx.flushChildren(parentID)
 }
 
-func (idx *labelInheritanceIndex) flushChildren(parentID interface{}) {
+func (idx *InheritIndex) flushChildren(parentID interface{}) {
 	idx.itemIDsByParentID.Iter(parentID, func(itemID interface{}) {
 		glog.V(4).Info("Marking child ", itemID, " dirty")
 		idx.dirtyItemIDs[itemID] = true
@@ -110,7 +144,7 @@ func (idx *labelInheritanceIndex) flushChildren(parentID interface{}) {
 	idx.flushUpdates()
 }
 
-func (idx *labelInheritanceIndex) flushUpdates() {
+func (idx *InheritIndex) flushUpdates() {
 	for itemID, _ := range idx.dirtyItemIDs {
 		glog.V(4).Infof("Flushing %#v", itemID)
 		itemLabels, ok := idx.labelsByItemID[itemID]
@@ -137,5 +171,3 @@ func (idx *labelInheritanceIndex) flushUpdates() {
 	}
 	idx.dirtyItemIDs = make(map[interface{}]bool)
 }
-
-var _ LabelInheritanceIndex = (*labelInheritanceIndex)(nil)

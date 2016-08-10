@@ -16,22 +16,28 @@ package store
 
 import (
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/lib/backend/api"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	"reflect"
 )
 
-type UpdateHandler func(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool)
+type UpdateHandler interface {
+	OnUpdate(update model.KVPair) (filterOut bool)
+	OnDatamodelStatus(status api.SyncStatus)
+}
 
 type Dispatcher struct {
-	listenersByType map[reflect.Type][]UpdateHandler
+	typeToHandler map[reflect.Type][]UpdateHandler
+	allHandlers   map[UpdateHandler]bool
 }
 
 // NewDispatcher creates a Dispatcher with all its event handlers set to no-ops.
 func NewDispatcher() *Dispatcher {
-	d := Dispatcher{
-		listenersByType: make(map[reflect.Type][]UpdateHandler),
+	d := &Dispatcher{
+		typeToHandler: make(map[reflect.Type][]UpdateHandler),
+		allHandlers:   make(map[UpdateHandler]bool),
 	}
-	return &d
+	return d
 }
 
 func (d *Dispatcher) Register(keyExample model.Key, receiver UpdateHandler) {
@@ -40,20 +46,44 @@ func (d *Dispatcher) Register(keyExample model.Key, receiver UpdateHandler) {
 		panic("Register expects a non-pointer")
 	}
 	glog.Infof("Registering listener for type %v: %#v", keyType, receiver)
-	d.listenersByType[keyType] = append(d.listenersByType[keyType], receiver)
+	d.typeToHandler[keyType] = append(d.typeToHandler[keyType], receiver)
+	d.allHandlers[receiver] = true
 }
 
-func (d *Dispatcher) DispatchUpdate(update model.KVPair) (model.KVPair, bool) {
+// Syncer callbacks.
+
+func (d *Dispatcher) OnUpdates(updates []model.KVPair) {
+	for _, update := range updates {
+		d.OnUpdate(update)
+	}
+}
+
+func (d *Dispatcher) OnStatusUpdated(status api.SyncStatus) {
+	for handler, _ := range d.allHandlers {
+		handler.OnDatamodelStatus(status)
+	}
+}
+
+// Dispatcher callbacks.
+
+func (d *Dispatcher) OnUpdate(update model.KVPair) (filterOut bool) {
 	glog.V(3).Infof("Dispatching %v", update)
 	keyType := reflect.TypeOf(update.Key)
 	glog.V(4).Info("Type: ", keyType)
-	listeners := d.listenersByType[keyType]
+	listeners := d.typeToHandler[keyType]
 	glog.V(4).Infof("Listeners: %#v", listeners)
-	skipFelix := false
-	skip := false
 	for _, recv := range listeners {
-		update, skip = recv(update)
-		skipFelix = skipFelix || skip
+		filterOut := recv.OnUpdate(update)
+		if filterOut {
+			// Note: we don't propagate the filterOut flag.  We only
+			// filter downstream in the processing pipeline, we don't
+			// want to prevent our peers from handling updates.
+			break
+		}
 	}
-	return update, skipFelix
+	return
+}
+
+func (d *Dispatcher) OnDatamodelStatus(status api.SyncStatus) {
+	d.OnStatusUpdated(status)
 }

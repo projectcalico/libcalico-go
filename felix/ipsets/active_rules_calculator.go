@@ -20,12 +20,13 @@ import (
 	"github.com/tigera/libcalico-go/datastructures/labels"
 	"github.com/tigera/libcalico-go/datastructures/multidict"
 	"github.com/tigera/libcalico-go/datastructures/tags"
+	"github.com/tigera/libcalico-go/lib/backend/api"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/selector"
 	"reflect"
 )
 
-type activeRuleListener interface {
+type ActiveRuleListener interface {
 	UpdateRules(key interface{}, inbound, outbound []model.Rule)
 }
 
@@ -33,7 +34,7 @@ type FelixSender interface {
 	SendUpdateToFelix(update model.KVPair)
 }
 
-type MatchListener interface {
+type PolicyMatchListener interface {
 	OnPolicyMatch(policyKey model.PolicyKey, endpointKey interface{})
 	OnPolicyMatchStopped(policyKey model.PolicyKey, endpointKey interface{})
 }
@@ -48,20 +49,18 @@ type ActiveRulesCalculator struct {
 	profileIDToEndpointKeys multidict.IfaceToIface
 
 	// Label index, matching policy selectors against local endpoints.
-	labelIndex labels.LabelInheritanceIndex
+	labelIndex *labels.InheritIndex
 
 	// Cache of profile IDs by local endpoint.
 	endpointKeyToProfileIDs *tags.EndpointKeyToProfileIDMap
 
 	// Callback objects.
-	listener      activeRuleListener
-	matchListener MatchListener
-	felixSender   FelixSender
+	RuleListener        ActiveRuleListener
+	PolicyMatchListener PolicyMatchListener
+	FelixSender         FelixSender
 }
 
-func NewActiveRulesCalculator(ruleListener activeRuleListener,
-	felixSender FelixSender,
-	matchListener MatchListener) *ActiveRulesCalculator {
+func NewActiveRulesCalculator() *ActiveRulesCalculator {
 	arc := &ActiveRulesCalculator{
 		// Caches of all known policies/profiles.
 		allPolicies:     make(map[model.PolicyKey]model.Policy),
@@ -73,17 +72,12 @@ func NewActiveRulesCalculator(ruleListener activeRuleListener,
 
 		// Cache of profile IDs by local endpoint.
 		endpointKeyToProfileIDs: tags.NewEndpointKeyToProfileIDMap(),
-
-		// Callback object.
-		listener:      ruleListener,
-		felixSender:   felixSender,
-		matchListener: matchListener,
 	}
-	arc.labelIndex = labels.NewInheritanceIndex(arc.onMatchStarted, arc.onMatchStopped)
+	arc.labelIndex = labels.NewInheritIndex(arc.onMatchStarted, arc.onMatchStopped)
 	return arc
 }
 
-func (arc *ActiveRulesCalculator) OnUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
+func (arc *ActiveRulesCalculator) OnUpdate(update model.KVPair) (filterOut bool) {
 	switch key := update.Key.(type) {
 	case model.WorkloadEndpointKey:
 		if update.Value != nil {
@@ -91,12 +85,11 @@ func (arc *ActiveRulesCalculator) OnUpdate(update model.KVPair) (filteredUpdate 
 			endpoint := update.Value.(*model.WorkloadEndpoint)
 			profileIDs := endpoint.ProfileIDs
 			arc.updateEndpointProfileIDs(key, profileIDs)
-			arc.labelIndex.UpdateLabels(key, endpoint.Labels, profileIDs)
 		} else {
 			glog.V(4).Infof("Deleting endpoint %v from ARC", key)
 			arc.updateEndpointProfileIDs(key, []string{})
-			arc.labelIndex.DeleteLabels(key)
 		}
+		arc.labelIndex.OnUpdate(update)
 	case model.HostEndpointKey:
 		if update.Value != nil {
 			// Figure out what's changed and update the cache.
@@ -104,21 +97,13 @@ func (arc *ActiveRulesCalculator) OnUpdate(update model.KVPair) (filteredUpdate 
 			endpoint := update.Value.(*model.HostEndpoint)
 			profileIDs := endpoint.ProfileIDs
 			arc.updateEndpointProfileIDs(key, profileIDs)
-			arc.labelIndex.UpdateLabels(key, endpoint.Labels, profileIDs)
 		} else {
 			glog.V(4).Infof("Deleting host endpoint %v from ARC", key)
 			arc.updateEndpointProfileIDs(key, []string{})
-			arc.labelIndex.DeleteLabels(key)
 		}
+		arc.labelIndex.OnUpdate(update)
 	case model.ProfileLabelsKey:
-		if update.Value != nil {
-			glog.V(4).Infof("Updating ARC for profile %v", key)
-			labels := update.Value.(map[string]string)
-			arc.labelIndex.UpdateParentLabels(key.Name, labels)
-		} else {
-			glog.V(4).Infof("Removing profile %v from ARC", key)
-			arc.labelIndex.DeleteParentLabels(key.Name)
-		}
+		arc.labelIndex.OnUpdate(update)
 	case model.ProfileRulesKey:
 		if update.Value != nil {
 			rules := update.Value.(*model.ProfileRules)
@@ -165,8 +150,11 @@ func (arc *ActiveRulesCalculator) OnUpdate(update model.KVPair) (filteredUpdate 
 		glog.V(0).Infof("Ignoring unexpected update: %v %#v",
 			reflect.TypeOf(update.Key), update)
 	}
-	filteredUpdate = update
 	return
+}
+
+func (arc *ActiveRulesCalculator) OnDatamodelStatus(status api.SyncStatus) {
+
 }
 
 func (arc *ActiveRulesCalculator) updateEndpointProfileIDs(key endpointKey, profileIDs []string) {
@@ -207,8 +195,8 @@ func (arc *ActiveRulesCalculator) onMatchStarted(selID, labelId interface{}) {
 		glog.V(3).Infof("Policy %v now matches a local endpoint", polKey)
 		arc.sendPolicyUpdate(polKey)
 	}
-	if arc.matchListener != nil {
-		arc.matchListener.OnPolicyMatch(polKey, labelId)
+	if arc.PolicyMatchListener != nil {
+		arc.PolicyMatchListener.OnPolicyMatch(polKey, labelId)
 	}
 }
 
@@ -221,8 +209,8 @@ func (arc *ActiveRulesCalculator) onMatchStopped(selID, labelId interface{}) {
 		glog.V(3).Infof("Policy %v no longer matches a local endpoint", polKey)
 		arc.sendPolicyUpdate(polKey)
 	}
-	if arc.matchListener != nil {
-		arc.matchListener.OnPolicyMatchStopped(polKey, labelId)
+	if arc.PolicyMatchListener != nil {
+		arc.PolicyMatchListener.OnPolicyMatchStopped(polKey, labelId)
 	}
 }
 
@@ -237,11 +225,11 @@ func (arc *ActiveRulesCalculator) sendProfileUpdate(profileID string) {
 	if known && active {
 		update.Value = rules
 	}
-	if arc.listener != nil {
-		arc.listener.UpdateRules(profileID, inRules, outRules)
+	if arc.RuleListener != nil {
+		arc.RuleListener.UpdateRules(profileID, inRules, outRules)
 	}
-	if arc.felixSender != nil {
-		arc.felixSender.SendUpdateToFelix(update)
+	if arc.FelixSender != nil {
+		arc.FelixSender.SendUpdateToFelix(update)
 	}
 }
 
@@ -263,17 +251,17 @@ func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey model.PolicyKey) {
 		}
 
 		// FIXME UpdateRules modifies the rules!
-		if arc.listener != nil {
-			arc.listener.UpdateRules(policyKey,
+		if arc.RuleListener != nil {
+			arc.RuleListener.UpdateRules(policyKey,
 				policyCopy.InboundRules, policyCopy.OutboundRules)
 		}
 		update.Value = policyCopy
 	} else {
-		if arc.listener != nil {
-			arc.listener.UpdateRules(policyKey, []model.Rule{}, []model.Rule{})
+		if arc.RuleListener != nil {
+			arc.RuleListener.UpdateRules(policyKey, []model.Rule{}, []model.Rule{})
 		}
 	}
-	if arc.felixSender != nil {
-		arc.felixSender.SendUpdateToFelix(update)
+	if arc.FelixSender != nil {
+		arc.FelixSender.SendUpdateToFelix(update)
 	}
 }

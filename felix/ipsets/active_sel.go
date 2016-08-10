@@ -43,7 +43,7 @@ type RuleScanner struct {
 	OnTagInactive      func(tag string)
 }
 
-func NewSelectorScanner() *RuleScanner {
+func NewRuleScanner() *RuleScanner {
 	calc := &RuleScanner{
 		tagsOrSelsByUID: make(map[string]tagOrSel),
 		rulesIDToUIDs:   multidict.NewIfaceToString(),

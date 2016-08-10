@@ -18,6 +18,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/multidict"
 	"github.com/tigera/libcalico-go/datastructures/set"
+	"github.com/tigera/libcalico-go/lib/backend/api"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 )
 
@@ -27,29 +28,36 @@ type PolicyResolver struct {
 	sortedTierData        []*TierInfo
 	endpoints             map[model.Key]interface{}
 	dirtyEndpoints        set.Set
+	sortRequired          bool
 	policySorter          *PolicySorter
-	callbacks             PolicyResolverCallbacks
+	Callbacks             PolicyResolverCallbacks
 	InSync                bool
 }
 
 type PolicyResolverCallbacks interface {
-	OnEndpointTierUpdate(endpointKey model.Key, filteredTiers []TierInfo)
+	OnEndpointTierUpdate(endpointKey model.Key, endpoint interface{}, filteredTiers []TierInfo)
 }
 
-func NewPolicyResolver(callbacks PolicyResolverCallbacks) *PolicyResolver {
+func NewPolicyResolver() *PolicyResolver {
 	return &PolicyResolver{
 		policyIDToEndpointIDs: multidict.NewIfaceToIface(),
 		endpointIDToPolicyIDs: multidict.NewIfaceToIface(),
 		endpoints:             make(map[model.Key]interface{}),
 		dirtyEndpoints:        set.New(),
 		policySorter:          NewPolicySorter(),
-		callbacks:             callbacks,
 	}
 }
 
-func (pr *PolicyResolver) OnUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
+func (pr *PolicyResolver) OnUpdate(update model.KVPair) (filterOut bool) {
 	policiesDirty := false
 	switch key := update.Key.(type) {
+	case model.WorkloadEndpointKey, model.HostEndpointKey:
+		if update.Value != nil {
+			pr.endpoints[key] = update.Value
+		} else {
+			delete(pr.endpoints, key)
+		}
+		pr.dirtyEndpoints.Add(key)
 	case model.PolicyKey:
 		glog.V(3).Infof("Policy update: %v", key)
 		policiesDirty = pr.policySorter.OnUpdate(update)
@@ -58,19 +66,22 @@ func (pr *PolicyResolver) OnUpdate(update model.KVPair) (filteredUpdate model.KV
 		glog.V(3).Infof("Tier update: %v", key)
 		policiesDirty = pr.policySorter.OnUpdate(update)
 		pr.markAllEndpointsDirty()
-		//skipFelix = true
 	}
-	if policiesDirty {
-		glog.V(3).Info("Policies dirty, refreshing sort order")
-		pr.refreshSortOrder()
-		pr.Flush()
-	}
-	filteredUpdate = update
+	pr.sortRequired = pr.sortRequired || policiesDirty
+	pr.maybeFlush()
 	return
+}
+
+func (pr *PolicyResolver) OnDatamodelStatus(status api.SyncStatus) {
+	if status == api.InSync {
+		pr.InSync = true
+		pr.maybeFlush()
+	}
 }
 
 func (pr *PolicyResolver) refreshSortOrder() {
 	pr.sortedTierData = pr.policySorter.Sorted()
+	pr.sortRequired = false
 	glog.V(3).Infof("New sort order: %v", pr.sortedTierData)
 }
 
@@ -93,7 +104,7 @@ func (pr *PolicyResolver) OnPolicyMatch(policyKey model.PolicyKey, endpointKey i
 	pr.policyIDToEndpointIDs.Put(policyKey, endpointKey)
 	pr.endpointIDToPolicyIDs.Put(endpointKey, policyKey)
 	pr.dirtyEndpoints.Add(endpointKey)
-	pr.Flush()
+	pr.maybeFlush()
 }
 
 func (pr *PolicyResolver) OnPolicyMatchStopped(policyKey model.PolicyKey, endpointKey interface{}) {
@@ -101,45 +112,57 @@ func (pr *PolicyResolver) OnPolicyMatchStopped(policyKey model.PolicyKey, endpoi
 	pr.policyIDToEndpointIDs.Discard(policyKey, endpointKey)
 	pr.endpointIDToPolicyIDs.Discard(endpointKey, policyKey)
 	pr.dirtyEndpoints.Add(endpointKey)
-	pr.Flush()
+	pr.maybeFlush()
 }
 
-func (pr *PolicyResolver) Flush() {
+func (pr *PolicyResolver) maybeFlush() {
 	if !pr.InSync {
 		glog.V(3).Infof("Not in sync, skipping flush")
 		return
 	}
-	pr.dirtyEndpoints.Iter(func(endpointID interface{}) error {
-		glog.V(3).Infof("Scanning endpoint %v", endpointID)
-		applicableTiers := []TierInfo{}
-		for _, tier := range pr.sortedTierData {
-			if !tier.Valid {
-				glog.V(3).Infof("Tier %v invalid, skipping", tier.Name)
-				continue
-			}
-			tierMatches := false
-			filteredTier := TierInfo{
-				Name:  tier.Name,
-				Order: tier.Order,
-				Valid: true,
-			}
-			for _, polKV := range tier.OrderedPolicies {
-				glog.V(4).Infof("Checking if policy %v matches %v", polKV.Key, endpointID)
-				if pr.endpointIDToPolicyIDs.Contains(endpointID, polKV.Key) {
-					glog.V(4).Infof("Policy %v matches %v", polKV.Key, endpointID)
-					tierMatches = true
-					filteredTier.OrderedPolicies = append(filteredTier.OrderedPolicies,
-						polKV)
-				}
-			}
-			if tierMatches {
-				glog.V(4).Infof("Tier %v matches %v", tier.Name, endpointID)
-				applicableTiers = append(applicableTiers, filteredTier)
+	if pr.sortRequired {
+		pr.refreshSortOrder()
+	}
+	pr.dirtyEndpoints.Iter(pr.sendEndpointUpdate)
+	pr.dirtyEndpoints = set.New()
+}
+
+func (pr *PolicyResolver) sendEndpointUpdate(endpointID interface{}) error {
+	glog.V(3).Infof("Scanning endpoint %v", endpointID)
+	endpoint, ok := pr.endpoints[endpointID.(model.Key)]
+	if !ok {
+		pr.Callbacks.OnEndpointTierUpdate(endpointID.(model.Key),
+			nil, []TierInfo{})
+		return nil
+	}
+	applicableTiers := []TierInfo{}
+	for _, tier := range pr.sortedTierData {
+		if !tier.Valid {
+			glog.V(3).Infof("Tier %v invalid, skipping", tier.Name)
+			continue
+		}
+		tierMatches := false
+		filteredTier := TierInfo{
+			Name:  tier.Name,
+			Order: tier.Order,
+			Valid: true,
+		}
+		for _, polKV := range tier.OrderedPolicies {
+			glog.V(4).Infof("Checking if policy %v matches %v", polKV.Key, endpointID)
+			if pr.endpointIDToPolicyIDs.Contains(endpointID, polKV.Key) {
+				glog.V(4).Infof("Policy %v matches %v", polKV.Key, endpointID)
+				tierMatches = true
+				filteredTier.OrderedPolicies = append(filteredTier.OrderedPolicies,
+					polKV)
 			}
 		}
-		glog.V(4).Infof("Tier update: %v -> %v", endpointID, applicableTiers)
-		pr.callbacks.OnEndpointTierUpdate(endpointID.(model.Key), applicableTiers)
-		return nil
-	})
-	pr.dirtyEndpoints = set.New()
+		if tierMatches {
+			glog.V(4).Infof("Tier %v matches %v", tier.Name, endpointID)
+			applicableTiers = append(applicableTiers, filteredTier)
+		}
+	}
+	glog.V(4).Infof("Tier update: %v -> %v", endpointID, applicableTiers)
+	pr.Callbacks.OnEndpointTierUpdate(endpointID.(model.Key),
+		endpoint, applicableTiers)
+	return nil
 }

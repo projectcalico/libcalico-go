@@ -23,7 +23,7 @@ import (
 
 var _ = Describe("Resolver", func() {
 	It("foo", func() {
-		_ = NewIpsetCalculator()
+		_ = NewMemberCalculator()
 		Expect("foo").To(Equal("foo"))
 	})
 })

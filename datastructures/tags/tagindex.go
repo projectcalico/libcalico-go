@@ -14,29 +14,22 @@
 
 package tags
 
-import "github.com/golang/glog"
+import (
+	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/lib/backend/api"
+	"github.com/tigera/libcalico-go/lib/backend/model"
+)
 
 // EndpointKey expected to be a WorkloadEndpointKey or a HostEndpointKey
 // but we just need it to be hashable.
 type EndpointKey interface{}
-
-// Index generates events when endpoints start and stop matching particular
-// tags.
-type Index interface {
-	UpdateProfileTags(profileID string, tags []string)
-	DeleteProfileTags(profileID string)
-	UpdateEndpoint(key EndpointKey, profileIDs []string)
-	DeleteEndpoint(key EndpointKey)
-	SetTagActive(tag string)
-	SetTagInactive(tag string)
-}
 
 type indexKey struct {
 	tag string
 	key EndpointKey
 }
 
-type tagIndex struct {
+type TagIndex struct {
 	profileIDToTags         map[string][]string
 	profileIDToEndpointKey  map[string]map[EndpointKey]bool
 	endpointKeyToProfileIDs *EndpointKeyToProfileIDMap
@@ -49,8 +42,8 @@ type tagIndex struct {
 
 type MatchCallback func(key EndpointKey, tagID string)
 
-func NewIndex(onMatchStarted, onMatchStopped MatchCallback) Index {
-	idx := &tagIndex{
+func NewIndex(onMatchStarted, onMatchStopped MatchCallback) *TagIndex {
+	idx := &TagIndex{
 		profileIDToTags:         make(map[string][]string),
 		profileIDToEndpointKey:  make(map[string]map[EndpointKey]bool),
 		endpointKeyToProfileIDs: NewEndpointKeyToProfileIDMap(),
@@ -63,7 +56,7 @@ func NewIndex(onMatchStarted, onMatchStopped MatchCallback) Index {
 	return idx
 }
 
-func (idx *tagIndex) SetTagActive(tag string) {
+func (idx *TagIndex) SetTagActive(tag string) {
 	if idx.activeTags[tag] {
 		return
 	}
@@ -76,7 +69,7 @@ func (idx *tagIndex) SetTagActive(tag string) {
 	}
 }
 
-func (idx *tagIndex) SetTagInactive(tag string) {
+func (idx *TagIndex) SetTagInactive(tag string) {
 	if !idx.activeTags[tag] {
 		return
 	}
@@ -88,7 +81,37 @@ func (idx *tagIndex) SetTagInactive(tag string) {
 	}
 }
 
-func (idx *tagIndex) UpdateProfileTags(profileID string, tags []string) {
+func (idx *TagIndex) OnUpdate(update model.KVPair) (filterOut bool) {
+	switch key := update.Key.(type) {
+	case model.ProfileTagsKey:
+		if update.Value != nil {
+			tags := update.Value.([]string)
+			idx.updateProfileTags(key.Name, tags)
+		} else {
+			idx.updateProfileTags(key.Name, []string{})
+		}
+	case model.HostEndpointKey:
+		if update.Value != nil {
+			ep := update.Value.(*model.HostEndpoint)
+			idx.updateEndpoint(key, ep.ProfileIDs)
+		} else {
+			idx.updateEndpoint(key, []string{})
+		}
+	case model.WorkloadEndpointKey:
+		if update.Value != nil {
+			ep := update.Value.(*model.WorkloadEndpoint)
+			idx.updateEndpoint(key, ep.ProfileIDs)
+		} else {
+			idx.updateEndpoint(key, []string{})
+		}
+	}
+	return
+}
+
+func (l *TagIndex) OnDatamodelStatus(status api.SyncStatus) {
+}
+
+func (idx *TagIndex) updateProfileTags(profileID string, tags []string) {
 	glog.V(3).Infof("Updating tags for profile %v to %v", profileID, tags)
 	oldTags := idx.profileIDToTags[profileID]
 	// Calculate the added and removed tags.  Initialise removedTags with
@@ -124,11 +147,7 @@ func (idx *tagIndex) UpdateProfileTags(profileID string, tags []string) {
 	}
 }
 
-func (idx *tagIndex) DeleteProfileTags(profileID string) {
-	idx.UpdateProfileTags(profileID, []string{})
-}
-
-func (idx *tagIndex) UpdateEndpoint(key EndpointKey, profileIDs []string) {
+func (idx *TagIndex) updateEndpoint(key EndpointKey, profileIDs []string) {
 	// Figure out what's changed and update the cache.
 	removedIDs, addedIDs := idx.endpointKeyToProfileIDs.Update(key, profileIDs)
 
@@ -168,12 +187,7 @@ func (idx *tagIndex) UpdateEndpoint(key EndpointKey, profileIDs []string) {
 	}
 }
 
-func (idx *tagIndex) DeleteEndpoint(key EndpointKey) {
-	// UpdateEndpoint will clean up if we pass it an empty slice.
-	idx.UpdateEndpoint(key, []string{})
-}
-
-func (idx *tagIndex) addToIndex(epKey EndpointKey, tag string, profID string) {
+func (idx *TagIndex) addToIndex(epKey EndpointKey, tag string, profID string) {
 	idxKey := indexKey{tag, epKey}
 	matchingProfIDs, ok := idx.matches[idxKey]
 	if !ok {
@@ -186,7 +200,7 @@ func (idx *tagIndex) addToIndex(epKey EndpointKey, tag string, profID string) {
 	matchingProfIDs[profID] = true
 }
 
-func (idx *tagIndex) removeFromIndex(epKey EndpointKey, tag string, profID string) {
+func (idx *TagIndex) removeFromIndex(epKey EndpointKey, tag string, profID string) {
 	idxKey := indexKey{tag, epKey}
 	matchingProfIDs := idx.matches[idxKey]
 	delete(matchingProfIDs, profID)

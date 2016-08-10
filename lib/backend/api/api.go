@@ -15,6 +15,7 @@
 package api
 
 import (
+	"fmt"
 	. "github.com/tigera/libcalico-go/lib/backend/model"
 )
 
@@ -25,6 +26,19 @@ const (
 	ResyncInProgress
 	InSync
 )
+
+func (s SyncStatus) String() string {
+	switch s {
+	case WaitForDatastore:
+		return "wait-for-ready"
+	case InSync:
+		return "in-sync"
+	case ResyncInProgress:
+		return "resync"
+	default:
+		return fmt.Sprintf("Unknown<%v>", uint8(s))
+	}
+}
 
 type Client interface {
 	Create(object *KVPair) (*KVPair, error)

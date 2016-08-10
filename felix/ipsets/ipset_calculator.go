@@ -19,24 +19,29 @@ import (
 	"github.com/tigera/libcalico-go/datastructures/ip"
 	"github.com/tigera/libcalico-go/datastructures/multidict"
 	"github.com/tigera/libcalico-go/datastructures/set"
+	"github.com/tigera/libcalico-go/lib/backend/api"
+	"github.com/tigera/libcalico-go/lib/backend/model"
 )
 
 // endpointKeys are expected to be WorkloadEndpointKey or HostEndpointKey
 // objects but all we require is that they're hashable objects.
 type endpointKey interface{}
 
-type IpsetCalculator struct {
+type IPAddRemoveCallbacks interface {
+	OnIPAdded(ipSetID string, ip ip.Addr)
+	OnIPRemoved(ipSetID string, ip ip.Addr)
+}
+
+type MemberCalculator struct {
 	keyToIPs              map[endpointKey][]ip.Addr
 	keyToMatchingIPSetIDs multidict.IfaceToString
 	ipSetIDToIPToKey      map[string]multidict.IfaceToIface
 
-	// Callbacks.
-	OnIPAdded   func(ipSetID string, ip ip.Addr)
-	OnIPRemoved func(ipSetID string, ip ip.Addr)
+	callbacks IPAddRemoveCallbacks
 }
 
-func NewIpsetCalculator() *IpsetCalculator {
-	calc := &IpsetCalculator{
+func NewMemberCalculator() *MemberCalculator {
+	calc := &MemberCalculator{
 		keyToIPs:              make(map[endpointKey][]ip.Addr),
 		keyToMatchingIPSetIDs: multidict.NewIfaceToString(),
 		ipSetIDToIPToKey:      make(map[string]multidict.IfaceToIface),
@@ -45,7 +50,7 @@ func NewIpsetCalculator() *IpsetCalculator {
 }
 
 // MatchStarted tells this object that an endpoint now belongs to an IP set.
-func (calc *IpsetCalculator) MatchStarted(key endpointKey, ipSetID string) {
+func (calc *MemberCalculator) MatchStarted(key endpointKey, ipSetID string) {
 	glog.V(4).Infof("Adding endpoint %v to IP set %v", key, ipSetID)
 	calc.keyToMatchingIPSetIDs.Put(key, ipSetID)
 	ips := calc.keyToIPs[key]
@@ -53,15 +58,50 @@ func (calc *IpsetCalculator) MatchStarted(key endpointKey, ipSetID string) {
 }
 
 // MatchStopped tells this object that an endpoint no longer belongs to an IP set.
-func (calc *IpsetCalculator) MatchStopped(key endpointKey, ipSetID string) {
+func (calc *MemberCalculator) MatchStopped(key endpointKey, ipSetID string) {
 	glog.V(4).Infof("Removing endpoint %v from IP set %v", key, ipSetID)
 	calc.keyToMatchingIPSetIDs.Discard(key, ipSetID)
 	ips := calc.keyToIPs[key]
 	calc.removeMatchFromIndex(ipSetID, key, ips)
 }
 
+func (calc *MemberCalculator) OnUpdate(update model.KVPair) (filterOut bool) {
+	if update.Value == nil {
+		calc.updateEndpointIPs(update.Key, []ip.Addr{})
+		return
+	}
+	var ips []ip.Addr
+	switch update.Key.(type) {
+	case model.WorkloadEndpointKey:
+		ep := update.Value.(model.WorkloadEndpoint)
+		ips = make([]ip.Addr, 0, len(ep.IPv4Nets)+len(ep.IPv6Nets))
+		for _, net := range ep.IPv4Nets {
+			ips = append(ips, ip.FromNetIP(net.IP))
+		}
+		for _, net := range ep.IPv6Nets {
+			ips = append(ips, ip.FromNetIP(net.IP))
+		}
+		calc.updateEndpointIPs(update.Key, ips)
+	case model.HostEndpointKey:
+		ep := update.Value.(*model.HostEndpoint)
+		ips = make([]ip.Addr, 0,
+			len(ep.ExpectedIPv4Addrs)+len(ep.ExpectedIPv6Addrs))
+		for _, netIP := range ep.ExpectedIPv4Addrs {
+			ips = append(ips, ip.FromNetIP(netIP.IP))
+		}
+		for _, netIP := range ep.ExpectedIPv6Addrs {
+			ips = append(ips, ip.FromNetIP(netIP.IP))
+		}
+	}
+	calc.updateEndpointIPs(update.Key, ips)
+	return
+}
+
+func (l *MemberCalculator) OnDatamodelStatus(status api.SyncStatus) {
+}
+
 // UpdateEndpointIPs tells this object that an endpoint has a new set of IP addresses.
-func (calc *IpsetCalculator) UpdateEndpointIPs(endpointKey endpointKey, ips []ip.Addr) {
+func (calc *MemberCalculator) updateEndpointIPs(endpointKey endpointKey, ips []ip.Addr) {
 	glog.V(4).Infof("Endpoint %v IPs updated to %v", endpointKey, ips)
 	oldIPs := calc.keyToIPs[endpointKey]
 	if len(ips) == 0 {
@@ -100,12 +140,7 @@ func (calc *IpsetCalculator) UpdateEndpointIPs(endpointKey endpointKey, ips []ip
 	})
 }
 
-// DeleteEndpoint removes an endpoint from the index.
-func (calc *IpsetCalculator) DeleteEndpoint(endpointKey endpointKey) {
-	calc.UpdateEndpointIPs(endpointKey, []ip.Addr{})
-}
-
-func (calc *IpsetCalculator) Empty() bool {
+func (calc *MemberCalculator) Empty() bool {
 	if len(calc.keyToIPs) != 0 {
 		return false
 	}
@@ -118,7 +153,7 @@ func (calc *IpsetCalculator) Empty() bool {
 	return true
 }
 
-func (calc *IpsetCalculator) addMatchToIndex(ipSetID string, key endpointKey, ips []ip.Addr) {
+func (calc *MemberCalculator) addMatchToIndex(ipSetID string, key endpointKey, ips []ip.Addr) {
 	glog.V(3).Infof("IP set %v now matches IPs %v via %v", ipSetID, ips, key)
 	ipToKeys, ok := calc.ipSetIDToIPToKey[ipSetID]
 	if !ok {
@@ -129,20 +164,20 @@ func (calc *IpsetCalculator) addMatchToIndex(ipSetID string, key endpointKey, ip
 	for _, ip := range ips {
 		if !ipToKeys.ContainsKey(ip) {
 			glog.V(3).Infof("New IP in IP set %v: %v", ipSetID, ip)
-			calc.OnIPAdded(ipSetID, ip)
+			calc.callbacks.OnIPAdded(ipSetID, ip)
 		}
 		ipToKeys.Put(ip, key)
 	}
 }
 
-func (calc *IpsetCalculator) removeMatchFromIndex(ipSetID string, key endpointKey, ips []ip.Addr) {
+func (calc *MemberCalculator) removeMatchFromIndex(ipSetID string, key endpointKey, ips []ip.Addr) {
 	glog.V(3).Infof("IP set %v no longer matches IPs %v via %v", ipSetID, ips, key)
 	ipToKeys := calc.ipSetIDToIPToKey[ipSetID]
 	for _, ip := range ips {
 		ipToKeys.Discard(ip, key)
 		if !ipToKeys.ContainsKey(ip) {
 			glog.V(3).Infof("IP no longer in IP set %v: %v", ipSetID, ip)
-			calc.OnIPRemoved(ipSetID, ip)
+			calc.callbacks.OnIPRemoved(ipSetID, ip)
 			if ipToKeys.Len() == 0 {
 				delete(calc.ipSetIDToIPToKey, ipSetID)
 			}

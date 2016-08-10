@@ -18,45 +18,53 @@ edge [fontname=Helvetica,fontsize=10]
         subgraph {
             /* Put some padding either side of the Dispatcher. */
             rank=same; nodepadding1; Dispatcher; nodepadding2;
-            nodepadding1 [style=invisible,fixedsize=true,width=3]
-            nodepadding2 [style=invisible,fixedsize=true,width=3]
+            nodepadding1 [style=invisible,fixedsize=true,width=4]
+            nodepadding2 [style=invisible,fixedsize=true,width=4]
             nodepadding1 -> Dispatcher [style=invis];
             Dispatcher -> nodepadding2 [style=invis];
         }
 
         Dispatcher [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
-          <tr><td><font point-size="14">Dispatcher</font></td></tr>
+          <tr><td WIDTH="200"><font point-size="14" >Dispatcher</font></td></tr>
           <tr><td><font point-size="10">Fans out updates</font></td></tr>
         </table>>, shape=none, margin=0]
-        Dispatcher -> Resolver [label="endpoint, policy,\nprofile KVs"];
         Dispatcher -> PolicyResolver [label="policy, tier\nKVs"]
+        Dispatcher -> ActiveRulesCalc [label="policy, profile\nKVs"]
+        Dispatcher -> ActiveSelIdx [label="profile\nlabels KVs"]
 
-        Resolver [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
-          <tr><td><font point-size="14">Resolver</font></td></tr>
-          <tr><td><font point-size="10">Orchestrates the IP set calculations</font></td></tr>
-        </table>>, shape=none, margin=0];
-        Resolver -> ActiveRulesCalculator [label="local\nendpoint KVs"];
-        ActiveRulesCalculator [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+        EPKVs [shape=point];
+        Dispatcher -> EPKVs [label="all\nendpoint KVs"];
+
+        EPKVs -> ActiveSelIdx;
+        EPKVs -> LocalDispatcher;
+        EPKVs -> TagIndex;
+        EPKVs -> MemberCalc;
+
+        LocalDispatcher [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+          <tr><td><font point-size="14">Local endpoint dispatcher</font></td></tr>
+          <tr><td><font point-size="10">Filters out non-local endpoints.</font></td></tr>
+        </table>>, shape=none, margin=0]
+        LocalDispatcher -> ActiveRulesCalc [label="local\nendpoint KVs"];
+        LocalDispatcher -> PolicyResolver [label="local\nendpoint KVs"]
+
+        ActiveRulesCalc [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
           <tr><td><font point-size="14">Active rules calculator</font></td></tr>
           <tr><td><font point-size="10">Calculates which policies/profiles are<br/>active on this host.</font></td></tr>
         </table>>, shape=none, margin=0];
-        ActiveRulesCalculator -> RuleScanner [label="active rule\nupdates"];
-        ActiveRulesCalculator -> PolicyResolver [label="policy match\nupdates"];
+        ActiveRulesCalc -> RuleScanner [label="active rule\nupdates"];
+        ActiveRulesCalc -> PolicyResolver [label="policy match\nupdates"];
 
-        LabelInheritanceIndex [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
-          <tr><td><font point-size="14">Label inheritance index</font></td></tr>
+        ActiveSelIdx [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+          <tr><td><font point-size="14">Active selector index</font></td></tr>
           <tr><td><font point-size="10">Combines profile labels with endpoint labels;<br/>indexes labels against selectors.</font></td></tr>
         </table>>, shape=none, margin=0];
-        Resolver -> LabelInheritanceIndex [label="endpoint, profile\nlabels"];
-        LabelInheritanceIndex -> IpsetCalculator [label="selector\nmatch"];
+        "<<shim function>>" [shape=none]
+        ActiveSelIdx -> "<<shim function>>" [label="sel/endpoint\nmatch"];
 
         RuleScanner [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
           <tr><td><font point-size="14">Rule scanner</font></td></tr>
-          <tr><td><font point-size="10">Scans rules, extracts<br/>referenced selectors<br/>and tags.</font></td></tr>
+          <tr><td><font point-size="10">Scans rules, extracts<br/>selectors + tags.</font></td></tr>
         </table>>, shape=none, margin=0];
-
-        RuleScanner -> LabelInheritanceIndex [label="selector\n(in)active"];
-        RuleScanner -> "tags.Index" [label="tag\n(in)active"];
 
         PolicyResolver [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
           <tr><td><font point-size="14">Policy resolver</font></td></tr>
@@ -64,39 +72,63 @@ edge [fontname=Helvetica,fontsize=10]
         </table>>, shape=none, margin=0];
 
 
-        "tags.Index" [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+        TagIndex [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
           <tr><td><font point-size="14">Tag index</font></td></tr>
           <tr><td><font point-size="10">Calculates the endpoints in each active tag.</font></td></tr>
         </table>>, shape=none, margin=0];
 
-        Resolver -> "tags.Index" [label="endpoint, tags"];
-        "tags.Index" -> IpsetCalculator [label="tag match\nupdates"];
+        TagIndex -> "<<shim function>>" [label="tag/endpoint\nmatch"];
+        "<<shim function>>" -> MemberCalc [label="ipset/endpoint\nmatch"];
 
-        IpsetCalculator [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
-          <tr><td><font point-size="14">Ipset calculator</font></td></tr>
-          <tr><td><font point-size="10">Given the endpoints and their IPs,<br/>calculates the IP memberships of th<br/>IP sets. Handles duplicate IPs.</font></td></tr>
+        MemberCalc [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+          <tr><td><font point-size="14">Ipset member calculator</font></td></tr>
+          <tr><td><font point-size="10">Given the endpoints and their IPs,<br/>calculates the IP memberships of the<br/>IP sets. Handles duplicate IPs.</font></td></tr>
         </table>>, shape=none, margin=0];
 
-        Resolver -> IpsetCalculator [label="endpoint IP\nupdates"];
 
+        ActiveRulesCalc -> PipelineCallbacks [label="active policy,\nprofile KVs\nSendUpdateToFelix()"];
+
+        RuleScannerShim [label="<<shim function>>", shape=none]
+        RuleScanner -> RuleScannerShim [label="Selector\n(in)active"];
+        RuleScannerShim -> ActiveSelIdx [label="Selector\nupdates"]
+        RuleScannerShim -> PipelineCallbacks [label="OnIPSetAdded/Removed()"];
+
+        RuleScanner -> RuleScannerShim [label="Tag\n(in)active"];
+        RuleScannerShim -> TagIndex [label="Tag\nupdates"]
+
+
+        MemberCalc -> PipelineCallbacks [label="OnIPAdded/Removed()"];
+        PolicyResolver -> PipelineCallbacks [label="Endpoints+policies\nOnEndpointTierUpdate()"];
+
+        PipelineCallbacks [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+          <tr><td><font point-size="14">Pipeline callbacks API</font></td></tr>
+          <tr><td align="left"><font point-size="10">Interface to frontend.<BR ALIGN="LEFT"/>
+<BR ALIGN="LEFT"/>
+OnIPSetAdded(selID string)<BR ALIGN="LEFT"/>
+OnIPAdded(selID string, ip ip.Addr)<BR ALIGN="LEFT"/>
+OnIPRemoved(selID string, ip ip.Addr)<BR ALIGN="LEFT"/>
+OnIPSetRemoved(selID string)<BR ALIGN="LEFT"/>
+<BR ALIGN="LEFT"/>
+// TODO replace with dedicated methods.<BR ALIGN="LEFT"/>
+SendUpdateToFelix(update model.KVPair)<BR ALIGN="LEFT"/>
+<BR ALIGN="LEFT"/>
+OnEndpointTierUpdate(endpointKey model.Key,<BR ALIGN="LEFT"/>
+    endpoint interface{},<BR ALIGN="LEFT"/>
+    filteredTiers []endpoint.TierInfo)<BR ALIGN="LEFT"/>
+</font></td></tr>
+        </table>>, shape=none, margin=0];
     }
-
-    ActiveRulesCalculator -> FelixConnection [label="active policy,\nprofile KVs"];
-    RuleScanner -> FelixConnection [label="selector\n(in)active"];
-    IpsetCalculator -> FelixConnection [label="IP added/removed"];
-    PolicyResolver -> FelixConnection [label="per-endpoint\ntiers, policies"];
-
 
     subgraph cluster2 {
     label="Felix layer";
-
         FelixConnection [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
           <tr><td><font point-size="14">Felix connection</font></td></tr>
-          <tr><td><font point-size="10">Reads/writes the Felix socket.  Translates<br/>updates to Felix typed message format.</font></td></tr>
+          <tr><td><font point-size="10">Marshals messages to/from felix.</font></td></tr>
         </table>>, shape=none, margin=0];
     }
 
 
+    PipelineCallbacks -> FelixConnection [label="<<implemented by>>"]
     FelixConnection -> Felix [label="messagepack"];
     Felix [shape=box, label="Felix front-end"];
 }

@@ -19,268 +19,156 @@ import (
 	"github.com/tigera/libcalico-go/datastructures/ip"
 	"github.com/tigera/libcalico-go/datastructures/labels"
 	"github.com/tigera/libcalico-go/datastructures/tags"
+	"github.com/tigera/libcalico-go/felix/endpoint"
 	"github.com/tigera/libcalico-go/felix/store"
+	"github.com/tigera/libcalico-go/lib/backend/api"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/hash"
 	"github.com/tigera/libcalico-go/lib/selector"
 )
 
-// Resolver processes datastore updates to calculate the current set of active ipsets.
-// It generates events for ipsets being added/removed and IPs being added/removed from them.
-type Resolver struct {
-	// The tag index keeps track of the dynamic mapping from endpoints to
-	// tags.
-	tagIndex tags.Index
-	// ActiveRulesCalculator matches policies/profiles against local
-	// endpoints and notifies the ActiveSelectorCalculator when
-	// their rules become active/inactive.
-	activeRulesCalculator *ActiveRulesCalculator
-	// RuleScanner scans the active policies/profiles for active
-	// selectors...
-	ruleScanner *RuleScanner
-	// ...which we pass to the label inheritance index to calculate the
-	// endpoints that match...
-	labelIdx labels.LabelInheritanceIndex
-	// ...which we pass to the ipset calculator to merge the IPs from
-	// different endpoints.
-	ipsetCalc *IpsetCalculator
-
-	hostname string
-
-	callbacks IPSetUpdateCallbacks
-}
-
-type IPSetUpdateCallbacks interface {
+type PipelineCallbacks interface {
 	OnIPSetAdded(selID string)
 	OnIPAdded(selID string, ip ip.Addr)
 	OnIPRemoved(selID string, ip ip.Addr)
 	OnIPSetRemoved(selID string)
+
+	// TODO replace with dedicated methods.
+	SendUpdateToFelix(update model.KVPair)
+
+	OnEndpointTierUpdate(endpointKey model.Key,
+		endpoint interface{},
+		filteredTiers []endpoint.TierInfo)
 }
 
-func NewResolver(felixSender FelixSender, hostname string, callbacks IPSetUpdateCallbacks, polMatchListener MatchListener) *Resolver {
-	glog.Infof("Creating ipset resolver for hostname %v", hostname)
-	resolver := &Resolver{
-		callbacks: callbacks,
-		hostname:  hostname,
+func NewCalculationPipeline(callbacks PipelineCallbacks, hostname string) (input *store.Dispatcher) {
+	// The source of the processing graph, this dispatcher will be fed all
+	// the updates from the datastore, fanning them out to the registered
+	// handlers.
+	sourceDispatcher := store.NewDispatcher()
+
+	// Some of the handlers only need to know about local endpoints.
+	// Create a second dispatcher which will filter out non-local endpoints.
+	localEndpointFilter := &endpointHostnameFilter{hostname: hostname}
+	localEndpointDispatcher := store.NewDispatcher()
+	sourceDispatcher.Register(model.WorkloadEndpointKey{}, localEndpointDispatcher)
+	sourceDispatcher.Register(model.HostEndpointKey{}, localEndpointDispatcher)
+	localEndpointDispatcher.Register(model.WorkloadEndpointKey{}, localEndpointFilter)
+	localEndpointDispatcher.Register(model.HostEndpointKey{}, localEndpointFilter)
+
+	// The active rules calculator matches local endpoints against policies
+	// and profiles to figure out which policies/profiles are active on this
+	// host.
+	activeRulesCalc := NewActiveRulesCalculator()
+	// It needs the filtered endpoints...
+	localEndpointDispatcher.Register(model.WorkloadEndpointKey{}, activeRulesCalc)
+	localEndpointDispatcher.Register(model.HostEndpointKey{}, activeRulesCalc)
+	// ...as well as all the policies and profiles.
+	sourceDispatcher.Register(model.PolicyKey{}, activeRulesCalc)
+	sourceDispatcher.Register(model.ProfileRulesKey{}, activeRulesCalc)
+	sourceDispatcher.Register(model.ProfileLabelsKey{}, activeRulesCalc)
+
+	// The rule scanner takes the output from the active rules calculator
+	// and scans the individual rules for selectors and tags.  It generates
+	// events when a new selector/tag starts/stops being used.
+	ruleScanner := NewRuleScanner()
+	activeRulesCalc.RuleListener = ruleScanner
+
+	// The active selector index matches the active selectors found by the
+	// rule scanner against *all* endpoints.  It emits events when an
+	// endpoint starts/stops matching one of the active selectors.  We
+	// send the events to the membership calculator, which will extract the
+	// ip addresses of the endpoints.  The member calculator handles tags
+	// and selectors uniformly but we need to shim the interface because
+	// it expects a string ID.
+	var memberCalc *MemberCalculator
+	activeSelectorIndex := labels.NewInheritIndex(
+		func(selId, labelId interface{}) {
+			// Match started callback.
+			memberCalc.MatchStarted(labelId, selId.(string))
+		},
+		func(selId, labelId interface{}) {
+			// Match stopped callback.
+			memberCalc.MatchStopped(labelId, selId.(string))
+		},
+	)
+	ruleScanner.OnSelectorActive = func(sel selector.Selector) {
+		glog.Infof("Selector %v now active", sel)
+		callbacks.OnIPSetAdded(sel.UniqueId())
+		activeSelectorIndex.UpdateSelector(sel.UniqueId(), sel)
 	}
-
-	resolver.tagIndex = tags.NewIndex(resolver.onTagMatchStarted, resolver.onTagMatchStopped)
-
-	resolver.ruleScanner = NewSelectorScanner()
-	resolver.ruleScanner.OnSelectorActive = resolver.onSelectorActive
-	resolver.ruleScanner.OnSelectorInactive = resolver.onSelectorInactive
-	resolver.ruleScanner.OnTagActive = resolver.tagIndex.SetTagActive
-	resolver.ruleScanner.OnTagInactive = resolver.tagIndex.SetTagInactive
-
-	resolver.activeRulesCalculator = NewActiveRulesCalculator(
-		resolver.ruleScanner, felixSender, polMatchListener)
-
-	resolver.labelIdx = labels.NewInheritanceIndex(
-		resolver.onSelMatchStarted, resolver.onSelMatchStopped)
-
-	resolver.ipsetCalc = NewIpsetCalculator()
-	resolver.ipsetCalc.OnIPAdded = resolver.onIPAdded
-	resolver.ipsetCalc.OnIPRemoved = resolver.onIPRemoved
-
-	return resolver
-}
-
-type dispatcher interface {
-	Register(keyExample model.Key, receiver store.UpdateHandler)
-}
-
-// RegisterWith registers the update callbacks that this object requires with the dispatcher.
-func (res *Resolver) RegisterWith(disp dispatcher) {
-	disp.Register(model.WorkloadEndpointKey{}, res.onEndpointUpdate)
-	disp.Register(model.HostEndpointKey{}, res.onHostEndpointUpdate)
-	disp.Register(model.PolicyKey{}, res.activeRulesCalculator.OnUpdate)
-	disp.Register(model.PolicyKey{}, res.skipFelix)
-	disp.Register(model.ProfileRulesKey{}, res.activeRulesCalculator.OnUpdate)
-	disp.Register(model.ProfileRulesKey{}, res.skipFelix)
-	disp.Register(model.ProfileTagsKey{}, res.onProfileTagsUpdate)
-	disp.Register(model.ProfileLabelsKey{}, res.onProfileLabelsUpdate)
-	disp.Register(model.ProfileLabelsKey{}, res.activeRulesCalculator.OnUpdate)
-}
-
-// Datastore callbacks:
-
-func (res *Resolver) skipFelix(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
-	filteredUpdate = update
-	skipFelix = true
-	return
-}
-
-func (res *Resolver) onEndpointUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
-	key := update.Key.(model.WorkloadEndpointKey)
-	onThisHost := key.Hostname == res.hostname
-	if onThisHost {
-		glog.V(3).Infof("(Workload) endpoint is local, updating ARC.")
-		res.activeRulesCalculator.OnUpdate(update)
-	} else {
-		skipFelix = true
+	ruleScanner.OnSelectorInactive = func(sel selector.Selector) {
+		glog.Infof("Selector %v now inactive", sel)
+		callbacks.OnIPSetRemoved(sel.UniqueId())
+		activeSelectorIndex.DeleteSelector(sel.UniqueId())
 	}
-	if update.Value != nil {
-		glog.V(3).Infof("Endpoint %v updated", update.Key)
-		glog.V(4).Infof("Endpoint data: %#v", update.Value)
-		ep := update.Value.(*model.WorkloadEndpoint)
-		// FIXME IPv6
-		ips := make([]ip.Addr, 0, len(ep.IPv4Nets)+len(ep.IPv6Nets))
-		for _, net := range ep.IPv4Nets {
-			ips = append(ips, ip.FromNetIP(net.IP))
+	sourceDispatcher.Register(model.ProfileLabelsKey{}, activeSelectorIndex)
+	sourceDispatcher.Register(model.WorkloadEndpointKey{}, activeSelectorIndex)
+	sourceDispatcher.Register(model.HostEndpointKey{}, activeSelectorIndex)
+
+	// The active tag index does the same for tags.  Calculating which
+	// endpoints match each tag.
+	tagIndex := tags.NewIndex(
+		func(key tags.EndpointKey, tagID string) {
+			memberCalc.MatchStarted(key, hash.MakeUniqueID("t", tagID))
+		},
+		func(key tags.EndpointKey, tagID string) {
+			memberCalc.MatchStopped(key, hash.MakeUniqueID("t", tagID))
+		},
+	)
+	ruleScanner.OnTagActive = tagIndex.SetTagActive
+	ruleScanner.OnTagInactive = tagIndex.SetTagInactive
+	sourceDispatcher.Register(model.WorkloadEndpointKey{}, tagIndex)
+	sourceDispatcher.Register(model.HostEndpointKey{}, tagIndex)
+
+	// The member calculator merges the IPs from different endpoints to
+	// calculate the actual IPs that should be in each IP set.  It deals
+	// with corner cases, such as having the same IP on multiple endpoints.
+	memberCalc = NewMemberCalculator()
+	// It needs to know about *all* endpoints to do the calculation.
+	sourceDispatcher.Register(model.WorkloadEndpointKey{}, memberCalc)
+	sourceDispatcher.Register(model.HostEndpointKey{}, memberCalc)
+	// Hook it up to the output.
+	memberCalc.callbacks = callbacks
+
+	// The endpoint policy resolver marries up the active policies with
+	// local endpoints and calculates the complete, ordered set of
+	// policies that apply to each endpoint.
+	polResolver := endpoint.NewPolicyResolver()
+	// Hook up the inputs to the policy resolver.
+	activeRulesCalc.PolicyMatchListener = polResolver
+	sourceDispatcher.Register(model.PolicyKey{}, polResolver)
+	sourceDispatcher.Register(model.TierKey{}, polResolver)
+	localEndpointDispatcher.Register(model.WorkloadEndpointKey{}, polResolver)
+	localEndpointDispatcher.Register(model.HostEndpointKey{}, polResolver)
+	// And hook its output to the callbacks.
+	polResolver.Callbacks = callbacks
+
+	// TODO Hook these up:
+	activeRulesCalc.FelixSender = callbacks
+
+	return sourceDispatcher
+}
+
+// endpointHostnameFilter provides an UpdateHandler that filters out endpoints
+// that are not on the given host.
+type endpointHostnameFilter struct {
+	hostname string
+}
+
+func (f *endpointHostnameFilter) OnUpdate(update model.KVPair) (filterOut bool) {
+	switch key := update.Key.(type) {
+	case model.WorkloadEndpointKey:
+		if key.Hostname != f.hostname {
+			filterOut = true
 		}
-		for _, net := range ep.IPv6Nets {
-			ips = append(ips, ip.FromNetIP(net.IP))
+	case model.HostEndpointKey:
+		if key.Hostname != f.hostname {
+			filterOut = true
 		}
-		res.ipsetCalc.UpdateEndpointIPs(update.Key, ips)
-		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
-		res.tagIndex.UpdateEndpoint(update.Key, ep.ProfileIDs)
-	} else {
-		glog.V(3).Infof("Endpoint %v deleted", update.Key)
-		res.ipsetCalc.DeleteEndpoint(update.Key)
-		res.labelIdx.DeleteLabels(update.Key)
-		res.tagIndex.DeleteEndpoint(update.Key)
 	}
-	filteredUpdate = update
 	return
 }
 
-func (res *Resolver) onHostEndpointUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
-	key := update.Key.(model.HostEndpointKey)
-	onThisHost := key.Hostname == res.hostname
-	if onThisHost {
-		glog.V(3).Infof("(Host) endpoint is local, updating ARC.")
-		res.activeRulesCalculator.OnUpdate(update)
-	} else {
-		skipFelix = true
-	}
-	if update.Value != nil {
-		glog.V(3).Infof("Endpoint %v updated", update.Key)
-		glog.V(4).Infof("Endpoint data: %#v", update.Value)
-		ep := update.Value.(*model.HostEndpoint)
-		ips := make([]ip.Addr, 0,
-			len(ep.ExpectedIPv4Addrs)+len(ep.ExpectedIPv6Addrs))
-		for _, netIP := range ep.ExpectedIPv4Addrs {
-			ips = append(ips, ip.FromNetIP(netIP.IP))
-		}
-		for _, netIP := range ep.ExpectedIPv6Addrs {
-			ips = append(ips, ip.FromNetIP(netIP.IP))
-		}
-		res.ipsetCalc.UpdateEndpointIPs(update.Key, ips)
-		res.labelIdx.UpdateLabels(update.Key, ep.Labels, ep.ProfileIDs)
-		res.tagIndex.UpdateEndpoint(update.Key, ep.ProfileIDs)
-	} else {
-		glog.V(3).Infof("Endpoint %v deleted", update.Key)
-		res.ipsetCalc.DeleteEndpoint(update.Key)
-		res.labelIdx.DeleteLabels(update.Key)
-		res.tagIndex.DeleteEndpoint(update.Key)
-	}
-	filteredUpdate = update
-	return
-}
-
-// onProfileLabelsUpdate updates the index when the labels attached to a profile change.
-func (res *Resolver) onProfileLabelsUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
-	// The profile IDs in the endpoint are simple strings; convert the
-	// key to string so that it matches.
-	profileKey := update.Key.(model.ProfileLabelsKey)
-	profileID := profileKey.Name
-	if update.Value != nil {
-		// Update.
-		glog.V(3).Infof("Profile labels %v updated", update.Key)
-		glog.V(4).Infof("Profile labels data: %#v", update.Value)
-		labels := update.Value.(map[string]string)
-		res.labelIdx.UpdateParentLabels(profileID, labels)
-	} else {
-		// Deletion.
-		glog.V(3).Infof("Profile labels %v deleted", update.Key)
-		res.labelIdx.DeleteParentLabels(profileID)
-	}
-	filteredUpdate = update
-	skipFelix = true
-	return
-}
-
-func (res *Resolver) onProfileTagsUpdate(update model.KVPair) (filteredUpdate model.KVPair, skipFelix bool) {
-	glog.V(3).Infof("Profile tags %v updated", update)
-	// The profile IDs in the endpoint are simple strings; convert the
-	// key to string so that it matches.
-	profileKey := update.Key.(model.ProfileTagsKey)
-	profileID := profileKey.Name
-	if update.Value != nil {
-		// Update.
-		glog.V(3).Infof("Profile tags %v updated", update.Key)
-		glog.V(4).Infof("Profile tags data: %#v", update.Value)
-		tags := update.Value.([]string)
-		res.tagIndex.UpdateProfileTags(profileID, tags)
-	} else {
-		// Deletion.
-		glog.V(3).Infof("Profile tags %v deleted", update.Key)
-		res.tagIndex.DeleteProfileTags(profileID)
-	}
-	filteredUpdate = update
-	skipFelix = true
-	return
-}
-
-//// OnProfileUpdate is called when we get a profile update from the datastore.
-//// It passes through to the ActiveSetCalculator, which extracts the active ipsets from its rules.
-//func (res *Resolver) OnProfileUpdate(key model.ProfileKey, policy *model.Profile) {
-//	glog.Infof("Profile %v updated", key)
-//	res.activeSelCalc.UpdateProfile(key, policy)
-//}
-
-// LabelIndex callbacks:
-
-// onMatchStarted is called when an endpoint starts matching an active selector.
-func (res *Resolver) onSelMatchStarted(selId, labelId interface{}) {
-	glog.V(3).Infof("Endpoint %v now matches selector %v", labelId, selId)
-	res.ipsetCalc.MatchStarted(labelId.(model.Key), selId.(string))
-}
-
-// onMatchStopped is called when an endpoint stops matching an active selector.
-func (res *Resolver) onSelMatchStopped(selId, labelId interface{}) {
-	glog.V(3).Infof("Endpoint %v no longer matches selector %v", labelId, selId)
-	res.ipsetCalc.MatchStopped(labelId.(model.Key), selId.(string))
-}
-
-func (res *Resolver) onTagMatchStarted(key tags.EndpointKey, tagID string) {
-	glog.V(3).Infof("Endpoint %v now matches tag %v", key, tagID)
-	res.ipsetCalc.MatchStarted(key, hash.MakeUniqueID("t", tagID))
-}
-
-func (res *Resolver) onTagMatchStopped(key tags.EndpointKey, tagID string) {
-	glog.V(3).Infof("Endpoint %v no longer matches selector %v", key, tagID)
-	res.ipsetCalc.MatchStopped(key, hash.MakeUniqueID("t", tagID))
-}
-
-// ActiveSelectorCalculator callbacks:
-
-// onSelectorActive is called when a selector starts being used in a rule.
-// It adds the selector to the label index and starts tracking it.
-func (res *Resolver) onSelectorActive(sel selector.Selector) {
-	glog.Infof("Selector %v now active", sel)
-	res.callbacks.OnIPSetAdded(sel.UniqueId())
-	res.labelIdx.UpdateSelector(sel.UniqueId(), sel)
-}
-
-// onSelectorActive is called when a selector stops being used in a rule.
-// It removes the selector from the label index and stops tracking it.
-func (res *Resolver) onSelectorInactive(sel selector.Selector) {
-	glog.Infof("Selector %v now inactive", sel)
-	res.labelIdx.DeleteSelector(sel.UniqueId())
-	res.callbacks.OnIPSetRemoved(sel.UniqueId())
-}
-
-// IpsetCalculator callbacks:
-
-// onIPAdded is called when an IP is now present in an active selector.
-func (res *Resolver) onIPAdded(selID string, ip ip.Addr) {
-	glog.V(3).Infof("IP set %v now contains %v", selID, ip)
-	res.callbacks.OnIPAdded(selID, ip)
-}
-
-// onIPRemoved is called when an IP is no longer present in a selector.
-func (res *Resolver) onIPRemoved(selID string, ip ip.Addr) {
-	glog.V(3).Infof("IP set %v no longer contains %v", selID, ip)
-	res.callbacks.OnIPRemoved(selID, ip)
+func (f *endpointHostnameFilter) OnDatamodelStatus(status api.SyncStatus) {
 }
