@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ipsets
+package calc
 
 import (
 	"github.com/golang/glog"
@@ -38,7 +38,6 @@ type ipSetUpdateCallbacks interface {
 type rulesUpdateCallbacks interface {
 	OnPolicyActive(model.PolicyKey, *proto.Rules)
 	OnPolicyInactive(model.PolicyKey)
-
 	OnProfileActive(model.ProfileRulesKey, *proto.Rules)
 	OnProfileInactive(model.ProfileRulesKey)
 }
@@ -55,7 +54,7 @@ type PipelineCallbacks interface {
 	endpointCallbacks
 }
 
-func NewCalculationPipeline(callbacks PipelineCallbacks, hostname string) (input *store.Dispatcher) {
+func NewCalculationGraph(callbacks PipelineCallbacks, hostname string) (input *store.Dispatcher) {
 	// The source of the processing graph, this dispatcher will be fed all
 	// the updates from the datastore, fanning them out to the registered
 	// handlers.

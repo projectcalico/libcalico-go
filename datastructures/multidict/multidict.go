@@ -187,12 +187,14 @@ type StringToIface interface {
 	Len() int
 	Put(key string, value interface{})
 	Discard(key string, value interface{})
+	DiscardKey(key string)
 	Contains(key string, value interface{}) bool
 	ContainsKey(key string) bool
 	Iter(key string, f func(value interface{}))
+	IterKeys(f func(key string))
 }
 
-type stringToIfaceMap map[interface{}]map[interface{}]bool
+type stringToIfaceMap map[string]map[interface{}]bool
 
 func NewStringToIface() StringToIface {
 	iToI := make(stringToIfaceMap)
@@ -223,6 +225,10 @@ func (md stringToIfaceMap) Discard(key string, value interface{}) {
 	}
 }
 
+func (md stringToIfaceMap) DiscardKey(key string) {
+	delete(md, key)
+}
+
 func (md stringToIfaceMap) Contains(key string, value interface{}) bool {
 	set, ok := md[key]
 	return ok && set[value]
@@ -236,5 +242,11 @@ func (md stringToIfaceMap) ContainsKey(key string) bool {
 func (md stringToIfaceMap) Iter(key string, f func(value interface{})) {
 	for value, _ := range md[key] {
 		f(value)
+	}
+}
+
+func (md stringToIfaceMap) IterKeys(f func(key string)) {
+	for k, _ := range md {
+		f(k)
 	}
 }

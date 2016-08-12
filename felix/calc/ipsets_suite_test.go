@@ -12,32 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ipsets_test
+package calc_test
 
 import (
-	. "github.com/tigera/libcalico-go/felix/ipsets"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/tigera/libcalico-go/datastructures/multidict"
-	"github.com/tigera/libcalico-go/felix/store"
+
+	"testing"
 )
 
-var _ = Describe("Resolver", func() {
-	var source *store.Dispatcher
-	var sink *stateTracker
-	BeforeEach(func() {
-		sink = newStateTracker()
-		source = NewCalculationPipeline(sink, "hostname")
-	})
-
-	It("foo", func() {
-		_ = NewMemberCalculator()
-		Expect("foo").To(Equal("foo"))
-	})
-})
-
-type stateTracker struct {
-	ipsets multidict.StringToIface
-	endpoints
+func TestIpsets(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Ipsets Suite")
 }

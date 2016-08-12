@@ -14,7 +14,10 @@
 
 package ip
 
-import "net"
+import (
+	calinet "github.com/tigera/libcalico-go/lib/net"
+	"net"
+)
 
 type Addr interface {
 	// Version returns the IP version; 4 or 6.
@@ -22,6 +25,7 @@ type Addr interface {
 	// AsNetIP returns a net.IP, which is backed by/shares storage with
 	// this object.
 	AsNetIP() net.IP
+	AsCalicoNetIP() calinet.IP
 	String() string
 }
 
@@ -33,6 +37,10 @@ func (a V4Addr) Version() uint8 {
 
 func (a V4Addr) AsNetIP() net.IP {
 	return net.IP(a[0:net.IPv4len])
+}
+
+func (a V4Addr) AsCalicoNetIP() calinet.IP {
+	return calinet.IP{a.AsNetIP()}
 }
 
 func (a V4Addr) String() string {
@@ -47,6 +55,10 @@ func (a V6Addr) Version() uint8 {
 
 func (a V6Addr) AsNetIP() net.IP {
 	return net.IP(a[0:net.IPv6len])
+}
+
+func (a V6Addr) AsCalicoNetIP() calinet.IP {
+	return calinet.IP{a.AsNetIP()}
 }
 
 func (a V6Addr) String() string {

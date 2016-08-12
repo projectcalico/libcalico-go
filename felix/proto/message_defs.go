@@ -20,29 +20,78 @@ package proto
 
 import (
 	"fmt"
-	"github.com/tigera/libcalico-go/felix/endpoint"
+	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/net"
 	"github.com/tigera/libcalico-go/lib/numorstring"
+	"github.com/ugorji/go/codec"
+	"reflect"
 )
 
 // Messagepack tag used to indicate each message type.
-const (
-	TagInit                   uint8 = 1
-	TagConfigLoaded                 = 2
-	TagConfigResolved               = 3
-	TagDatastoreStatus              = 10
-	TagIPSetUpdate                  = 20
-	TagIPSetDeltaUpdate             = 21
-	TagIPSetRemove                  = 22
-	TagActiveProfileUpdate          = 30
-	TagActiveProfileRemove          = 31
-	TagActivePolicyUpdate           = 40
-	TagActivePolicyRemove           = 41
-	TagWorkloadEndpointUpdate       = 50
-	TagWorkloadEndpointRemove       = 51
-	TagHostEndpointUpdate           = 60
-	TagHostEndpointRemove           = 61
-)
+// Using disjoint IDs to remind me that these are part of our API so can't be
+// changed once they're in use.
+var typeToMsgType map[reflect.Type]string = map[reflect.Type]string{
+	reflect.TypeOf(Init{}):           "init",
+	reflect.TypeOf(ConfigLoaded{}):   "config_loaded",
+	reflect.TypeOf(ConfigResolved{}): "config_resolved",
+
+	reflect.TypeOf(DatastoreStatus{}): "datastore_status",
+
+	reflect.TypeOf(IPSetUpdate{}):      "ipset_update",
+	reflect.TypeOf(IPSetDeltaUpdate{}): "ipset_delta",
+	reflect.TypeOf(IPSetRemove{}):      "ipset_remove",
+
+	reflect.TypeOf(ActiveProfileUpdate{}): "profile_update",
+	reflect.TypeOf(ActiveProfileRemove{}): "profile_remove",
+
+	reflect.TypeOf(ActivePolicyUpdate{}): "policy_update",
+	reflect.TypeOf(ActivePolicyRemove{}): "policy_remove",
+
+	reflect.TypeOf(WorkloadEndpointUpdate{}): "wl_ep_update",
+	reflect.TypeOf(WorkloadEndpointRemove{}): "wl_ep_remove",
+
+	reflect.TypeOf(HostEndpointUpdate{}): "host_ep_update",
+	reflect.TypeOf(HostEndpointRemove{}): "host_ep_remove",
+}
+
+var msgTypeToType map[string]reflect.Type
+
+func init() {
+	msgTypeToType = make(map[string]reflect.Type)
+	for t, tag := range typeToMsgType {
+		msgTypeToType[tag] = t
+	}
+}
+
+type Envelope struct {
+	Payload interface{}
+}
+
+func (e Envelope) CodecEncodeSelf(enc *codec.Encoder) {
+	payloadType := reflect.TypeOf(e.Payload)
+	if payloadType.Kind() == reflect.Ptr {
+		payloadType = payloadType.Elem()
+	}
+	tag, ok := typeToMsgType[payloadType]
+	if !ok {
+		glog.Fatalf("Missing type mapping for %#v", e.Payload)
+	}
+	enc.MustEncode(tag)
+	enc.MustEncode(e.Payload)
+}
+
+func (e *Envelope) CodecDecodeSelf(dec *codec.Decoder) {
+	glog.V(5).Info("Decoding Envelope")
+	var tag string
+	dec.MustDecode(&tag)
+	glog.V(5).Infof("Message tag: %#v", tag)
+	t := msgTypeToType[tag]
+	glog.V(5).Infof("Message type: %v", t)
+	ptr := reflect.New(t)
+	iface := ptr.Interface()
+	dec.MustDecode(iface)
+	e.Payload = iface
+}
 
 // BUG(smc) Handshake messages just document current protocol.  Need rework for golang port.
 // Init is the opening message we receive from the front end.
@@ -64,31 +113,22 @@ type ConfigLoaded struct {
 // ConfigResolved comes back from the front end to give us the resolved/parsed
 // config.
 type ConfigResolved struct {
-	LogFile           string `codec:"log_file"`
-	LogSeverityFile   string `codec:"sev_file"`
-	LogSeverityScreen string `codec:"sev_screen"`
-	LogSeveritySyslog string `codec:"sev_syslog"`
+	LogFile string `codec:"log_file"`
+	//LogSeverityFile   string `codec:"sev_file"`
+	//LogSeverityScreen string `codec:"sev_screen"`
+	//LogSeveritySyslog string `codec:"sev_syslog"`
 }
-
-type Status string
-
-const (
-	WaitForReady Status = "wait-for-ready"
-	Resync       Status = "resync"
-	InSync       Status = "in-sync"
-)
 
 // DatastoreStatus is sent when the datastore status changes.
 type DatastoreStatus struct {
-	Status Status `codec:"status"`
+	Status string `codec:"status"`
 }
 
 // IPSetUpdate indicates that an IP set is now actively required and should
 // be set to contain the given members.
 type IPSetUpdate struct {
 	SetID   string   `codec:"ipset_id"`
-	Members []net.IP `codec:"added_ips"`
-	Comment string   `codec:"comment"`
+	Members []net.IP `codec:"members"`
 }
 
 // IPSetDeltaUpdate expresses a delta change to an IP set.  The given IPs should
@@ -229,18 +269,4 @@ type TierInfo struct {
 
 func (t TierInfo) String() string {
 	return fmt.Sprintf("%v -> %v", t.Name, t.Policies)
-}
-
-func convertBackendTierInfo(filteredTiers []endpoint.TierInfo) []TierInfo {
-	tiers := make([]TierInfo, len(filteredTiers))
-	if len(filteredTiers) > 0 {
-		for ii, ti := range filteredTiers {
-			pols := make([]string, len(ti.OrderedPolicies))
-			for jj, pol := range ti.OrderedPolicies {
-				pols[jj] = pol.Key.Name
-			}
-			tiers[ii] = TierInfo{ti.Name, pols}
-		}
-	}
-	return tiers
 }
