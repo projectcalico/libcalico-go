@@ -19,11 +19,25 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/tigera/libcalico-go/datastructures/multidict"
+	"github.com/tigera/libcalico-go/felix/store"
 )
 
 var _ = Describe("Resolver", func() {
+	var source *store.Dispatcher
+	var sink *stateTracker
+	BeforeEach(func() {
+		sink = newStateTracker()
+		source = NewCalculationPipeline(sink, "hostname")
+	})
+
 	It("foo", func() {
 		_ = NewMemberCalculator()
 		Expect("foo").To(Equal("foo"))
 	})
 })
+
+type stateTracker struct {
+	ipsets multidict.StringToIface
+	endpoints
+}

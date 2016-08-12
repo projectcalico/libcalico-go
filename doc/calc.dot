@@ -30,15 +30,12 @@ edge [fontname=Helvetica,fontsize=10]
         </table>>, shape=none, margin=0]
         Dispatcher -> PolicyResolver [label="policy, tier\nKVs", penwidth=2]
         Dispatcher -> ActiveRulesCalc [label="policy, profile\nKVs", penwidth=2]
-        Dispatcher -> ActiveSelIdx [label="profile\nlabels KVs", penwidth=2]
+        Dispatcher -> ActiveSelIdx [label="all endpoint KVs\nprofile labels KVs", penwidth=4]
 
-        EPKVs [shape=point];
-        Dispatcher -> EPKVs [label="all\nendpoint KVs", penwidth=4];
+        Dispatcher -> LocalDispatcher [label="all\nendpoint KVs", penwidth=4];
+        Dispatcher -> TagIndex [label="all\nendpoint KVs", penwidth=4];
+        Dispatcher -> MemberCalc [label="all\nendpoint KVs", penwidth=4];
 
-        EPKVs -> ActiveSelIdx [penwidth=4];
-        EPKVs -> LocalDispatcher [penwidth=4];
-        EPKVs -> TagIndex [penwidth=4];
-        EPKVs -> MemberCalc [penwidth=4];
 
         LocalDispatcher [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
           <tr><td><font point-size="14">Local endpoint dispatcher</font></td></tr>
@@ -63,7 +60,7 @@ edge [fontname=Helvetica,fontsize=10]
 
         RuleScanner [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
           <tr><td><font point-size="14">Rule scanner</font></td></tr>
-          <tr><td><font point-size="10">Scans rules, extracts<br/>selectors + tags.</font></td></tr>
+          <tr><td><font point-size="10">Scans rules, extracts selectors/tags.<br/>Converts selectors/tags to IP set IDs.</font></td></tr>
         </table>>, shape=none, margin=0];
 
         PolicyResolver [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
@@ -86,7 +83,7 @@ edge [fontname=Helvetica,fontsize=10]
         </table>>, shape=none, margin=0];
 
 
-        ActiveRulesCalc -> PipelineCallbacks [label="active policy,\nprofile KVs\nSendUpdateToFelix()"];
+        RuleScanner -> PipelineCallbacks [label="OnPolicy(In)Active()\nOnProfile(In)Active()"];
 
         RuleScannerShim [label="<<shim function>>", shape=none]
         RuleScanner -> RuleScannerShim [label="Selector\n(in)active"];
@@ -109,8 +106,10 @@ OnIPAdded(setID string, ip ip.Addr)<BR ALIGN="LEFT"/>
 OnIPRemoved(setID string, ip ip.Addr)<BR ALIGN="LEFT"/>
 OnIPSetRemoved(setID string)<BR ALIGN="LEFT"/>
 <BR ALIGN="LEFT"/>
-// TODO replace with dedicated methods.<BR ALIGN="LEFT"/>
-SendUpdateToFelix(update model.KVPair)<BR ALIGN="LEFT"/>
+OnPolicyActive(model.PolicyKey, *proto.Rules)<BR ALIGN="LEFT"/>
+OnPolicyInactive(model.PolicyKey)<BR ALIGN="LEFT"/>
+OnProfileActive(model.ProfileRulesKey, *proto.Rules)<BR ALIGN="LEFT"/>
+OnProfileInactive(model.ProfileRulesKey)<BR ALIGN="LEFT"/>
 <BR ALIGN="LEFT"/>
 OnEndpointTierUpdate(endpointKey model.Key,<BR ALIGN="LEFT"/>
     endpoint interface{},<BR ALIGN="LEFT"/>

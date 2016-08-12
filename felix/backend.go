@@ -25,6 +25,7 @@ import (
 	"github.com/tigera/libcalico-go/datastructures/set"
 	"github.com/tigera/libcalico-go/felix/endpoint"
 	"github.com/tigera/libcalico-go/felix/ipsets"
+	"github.com/tigera/libcalico-go/felix/proto"
 	"github.com/tigera/libcalico-go/felix/store"
 	fapi "github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/backend"
@@ -211,24 +212,41 @@ func (fc *FelixConnection) OnIPRemoved(ipsetID string, ip ip.Addr) {
 	fc.removedIPs.Add(upd)
 }
 
-func (fc *FelixConnection) SendUpdateToFelix(kv model.KVPair) {
-	switch key := kv.Key.(type) {
-	case model.ProfileRulesKey:
-		msg := map[string]interface{}{
-			"type": "prof_update",
-			"name": key.Name,
-			"v":    kv.Value,
-		}
-		fc.toFelix <- msg
-	case model.PolicyKey:
-		msg := map[string]interface{}{
-			"type": "pol_update",
-			"tier": key.Tier,
-			"name": key.Name,
-			"v":    kv.Value,
-		}
-		fc.toFelix <- msg
+func (fc *FelixConnection) OnPolicyActive(key model.PolicyKey, policy *proto.Rules) {
+	msg := map[string]interface{}{
+		"type": "pol_update",
+		"tier": key.Tier,
+		"name": key.Name,
+		"v":    policy,
 	}
+	fc.toFelix <- msg
+}
+func (fc *FelixConnection) OnPolicyInactive(key model.PolicyKey) {
+	msg := map[string]interface{}{
+		"type": "pol_update",
+		"tier": key.Tier,
+		"name": key.Name,
+		"v":    nil,
+	}
+	fc.toFelix <- msg
+}
+
+func (fc *FelixConnection) OnProfileActive(key model.ProfileRulesKey, rules *proto.Rules) {
+	msg := map[string]interface{}{
+		"type": "prof_update",
+		"name": key.Name,
+		"v":    rules,
+	}
+	fc.toFelix <- msg
+}
+
+func (fc *FelixConnection) OnProfileInactive(key model.ProfileRulesKey) {
+	msg := map[string]interface{}{
+		"type": "prof_update",
+		"name": key.Name,
+		"v":    nil,
+	}
+	fc.toFelix <- msg
 }
 
 func (fc *FelixConnection) OnEndpointTierUpdate(key model.Key,

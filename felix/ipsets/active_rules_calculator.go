@@ -15,7 +15,6 @@
 package ipsets
 
 import (
-	"encoding/json"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/labels"
 	"github.com/tigera/libcalico-go/datastructures/multidict"
@@ -26,8 +25,11 @@ import (
 	"reflect"
 )
 
-type ActiveRuleListener interface {
-	UpdateRules(key interface{}, inbound, outbound []model.Rule)
+type ruleScanner interface {
+	OnPolicyActive(model.PolicyKey, *model.Policy)
+	OnPolicyInactive(model.PolicyKey)
+	OnProfileActive(model.ProfileRulesKey, *model.ProfileRules)
+	OnProfileInactive(model.ProfileRulesKey)
 }
 
 type FelixSender interface {
@@ -41,8 +43,8 @@ type PolicyMatchListener interface {
 
 type ActiveRulesCalculator struct {
 	// Caches of all known policies/profiles.
-	allPolicies     map[model.PolicyKey]model.Policy
-	allProfileRules map[string]model.ProfileRules
+	allPolicies     map[model.PolicyKey]*model.Policy
+	allProfileRules map[string]*model.ProfileRules
 
 	// Policy/profile ID to matching endpoint sets.
 	policyIDToEndpointKeys  multidict.IfaceToIface
@@ -55,16 +57,15 @@ type ActiveRulesCalculator struct {
 	endpointKeyToProfileIDs *tags.EndpointKeyToProfileIDMap
 
 	// Callback objects.
-	RuleListener        ActiveRuleListener
+	RuleScanner         ruleScanner
 	PolicyMatchListener PolicyMatchListener
-	FelixSender         FelixSender
 }
 
 func NewActiveRulesCalculator() *ActiveRulesCalculator {
 	arc := &ActiveRulesCalculator{
 		// Caches of all known policies/profiles.
-		allPolicies:     make(map[model.PolicyKey]model.Policy),
-		allProfileRules: make(map[string]model.ProfileRules),
+		allPolicies:     make(map[model.PolicyKey]*model.Policy),
+		allProfileRules: make(map[string]*model.ProfileRules),
 
 		// Policy/profile ID to matching endpoint sets.
 		policyIDToEndpointKeys:  multidict.NewIfaceToIface(),
@@ -107,7 +108,7 @@ func (arc *ActiveRulesCalculator) OnUpdate(update model.KVPair) (filterOut bool)
 	case model.ProfileRulesKey:
 		if update.Value != nil {
 			rules := update.Value.(*model.ProfileRules)
-			arc.allProfileRules[key.Name] = *rules
+			arc.allProfileRules[key.Name] = rules
 			if arc.profileIDToEndpointKeys.ContainsKey(key.Name) {
 				glog.V(4).Info("Profile rules updated while active, telling listener/felix")
 				arc.sendProfileUpdate(key.Name)
@@ -123,7 +124,7 @@ func (arc *ActiveRulesCalculator) OnUpdate(update model.KVPair) (filterOut bool)
 		if update.Value != nil {
 			glog.V(4).Infof("Updating ARC for policy %v", key)
 			policy := update.Value.(*model.Policy)
-			arc.allPolicies[key] = *policy
+			arc.allPolicies[key] = policy
 			// Update the index, which will call us back if the selector no
 			// longer matches.
 			sel, err := selector.Parse(policy.Selector)
@@ -195,9 +196,7 @@ func (arc *ActiveRulesCalculator) onMatchStarted(selID, labelId interface{}) {
 		glog.V(3).Infof("Policy %v now matches a local endpoint", polKey)
 		arc.sendPolicyUpdate(polKey)
 	}
-	if arc.PolicyMatchListener != nil {
-		arc.PolicyMatchListener.OnPolicyMatch(polKey, labelId)
-	}
+	arc.PolicyMatchListener.OnPolicyMatch(polKey, labelId)
 }
 
 func (arc *ActiveRulesCalculator) onMatchStopped(selID, labelId interface{}) {
@@ -209,27 +208,19 @@ func (arc *ActiveRulesCalculator) onMatchStopped(selID, labelId interface{}) {
 		glog.V(3).Infof("Policy %v no longer matches a local endpoint", polKey)
 		arc.sendPolicyUpdate(polKey)
 	}
-	if arc.PolicyMatchListener != nil {
-		arc.PolicyMatchListener.OnPolicyMatchStopped(polKey, labelId)
-	}
+	arc.PolicyMatchListener.OnPolicyMatchStopped(polKey, labelId)
 }
 
 func (arc *ActiveRulesCalculator) sendProfileUpdate(profileID string) {
 	glog.V(3).Infof("Sending profile update for profile %v", profileID)
 	rules, known := arc.allProfileRules[profileID]
 	active := arc.profileIDToEndpointKeys.ContainsKey(profileID)
-	update := model.KVPair{
-		Key: model.ProfileRulesKey{ProfileKey: model.ProfileKey{Name: profileID}},
-	}
-	var inRules, outRules []model.Rule
+	key := model.ProfileRulesKey{ProfileKey: model.ProfileKey{Name: profileID}}
+
 	if known && active {
-		update.Value = rules
-	}
-	if arc.RuleListener != nil {
-		arc.RuleListener.UpdateRules(profileID, inRules, outRules)
-	}
-	if arc.FelixSender != nil {
-		arc.FelixSender.SendUpdateToFelix(update)
+		arc.RuleScanner.OnProfileActive(key, rules)
+	} else {
+		arc.RuleScanner.OnProfileInactive(key)
 	}
 }
 
@@ -238,30 +229,9 @@ func (arc *ActiveRulesCalculator) sendPolicyUpdate(policyKey model.PolicyKey) {
 	active := arc.policyIDToEndpointKeys.ContainsKey(policyKey)
 	glog.V(3).Infof("Sending policy update for policy %v (known: %v, active: %v)",
 		policyKey, known, active)
-	update := model.KVPair{Key: policyKey}
 	if known && active {
-		var policyCopy model.Policy
-		jsonCopy, err := json.Marshal(policy)
-		if err != nil {
-			glog.Fatal("Failed to marshal policy")
-		}
-		err = json.Unmarshal(jsonCopy, &policyCopy)
-		if err != nil {
-			glog.Fatal("Failed to unmarshal policy")
-		}
-
-		// FIXME UpdateRules modifies the rules!
-		if arc.RuleListener != nil {
-			arc.RuleListener.UpdateRules(policyKey,
-				policyCopy.InboundRules, policyCopy.OutboundRules)
-		}
-		update.Value = policyCopy
+		arc.RuleScanner.OnPolicyActive(policyKey, policy)
 	} else {
-		if arc.RuleListener != nil {
-			arc.RuleListener.UpdateRules(policyKey, []model.Rule{}, []model.Rule{})
-		}
-	}
-	if arc.FelixSender != nil {
-		arc.FelixSender.SendUpdateToFelix(update)
+		arc.RuleScanner.OnPolicyInactive(policyKey)
 	}
 }

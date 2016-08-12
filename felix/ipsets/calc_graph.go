@@ -20,6 +20,7 @@ import (
 	"github.com/tigera/libcalico-go/datastructures/labels"
 	"github.com/tigera/libcalico-go/datastructures/tags"
 	"github.com/tigera/libcalico-go/felix/endpoint"
+	"github.com/tigera/libcalico-go/felix/proto"
 	"github.com/tigera/libcalico-go/felix/store"
 	"github.com/tigera/libcalico-go/lib/backend/api"
 	"github.com/tigera/libcalico-go/lib/backend/model"
@@ -27,18 +28,31 @@ import (
 	"github.com/tigera/libcalico-go/lib/selector"
 )
 
-type PipelineCallbacks interface {
+type ipSetUpdateCallbacks interface {
 	OnIPSetAdded(setID string)
 	OnIPAdded(setID string, ip ip.Addr)
 	OnIPRemoved(setID string, ip ip.Addr)
 	OnIPSetRemoved(setID string)
+}
 
-	// TODO replace with dedicated methods.
-	SendUpdateToFelix(update model.KVPair)
+type rulesUpdateCallbacks interface {
+	OnPolicyActive(model.PolicyKey, *proto.Rules)
+	OnPolicyInactive(model.PolicyKey)
 
+	OnProfileActive(model.ProfileRulesKey, *proto.Rules)
+	OnProfileInactive(model.ProfileRulesKey)
+}
+
+type endpointCallbacks interface {
 	OnEndpointTierUpdate(endpointKey model.Key,
 		endpoint interface{},
 		filteredTiers []endpoint.TierInfo)
+}
+
+type PipelineCallbacks interface {
+	ipSetUpdateCallbacks
+	rulesUpdateCallbacks
+	endpointCallbacks
 }
 
 func NewCalculationPipeline(callbacks PipelineCallbacks, hostname string) (input *store.Dispatcher) {
@@ -72,7 +86,8 @@ func NewCalculationPipeline(callbacks PipelineCallbacks, hostname string) (input
 	// and scans the individual rules for selectors and tags.  It generates
 	// events when a new selector/tag starts/stops being used.
 	ruleScanner := NewRuleScanner()
-	activeRulesCalc.RuleListener = ruleScanner
+	activeRulesCalc.RuleScanner = ruleScanner
+	ruleScanner.RulesUpdateCallbacks = callbacks
 
 	// The active selector index matches the active selectors found by the
 	// rule scanner against *all* endpoints.  It emits events when an
@@ -143,9 +158,6 @@ func NewCalculationPipeline(callbacks PipelineCallbacks, hostname string) (input
 	localEndpointDispatcher.Register(model.HostEndpointKey{}, polResolver)
 	// And hook its output to the callbacks.
 	polResolver.Callbacks = callbacks
-
-	// TODO Hook these up:
-	activeRulesCalc.FelixSender = callbacks
 
 	return sourceDispatcher
 }

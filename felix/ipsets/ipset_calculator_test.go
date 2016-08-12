@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ipsets_test
+// +build !linux
+
+package ipsets
 
 import (
-	. "github.com/tigera/libcalico-go/felix/ipsets"
-
 	"flag"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -54,6 +54,7 @@ var _ = Describe("An empty IpsetCalculator", func() {
 	BeforeEach(func() {
 		updates = nil
 		calc = NewMemberCalculator()
+		calc.callbacks =
 		calc.OnIPAdded = func(ipSetID string, ip ip.Addr) {
 			updates = append(updates, ipUpdate{"add", ipSetID, ip.String()})
 		}
