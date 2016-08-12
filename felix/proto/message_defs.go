@@ -14,23 +14,26 @@
 
 // proto contains messagepack-tagged structs for the interface to the Felix front-end.
 //
+// Each message we send or receive consists of an Envelope struct, holding
+// one of the message structs as Payload.  The Envelope struct implements
+// the codec Selfer API in order to insert the message type into the
+// messagepack data ahead of the payload (and to use that extra type
+// information to unpack the correct type of struct when decoding).
+//
 // Where possible, messages are intended to be idempotent.  However, for
 // efficiency, IP set updates are sent as delta updates.
 package proto
 
 import (
 	"fmt"
-	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/net"
 	"github.com/tigera/libcalico-go/lib/numorstring"
-	"github.com/ugorji/go/codec"
 	"reflect"
 )
 
-// Messagepack tag used to indicate each message type.
-// Using disjoint IDs to remind me that these are part of our API so can't be
-// changed once they're in use.
+// Message types by struct type.
 var typeToMsgType map[reflect.Type]string = map[reflect.Type]string{
+	// BUG(smc) Should we shorten these for maximally compact encoding?
 	reflect.TypeOf(Init{}):           "init",
 	reflect.TypeOf(ConfigLoaded{}):   "config_loaded",
 	reflect.TypeOf(ConfigResolved{}): "config_resolved",
@@ -54,6 +57,7 @@ var typeToMsgType map[reflect.Type]string = map[reflect.Type]string{
 	reflect.TypeOf(HostEndpointRemove{}): "host_ep_remove",
 }
 
+// Struct types by message type.
 var msgTypeToType map[string]reflect.Type
 
 func init() {
@@ -61,36 +65,6 @@ func init() {
 	for t, tag := range typeToMsgType {
 		msgTypeToType[tag] = t
 	}
-}
-
-type Envelope struct {
-	Payload interface{}
-}
-
-func (e Envelope) CodecEncodeSelf(enc *codec.Encoder) {
-	payloadType := reflect.TypeOf(e.Payload)
-	if payloadType.Kind() == reflect.Ptr {
-		payloadType = payloadType.Elem()
-	}
-	tag, ok := typeToMsgType[payloadType]
-	if !ok {
-		glog.Fatalf("Missing type mapping for %#v", e.Payload)
-	}
-	enc.MustEncode(tag)
-	enc.MustEncode(e.Payload)
-}
-
-func (e *Envelope) CodecDecodeSelf(dec *codec.Decoder) {
-	glog.V(5).Info("Decoding Envelope")
-	var tag string
-	dec.MustDecode(&tag)
-	glog.V(5).Infof("Message tag: %#v", tag)
-	t := msgTypeToType[tag]
-	glog.V(5).Infof("Message type: %v", t)
-	ptr := reflect.New(t)
-	iface := ptr.Interface()
-	dec.MustDecode(iface)
-	e.Payload = iface
 }
 
 // BUG(smc) Handshake messages just document current protocol.  Need rework for golang port.
