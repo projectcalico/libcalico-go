@@ -85,32 +85,47 @@
 //	      |                                             |
 //	      |      (Workload|Host)Endpoint(Update|Remove) |
 //	      |<--------------------------------------------|
+//	      | ------------------------------------\       |
+//	      |-| Status updates (sent at any time) |       |
+//	      | |-----------------------------------|       |
+//	      |                                             |
+//	      | FelixStatusUpdate                           |
+//	      |-------------------------------------------->|
+//	      |                                             |
+//	      | (Workload|Host)EndpointStatus               |
+//	      |-------------------------------------------->|
 //	      |                                             |
 package proto
 
 // http://textart.io/sequence Source code for sequence diagram above:
-//
-//object frontend backend
-//frontend->backend: **Create**
-//note right of frontend: Start of handshake
-//frontend->backend: Init(Hostname, etcd config)
-//note left of backend: Connects to datastore
-//backend->frontend: ConfigUpdate(global, per-host)
-//frontend->backend: ConfigResolved(logging config)
-//note left of backend: End of handshake
-//
-//backend->frontend: DatastoreStatus("wait-for-ready")
-//note left of backend: Starts  resync, sending updates
-//backend->frontend: DatastoreStatus("resync")
-//
-//backend->frontend: IPSet(Update|Delta)(Update|Remove)
-//backend->frontend: Active(Profile|Policy)(Update|Remove)
-//backend->frontend: (Workload|Host)Endpoint(Update|Remove)
-//
-//note left of backend: Finishes sync
-//backend->frontend: ConfigUpdate(global, per-host)
-//backend->frontend: DatastoreStatus("in-sync")
-//
-//backend->frontend: IPSet(Update|Delta)(Update|Remove)
-//backend->frontend: Active(Profile|Policy)(Update|Remove)
-//backend->frontend: (Workload|Host)Endpoint(Update|Remove)
+
+var _ = `
+object frontend backend
+frontend->backend: **Create**
+note right of frontend: Start of handshake
+frontend->backend: Init(Hostname, etcd config)
+note left of backend: Connects to datastore
+backend->frontend: ConfigUpdate(global, per-host)
+frontend->backend: ConfigResolved(logging config)
+note left of backend: End of handshake
+
+backend->frontend: DatastoreStatus("wait-for-ready")
+note left of backend: Starts  resync, sending updates
+backend->frontend: DatastoreStatus("resync")
+
+backend->frontend: IPSet(Update|Delta)(Update|Remove)
+backend->frontend: Active(Profile|Policy)(Update|Remove)
+backend->frontend: (Workload|Host)Endpoint(Update|Remove)
+
+note left of backend: Finishes sync
+backend->frontend: ConfigUpdate(global, per-host)
+backend->frontend: DatastoreStatus("in-sync")
+
+backend->frontend: IPSet(Update|Delta)(Update|Remove)
+backend->frontend: Active(Profile|Policy)(Update|Remove)
+backend->frontend: (Workload|Host)Endpoint(Update|Remove)
+
+note right of frontend: Status updates (sent at any time)
+frontend->backend: FelixStatusUpdate
+frontend->backend: (Workload|Host)EndpointStatus
+`

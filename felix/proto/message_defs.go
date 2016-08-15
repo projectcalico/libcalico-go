@@ -21,7 +21,7 @@ import (
 	"reflect"
 )
 
-// Message types by struct type.
+// Message types by struct type.  Must be kept in sync with protocol.py.
 var typeToMsgType map[reflect.Type]string = map[reflect.Type]string{
 	// BUG(smc) Should we shorten these for maximally compact encoding?
 	reflect.TypeOf(Init{}):           "init",
@@ -45,6 +45,12 @@ var typeToMsgType map[reflect.Type]string = map[reflect.Type]string{
 
 	reflect.TypeOf(HostEndpointUpdate{}): "host_ep_update",
 	reflect.TypeOf(HostEndpointRemove{}): "host_ep_remove",
+
+	reflect.TypeOf(WorkloadEndpointStatus{}):       "wl_ep_status",
+	reflect.TypeOf(WorkloadEndpointStatusRemove{}): "wl_ep_status_remove",
+	reflect.TypeOf(HostEndpointStatus{}):           "host_ep_status",
+	reflect.TypeOf(HostEndpointStatusRemove{}):     "host_ep_status_remove",
+	reflect.TypeOf(FelixStatusUpdate{}):            "felix_status",
 }
 
 // Struct types by message type.
@@ -226,6 +232,44 @@ type HostEndpoint struct {
 type HostEndpointRemove struct {
 	Hostname   string `codec:"hostname"`
 	EndpointID string `codec:"endpoint"`
+}
+
+// FelixStatusUpdate is sent by the front-end to report its liveness status.
+type FelixStatusUpdate struct {
+	Timestamp     string  `codec:"time"`
+	UptimeSeconds float64 `codec:"uptime"`
+}
+
+// WorkloadEndpointStatus is sent by the front-end to report the status of an endpoint.
+type WorkloadEndpointStatus struct {
+	Hostname       string `codec:"hostname"`
+	OrchestratorID string `codec:"orchestrator"`
+	WorkloadID     string `codec:"workload_id"`
+	EndpointID     string `codec:"endpoint_id"`
+
+	Status string `codec:"status"`
+}
+
+// WorkloadEndpointStatus is sent by the front-end to report the status of an endpoint.
+type WorkloadEndpointStatusRemove struct {
+	Hostname       string `codec:"hostname"`
+	OrchestratorID string `codec:"orchestrator"`
+	WorkloadID     string `codec:"workload_id"`
+	EndpointID     string `codec:"endpoint_id"`
+}
+
+// HostEndpointStatus is sent by the front-end to report the status of an endpoint.
+type HostEndpointStatus struct {
+	Hostname   string `codec:"hostname"`
+	EndpointID string `codec:"endpoint_id"`
+
+	Status string `codec:"status"`
+}
+
+// HostEndpointStatus is sent by the front-end to report the status of an endpoint.
+type HostEndpointStatusRemove struct {
+	Hostname   string `codec:"hostname"`
+	EndpointID string `codec:"endpoint_id"`
 }
 
 // TierInfo captures the information Felix needs to know about a tier; it's
