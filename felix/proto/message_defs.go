@@ -12,16 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// proto contains messagepack-tagged structs for the interface to the Felix front-end.
-//
-// Each message we send or receive consists of an Envelope struct, holding
-// one of the message structs as Payload.  The Envelope struct implements
-// the codec Selfer API in order to insert the message type into the
-// messagepack data ahead of the payload (and to use that extra type
-// information to unpack the correct type of struct when decoding).
-//
-// Where possible, messages are intended to be idempotent.  However, for
-// efficiency, IP set updates are sent as delta updates.
 package proto
 
 import (
@@ -67,7 +57,10 @@ func init() {
 	}
 }
 
-// BUG(smc) Handshake messages just document current protocol.  Need rework for golang port.
+// BUG(smc) Handshake messages just document current protocol.
+
+//
+
 // Init is the opening message we receive from the front end.
 type Init struct {
 	EtcdUrls     []string `codec:"etcd_urls"`
@@ -78,7 +71,7 @@ type Init struct {
 	Hostname string `codec:"hostname"`
 }
 
-// ConfigLoaded is our response with the config loaded from the datastore.
+// ConfigUpdate is our response with the config loaded from the datastore.
 type ConfigUpdate struct {
 	Global  map[string]string `codec:"global"`
 	PerHost map[string]string `codec:"host"`
