@@ -16,29 +16,39 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"github.com/docopt/docopt-go"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/ip"
-	"github.com/tigera/libcalico-go/datastructures/set"
 	"github.com/tigera/libcalico-go/felix/calc"
 	"github.com/tigera/libcalico-go/felix/proto"
-	"github.com/tigera/libcalico-go/felix/store"
 	fapi "github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/backend"
+	bapi "github.com/tigera/libcalico-go/lib/backend/api"
 	"github.com/tigera/libcalico-go/lib/backend/etcd"
+	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/ugorji/go/codec"
 	"net"
 	"os"
 	"reflect"
 	"strings"
-	"sync"
+	"time"
 )
 
 const usage = `Felix backend driver.
 
 Usage:
   felix-backend <felix-socket>`
+
+var msgpackHandle = &codec.MsgpackHandle{
+	RawToString: true,
+	BasicHandle: codec.BasicHandle{
+		DecodeOptions: codec.DecodeOptions{
+			MapType: reflect.TypeOf(make(map[string]interface{})),
+		},
+	},
+}
 
 func main() {
 	// Parse command-line args.
@@ -78,16 +88,15 @@ type ipUpdate struct {
 type FelixConnection struct {
 	toFelix        chan interface{}
 	failed         chan bool
-	codecHandle    *codec.MsgpackHandle
 	encoder        *codec.Encoder
 	felixBufWriter *bufio.Writer
 	decoder        *codec.Decoder
+	hostname       string
+	datastore      bapi.Client
 
-	dispatcher *store.Dispatcher
-
-	addedIPs   set.Set
-	removedIPs set.Set
-	flushMutex sync.Mutex
+	datastoreInSync bool
+	globalConfig    map[string]string
+	hostConfig      map[string]string
 }
 
 type Startable interface {
@@ -100,18 +109,14 @@ func NewFelixConnection(felixSocket net.Conn) *FelixConnection {
 	r := bufio.NewReader(felixSocket)
 	w := bufio.NewWriter(felixSocket)
 
-	// Configure codec to return strings for map keys.
-	codecHandle := &codec.MsgpackHandle{}
-	codecHandle.RawToString = true
-	codecHandle.MapType = reflect.TypeOf(make(map[string]interface{}))
-
 	felixConn := &FelixConnection{
 		toFelix:        make(chan interface{}),
 		failed:         make(chan bool),
-		codecHandle:    codecHandle,
-		encoder:        codec.NewEncoder(w, codecHandle),
+		encoder:        codec.NewEncoder(w, msgpackHandle),
 		felixBufWriter: w,
-		decoder:        codec.NewDecoder(r, codecHandle),
+		decoder:        codec.NewDecoder(r, msgpackHandle),
+		globalConfig:   make(map[string]string),
+		hostConfig:     make(map[string]string),
 	}
 	return felixConn
 }
@@ -126,20 +131,24 @@ func (fc *FelixConnection) readMessagesFromFelix() {
 		}
 		glog.V(3).Infof("Message from Felix: %#v", msg)
 
-		switch msg := msg.Payload.(type) {
+		payload := msg.Payload
+		switch msg := payload.(type) {
 		case *proto.Init: // Hello message from felix
 			fc.handleInitFromFelix(msg)
+		case *proto.ConfigResolved:
+			fc.handleConfigResolvedFromFelix(msg)
 		default:
-			glog.Warning("XXXX Unknown message from felix: ", msg)
+			glog.Warningf("XXXX Unknown message from felix: %#v", msg)
 		}
+		glog.V(3).Info("Finished handling message from front-end")
 	}
 }
 
 // handleInitFromFelix() Handles the start-of-day init message from the main Felix process.
 // this is the first message, which gives us the datastore configuration.
 func (fc *FelixConnection) handleInitFromFelix(msg *proto.Init) {
-
 	// Use the config to get a connection to the datastore.
+	glog.V(1).Infof("Init message from front-end: %v", *msg)
 	etcdCfg := &etcd.EtcdConfig{
 		EtcdEndpoints:  strings.Join(msg.EtcdUrls, ","),
 		EtcdKeyFile:    msg.EtcdKeyFile,
@@ -150,68 +159,170 @@ func (fc *FelixConnection) handleInitFromFelix(msg *proto.Init) {
 		BackendType:   fapi.EtcdV2,
 		BackendConfig: etcdCfg,
 	}
-	datastore, err := backend.NewClient(cfg)
-	if err != nil {
-		glog.Fatal(err)
+	fc.hostname = msg.Hostname
+
+	var globalConfig, hostConfig map[string]string
+	for {
+		glog.V(1).Info("Connecting to datastore")
+		datastore, err := backend.NewClient(cfg)
+		if err != nil {
+			glog.Warningf("Failed to connect to datastore: %v", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		fc.datastore = datastore
+
+		glog.V(1).Info("Loading global config from dtaastore")
+		kvs, err := fc.datastore.List(model.GlobalConfigListOptions{})
+		if err != nil {
+			glog.Warningf("Failed to load config from datastore: %v", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		globalConfig = make(map[string]string)
+		for _, kv := range kvs {
+			key := kv.Key.(model.GlobalConfigKey)
+			value := kv.Value.(string)
+			globalConfig[key.Name] = value
+		}
+
+		glog.V(1).Info("Loading per-host config from dtaastore")
+		kvs, err = fc.datastore.List(
+			model.HostConfigListOptions{Hostname: msg.Hostname})
+		if err != nil {
+			glog.Warningf("Failed to load config from datastore: %v", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		hostConfig = make(map[string]string)
+		for _, kv := range kvs {
+			key := kv.Key.(model.HostConfigKey)
+			value := kv.Value.(string)
+			hostConfig[key.Name] = value
+		}
+		glog.V(1).Info("Loaded config from datastore")
+		break
 	}
 
 	// Respond to Felix with the etcd config.
-	// BUG(SMC) Need to actually load the config from etcd.
-	globalConfig := make(map[string]string)
-	hostConfig := make(map[string]string)
-	configMsg := proto.ConfigLoaded{
+	glog.V(1).Infof("Loaded global config from datastore: %v", globalConfig)
+	glog.V(1).Infof("Loaded host config from datastore: %v", hostConfig)
+	configMsg := proto.ConfigUpdate{
 		Global:  globalConfig,
 		PerHost: hostConfig,
 	}
 	fc.toFelix <- configMsg
+}
 
+func (fc *FelixConnection) handleConfigResolvedFromFelix(msg *proto.ConfigResolved) {
+	glog.V(1).Infof("Config resolved message from front-end: %#v", *msg)
+	// BUG(smc) TODO: honour the settings in the message.
 	// Create the ipsets/active policy calculation pipeline, which will
 	// do the dynamic calculation of ipset memberships and active policies
 	// etc.
-	asyncCalcGraph := calc.NewAsyncCalcGraph(msg.Hostname, fc.toFelix)
+	asyncCalcGraph := calc.NewAsyncCalcGraph(fc.hostname, fc.toFelix)
 
 	// Create the datastore syncer, which will feed the calculation graph.
-	syncer := datastore.Syncer(asyncCalcGraph)
+	syncer := fc.datastore.Syncer(asyncCalcGraph)
+	glog.V(3).Infof("Created Syncer: %#v", syncer)
 
 	// Start the background processing threads.
+	glog.V(2).Infof("Starting the datastore Syncer/processing graph")
 	syncer.Start()
 	asyncCalcGraph.Start()
+	glog.V(2).Infof("Started the datastore Syncer/processing graph")
 }
 
-func (fc *FelixConnection) sendMessagesToFelix() {
+func (fc *FelixConnection) processUpdatesFromCalculationGraph() {
 	defer func() { fc.failed <- true }()
 	for {
 		msg := <-fc.toFelix
-		envelope := proto.Envelope{
-			Payload: msg,
+
+		// Special case: we load the config at start of day before we
+		// start polling the datastore. This means that there's a race
+		// where the config could be changed before we start polling.
+		// To close that, we rebuild our picture of the config during
+		// the resync and then re-send the now-in-sync config once
+		// the datastore is in-sync.
+		switch msg := msg.(type) {
+		case *proto.DatastoreStatus:
+			if !fc.datastoreInSync && msg.Status == bapi.InSync.String() {
+				fc.datastoreInSync = true
+				fc.sendCachedConfigToFelix()
+			}
+		case *calc.GlobalConfigUpdate:
+			if msg.ValueOrNil != nil {
+				fc.globalConfig[msg.Name] = *msg.ValueOrNil
+			} else {
+				delete(fc.globalConfig, msg.Name)
+			}
+			if fc.datastoreInSync {
+				// We're in-sync so this is a config update.
+				// Tell Felix.
+				fc.sendCachedConfigToFelix()
+			}
+			continue
+		case *calc.HostConfigUpdate:
+			if msg.ValueOrNil != nil {
+				fc.hostConfig[msg.Name] = *msg.ValueOrNil
+			} else {
+				delete(fc.hostConfig, msg.Name)
+			}
+			if fc.datastoreInSync {
+				// We're in-sync so this is a config update.
+				// Tell Felix.
+				fc.sendCachedConfigToFelix()
+			}
+			continue
 		}
-		glog.V(3).Infof("Writing msg to felix: %#v\n", msg)
-		//if glog.V(4) {
-		//	bs := make([]byte, 0)
-		//	enc := codec.NewEncoderBytes(&bs, fc.codecHandle)
-		//	enc.Encode(envelope)
-		//	dec := codec.NewDecoderBytes(bs, fc.codecHandle)
-		//	msgAsMap := make(map[string]interface{})
-		//	dec.Decode(msgAsMap)
-		//	jsonMsg, err := json.Marshal(msgAsMap)
-		//	if err == nil {
-		//		glog.Infof("Dumped message: %v", string(jsonMsg))
-		//	} else {
-		//		glog.Infof("Failed to dump map to JSON: (%v) %v", err, msgAsMap)
-		//	}
-		//}
-		if err := fc.encoder.Encode(envelope); err != nil {
-			glog.Fatalf("Failed to send message %#v to felix: %v", msg, err)
-		}
-		fc.felixBufWriter.Flush()
+
+		fc.marshalToFelix(msg)
 	}
+}
+
+func (fc *FelixConnection) sendCachedConfigToFelix() {
+	msg := &proto.ConfigUpdate{
+		Global:  fc.globalConfig,
+		PerHost: fc.hostConfig,
+	}
+	fc.marshalToFelix(msg)
+}
+
+func (fc *FelixConnection) marshalToFelix(msg interface{}) {
+	envelope := proto.Envelope{
+		Payload: msg,
+	}
+	glog.V(3).Infof("Writing msg to felix: %#v\n", msg)
+	if glog.V(4) {
+		// For debugging purposes, dump the message to
+		// messagepack; parse it as a map and dump it to JSON.
+		bs := make([]byte, 0)
+		enc := codec.NewEncoderBytes(&bs, msgpackHandle)
+		enc.Encode(envelope)
+
+		dec := codec.NewDecoderBytes(bs, msgpackHandle)
+		var decodedType string
+		msgAsMap := make(map[string]interface{})
+		dec.Decode(&decodedType)
+		dec.Decode(msgAsMap)
+		jsonMsg, err := json.Marshal(msgAsMap)
+		if err == nil {
+			glog.Infof("Dumped message: %v %v", decodedType, string(jsonMsg))
+		} else {
+			glog.Infof("Failed to dump map to JSON: (%v) %v", err, msgAsMap)
+		}
+	}
+	if err := fc.encoder.Encode(envelope); err != nil {
+		glog.Fatalf("Failed to send message %#v to felix: %v", msg, err)
+	}
+	fc.felixBufWriter.Flush()
 }
 
 func (fc *FelixConnection) Start() {
 	// Start background thread to read messages from Felix.
 	go fc.readMessagesFromFelix()
 	// And one to write to Felix.
-	go fc.sendMessagesToFelix()
+	go fc.processUpdatesFromCalculationGraph()
 }
 
 func (fc *FelixConnection) Join() {

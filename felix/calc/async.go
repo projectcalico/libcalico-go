@@ -22,9 +22,9 @@ import (
 )
 
 type AsyncCalcGraph struct {
+	Dispatcher   *store.Dispatcher
 	inputEvents  chan interface{}
 	outputEvents chan<- interface{}
-	dispatcher   *store.Dispatcher
 	eventBuffer  *EventBuffer
 }
 
@@ -34,7 +34,7 @@ func NewAsyncCalcGraph(hostname string, outputEvents chan<- interface{}) *AsyncC
 	g := &AsyncCalcGraph{
 		inputEvents:  make(chan interface{}, 10),
 		outputEvents: outputEvents,
-		dispatcher:   dispatcher,
+		Dispatcher:   dispatcher,
 		eventBuffer:  eventBuffer,
 	}
 	eventBuffer.callback = g.onEvent
@@ -54,9 +54,9 @@ func (b *AsyncCalcGraph) loop() {
 		update := <-b.inputEvents
 		switch update := update.(type) {
 		case []model.KVPair:
-			b.dispatcher.OnUpdates(update)
+			b.Dispatcher.OnUpdates(update)
 		case api.SyncStatus:
-			b.dispatcher.OnStatusUpdated(update)
+			b.Dispatcher.OnStatusUpdated(update)
 			b.onEvent(&proto.DatastoreStatus{
 				Status: update.String(),
 			})
@@ -71,4 +71,14 @@ func (b *AsyncCalcGraph) onEvent(event interface{}) {
 
 func (b *AsyncCalcGraph) Start() {
 	go b.loop()
+}
+
+type GlobalConfigUpdate struct {
+	Name       string
+	ValueOrNil *string
+}
+
+type HostConfigUpdate struct {
+	Name       string
+	ValueOrNil *string
 }

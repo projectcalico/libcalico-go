@@ -126,6 +126,20 @@ func (buf *EventBuffer) flushAddsOrRemoves(setID string) {
 	buf.callback(&deltaUpdate)
 }
 
+func (buf *EventBuffer) OnGlobalConfigUpdate(key model.GlobalConfigKey, value *string) {
+	buf.callback(&GlobalConfigUpdate{
+		Name:       key.Name,
+		ValueOrNil: value,
+	})
+}
+
+func (buf *EventBuffer) OnHostConfigUpdate(key model.HostConfigKey, value *string) {
+	buf.callback(&HostConfigUpdate{
+		Name:       key.Name,
+		ValueOrNil: value,
+	})
+}
+
 func (buf *EventBuffer) OnPolicyActive(key model.PolicyKey, rules *proto.Rules) {
 	buf.pendingUpdates = append(buf.pendingUpdates, &proto.ActivePolicyUpdate{
 		Tier:   key.Tier,

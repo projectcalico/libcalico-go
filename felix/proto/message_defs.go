@@ -35,7 +35,7 @@ import (
 var typeToMsgType map[reflect.Type]string = map[reflect.Type]string{
 	// BUG(smc) Should we shorten these for maximally compact encoding?
 	reflect.TypeOf(Init{}):           "init",
-	reflect.TypeOf(ConfigLoaded{}):   "config_loaded",
+	reflect.TypeOf(ConfigUpdate{}):   "config_update",
 	reflect.TypeOf(ConfigResolved{}): "config_resolved",
 
 	reflect.TypeOf(DatastoreStatus{}): "datastore_status",
@@ -79,7 +79,7 @@ type Init struct {
 }
 
 // ConfigLoaded is our response with the config loaded from the datastore.
-type ConfigLoaded struct {
+type ConfigUpdate struct {
 	Global  map[string]string `codec:"global"`
 	PerHost map[string]string `codec:"host"`
 }
@@ -88,6 +88,7 @@ type ConfigLoaded struct {
 // config.
 type ConfigResolved struct {
 	LogFile string `codec:"log_file"`
+	// BUG(smc) add log severities to config resolved.
 	//LogSeverityFile   string `codec:"sev_file"`
 	//LogSeverityScreen string `codec:"sev_screen"`
 	//LogSeveritySyslog string `codec:"sev_syslog"`

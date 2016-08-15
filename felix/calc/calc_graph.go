@@ -48,10 +48,16 @@ type endpointCallbacks interface {
 		filteredTiers []endpoint.TierInfo)
 }
 
+type configCallbacks interface {
+	OnGlobalConfigUpdate(key model.GlobalConfigKey, value *string)
+	OnHostConfigUpdate(key model.HostConfigKey, value *string)
+}
+
 type PipelineCallbacks interface {
 	ipSetUpdateCallbacks
 	rulesUpdateCallbacks
 	endpointCallbacks
+	configCallbacks
 }
 
 func NewCalculationGraph(callbacks PipelineCallbacks, hostname string) (input *store.Dispatcher) {
@@ -158,6 +164,14 @@ func NewCalculationGraph(callbacks PipelineCallbacks, hostname string) (input *s
 	// And hook its output to the callbacks.
 	polResolver.Callbacks = callbacks
 
+	// Register for config updates.
+	configFilter := &configFilter{
+		hostname:  hostname,
+		callbacks: callbacks,
+	}
+	sourceDispatcher.Register(model.GlobalConfigKey{}, configFilter)
+	sourceDispatcher.Register(model.HostConfigKey{}, configFilter)
+
 	return sourceDispatcher
 }
 
@@ -182,4 +196,34 @@ func (f *endpointHostnameFilter) OnUpdate(update model.KVPair) (filterOut bool) 
 }
 
 func (f *endpointHostnameFilter) OnDatamodelStatus(status api.SyncStatus) {
+}
+
+type configFilter struct {
+	hostname  string
+	callbacks configCallbacks
+}
+
+func (f *configFilter) OnUpdate(update model.KVPair) (filterOut bool) {
+	switch key := update.Key.(type) {
+	case model.HostConfigKey:
+		if key.Hostname != f.hostname {
+			filterOut = true
+			return
+		}
+		if value, ok := update.Value.(string); ok {
+			f.callbacks.OnHostConfigUpdate(key, &value)
+		} else {
+			f.callbacks.OnHostConfigUpdate(key, nil)
+		}
+	case model.GlobalConfigKey:
+		if value, ok := update.Value.(string); ok {
+			f.callbacks.OnGlobalConfigUpdate(key, &value)
+		} else {
+			f.callbacks.OnGlobalConfigUpdate(key, nil)
+		}
+	}
+	return
+}
+
+func (f *configFilter) OnDatamodelStatus(status api.SyncStatus) {
 }

@@ -42,11 +42,12 @@ func (syn *etcdSyncer) Start() {
 	// Start a background thread to read events from etcd.  It will
 	// queue events onto the etcdEvents channel.  If it drops out of sync,
 	// it will signal on the resyncIndex channel.
-	glog.Info("Starting etcd driver")
+	glog.Info("Starting etcd Syncer")
 	etcdEvents := make(chan event, 20000)
 	triggerResync := make(chan uint64, 5)
 	initialSnapshotIndex := make(chan uint64)
 	if !syn.OneShot {
+		glog.Info("Syncer not in one-shot mode, starting watcher thread")
 		go syn.watchEtcd(etcdEvents, triggerResync, initialSnapshotIndex)
 	}
 
@@ -76,6 +77,7 @@ type event struct {
 }
 
 func (syn *etcdSyncer) readSnapshotsFromEtcd(snapshotUpdates chan<- event, triggerResync <-chan uint64, initialSnapshotIndex chan<- uint64) {
+	glog.Info("Syncer snapshot-reading thread started")
 	getOpts := client.GetOptions{
 		Recursive: true,
 		Sort:      false,
