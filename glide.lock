@@ -1,10 +1,10 @@
-hash: 8fdab387020ceb4e1d0116a95b8f1a4b8cb014ff3959bc2c3297da1fde3bb21c
-updated: 2016-08-05T11:20:26.773705469+01:00
+hash: 1a696e4d1f4b30ceb1b1305d8baeb4201a10aa006f78ca8024b838896f6f2901
+updated: 2016-08-12T10:34:11.659733358-07:00
 imports:
 - name: github.com/cloudfoundry-incubator/candiedyaml
   version: 99c3df83b51532e3615f851d8c2dbb638f5313bf
 - name: github.com/coreos/etcd
-  version: 7ed8a133d2804385eba5d3d3704f549a4d210b83
+  version: 1ba7bb237fd54884381c7d4d46d78010d7aac2ad
   subpackages:
   - client
   - pkg/transport
@@ -13,11 +13,11 @@ imports:
   - pkg/fileutil
   - pkg/tlsutil
 - name: github.com/coreos/go-systemd
-  version: fa8411dcbcbad22b8542b0433914ef68b123f989
+  version: d4039021cfc2d0ea21d34afda21631314e83f75a
   subpackages:
   - journal
 - name: github.com/coreos/pkg
-  version: 3ac0863d7acf3bc44daf49afef8919af12f704ef
+  version: a48e304ff9331be6d5df352b6b47bd1395ab5dd7
   subpackages:
   - capnslog
 - name: github.com/docopt/docopt-go
@@ -28,18 +28,16 @@ imports:
   version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/kelseyhightower/envconfig
   version: 91921eb4cf999321cdbeebdba5a03555800d493b
+- name: github.com/satori/go.uuid
+  version: 0aa62d5ddceb50dbcb909d790b5345affd3669b6
 - name: github.com/ugorji/go
-  version: 3487a5545b3d480987dfb0492035299077fab33a
+  version: b94837a2404ab90efe9289e77a70694c355739cb
   subpackages:
   - codec
 - name: golang.org/x/net
-  version: 7c62cfdcccc65f87b0120ec841012ba816fc1aec
+  version: a728288923b47049b2ce791836767ffbe964a5bd
   subpackages:
   - context
 - name: gopkg.in/go-playground/validator.v8
-  version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
-- name: gopkg.in/tchap/go-patricia.v2
-  version: 0d76659452e3b71b109c45196b32e662db2ad16a
-  subpackages:
-  - patricia
-testImports: []
+  version: 7a080ada5ba072a91fd7f677bcf4d0e1aa286d39
+devImports: []
