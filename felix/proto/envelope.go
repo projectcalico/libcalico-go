@@ -46,10 +46,13 @@ func (e Envelope) CodecEncodeSelf(enc *codec.Encoder) {
 // as the correct type of message as per the message type.
 func (e *Envelope) CodecDecodeSelf(dec *codec.Decoder) {
 	glog.V(5).Info("Decoding Envelope")
-	var tag string
-	dec.MustDecode(&tag)
-	glog.V(5).Infof("Message tag: %#v", tag)
-	t := msgTypeToType[tag]
+	var msgType string
+	dec.MustDecode(&msgType)
+	glog.V(5).Infof("Message tag: %#v", msgType)
+	t := msgTypeToType[msgType]
+	if t == nil {
+		glog.Fatalf("Bad message, type: %#v", msgType)
+	}
 	glog.V(5).Infof("Message type: %v", t)
 	ptr := reflect.New(t)
 	iface := ptr.Interface()
