@@ -23,6 +23,7 @@ import (
 	"github.com/tigera/libcalico-go/datastructures/ip"
 	"github.com/tigera/libcalico-go/felix/calc"
 	"github.com/tigera/libcalico-go/felix/proto"
+	"github.com/tigera/libcalico-go/felix/status"
 	fapi "github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/backend"
 	bapi "github.com/tigera/libcalico-go/lib/backend/api"
@@ -72,7 +73,6 @@ func main() {
 		glog.Fatal("Failed to connect to felix")
 	}
 	glog.Info("Connected to Felix")
-
 	felixConn := NewFelixConnection(felixSocket)
 
 	glog.Info("Starting the datastore driver")
@@ -86,13 +86,16 @@ type ipUpdate struct {
 }
 
 type FelixConnection struct {
-	toFelix        chan interface{}
-	failed         chan bool
-	encoder        *codec.Encoder
-	felixBufWriter *bufio.Writer
-	decoder        *codec.Decoder
-	hostname       string
-	datastore      bapi.Client
+	toFelix         chan interface{}
+	endpointUpdates chan interface{}
+	inSync          chan bool
+	failed          chan bool
+	encoder         *codec.Encoder
+	felixBufWriter  *bufio.Writer
+	decoder         *codec.Decoder
+	hostname        string
+	datastore       bapi.Client
+	statusReporter  *status.EndpointStatusReporter
 
 	datastoreInSync bool
 	globalConfig    map[string]string
@@ -112,13 +115,15 @@ func NewFelixConnection(felixSocket net.Conn) *FelixConnection {
 	w := bufio.NewWriter(felixSocket)
 
 	felixConn := &FelixConnection{
-		toFelix:        make(chan interface{}),
-		failed:         make(chan bool),
-		encoder:        codec.NewEncoder(w, msgpackHandle),
-		felixBufWriter: w,
-		decoder:        codec.NewDecoder(r, msgpackHandle),
-		globalConfig:   make(map[string]string),
-		hostConfig:     make(map[string]string),
+		toFelix:         make(chan interface{}),
+		endpointUpdates: make(chan interface{}),
+		inSync:          make(chan bool),
+		failed:          make(chan bool),
+		encoder:         codec.NewEncoder(w, msgpackHandle),
+		felixBufWriter:  w,
+		decoder:         codec.NewDecoder(r, msgpackHandle),
+		globalConfig:    make(map[string]string),
+		hostConfig:      make(map[string]string),
 	}
 	return felixConn
 }
@@ -131,7 +136,7 @@ func (fc *FelixConnection) readMessagesFromFelix() {
 		if err != nil {
 			glog.Fatalf("Error reading from felix: %v", err)
 		}
-		glog.V(3).Infof("Message from Felix: %#v", msg)
+		glog.V(3).Infof("Message from Felix: %#v", msg.Payload)
 
 		payload := msg.Payload
 		switch msg := payload.(type) {
@@ -140,7 +145,15 @@ func (fc *FelixConnection) readMessagesFromFelix() {
 		case *proto.ConfigResolved:
 			fc.handleConfigResolvedFromFelix(msg)
 		case *proto.FelixStatusUpdate:
-			fc.handleStatusUpdateFromFelix(msg)
+			fc.handleProcessStatusUpdateFromFelix(msg)
+		case *proto.WorkloadEndpointStatus,
+			*proto.WorkloadEndpointStatusRemove,
+			*proto.HostEndpointStatus,
+			*proto.HostEndpointStatusRemove:
+			if fc.statusReporter == nil {
+				glog.Fatal("Received status update before starting status reporter")
+			}
+			fc.endpointUpdates <- msg
 		default:
 			glog.Warningf("XXXX Unknown message from felix: %#v", msg)
 		}
@@ -148,7 +161,7 @@ func (fc *FelixConnection) readMessagesFromFelix() {
 	}
 }
 
-func (fc *FelixConnection) handleStatusUpdateFromFelix(msg *proto.FelixStatusUpdate) {
+func (fc *FelixConnection) handleProcessStatusUpdateFromFelix(msg *proto.FelixStatusUpdate) {
 	glog.V(3).Infof("Status update from front-end: %v", *msg)
 	statusReport := model.StatusReport{
 		Timestamp:     msg.Timestamp,
@@ -249,6 +262,11 @@ func (fc *FelixConnection) handleInitFromFelix(msg *proto.Init) {
 
 func (fc *FelixConnection) handleConfigResolvedFromFelix(msg *proto.ConfigResolved) {
 	glog.V(1).Infof("Config resolved message from front-end: %#v", *msg)
+
+	fc.statusReporter = status.NewEndpointStatusReporter(
+		fc.hostname, fc.endpointUpdates, fc.inSync, fc.datastore)
+	fc.statusReporter.Start()
+
 	// BUG(smc) TODO: honour the settings in the message.
 	// Create the ipsets/active policy calculation pipeline, which will
 	// do the dynamic calculation of ipset memberships and active policies
@@ -282,6 +300,7 @@ func (fc *FelixConnection) processUpdatesFromCalculationGraph() {
 			if !fc.datastoreInSync && msg.Status == bapi.InSync.String() {
 				fc.datastoreInSync = true
 				fc.sendCachedConfigToFelix()
+				fc.inSync <- true
 			}
 		case *calc.GlobalConfigUpdate:
 			// BUG(smc) Make the calc graph do the config batching so its API can be purely felix/proto objects.
