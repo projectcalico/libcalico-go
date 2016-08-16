@@ -251,6 +251,7 @@ func (fc *FelixConnection) processUpdatesFromCalculationGraph() {
 				fc.sendCachedConfigToFelix()
 			}
 		case *calc.GlobalConfigUpdate:
+			// BUG(smc) Make the calc graph do the config batching so its API can be purely felix/proto objects.
 			if msg.ValueOrNil != nil {
 				fc.globalConfig[msg.Name] = *msg.ValueOrNil
 			} else {
