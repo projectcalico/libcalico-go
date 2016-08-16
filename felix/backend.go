@@ -98,8 +98,6 @@ type FelixConnection struct {
 	statusReporter  *status.EndpointStatusReporter
 
 	datastoreInSync bool
-	globalConfig    map[string]string
-	hostConfig      map[string]string
 
 	firstStatusReportSent bool
 }
@@ -117,13 +115,11 @@ func NewFelixConnection(felixSocket net.Conn) *FelixConnection {
 	felixConn := &FelixConnection{
 		toFelix:         make(chan interface{}),
 		endpointUpdates: make(chan interface{}),
-		inSync:          make(chan bool),
+		inSync:          make(chan bool, 1),
 		failed:          make(chan bool),
 		encoder:         codec.NewEncoder(w, msgpackHandle),
 		felixBufWriter:  w,
 		decoder:         codec.NewDecoder(r, msgpackHandle),
-		globalConfig:    make(map[string]string),
-		hostConfig:      make(map[string]string),
 	}
 	return felixConn
 }
@@ -231,7 +227,7 @@ func (fc *FelixConnection) handleInitFromFelix(msg *proto.Init) {
 			globalConfig[key.Name] = value
 		}
 
-		glog.V(1).Info("Loading per-host config from dtaastore")
+		glog.V(1).Info("Loading per-host config from datastore")
 		kvs, err = fc.datastore.List(
 			model.HostConfigListOptions{Hostname: msg.Hostname})
 		if err != nil {
@@ -294,56 +290,16 @@ func (fc *FelixConnection) processUpdatesFromCalculationGraph() {
 	for {
 		msg := <-fc.toFelix
 
-		// Special case: we load the config at start of day before we
-		// start polling the datastore. This means that there's a race
-		// where the config could be changed before we start polling.
-		// To close that, we rebuild our picture of the config during
-		// the resync and then re-send the now-in-sync config once
-		// the datastore is in-sync.
 		switch msg := msg.(type) {
 		case *proto.DatastoreStatus:
 			if !fc.datastoreInSync && msg.Status == bapi.InSync.String() {
 				fc.datastoreInSync = true
-				fc.sendCachedConfigToFelix()
 				fc.inSync <- true
 			}
-		case *calc.GlobalConfigUpdate:
-			// BUG(smc) Make the calc graph do the config batching so its API can be purely felix/proto objects.
-			if msg.ValueOrNil != nil {
-				fc.globalConfig[msg.Name] = *msg.ValueOrNil
-			} else {
-				delete(fc.globalConfig, msg.Name)
-			}
-			if fc.datastoreInSync {
-				// We're in-sync so this is a config update.
-				// Tell Felix.
-				fc.sendCachedConfigToFelix()
-			}
-			continue
-		case *calc.HostConfigUpdate:
-			if msg.ValueOrNil != nil {
-				fc.hostConfig[msg.Name] = *msg.ValueOrNil
-			} else {
-				delete(fc.hostConfig, msg.Name)
-			}
-			if fc.datastoreInSync {
-				// We're in-sync so this is a config update.
-				// Tell Felix.
-				fc.sendCachedConfigToFelix()
-			}
-			continue
 		}
 
 		fc.marshalToFelix(msg)
 	}
-}
-
-func (fc *FelixConnection) sendCachedConfigToFelix() {
-	msg := &proto.ConfigUpdate{
-		Global:  fc.globalConfig,
-		PerHost: fc.hostConfig,
-	}
-	fc.marshalToFelix(msg)
 }
 
 func (fc *FelixConnection) marshalToFelix(msg interface{}) {

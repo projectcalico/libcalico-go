@@ -294,6 +294,7 @@ func (syn *etcdSyncer) mergeUpdates(snapshotUpdates <-chan event, watcherUpdates
 }
 
 func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64) {
+	glog.V(4).Infof("Parsing etcd key %#v", key)
 	parsedKey := model.ParseKey(key)
 	if parsedKey == nil {
 		glog.V(3).Infof("Failed to parse key %v", key)
@@ -302,6 +303,8 @@ func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64) {
 		}
 		return
 	}
+	glog.V(4).Infof("Parsed etcd key: %v", parsedKey)
+
 	var parsedValue interface{}
 	var err error
 	if value != nil {
@@ -309,6 +312,7 @@ func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64) {
 		if err != nil {
 			glog.Warningf("Failed to parse value for %v: %#v", key, *value)
 		}
+		glog.V(4).Infof("Parsed value: %#v", parsedValue)
 	}
 	updates := []model.KVPair{
 		{Key: parsedKey, Value: parsedValue, Revision: revision},

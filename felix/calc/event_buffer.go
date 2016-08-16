@@ -84,6 +84,7 @@ func (buf *EventBuffer) Flush() {
 		buf.ipSetsRemoved.Discard(item)
 		return
 	})
+	glog.V(3).Infof("Done flushing IP set removes")
 	buf.ipSetsAdded.Iter(func(item interface{}) (err error) {
 		setID := item.(string)
 		glog.V(3).Infof("Flushing IP set added: %v", setID)
@@ -99,12 +100,17 @@ func (buf *EventBuffer) Flush() {
 		buf.ipSetsAdded.Discard(item)
 		return
 	})
+	glog.V(3).Infof("Done flushing IP set adds")
 	buf.ipsRemoved.IterKeys(buf.flushAddsOrRemoves)
+	glog.V(3).Infof("Done flushing IP address removes")
 	buf.ipsAdded.IterKeys(buf.flushAddsOrRemoves)
+	glog.V(3).Infof("Done flushing IP address adds")
 
+	glog.V(3).Infof("Flushing %v pending updates", len(buf.pendingUpdates))
 	for _, update := range buf.pendingUpdates {
 		buf.callback(update)
 	}
+	glog.V(3).Infof("Done flushing %v pending updates", len(buf.pendingUpdates))
 	buf.pendingUpdates = make([]interface{}, 0)
 }
 
@@ -126,17 +132,10 @@ func (buf *EventBuffer) flushAddsOrRemoves(setID string) {
 	buf.callback(&deltaUpdate)
 }
 
-func (buf *EventBuffer) OnGlobalConfigUpdate(key model.GlobalConfigKey, value *string) {
-	buf.callback(&GlobalConfigUpdate{
-		Name:       key.Name,
-		ValueOrNil: value,
-	})
-}
-
-func (buf *EventBuffer) OnHostConfigUpdate(key model.HostConfigKey, value *string) {
-	buf.callback(&HostConfigUpdate{
-		Name:       key.Name,
-		ValueOrNil: value,
+func (buf *EventBuffer) OnConfigUpdate(globalConfig, hostConfig map[string]string) {
+	buf.pendingUpdates = append(buf.pendingUpdates, &proto.ConfigUpdate{
+		Global:  globalConfig,
+		PerHost: hostConfig,
 	})
 }
 
