@@ -26,6 +26,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/pkg/transport"
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/lib/backend/api"
 	. "github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/errors"
 	"golang.org/x/net/context"
@@ -100,6 +101,10 @@ func NewEtcdClient(config *EtcdConfig) (*EtcdClient, error) {
 	keys := etcd.NewKeysAPI(client)
 
 	return &EtcdClient{etcdClient: client, etcdKeysAPI: keys}, nil
+}
+
+func (c *EtcdClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
+	return newSyncer(c.etcdKeysAPI, callbacks)
 }
 
 // Create an entry in the datastore.  This errors if the entry already exists.
@@ -203,6 +208,14 @@ func (c *EtcdClient) set(d *KVPair, options *etcd.SetOptions) (*KVPair, error) {
 
 	glog.V(2).Infof("Key: %#v\n", key)
 	glog.V(2).Infof("Value: %s\n", value)
+	if d.TTL != 0 {
+		glog.V(2).Infof("TTL: %v", d.TTL)
+		// Take a copy of the default options so we can set the TTL for
+		// this request only.
+		optionsCopy := *options
+		optionsCopy.TTL = d.TTL
+		options = &optionsCopy
+	}
 	glog.V(2).Infof("Options: %+v\n", options)
 	result, err := c.etcdKeysAPI.Set(context.Background(), key, value, options)
 	if err != nil {

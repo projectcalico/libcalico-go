@@ -13,6 +13,9 @@ ut:
 .PHONEY: force
 force:
 	true
+bin/felix-backend: force
+	mkdir -p bin
+	go build -o "$@" "./felix/backend.go"
 
 bin/calicoctl: force
 	mkdir -p bin

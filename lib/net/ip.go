@@ -16,6 +16,7 @@ package net
 
 import (
 	"encoding/json"
+	"github.com/ugorji/go/codec"
 	"net"
 )
 
@@ -48,4 +49,15 @@ func (i IP) Version() int {
 		return 6
 	}
 	return 4
+}
+
+func (i IP) CodecEncodeSelf(enc *codec.Encoder) {
+	enc.Encode(i.String())
+}
+
+func (i *IP) CodecDecodeSelf(dec *codec.Decoder) {
+	var s *string
+	dec.MustDecode(s)
+	b := []byte(*s)
+	i.UnmarshalText(b)
 }

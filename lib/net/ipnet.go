@@ -16,6 +16,7 @@ package net
 
 import (
 	"encoding/json"
+	"github.com/ugorji/go/codec"
 	"net"
 )
 
@@ -58,4 +59,20 @@ func ParseCIDR(c string) (*IP, *IPNet, error) {
 		return nil, nil, e
 	}
 	return &IP{netIP}, &IPNet{*netIPNet}, e
+}
+
+func (i IPNet) CodecEncodeSelf(enc *codec.Encoder) {
+	enc.Encode(i.String())
+}
+
+func (i *IPNet) CodecDecodeSelf(dec *codec.Decoder) {
+	var s *string
+	dec.MustDecode(s)
+	if _, ipnet, err := net.ParseCIDR(*s); err != nil {
+		return
+	} else {
+		i.IP = ipnet.IP
+		i.Mask = ipnet.Mask
+		return
+	}
 }

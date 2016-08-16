@@ -16,6 +16,7 @@ package net
 
 import (
 	"encoding/json"
+	"github.com/ugorji/go/codec"
 	"net"
 )
 
@@ -40,5 +41,20 @@ func (m *MAC) UnmarshalJSON(b []byte) error {
 	} else {
 		m.HardwareAddr = mac
 		return nil
+	}
+}
+
+func (m MAC) CodecEncodeSelf(enc *codec.Encoder) {
+	enc.Encode(m.String())
+}
+
+func (m *MAC) CodecDecodeSelf(dec *codec.Decoder) {
+	var s string
+	dec.MustDecode(&s)
+	if mac, err := net.ParseMAC(s); err != nil {
+		return
+	} else {
+		m.HardwareAddr = mac
+		return
 	}
 }

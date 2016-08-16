@@ -1,5 +1,5 @@
 // Copyright (c) 2016 Tigera, Inc. All rights reserved.
-//
+
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -12,36 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package numorstring
+package multidict_test
 
 import (
-	"github.com/golang/glog"
-	"github.com/ugorji/go/codec"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+
+	"testing"
 )
 
-type Port struct {
-	Int32OrString
-}
-
-func (p Port) CodecEncodeSelf(enc *codec.Encoder) {
-	if p.Type == NumOrStringNum {
-		enc.Encode(p.NumVal)
-	} else {
-		enc.Encode(p.StrVal)
-	}
-}
-
-func (p *Port) CodecDecodeSelf(dec *codec.Decoder) {
-	var v interface{}
-	dec.Decode(v)
-	switch v := v.(type) {
-	case string:
-		p.StrVal = v
-		p.Type = NumOrStringString
-	case float64:
-		p.NumVal = int32(v)
-		p.Type = NumOrStringNum
-	default:
-		glog.Fatalf("Unexpected type for protocol: %#v", v)
-	}
+func TestMultidict(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Multidict Suite")
 }
