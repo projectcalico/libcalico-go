@@ -131,8 +131,8 @@ func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource
 			if err != nil {
 				return nil, err
 			}
-			p.Metadata.Hostname = hostname
 		}
+		p.Metadata.Hostname = hostname
 		return *p, nil
 
 	default:

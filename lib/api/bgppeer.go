@@ -25,14 +25,14 @@ type BGPPeerMetadata struct {
 	// The hostname of the node that is peering with this peer.  If left blank,
 	// Calico assumes this is a "global" BGP peer - i.e. it peers with every Calico
 	// node in the deployment.
-	Hostname string `json:"hostname,omitempty" validate:"hostname,omitempty"`
+	Hostname string `json:"hostname,omitempty" validate:"omitempty,name"`
 	// The IP address of the peer.
-	PeerIP   IP     `json:"peerIP" validate:"ip,omitempty"`
+	PeerIP   IP     `json:"peerIP" validate:"omitempty,ip"`
 }
 
 type BGPPeerSpec struct {
 	// The AS Number of the peer
-	ASNum int `json:"asnum,omitempty"`
+	ASNum int `json:"asNum" validate:"omitempty,asn"`
 }
 
 type BGPPeer struct {

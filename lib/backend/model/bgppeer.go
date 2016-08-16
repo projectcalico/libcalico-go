@@ -93,7 +93,7 @@ func (options BGPPeerListOptions) ParseDefaultKey(ekey string) Key {
 
 	if r := matchGlobalBGPPeer.FindAllSubmatch(ekeyb, -1); len(r) == 1 {
 		_ = peerIP.UnmarshalText(r[0][1])
-	} else if r := matchHostBGPPeer.FindAllSubmatch(ekeyb, -1); len(r) == 2 {
+	} else if r := matchHostBGPPeer.FindAllSubmatch(ekeyb, -1); len(r) == 1 {
 		hostname = string(r[0][1])
 		_ = peerIP.UnmarshalText(r[0][2])
 	} else {
