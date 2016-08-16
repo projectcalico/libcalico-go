@@ -97,6 +97,8 @@ type FelixConnection struct {
 	datastoreInSync bool
 	globalConfig    map[string]string
 	hostConfig      map[string]string
+
+	firstStatusReportSent bool
 }
 
 type Startable interface {
@@ -137,10 +139,41 @@ func (fc *FelixConnection) readMessagesFromFelix() {
 			fc.handleInitFromFelix(msg)
 		case *proto.ConfigResolved:
 			fc.handleConfigResolvedFromFelix(msg)
+		case *proto.FelixStatusUpdate:
+			fc.handleStatusUpdateFromFelix(msg)
 		default:
 			glog.Warningf("XXXX Unknown message from felix: %#v", msg)
 		}
 		glog.V(3).Info("Finished handling message from front-end")
+	}
+}
+
+func (fc *FelixConnection) handleStatusUpdateFromFelix(msg *proto.FelixStatusUpdate) {
+	glog.V(3).Infof("Status update from front-end: %v", *msg)
+	statusReport := model.StatusReport{
+		Timestamp:     msg.Timestamp,
+		UptimeSeconds: msg.UptimeSeconds,
+		FirstUpdate:   !fc.firstStatusReportSent,
+	}
+	kv := model.KVPair{
+		Key:   model.ActiveStatusReportKey{Hostname: fc.hostname},
+		Value: &statusReport,
+		// BUG(smc) Should honour TTL config
+		TTL: 90 * time.Second,
+	}
+	_, err := fc.datastore.Apply(&kv)
+	if err != nil {
+		glog.Warningf("Failed to write status to datastore: %v", err)
+	} else {
+		fc.firstStatusReportSent = true
+	}
+	kv = model.KVPair{
+		Key:   model.LastStatusReportKey{Hostname: fc.hostname},
+		Value: &statusReport,
+	}
+	_, err = fc.datastore.Apply(&kv)
+	if err != nil {
+		glog.Warningf("Failed to write status to datastore: %v", err)
 	}
 }
 
