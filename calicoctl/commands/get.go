@@ -22,43 +22,14 @@ import (
 	"fmt"
 
 	"encoding/json"
+	"text/template"
+	"text/tabwriter"
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
+	"github.com/tigera/libcalico-go/calicoctl/resourcemgr"
+	"os"
 )
-
-// Store a resourceHelper for each resource unversioned.TypeMetadata.
-var templates map[unversioned.TypeMetadata]string
-
-// Register all of the available resource types, this includes resource lists as well.
-func init() {
-	templates = make(map[unversioned.TypeMetadata]string)
-
-	registerHelper := func(t unversioned.Resource) {
-		tmd := t.GetTypeMetadata()
-		rh := resourceHelper{
-			tmd,
-			reflect.ValueOf(t).Elem().Type(),
-		}
-		helpers[tmd] = rh
-	}
-
-	// Register all API resources supported by the generic resource interface.
-	registerHelper(api.NewTier())
-	registerHelper(api.NewTierList())
-	registerHelper(api.NewPolicy())
-	registerHelper(api.NewPolicyList())
-	registerHelper(api.NewPool())
-	registerHelper(api.NewPoolList())
-	registerHelper(api.NewProfile())
-	registerHelper(api.NewProfileList())
-	registerHelper(api.NewHostEndpoint())
-	registerHelper(api.NewHostEndpointList())
-	registerHelper(api.NewWorkloadEndpoint())
-	registerHelper(api.NewWorkloadEndpointList())
-	registerHelper(api.NewBGPPeer())
-	registerHelper(api.NewBGPPeerList())
-}
 
 func Get(args []string) error {
 	doc := EtcdIntro + `Display one or many resources identified by file, stdin or resource type and name.
@@ -83,7 +54,7 @@ Examples:
 
 Options:
   -f --filename=<FILENAME>     Filename to use to get the resource.  If set to "-" loads from stdin.
-  -o --output=<OUTPUT FORMAT>  Output format.  One of: yaml, json.  [Default: yaml]
+  -o --output=<OUTPUT FORMAT>  Output format.  One of: ps, wide, yaml, json.  [Default: ps]
   -t --tier=<TIER>             The policy tier.
   -n --hostname=<HOSTNAME>     The hostname.
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
@@ -118,8 +89,10 @@ Options:
 		get_output_yaml(results.resources)
 	case "json":
 		get_output_json(results.resources)
-	case "table":
-		get_output_table(results.resources)
+	case "ps":
+		get_output_table(results.resources, false)
+	case "wide":
+		get_output_table(results.resources, true)
 	}
 
 	return nil
@@ -170,10 +143,19 @@ func get_output_yaml(resources []unversioned.Resource) {
 	}
 }
 
-func get_output_table(resources []unversioned.Resource) {
+func get_output_table(resources []unversioned.Resource, wide bool) {
 	for idx, resource := range resources {
 		// Look up the format string for the specific resource type.
-		format, ok := templates[]
+		format := resourcemgr.GetPSTemplate(resource, wide)
+
+
+		tmpl, err := template.New("get").Parse(format)
+		if err != nil {
+			panic(err)
+		}
+
+		writer := tabwriter.NewWriter(os.Stdout, 5, 1, 1, ' ', 0)
+		err = tmpl.Execute(writer, resource)
 
 		// If there are more resources then make sure we leave a gap
 		// between each table.

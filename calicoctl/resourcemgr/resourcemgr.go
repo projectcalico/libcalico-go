@@ -211,3 +211,14 @@ func CreateResourcesFromFile(f string) ([]unversioned.Resource, error) {
 
 	return createResourcesFromBytes(b)
 }
+
+// GetPSTemplate returns the golang template used to provide ps-style output for a particular
+// resource.  The output ay be displayed in wide-format if required.
+func GetPSTemplate(resource unversioned.Resource, wide bool) string {
+	rh := helpers[resource.GetTypeMetadata()]
+	if wide {
+		return rh.psWideTemplate
+	} else {
+		return rh.psTemplate
+	}
+}
