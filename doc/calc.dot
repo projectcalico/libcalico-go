@@ -6,15 +6,40 @@ node [fontname=Helvetica]
 edge [fontname=Helvetica,fontsize=10]
 
     subgraph cluster0 {
-    label="Datastore layer";
+    label="Datastore layer: Syncer goroutine";
 
         Syncer [shape=box]
+
+        Syncer -> SyncerCallbacks [label="typed KVs"]
+
+        SyncerCallbacks [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+          <tr><td><font point-size="14">Syncer callbacks API</font></td></tr>
+          <tr><td align="left"><font point-size="10">Interface to frontend.<BR ALIGN="LEFT"/>
+<BR ALIGN="LEFT"/>
+OnStatusUpdated(status SyncStatus)<BR ALIGN="LEFT"/>
+OnUpdates(updates []KVPair)<BR ALIGN="LEFT"/>
+</font></td></tr>
+        </table>>, shape=none, margin=0];
+
+        SyncerCallbacks -> AsyncCalcGraph [label="<<implemented by>>"]
     }
 
-    Syncer -> Dispatcher [label="typed KVs"]
+    AsyncCalcGraph [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <tr><td WIDTH="200"><font point-size="14" >AsyncCalcGraph struct</font></td></tr>
+      <tr><td><font point-size="10">Puts updates on channel</font></td></tr>
+    </table>>, shape=none, margin=0]
+    AsyncCalcGraph -> AsyncCalcGraph2 [label="<<via channel>>\nSyncStatus and []KVPair", penwidth=5]
 
     subgraph cluster1 {
-    label="Calculation layer";
+    label="Calculation layer: graph processing goroutine";
+
+        AsyncCalcGraph2 [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+          <tr><td WIDTH="200"><font point-size="14" >AsyncCalcGraph struct</font></td></tr>
+          <tr><td><font point-size="10">Converts channel back to method calls.<BR ALIGN="LEFT"/>Flushes event buffer after each dispatch.</font></td></tr>
+        </table>>, shape=none, margin=0]
+        AsyncCalcGraph2 -> Dispatcher [penwidth=5]
+        AsyncCalcGraph2 -> EventBuffer [label="Flush()"]
+
         subgraph {
             /* Put some padding either side of the Dispatcher. */
             rank=same; nodepadding1; Dispatcher; nodepadding2;
@@ -116,10 +141,17 @@ OnEndpointTierUpdate(endpointKey model.Key,<BR ALIGN="LEFT"/>
     filteredTiers []endpoint.TierInfo)<BR ALIGN="LEFT"/>
 </font></td></tr>
         </table>>, shape=none, margin=0];
+
+        PipelineCallbacks -> EventBuffer [label="<<implemented by>>"]
+
+        EventBuffer [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+          <tr><td><font point-size="14">Event buffer</font></td></tr>
+          <tr><td><font point-size="10">Batches/coalesces IP set updates.<BR ALIGN="LEFT"/>Emits front-end structs.</font></td></tr>
+        </table>>, shape=none, margin=0];
     }
 
     subgraph cluster2 {
-    label="Felix layer";
+    label="Felix layer: writer goroutine";
         FelixConnection [label=<<table BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
           <tr><td><font point-size="14">Felix connection</font></td></tr>
           <tr><td><font point-size="10">Marshals messages to/from felix.</font></td></tr>
@@ -127,7 +159,7 @@ OnEndpointTierUpdate(endpointKey model.Key,<BR ALIGN="LEFT"/>
     }
 
 
-    PipelineCallbacks -> FelixConnection [label="<<implemented by>>"]
+    EventBuffer -> FelixConnection [label="<<via channel>>\nproto.XYZUpdate structs", penwidth=2]
     FelixConnection -> Felix [label="messagepack"];
     Felix [shape=box, label="Felix front-end"];
 }
