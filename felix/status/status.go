@@ -31,12 +31,16 @@ type EndpointStatusReporter struct {
 	datastore          api.Client
 	epStatusIDToStatus map[model.Key]string
 	dirtyStatIDs       set.Set
+	reportingDelay     time.Duration
+	resyncInterval     time.Duration
 }
 
 func NewEndpointStatusReporter(hostname string,
 	endpointUpdates <-chan interface{},
 	inSync <-chan bool,
-	datastore api.Client) *EndpointStatusReporter {
+	datastore api.Client,
+	reportingDelay time.Duration,
+	resyncInterval time.Duration) *EndpointStatusReporter {
 	return &EndpointStatusReporter{
 		hostname:           hostname,
 		endpointUpdates:    endpointUpdates,
@@ -44,6 +48,8 @@ func NewEndpointStatusReporter(hostname string,
 		inSync:             inSync,
 		epStatusIDToStatus: make(map[model.Key]string),
 		dirtyStatIDs:       set.New(),
+		reportingDelay:     reportingDelay,
+		resyncInterval:     resyncInterval,
 	}
 }
 
@@ -52,15 +58,16 @@ func (esr *EndpointStatusReporter) Start() {
 }
 
 func (esr *EndpointStatusReporter) loopHandlingEndpointStatusUpdates() {
+	glog.V(1).Infof("Starting endpoint status reporter loop with resync "+
+		"interval %v, report rate limit: 1/%v", esr.resyncInterval,
+		esr.reportingDelay)
 	datamodelInSync := false
 	resyncRequested := false
 	updatesAllowed := true
 
 	// BUG(smc) Should jitter the tickers.
-	// BUG(smc) Should have setting for status cleanup timer interval
-	resyncSchedulingTicker := time.NewTicker(30 * time.Second)
-	// BUG(smc) Should have setting for status update timer interval
-	updateRateLimitTicker := time.NewTicker(1 * time.Second)
+	resyncSchedulingTicker := time.NewTicker(esr.resyncInterval)
+	updateRateLimitTicker := time.NewTicker(esr.reportingDelay)
 	for {
 		select {
 		case <-resyncSchedulingTicker.C:

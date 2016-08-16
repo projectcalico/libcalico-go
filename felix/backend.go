@@ -150,10 +150,9 @@ func (fc *FelixConnection) readMessagesFromFelix() {
 			*proto.WorkloadEndpointStatusRemove,
 			*proto.HostEndpointStatus,
 			*proto.HostEndpointStatusRemove:
-			if fc.statusReporter == nil {
-				glog.Fatal("Received status update before starting status reporter")
+			if fc.statusReporter != nil {
+				fc.endpointUpdates <- msg
 			}
-			fc.endpointUpdates <- msg
 		default:
 			glog.Warningf("XXXX Unknown message from felix: %#v", msg)
 		}
@@ -263,9 +262,15 @@ func (fc *FelixConnection) handleInitFromFelix(msg *proto.Init) {
 func (fc *FelixConnection) handleConfigResolvedFromFelix(msg *proto.ConfigResolved) {
 	glog.V(1).Infof("Config resolved message from front-end: %#v", *msg)
 
-	fc.statusReporter = status.NewEndpointStatusReporter(
-		fc.hostname, fc.endpointUpdates, fc.inSync, fc.datastore)
-	fc.statusReporter.Start()
+	if msg.EndpointStatusReportingDelay != 0 && msg.EndpointStatusResyncInterval != 0 {
+		glog.V(1).Info("Endpoint status reporting enabled, starting status reporter")
+		fc.statusReporter = status.NewEndpointStatusReporter(
+			fc.hostname, fc.endpointUpdates, fc.inSync, fc.datastore,
+			time.Duration(msg.EndpointStatusReportingDelay*1000.0)*time.Millisecond,
+			time.Duration(msg.EndpointStatusResyncInterval*1000.0)*time.Millisecond,
+		)
+		fc.statusReporter.Start()
+	}
 
 	// BUG(smc) TODO: honour the settings in the message.
 	// Create the ipsets/active policy calculation pipeline, which will

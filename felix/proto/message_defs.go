@@ -86,7 +86,9 @@ type ConfigUpdate struct {
 // ConfigResolved comes back from the front end to give us the resolved/parsed
 // config.
 type ConfigResolved struct {
-	LogFile string `codec:"log_file"`
+	LogFile                      string  `codec:"log_file"`
+	EndpointStatusReportingDelay float64 `codec:"ep_status_report_delay_seconds"`
+	EndpointStatusResyncInterval float64 `codec:"ep_status_resync_interval_seconds"`
 	// BUG(smc) add log severities to config resolved.
 	//LogSeverityFile   string `codec:"sev_file"`
 	//LogSeverityScreen string `codec:"sev_screen"`
