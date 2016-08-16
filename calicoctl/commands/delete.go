@@ -119,6 +119,8 @@ func (d delete) execute(client *client.Client, resource unversioned.Resource) (u
 		err = client.Tiers().Delete(r.Metadata)
 	case api.WorkloadEndpoint:
 		err = fmt.Errorf("Workload endpoints cannot be managed directly")
+	case api.BGPPeer:
+		err = client.BGPPeers().Delete(r.Metadata)
 	default:
 		panic(fmt.Errorf("Unhandled resource type: %v", resource))
 	}

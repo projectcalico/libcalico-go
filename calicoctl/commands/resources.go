@@ -124,6 +124,16 @@ func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource
 			p.Metadata.CIDR = *cidr
 		}
 		return *p, nil
+	case "bgpPeer":
+		p := api.NewBGPPeer()
+		if name != "" {
+			err := p.Metadata.PeerIP.UnmarshalText([]byte(name))
+			if err != nil {
+				return nil, err
+			}
+			p.Metadata.Hostname = hostname
+		}
+		return *p, nil
 
 	default:
 		return nil, fmt.Errorf("Resource type '%s' is not unsupported", kind)

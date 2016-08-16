@@ -51,6 +51,7 @@ func init() {
 	RegisterFieldValidator("labels", validateLabels)
 	RegisterFieldValidator("interface", validateInterface)
 	RegisterFieldValidator("order", validateOrder)
+	RegisterFieldValidator("asnum", validateASNum)
 
 	RegisterStructValidator(validateProtocol, numorstring.Protocol{})
 	RegisterStructValidator(validatePort, numorstring.Port{})
@@ -132,6 +133,12 @@ func validateInterface(v *validator.Validate, topStruct reflect.Value, currentSt
 
 func validateOrder(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	f := field.Interface()
+	glog.V(2).Infof("Validate order: %v\n", f)
+	return f != nil
+}
+
+func validateASNum(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
+	f := field.Interface().(int)
 	glog.V(2).Infof("Validate order: %v\n", f)
 	return f != nil
 }
