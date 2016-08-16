@@ -36,9 +36,12 @@ import (
 // 	-  The type of resource (Kind and Version).  This includes the list types (even
 //	   though they are not strictly resources themselves).
 // 	-  The concrete resource struct for this version
+//	-  Template strings used to format output for each resource type.
 type resourceHelper struct {
 	typeMetadata unversioned.TypeMetadata
 	resourceType reflect.Type
+	psTemplate   string
+	psWideTemplate string
 }
 
 func (r resourceHelper) String() string {
@@ -52,11 +55,13 @@ var helpers map[unversioned.TypeMetadata]resourceHelper
 func init() {
 	helpers = make(map[unversioned.TypeMetadata]resourceHelper)
 
-	registerHelper := func(t unversioned.Resource) {
+	registerHelper := func(t unversioned.Resource, psTemplate, psWideTemplate string) {
 		tmd := t.GetTypeMetadata()
 		rh := resourceHelper{
-			tmd,
-			reflect.ValueOf(t).Elem().Type(),
+			typeMetadata: tmd,
+			resourceType: reflect.ValueOf(t).Elem().Type(),
+			psTemplate: psTemplate,
+			psWideTemplate: psWideTemplate,
 		}
 		helpers[tmd] = rh
 	}

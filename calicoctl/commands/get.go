@@ -21,10 +21,44 @@ import (
 
 	"fmt"
 
+	"encoding/json"
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 )
+
+// Store a resourceHelper for each resource unversioned.TypeMetadata.
+var templates map[unversioned.TypeMetadata]string
+
+// Register all of the available resource types, this includes resource lists as well.
+func init() {
+	templates = make(map[unversioned.TypeMetadata]string)
+
+	registerHelper := func(t unversioned.Resource) {
+		tmd := t.GetTypeMetadata()
+		rh := resourceHelper{
+			tmd,
+			reflect.ValueOf(t).Elem().Type(),
+		}
+		helpers[tmd] = rh
+	}
+
+	// Register all API resources supported by the generic resource interface.
+	registerHelper(api.NewTier())
+	registerHelper(api.NewTierList())
+	registerHelper(api.NewPolicy())
+	registerHelper(api.NewPolicyList())
+	registerHelper(api.NewPool())
+	registerHelper(api.NewPoolList())
+	registerHelper(api.NewProfile())
+	registerHelper(api.NewProfileList())
+	registerHelper(api.NewHostEndpoint())
+	registerHelper(api.NewHostEndpointList())
+	registerHelper(api.NewWorkloadEndpoint())
+	registerHelper(api.NewWorkloadEndpointList())
+	registerHelper(api.NewBGPPeer())
+	registerHelper(api.NewBGPPeerList())
+}
 
 func Get(args []string) error {
 	doc := EtcdIntro + `Display one or many resources identified by file, stdin or resource type and name.
@@ -79,10 +113,13 @@ Options:
 	// For simplicity convert the returned list of resources to expand any lists
 	resources := convertToSliceOfResources(results.resources)
 
-	if output, err := yaml.Marshal(resources); err != nil {
-		fmt.Printf("Error outputing data: %v", err)
-	} else {
-		fmt.Printf("%s", string(output))
+	switch parsedArgs["output"] {
+	case "yaml":
+		get_output_yaml(results.resources)
+	case "json":
+		get_output_json(results.resources)
+	case "table":
+		get_output_table(results.resources)
 	}
 
 	return nil
@@ -115,4 +152,33 @@ func (g get) execute(client *client.Client, resource unversioned.Resource) (unve
 	}
 
 	return resource, err
+}
+
+func get_output_json(resources []unversioned.Resource) {
+	if output, err := json.Marshal(resources); err != nil {
+		fmt.Printf("Error outputing data: %v", err)
+	} else {
+		fmt.Printf("%s", string(output))
+	}
+}
+
+func get_output_yaml(resources []unversioned.Resource) {
+	if output, err := yaml.Marshal(resources); err != nil {
+		fmt.Printf("Error outputing data: %v", err)
+	} else {
+		fmt.Printf("%s", string(output))
+	}
+}
+
+func get_output_table(resources []unversioned.Resource) {
+	for idx, resource := range resources {
+		// Look up the format string for the specific resource type.
+		format, ok := templates[]
+
+		// If there are more resources then make sure we leave a gap
+		// between each table.
+		if idx < len(resources) {
+			fmt.Printf("\n")
+		}
+	}
 }
