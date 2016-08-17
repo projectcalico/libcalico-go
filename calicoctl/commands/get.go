@@ -20,6 +20,8 @@ import (
 	"github.com/tigera/libcalico-go/lib/client"
 
 	"fmt"
+	"reflect"
+	"strings"
 
 	"encoding/json"
 	"text/template"
@@ -29,6 +31,7 @@ import (
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/calicoctl/resourcemgr"
 	"os"
+	"bytes"
 )
 
 func Get(args []string) error {
@@ -82,9 +85,9 @@ Options:
 
 	// TODO Handle better - results should be groups as per input file
 	// For simplicity convert the returned list of resources to expand any lists
-	resources := convertToSliceOfResources(results.resources)
+	// resources := convertToSliceOfResources(results.resources)
 
-	switch parsedArgs["output"] {
+	switch parsedArgs["--output"].(string) {
 	case "yaml":
 		get_output_yaml(results.resources)
 	case "json":
@@ -128,7 +131,7 @@ func (g get) execute(client *client.Client, resource unversioned.Resource) (unve
 }
 
 func get_output_json(resources []unversioned.Resource) {
-	if output, err := json.Marshal(resources); err != nil {
+	if output, err := json.MarshalIndent(resources, "", "  "); err != nil {
 		fmt.Printf("Error outputing data: %v", err)
 	} else {
 		fmt.Printf("%s", string(output))
@@ -144,18 +147,26 @@ func get_output_yaml(resources []unversioned.Resource) {
 }
 
 func get_output_table(resources []unversioned.Resource, wide bool) {
+	glog.V(2).Infof("Output in table format (wide=%v)", wide)
 	for idx, resource := range resources {
 		// Look up the format string for the specific resource type.
 		format := resourcemgr.GetPSTemplate(resource, wide)
+		glog.V(2).Infof("Format string: %s", format)
 
-
-		tmpl, err := template.New("get").Parse(format)
+		fns := template.FuncMap {
+			"join": join,
+		}
+		tmpl, err := template.New("get").Funcs(fns).Parse(format)
 		if err != nil {
 			panic(err)
 		}
 
-		writer := tabwriter.NewWriter(os.Stdout, 5, 1, 1, ' ', 0)
+		writer := tabwriter.NewWriter(os.Stdout, 5, 1, 3, ' ', 0)
 		err = tmpl.Execute(writer, resource)
+		if err != nil {
+			panic(err)
+		}
+		writer.Flush()
 
 		// If there are more resources then make sure we leave a gap
 		// between each table.
@@ -163,4 +174,32 @@ func get_output_table(resources []unversioned.Resource, wide bool) {
 			fmt.Printf("\n")
 		}
 	}
+}
+
+func join(items interface{}, separator string) string {
+	// If this is a slice of strings - just use the strings.Join function.
+	switch s := items.(type) {
+	case []string:
+		return strings.Join(s, separator)
+	case fmt.Stringer:
+		return s.String()
+	}
+
+	// Otherwise, provided this is a slice, just convert each item to a string and
+	// join together.
+	switch reflect.TypeOf(items).Kind() {
+	case reflect.Slice:
+		slice := reflect.ValueOf(items)
+		buf := new(bytes.Buffer)
+		for i := 0; i < slice.Len(); i++ {
+			if i > 0 {
+				buf.WriteString(separator)
+			}
+			fmt.Fprint(buf, slice.Index(i).Interface())
+		}
+		return buf.String()
+	}
+
+	// The supplied items is not a slice - so just convert to a string.
+	return fmt.Sprint(items)
 }

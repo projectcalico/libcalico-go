@@ -67,20 +67,78 @@ func init() {
 	}
 
 	// Register all API resources supported by the generic resource interface.
-	registerHelper(api.NewTier())
-	registerHelper(api.NewTierList())
-	registerHelper(api.NewPolicy())
-	registerHelper(api.NewPolicyList())
-	registerHelper(api.NewPool())
-	registerHelper(api.NewPoolList())
-	registerHelper(api.NewProfile())
-	registerHelper(api.NewProfileList())
-	registerHelper(api.NewHostEndpoint())
-	registerHelper(api.NewHostEndpointList())
-	registerHelper(api.NewWorkloadEndpoint())
-	registerHelper(api.NewWorkloadEndpointList())
-	registerHelper(api.NewBGPPeer())
-	registerHelper(api.NewBGPPeerList())
+	registerHelper(
+		api.NewTier(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewTierList(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewPolicy(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewPolicyList(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewPool(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewPoolList(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewProfile(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewProfileList(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewHostEndpoint(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewHostEndpointList(),
+		"HOSTNAME\tNAME\n" +
+			"{{range .Items}}{{.Metadata.Hostname}}\t{{.Metadata.Name}}\n{{end}}",
+		"HOSTNAME\tNAME\tINTERFACE\tIPS\tPROFILES\n" +
+			"{{range .Items}}{{.Metadata.Hostname}}\t{{.Metadata.Name}}\t{{.Spec.InterfaceName}}\t{{join .Spec.ExpectedIPs \",\"}}\t{{join .Spec.Profiles \",\"}}\n{{end}}",
+	)
+	registerHelper(
+		api.NewWorkloadEndpoint(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewWorkloadEndpointList(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewBGPPeer(),
+		"",
+		"",
+	)
+	registerHelper(
+		api.NewBGPPeerList(),
+		"HOSTNAME\tPEER_IP\n{{range .Items}}{{.Metadata.Hostname}}\t{{.Metadata.PeerIP}}\n{{end}}",
+		"HOSTNAME\tPEER_IP\tASN\n{{range .Items}}{{.Metadata.Hostname}}\t{{.Metadata.PeerIP}}\t{{.Spec.ASNum}}\n{{end}}",
+	)
 }
 
 // Create a new concrete resource structure based on the type.  If the type is

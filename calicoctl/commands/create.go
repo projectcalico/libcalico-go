@@ -110,11 +110,7 @@ func (c create) execute(client *client.Client, resource unversioned.Resource) (u
 	case api.Tier:
 		_, err = client.Tiers().Create(&r)
 	case api.WorkloadEndpoint:
-<<<<<<< HEAD
 		err = fmt.Errorf("Workload endpoints cannot be managed directly")
-=======
-		_, err = client.WorkloadEndpoints().Create(&r)
->>>>>>> 1e31e2a... Added BGP peer resource management commands
 	case api.BGPPeer:
 		_, err = client.BGPPeers().Create(&r)
 	default:
