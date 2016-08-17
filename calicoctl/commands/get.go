@@ -20,6 +20,7 @@ import (
 	"github.com/tigera/libcalico-go/lib/client"
 
 	"fmt"
+	"io/ioutil"
 	"reflect"
 	"strings"
 
@@ -57,7 +58,8 @@ Examples:
 
 Options:
   -f --filename=<FILENAME>     Filename to use to get the resource.  If set to "-" loads from stdin.
-  -o --output=<OUTPUT FORMAT>  Output format.  One of: ps, wide, yaml, json.  [Default: ps]
+  -o --output=<OUTPUT FORMAT>  Output format.  One of: ps, wide, yaml, json, go-template=...,
+                               go-template-file=...  [Default: ps]
   -t --tier=<TIER>             The policy tier.
   -n --hostname=<HOSTNAME>     The hostname.
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
@@ -74,6 +76,34 @@ Options:
 		return nil
 	}
 
+	var rp resourcePrinter
+	output := parsedArgs["--output"].(string)
+	switch output {
+	case "yaml":
+		rp = resourcePrinterYAML{}
+	case "json":
+		rp = resourcePrinterJSON{}
+	case "ps":
+		rp = resourcePrinterTable{wide: false}
+	case "wide":
+		rp = resourcePrinterTable{wide: true}
+	default:
+		// Output format may be a key=value pair, so split on "=" to find out.
+		outputParms := strings.SplitN(output, "=", 2)
+		if len(outputParms) == 2 {
+			switch outputParms[0] {
+			case "go-template":
+				rp = resourcePrinterTemplate{template: outputParms[1]}
+			case "go-template-file":
+				rp = resourcePrinterTemplateFile{templateFile: outputParms[1]}
+			}
+		}
+	}
+
+	if rp == nil {
+		return fmt.Errorf("Unrecognized output format: %s", output)
+	}
+
 	cmd := get{}
 	results := executeConfigCommand(parsedArgs, cmd)
 	glog.V(2).Infof("results: %+v", results)
@@ -86,19 +116,7 @@ Options:
 	// TODO Handle better - results should be groups as per input file
 	// For simplicity convert the returned list of resources to expand any lists
 	// resources := convertToSliceOfResources(results.resources)
-
-	switch parsedArgs["--output"].(string) {
-	case "yaml":
-		get_output_yaml(results.resources)
-	case "json":
-		get_output_json(results.resources)
-	case "ps":
-		get_output_table(results.resources, false)
-	case "wide":
-		get_output_table(results.resources, true)
-	}
-
-	return nil
+	return rp.print(results.resources)
 }
 
 // commandInterface for replace command.
@@ -130,50 +148,108 @@ func (g get) execute(client *client.Client, resource unversioned.Resource) (unve
 	return resource, err
 }
 
-func get_output_json(resources []unversioned.Resource) {
+type resourcePrinter interface {
+	print(resources []unversioned.Resource) error
+}
+
+// JSON output formatter
+type resourcePrinterJSON struct {}
+func (r resourcePrinterJSON) print(resources []unversioned.Resource) error {
 	if output, err := json.MarshalIndent(resources, "", "  "); err != nil {
-		fmt.Printf("Error outputing data: %v", err)
+		return err
 	} else {
 		fmt.Printf("%s", string(output))
 	}
+	return nil
 }
 
-func get_output_yaml(resources []unversioned.Resource) {
+//YAML output formatter
+type resourcePrinterYAML struct {}
+func (r resourcePrinterYAML) print(resources []unversioned.Resource) error {
 	if output, err := yaml.Marshal(resources); err != nil {
-		fmt.Printf("Error outputing data: %v", err)
+		return err
 	} else {
 		fmt.Printf("%s", string(output))
 	}
+	return nil
 }
 
-func get_output_table(resources []unversioned.Resource, wide bool) {
-	glog.V(2).Infof("Output in table format (wide=%v)", wide)
+// Table output formatter
+type resourcePrinterTable struct {
+	// Wide format.  If false, prints minimum information to identify a resource.  If true,
+	// table includes additional useful information dependent on resource type.
+	wide bool
+}
+func (r resourcePrinterTable) print(resources []unversioned.Resource) error {
+	glog.V(2).Infof("Output in table format (wide=%v)", r.wide)
 	for idx, resource := range resources {
-		// Look up the format string for the specific resource type.
-		format := resourcemgr.GetPSTemplate(resource, wide)
-		glog.V(2).Infof("Format string: %s", format)
+		// If there are multiple resources then make sure we leave a gap
+		// between each table.
+		if idx > 1 {
+			fmt.Printf("\n")
+		}
+
+		// Look up the template string for the specific resource type.
+		tpls := resourcemgr.GetPSTemplate(resource, r.wide)
 
 		fns := template.FuncMap{
 			"join": join,
 		}
-		tmpl, err := template.New("get").Funcs(fns).Parse(format)
+		tmpl, err := template.New("get").Funcs(fns).Parse(tpls)
 		if err != nil {
 			panic(err)
 		}
 
 		writer := tabwriter.NewWriter(os.Stdout, 5, 1, 3, ' ', 0)
-		err = tmpl.Execute(writer, resource)
+		err = tmpl.Execute(writer, resources)
 		if err != nil {
 			panic(err)
 		}
 		writer.Flush()
 
-		// If there are more resources then make sure we leave a gap
-		// between each table.
-		if idx < len(resources) {
-			fmt.Printf("\n")
+		// Templates for ps format are internally defined and therefore we should not
+		// hit errors writing the table formats.
+		if err != nil {
+			panic(err)
 		}
 	}
+	return nil
+}
+
+// Go-template-file output formatter.
+type resourcePrinterTemplateFile struct {
+	templateFile string
+}
+func (r resourcePrinterTemplateFile) print(resources []unversioned.Resource) error {
+	template, err := ioutil.ReadFile(r.templateFile)
+	if err != nil {
+		return err
+	}
+	rp := resourcePrinterTemplate{template: string(template)}
+	return rp.print(resources)
+}
+
+// Go-template output formatter.
+type resourcePrinterTemplate struct {
+	template string
+}
+func (r resourcePrinterTemplate) print(resources []unversioned.Resource) error {
+
+	fns := template.FuncMap{
+		"join": join,
+	}
+	tmpl, err := template.New("get").Funcs(fns).Parse(r.template)
+	if err != nil {
+		panic(err)
+	}
+
+	writer := tabwriter.NewWriter(os.Stdout, 5, 1, 3, ' ', 0)
+	err = tmpl.Execute(writer, resources)
+	if err != nil {
+		panic(err)
+	}
+	writer.Flush()
+	return nil
 }
 
 func join(items interface{}, separator string) string {

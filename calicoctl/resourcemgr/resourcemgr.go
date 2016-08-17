@@ -135,7 +135,7 @@ func init() {
 			"{{end}}",
 		"NAME\n"+
 			"{{range .Items}}"+
-			"{{.Metadata.Name}}\t"+
+			"{{.Metadata.Name}}\n"+
 			"{{end}}",
 	)
 	registerHelper(
