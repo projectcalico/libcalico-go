@@ -38,9 +38,9 @@ import (
 // 	-  The concrete resource struct for this version
 //	-  Template strings used to format output for each resource type.
 type resourceHelper struct {
-	typeMetadata unversioned.TypeMetadata
-	resourceType reflect.Type
-	psTemplate   string
+	typeMetadata   unversioned.TypeMetadata
+	resourceType   reflect.Type
+	psTemplate     string
 	psWideTemplate string
 }
 
@@ -58,9 +58,9 @@ func init() {
 	registerHelper := func(t unversioned.Resource, psTemplate, psWideTemplate string) {
 		tmd := t.GetTypeMetadata()
 		rh := resourceHelper{
-			typeMetadata: tmd,
-			resourceType: reflect.ValueOf(t).Elem().Type(),
-			psTemplate: psTemplate,
+			typeMetadata:   tmd,
+			resourceType:   reflect.ValueOf(t).Elem().Type(),
+			psTemplate:     psTemplate,
 			psWideTemplate: psWideTemplate,
 		}
 		helpers[tmd] = rh
@@ -74,8 +74,15 @@ func init() {
 	)
 	registerHelper(
 		api.NewTierList(),
-		"",
-		"",
+		"NAME\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.Name}}\n"+
+			"{{end}}",
+		"NAME\tORDER\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.Name}}\t"+
+			"{{.Spec.Order}}\n"+
+			"{{end}}",
 	)
 	registerHelper(
 		api.NewPolicy(),
@@ -84,8 +91,18 @@ func init() {
 	)
 	registerHelper(
 		api.NewPolicyList(),
-		"",
-		"",
+		"NAME\tTIER\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.Name}}\t"+
+			"{{.Metadata.Tier}}\n"+
+			"{{end}}",
+		"NAME\tTIER\tORDER\tSELECTOR\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.Name}}\t"+
+			"{{.Metadata.Tier}}\t"+
+			"{{.Spec.Order}}\t"+
+			"{{.Spec.Selector}}\n"+
+			"{{end}}",
 	)
 	registerHelper(
 		api.NewPool(),
@@ -94,8 +111,16 @@ func init() {
 	)
 	registerHelper(
 		api.NewPoolList(),
-		"",
-		"",
+		"CIDR\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.CIDR}}\n"+
+			"{{end}}",
+		"CIDR\tNAT\tINTERFACE\tIPS\tPROFILES\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.CIDR}}\t"+
+			"{{.Spec.NATOutgoing}}\t"+
+			"{{if .Spec.IPIP}}{{.Spec.IPIP.Enabled}}{{else}}False{{end}}\t"+
+			"{{end}}",
 	)
 	registerHelper(
 		api.NewProfile(),
@@ -104,8 +129,14 @@ func init() {
 	)
 	registerHelper(
 		api.NewProfileList(),
-		"",
-		"",
+		"NAME\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.Name}}\n"+
+			"{{end}}",
+		"NAME\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.Name}}\t"+
+			"{{end}}",
 	)
 	registerHelper(
 		api.NewHostEndpoint(),
@@ -113,21 +144,20 @@ func init() {
 		"",
 	)
 	registerHelper(
-		api.NewHostEndpointList(),
-		"HOSTNAME\tNAME\n" +
-			"{{range .Items}}{{.Metadata.Hostname}}\t{{.Metadata.Name}}\n{{end}}",
-		"HOSTNAME\tNAME\tINTERFACE\tIPS\tPROFILES\n" +
-			"{{range .Items}}{{.Metadata.Hostname}}\t{{.Metadata.Name}}\t{{.Spec.InterfaceName}}\t{{join .Spec.ExpectedIPs \",\"}}\t{{join .Spec.Profiles \",\"}}\n{{end}}",
-	)
-	registerHelper(
-		api.NewWorkloadEndpoint(),
-		"",
-		"",
-	)
-	registerHelper(
 		api.NewWorkloadEndpointList(),
-		"",
-		"",
+		"HOSTNAME\tNAME\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.Hostname}}\t"+
+			"{{.Metadata.Name}}\n"+
+			"{{end}}",
+		"HOSTNAME\tNAME\tINTERFACE\tIPS\tPROFILES\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.Hostname}}\t"+
+			"{{.Metadata.Name}}\t"+
+			"{{.Spec.InterfaceName}}\t"+
+			"{{join .Spec.ExpectedIPs \",\"}}\t"+
+			"{{join .Spec.Profiles \",\"}}\n"+
+			"{{end}}",
 	)
 	registerHelper(
 		api.NewBGPPeer(),
@@ -136,8 +166,17 @@ func init() {
 	)
 	registerHelper(
 		api.NewBGPPeerList(),
-		"HOSTNAME\tPEER_IP\n{{range .Items}}{{.Metadata.Hostname}}\t{{.Metadata.PeerIP}}\n{{end}}",
-		"HOSTNAME\tPEER_IP\tASN\n{{range .Items}}{{.Metadata.Hostname}}\t{{.Metadata.PeerIP}}\t{{.Spec.ASNum}}\n{{end}}",
+		"HOSTNAME\tPEER_IP\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.Hostname}}\t"+
+			"{{.Metadata.PeerIP}}\n"+
+			"{{end}}",
+		"HOSTNAME\tPEER_IP\tASN\n"+
+			"{{range .Items}}"+
+			"{{.Metadata.Hostname}}\t"+
+			"{{.Metadata.PeerIP}}\t"+
+			"{{.Spec.ASNum}}\n"+
+			"{{end}}",
 	)
 }
 

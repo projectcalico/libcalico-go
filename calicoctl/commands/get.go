@@ -23,15 +23,15 @@ import (
 	"reflect"
 	"strings"
 
+	"bytes"
 	"encoding/json"
-	"text/template"
-	"text/tabwriter"
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
-	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/calicoctl/resourcemgr"
+	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"os"
-	"bytes"
+	"text/tabwriter"
+	"text/template"
 )
 
 func Get(args []string) error {
@@ -153,7 +153,7 @@ func get_output_table(resources []unversioned.Resource, wide bool) {
 		format := resourcemgr.GetPSTemplate(resource, wide)
 		glog.V(2).Infof("Format string: %s", format)
 
-		fns := template.FuncMap {
+		fns := template.FuncMap{
 			"join": join,
 		}
 		tmpl, err := template.New("get").Funcs(fns).Parse(format)
