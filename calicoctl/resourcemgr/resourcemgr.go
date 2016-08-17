@@ -19,16 +19,17 @@ import (
 
 	"fmt"
 	"reflect"
+	"strings"
 
 	"io/ioutil"
 	"os"
 
-	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/validator"
+	"bytes"
 )
 
 // ResourceHelper encapsulates details about a specific version of a specific resource:
@@ -40,8 +41,10 @@ import (
 type resourceHelper struct {
 	typeMetadata   unversioned.TypeMetadata
 	resourceType   reflect.Type
-	psTemplate     string
-	psWideTemplate string
+	psHeadings     []string
+	psWideHeadings []string
+	headingsMap    map[string]string
+	isList         bool
 }
 
 func (r resourceHelper) String() string {
@@ -51,133 +54,34 @@ func (r resourceHelper) String() string {
 // Store a resourceHelper for each resource unversioned.TypeMetadata.
 var helpers map[unversioned.TypeMetadata]resourceHelper
 
-// Register all of the available resource types, this includes resource lists as well.
-func init() {
-	helpers = make(map[unversioned.TypeMetadata]resourceHelper)
+func registerResource(res unversioned.Resource, resList unversioned.Resource,
+	psHeadings []string, psWideHeadings []string, headingsMap map[string]string) {
 
-	registerHelper := func(t unversioned.Resource, psTemplate, psWideTemplate string) {
-		tmd := t.GetTypeMetadata()
-		rh := resourceHelper{
-			typeMetadata:   tmd,
-			resourceType:   reflect.ValueOf(t).Elem().Type(),
-			psTemplate:     psTemplate,
-			psWideTemplate: psWideTemplate,
-		}
-		helpers[tmd] = rh
+	if helpers == nil {
+		helpers = make(map[unversioned.TypeMetadata]resourceHelper)
 	}
 
-	// Register all API resources supported by the generic resource interface.
-	registerHelper(
-		api.NewTier(),
-		"",
-		"",
-	)
-	registerHelper(
-		api.NewTierList(),
-		"NAME\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.Name}}\n"+
-			"{{end}}",
-		"NAME\tORDER\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.Name}}\t"+
-			"{{.Spec.Order}}\n"+
-			"{{end}}",
-	)
-	registerHelper(
-		api.NewPolicy(),
-		"",
-		"",
-	)
-	registerHelper(
-		api.NewPolicyList(),
-		"NAME\tTIER\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.Name}}\t"+
-			"{{.Metadata.Tier}}\n"+
-			"{{end}}",
-		"NAME\tTIER\tORDER\tSELECTOR\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.Name}}\t"+
-			"{{.Metadata.Tier}}\t"+
-			"{{.Spec.Order}}\t"+
-			"{{.Spec.Selector}}\n"+
-			"{{end}}",
-	)
-	registerHelper(
-		api.NewPool(),
-		"",
-		"",
-	)
-	registerHelper(
-		api.NewPoolList(),
-		"CIDR\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.CIDR}}\n"+
-			"{{end}}",
-		"CIDR\tNAT\tINTERFACE\tIPS\tPROFILES\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.CIDR}}\t"+
-			"{{.Spec.NATOutgoing}}\t"+
-			"{{if .Spec.IPIP}}{{.Spec.IPIP.Enabled}}{{else}}False{{end}}\t"+
-			"{{end}}",
-	)
-	registerHelper(
-		api.NewProfile(),
-		"",
-		"",
-	)
-	registerHelper(
-		api.NewProfileList(),
-		"NAME\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.Name}}\n"+
-			"{{end}}",
-		"NAME\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.Name}}\n"+
-			"{{end}}",
-	)
-	registerHelper(
-		api.NewHostEndpoint(),
-		"",
-		"",
-	)
-	registerHelper(
-		api.NewWorkloadEndpointList(),
-		"HOSTNAME\tNAME\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.Hostname}}\t"+
-			"{{.Metadata.Name}}\n"+
-			"{{end}}",
-		"HOSTNAME\tNAME\tINTERFACE\tIPS\tPROFILES\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.Hostname}}\t"+
-			"{{.Metadata.Name}}\t"+
-			"{{.Spec.InterfaceName}}\t"+
-			"{{join .Spec.ExpectedIPs \",\"}}\t"+
-			"{{join .Spec.Profiles \",\"}}\n"+
-			"{{end}}",
-	)
-	registerHelper(
-		api.NewBGPPeer(),
-		"",
-		"",
-	)
-	registerHelper(
-		api.NewBGPPeerList(),
-		"HOSTNAME\tPEER_IP\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.Hostname}}\t"+
-			"{{.Metadata.PeerIP}}\n"+
-			"{{end}}",
-		"HOSTNAME\tPEER_IP\tASN\n"+
-			"{{range .Items}}"+
-			"{{.Metadata.Hostname}}\t"+
-			"{{.Metadata.PeerIP}}\t"+
-			"{{.Spec.ASNum}}\n"+
-			"{{end}}",
-	)
+	tmd := res.GetTypeMetadata()
+	rh := resourceHelper{
+		typeMetadata:   tmd,
+		resourceType:   reflect.ValueOf(res).Elem().Type(),
+		psHeadings: psHeadings,
+		psWideHeadings: psWideHeadings,
+		headingsMap: headingsMap,
+		isList: false,
+	}
+	helpers[tmd] = rh
+
+	tmd = resList.GetTypeMetadata()
+	rh = resourceHelper{
+		typeMetadata:   tmd,
+		resourceType:   reflect.ValueOf(resList).Elem().Type(),
+		psHeadings: psHeadings,
+		psWideHeadings: psWideHeadings,
+		headingsMap: headingsMap,
+		isList: true,
+	}
+	helpers[tmd] = rh
 }
 
 // Create a new concrete resource structure based on the type.  If the type is
@@ -187,7 +91,7 @@ func newResource(tm unversioned.TypeMetadata) (unversioned.Resource, error) {
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("Unknown resource type (%s) and/or version (%s)", tm.Kind, tm.APIVersion))
 	}
-	glog.V(2).Infof("Found resource helper: %s\n", rh)
+	glog.V(2).Infof("Found resource helper: %s\t\n", rh)
 
 	// Create new resource and fill in the type metadata.
 	new := reflect.New(rh.resourceType)
@@ -230,7 +134,7 @@ func createResourcesFromBytes(b []byte) ([]unversioned.Resource, error) {
 // Return as a slice of Resource interfaces, containing a single element that is
 // the unmarshalled resource.
 func unmarshalResource(tm unversioned.TypeMetadata, b []byte) ([]unversioned.Resource, error) {
-	glog.V(2).Infof("Processing type %s\n", tm.Kind)
+	glog.V(2).Infof("Processing type %s\t\n", tm.Kind)
 	unpacked, err := newResource(tm)
 	if err != nil {
 		return nil, err
@@ -240,12 +144,12 @@ func unmarshalResource(tm unversioned.TypeMetadata, b []byte) ([]unversioned.Res
 		return nil, err
 	}
 
-	glog.V(2).Infof("Type of unpacked data: %v\n", reflect.TypeOf(unpacked))
+	glog.V(2).Infof("Type of unpacked data: %v\t\n", reflect.TypeOf(unpacked))
 	if err = validator.Validate(unpacked); err != nil {
 		return nil, err
 	}
 
-	glog.V(2).Infof("Unpacked: %+v\n", unpacked)
+	glog.V(2).Infof("Unpacked: %+v\t\n", unpacked)
 
 	return []unversioned.Resource{unpacked}, nil
 }
@@ -256,10 +160,10 @@ func unmarshalResource(tm unversioned.TypeMetadata, b []byte) ([]unversioned.Res
 // Return as a slice of Resource interfaces, containing an element that is each of
 // the unmarshalled resources.
 func unmarshalSliceOfResources(tml []unversioned.TypeMetadata, b []byte) ([]unversioned.Resource, error) {
-	glog.V(2).Infof("Processing list of resources\n")
+	glog.V(2).Infof("Processing list of resources\t\n")
 	unpacked := make([]unversioned.Resource, len(tml))
 	for i, tm := range tml {
-		glog.V(2).Infof("  - processing type %s\n", tm.Kind)
+		glog.V(2).Infof("  - processing type %s\t\n", tm.Kind)
 		r, err := newResource(tm)
 		if err != nil {
 			return nil, err
@@ -279,7 +183,7 @@ func unmarshalSliceOfResources(tml []unversioned.TypeMetadata, b []byte) ([]unve
 		}
 	}
 
-	glog.V(2).Infof("Unpacked: %+v\n", unpacked)
+	glog.V(2).Infof("Unpacked: %+v\t\n", unpacked)
 
 	return unpacked, nil
 }
@@ -292,7 +196,6 @@ func unmarshalSliceOfResources(tml []unversioned.TypeMetadata, b []byte) ([]unve
 // The returned Resource will either be a single Resource or a List containing zero or more
 // Resources.  If the file does not contain any valid Resources this function returns an error.
 func CreateResourcesFromFile(f string) ([]unversioned.Resource, error) {
-
 	// Load the bytes from file or from stdin.
 	var b []byte
 	var err error
@@ -311,11 +214,48 @@ func CreateResourcesFromFile(f string) ([]unversioned.Resource, error) {
 
 // GetPSTemplate returns the golang template used to provide ps-style output for a particular
 // resource.  The output ay be displayed in wide-format if required.
-func GetPSTemplate(resource unversioned.Resource, wide bool) string {
+func GetPSHeadings(resource unversioned.Resource, wide bool) []string {
 	rh := helpers[resource.GetTypeMetadata()]
 	if wide {
-		return rh.psWideTemplate
+		return rh.psWideHeadings
 	} else {
-		return rh.psTemplate
+		return rh.psHeadings
 	}
+}
+
+// Construct the go-lang template string from the supplied set of headings.
+func GetPSTemplateCustom(resource unversioned.Resource, headings []string) (string, error) {
+	rh := helpers[resource.GetTypeMetadata()]
+	buf := new(bytes.Buffer)
+	for _, heading := range headings {
+		buf.WriteString(heading)
+		buf.WriteByte('\t')
+	}
+	buf.WriteByte('\n')
+
+	if rh.isList {
+		buf.WriteString("{{range .Items}}")
+	}
+
+	for _, heading := range headings {
+		value, ok := rh.headingsMap[heading]
+		if !ok {
+			headings := make([]string, 0, len(rh.headingsMap))
+			for heading := range rh.headingsMap {
+				headings = append(headings, heading)
+			}
+			return "", fmt.Errorf("Unknown heading %s, valid values are: %s",
+				heading,
+				strings.Join(headings, ", "))
+		}
+		buf.WriteString(value)
+		buf.WriteByte('\t')
+	}
+	buf.WriteByte('\n')
+
+	if rh.isList {
+		buf.WriteString("{{end}}")
+	}
+
+	return buf.String(), nil
 }

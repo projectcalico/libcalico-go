@@ -20,19 +20,10 @@ import (
 	"github.com/tigera/libcalico-go/lib/client"
 
 	"fmt"
-	"io/ioutil"
-	"reflect"
 	"strings"
 
-	"bytes"
-	"encoding/json"
-	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
-	"github.com/tigera/libcalico-go/calicoctl/resourcemgr"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
-	"os"
-	"text/tabwriter"
-	"text/template"
 )
 
 func Get(args []string) error {
@@ -88,14 +79,23 @@ Options:
 	case "wide":
 		rp = resourcePrinterTable{wide: true}
 	default:
-		// Output format may be a key=value pair, so split on "=" to find out.
+		// Output format may be a key=value pair, so split on "=" to find out.  Pull
+		// out the key and value, and split the value by "," as some options allow
+		// a multiple-valued value.
 		outputParms := strings.SplitN(output, "=", 2)
 		if len(outputParms) == 2 {
-			switch outputParms[0] {
-			case "go-template":
-				rp = resourcePrinterTemplate{template: outputParms[1]}
-			case "go-template-file":
-				rp = resourcePrinterTemplateFile{templateFile: outputParms[1]}
+			outputKey := outputParms[0]
+			outputValue := outputParms[1]
+			outputValues := strings.Split(outputValue, ",")
+			if len(outputParms) == 2 {
+				switch outputKey {
+				case "go-template":
+					rp = resourcePrinterTemplate{template: outputValue}
+				case "go-template-file":
+					rp = resourcePrinterTemplateFile{templateFile: outputValue}
+				case "custom-columns":
+					rp = resourcePrinterTable{headings:outputValues}
+				}
 			}
 		}
 	}
@@ -113,9 +113,6 @@ Options:
 		return err
 	}
 
-	// TODO Handle better - results should be groups as per input file
-	// For simplicity convert the returned list of resources to expand any lists
-	// resources := convertToSliceOfResources(results.resources)
 	return rp.print(results.resources)
 }
 
@@ -146,136 +143,4 @@ func (g get) execute(client *client.Client, resource unversioned.Resource) (unve
 	}
 
 	return resource, err
-}
-
-type resourcePrinter interface {
-	print(resources []unversioned.Resource) error
-}
-
-// JSON output formatter
-type resourcePrinterJSON struct {}
-func (r resourcePrinterJSON) print(resources []unversioned.Resource) error {
-	if output, err := json.MarshalIndent(resources, "", "  "); err != nil {
-		return err
-	} else {
-		fmt.Printf("%s", string(output))
-	}
-	return nil
-}
-
-//YAML output formatter
-type resourcePrinterYAML struct {}
-func (r resourcePrinterYAML) print(resources []unversioned.Resource) error {
-	if output, err := yaml.Marshal(resources); err != nil {
-		return err
-	} else {
-		fmt.Printf("%s", string(output))
-	}
-	return nil
-}
-
-// Table output formatter
-type resourcePrinterTable struct {
-	// Wide format.  If false, prints minimum information to identify a resource.  If true,
-	// table includes additional useful information dependent on resource type.
-	wide bool
-}
-func (r resourcePrinterTable) print(resources []unversioned.Resource) error {
-	glog.V(2).Infof("Output in table format (wide=%v)", r.wide)
-	for idx, resource := range resources {
-		// If there are multiple resources then make sure we leave a gap
-		// between each table.
-		if idx > 1 {
-			fmt.Printf("\n")
-		}
-
-		// Look up the template string for the specific resource type.
-		tpls := resourcemgr.GetPSTemplate(resource, r.wide)
-
-		fns := template.FuncMap{
-			"join": join,
-		}
-		tmpl, err := template.New("get").Funcs(fns).Parse(tpls)
-		if err != nil {
-			panic(err)
-		}
-
-		writer := tabwriter.NewWriter(os.Stdout, 5, 1, 3, ' ', 0)
-		err = tmpl.Execute(writer, resources)
-		if err != nil {
-			panic(err)
-		}
-		writer.Flush()
-
-		// Templates for ps format are internally defined and therefore we should not
-		// hit errors writing the table formats.
-		if err != nil {
-			panic(err)
-		}
-	}
-	return nil
-}
-
-// Go-template-file output formatter.
-type resourcePrinterTemplateFile struct {
-	templateFile string
-}
-func (r resourcePrinterTemplateFile) print(resources []unversioned.Resource) error {
-	template, err := ioutil.ReadFile(r.templateFile)
-	if err != nil {
-		return err
-	}
-	rp := resourcePrinterTemplate{template: string(template)}
-	return rp.print(resources)
-}
-
-// Go-template output formatter.
-type resourcePrinterTemplate struct {
-	template string
-}
-func (r resourcePrinterTemplate) print(resources []unversioned.Resource) error {
-
-	fns := template.FuncMap{
-		"join": join,
-	}
-	tmpl, err := template.New("get").Funcs(fns).Parse(r.template)
-	if err != nil {
-		panic(err)
-	}
-
-	writer := tabwriter.NewWriter(os.Stdout, 5, 1, 3, ' ', 0)
-	err = tmpl.Execute(writer, resources)
-	if err != nil {
-		panic(err)
-	}
-	writer.Flush()
-	return nil
-}
-
-func join(items interface{}, separator string) string {
-	// If this is a slice of strings - just use the strings.Join function.
-	switch s := items.(type) {
-	case []string:
-		return strings.Join(s, separator)
-	case fmt.Stringer:
-		return s.String()
-	}
-
-	// Otherwise, provided this is a slice, just convert each item to a string and
-	// join together.
-	switch reflect.TypeOf(items).Kind() {
-	case reflect.Slice:
-		slice := reflect.ValueOf(items)
-		buf := new(bytes.Buffer)
-		for i := 0; i < slice.Len(); i++ {
-			if i > 0 {
-				buf.WriteString(separator)
-			}
-			fmt.Fprint(buf, slice.Index(i).Interface())
-		}
-		return buf.String()
-	}
-
-	// The supplied items is not a slice - so just convert to a string.
-	return fmt.Sprint(items)
 }
