@@ -237,6 +237,7 @@ func (rh resourceHelper) GetTableDefaultHeadings(wide bool) []string {
 // The template separates columns using tabs so that a tabwriter can be used to pretty-print
 // the table.
 func (rh resourceHelper) GetTableTemplate(headings []string) (string, error) {
+	// Write the headings line.
 	buf := new(bytes.Buffer)
 	for _, heading := range headings {
 		buf.WriteString(heading)
@@ -249,7 +250,7 @@ func (rh resourceHelper) GetTableTemplate(headings []string) (string, error) {
 		buf.WriteString("{{range .Items}}")
 	}
 
-	// For each heading, add the corresponding go-template snippet.
+	// For each column, add the go-template snippet for the corresponding field value.
 	for _, heading := range headings {
 		value, ok := rh.headingsMap[heading]
 		if !ok {
