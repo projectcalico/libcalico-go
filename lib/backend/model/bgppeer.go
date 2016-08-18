@@ -31,7 +31,6 @@ var (
 	typeBGPPeer        = reflect.TypeOf(BGPPeer{})
 )
 
-//TODO: Can we get rid of the IP in the IDs and replace with an arbitrary name.
 type BGPPeerKey struct {
 	Hostname string `json:"-" validate:"omitempty"`
 	PeerIP   net.IP `json:"-" validate:"required"`
