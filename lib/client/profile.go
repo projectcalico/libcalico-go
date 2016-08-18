@@ -87,7 +87,7 @@ func (h *profiles) convertMetadataToListInterface(m unversioned.ResourceMetadata
 	return l, nil
 }
 
-// convertMetadataToKey converts a ProfileMetadata to a ProfileKeyInterface
+// convertMetadataToKey converts a ProfileMetadata to a ProfileKey
 // This is part of the conversionHelper interface.
 func (h *profiles) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	hm := m.(api.ProfileMetadata)
@@ -97,7 +97,7 @@ func (h *profiles) convertMetadataToKey(m unversioned.ResourceMetadata) (model.K
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API Profile structure to a Backend Profile structure.
+// convertMetadataToKey converts a ProfileMetadata to a ProfileKey
 // This is part of the conversionHelper interface.
 func (h *profiles) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.Profile)
@@ -121,7 +121,8 @@ func (h *profiles) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, er
 	return &d, nil
 }
 
-// convertKVPairToAPI converts a Backend Profile structure to an API Profile structure.
+// convertKVPairToAPI converts a KVPair containing a backend Profile and ProfileKey
+// to an API Profile structure.
 // This is part of the conversionHelper interface.
 func (h *profiles) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	bp := d.Value.(model.Profile)

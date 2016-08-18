@@ -103,7 +103,7 @@ func (w *workloadEndpoints) convertMetadataToListInterface(m unversioned.Resourc
 	return l, nil
 }
 
-// convertMetadataToKey converts a WorkloadEndpointMetadata to a WorkloadEndpointKeyInterface
+// convertMetadataToKey converts a WorkloadEndpointMetadata to a WorkloadEndpointKey
 // This is part of the conversionHelper interface.
 func (w *workloadEndpoints) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	hm := m.(api.WorkloadEndpointMetadata)
@@ -116,7 +116,8 @@ func (w *workloadEndpoints) convertMetadataToKey(m unversioned.ResourceMetadata)
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API WorkloadEndpoint structure to a Backend WorkloadEndpoint structure.
+// convertAPIToKVPair converts an API WorkloadEndpoint structure to a KVPair containing a 
+// backend WorkloadEndpoint and WorkloadEndpointKey.
 // This is part of the conversionHelper interface.
 func (w *workloadEndpoints) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ah := a.(api.WorkloadEndpoint)
@@ -151,7 +152,8 @@ func (w *workloadEndpoints) convertAPIToKVPair(a unversioned.Resource) (*model.K
 	return &d, nil
 }
 
-// convertKVPairToAPI converts a Backend WorkloadEndpoint structure to an API WorkloadEndpoint structure.
+// convertKVPairToAPI converts a KVPair containing a backend WorkloadEndpoint and WorkloadEndpointKey
+// to an API WorkloadEndpoint structure.
 // This is part of the conversionHelper interface.
 func (w *workloadEndpoints) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	bh := d.Value.(model.WorkloadEndpoint)

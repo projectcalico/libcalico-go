@@ -91,7 +91,7 @@ func (h *tiers) convertMetadataToListInterface(m unversioned.ResourceMetadata) (
 	return l, nil
 }
 
-// convertMetadataToKey converts a TierMetadata to a TierKeyInterface
+// convertMetadataToKey converts a TierMetadata to a TierKey
 // This is part of the conversionHelper interface.
 func (h *tiers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	hm := m.(api.TierMetadata)
@@ -101,7 +101,8 @@ func (h *tiers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key,
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API Tier structure to a Backend Tier structure.
+// convertAPIToKVPair converts an API Tier structure to a KVPair containing a 
+// backend Tier and TierKey.
 // This is part of the conversionHelper interface.
 func (h *tiers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	at := a.(api.Tier)
@@ -120,7 +121,8 @@ func (h *tiers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 	return &d, nil
 }
 
-// convertKVPairToAPI converts a Backend Tier structure to an API Tier structure.
+// convertKVPairToAPI converts a KVPair containing a backend Tier and TierKey
+// to an API Tier structure.
 // This is part of the conversionHelper interface.
 func (h *tiers) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	bt := d.Value.(model.Tier)

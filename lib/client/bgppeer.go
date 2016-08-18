@@ -88,7 +88,7 @@ func (h *bgpPeers) convertMetadataToListInterface(m unversioned.ResourceMetadata
 	return l, nil
 }
 
-// convertMetadataToKey converts a BGPPeerMetadata to a BGPPeerKeyInterface
+// convertMetadataToKey converts a BGPPeerMetadata to a BGPPeerKey
 // This is part of the conversionHelper interface.
 func (h *bgpPeers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.BGPPeerMetadata)
@@ -99,7 +99,8 @@ func (h *bgpPeers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.K
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API BGPPeer structure to a Backend BGPPeer structure.
+// convertAPIToKVPair converts an API BGPPeer structure to a KVPair containing a
+// backend BGPPeer and BGPPeerKey.
 // This is part of the conversionHelper interface.
 func (h *bgpPeers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.BGPPeer)
@@ -119,7 +120,8 @@ func (h *bgpPeers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, er
 	return &d, nil
 }
 
-// convertKVPairToAPI converts a Backend BGPPeer structure to an API BGPPeer structure.
+// convertKVPairToAPI converts a KVPair containing a backend BGPPeer and BGPPeerKey
+// to an API BGPPeer structure.
 // This is part of the conversionHelper interface.
 func (h *bgpPeers) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	backendBGPPeer := d.Value.(model.BGPPeer)

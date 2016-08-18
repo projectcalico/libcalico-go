@@ -120,7 +120,7 @@ func (h *policies) convertMetadataToListInterface(m unversioned.ResourceMetadata
 	return l, nil
 }
 
-// convertMetadataToKey converts a PolicyMetadata to a PolicyKeyInterface
+// convertMetadataToKey converts a PolicyMetadata to a PolicyKey
 // This is part of the conversionHelper interface.
 func (h *policies) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.PolicyMetadata)
@@ -131,7 +131,8 @@ func (h *policies) convertMetadataToKey(m unversioned.ResourceMetadata) (model.K
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API Policy structure to a Backend Policy structure.
+// convertAPIToKVPair converts an API Policy structure to a KVPair containing a 
+// backend Policy and PolicyKey.
 // This is part of the conversionHelper interface.
 func (h *policies) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.Policy)
@@ -153,7 +154,8 @@ func (h *policies) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, er
 	return &d, nil
 }
 
-// convertKVPairToAPI converts a Backend Policy structure to an API Policy structure.
+// convertKVPairToAPI converts a KVPair containing a backend Policy and PolicyKey
+// to an API Policy structure.
 // This is part of the conversionHelper interface.
 func (h *policies) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	bp := d.Value.(model.Policy)

@@ -109,7 +109,7 @@ func (h *hostEndpoints) convertMetadataToListInterface(m unversioned.ResourceMet
 	return l, nil
 }
 
-// convertMetadataToKey converts a HostEndpointMetadata to a HostEndpointKeyInterface
+// convertMetadataToKey converts a HostEndpointMetadata to a HostEndpointKey
 // This is part of the conversionHelper interface.
 func (h *hostEndpoints) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	hm := m.(api.HostEndpointMetadata)
@@ -120,7 +120,8 @@ func (h *hostEndpoints) convertMetadataToKey(m unversioned.ResourceMetadata) (mo
 	return k, nil
 }
 
-// convertKVPairToAPI converts a Backend HostEndpoint structure to an API HostEndpoint structure.
+// convertAPIToKVPair converts an API HostEndpoint structure to a KVPair containing a 
+// backend HostEndpoint and HostEndpointKey.
 // This is part of the conversionHelper interface.
 func (h *hostEndpoints) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ah := a.(api.HostEndpoint)
@@ -154,7 +155,9 @@ func (h *hostEndpoints) convertAPIToKVPair(a unversioned.Resource) (*model.KVPai
 	return &d, nil
 }
 
-// Convert a Backend HostEndpoint structure to an API HostEndpoint structure
+// convertKVPairToAPI converts a KVPair containing a backend HostEndpoint and HostEndpointKey
+// to an API HostEndpoint structure.
+// This is part of the conversionHelper interface.
 func (h *hostEndpoints) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	bh := d.Value.(model.HostEndpoint)
 	bk := d.Key.(model.HostEndpointKey)

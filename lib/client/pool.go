@@ -87,7 +87,7 @@ func (h *pools) convertMetadataToListInterface(m unversioned.ResourceMetadata) (
 	return l, nil
 }
 
-// convertMetadataToKey converts a PoolMetadata to a PoolKeyInterface
+// convertMetadataToKey converts a PoolMetadata to a PoolKey
 // This is part of the conversionHelper interface.
 func (h *pools) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.PoolMetadata)
@@ -97,7 +97,8 @@ func (h *pools) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key,
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API Pool structure to a Backend Pool structure.
+// convertAPIToKVPair converts an API Pool structure to a KVPair containing a 
+// backend Pool and PoolKey.
 // This is part of the conversionHelper interface.
 func (h *pools) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.Pool)
@@ -128,7 +129,8 @@ func (h *pools) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 	return &d, nil
 }
 
-// convertKVPairToAPI converts a Backend Pool structure to an API Pool structure.
+// convertKVPairToAPI converts a KVPair containing a backend Pool and PoolKey
+// to an API Pool structure.
 // This is part of the conversionHelper interface.
 func (h *pools) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	backendPool := d.Value.(model.Pool)
