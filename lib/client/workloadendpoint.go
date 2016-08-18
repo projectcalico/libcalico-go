@@ -116,7 +116,7 @@ func (w *workloadEndpoints) convertMetadataToKey(m unversioned.ResourceMetadata)
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API WorkloadEndpoint structure to a KVPair containing a 
+// convertAPIToKVPair converts an API WorkloadEndpoint structure to a KVPair containing a
 // backend WorkloadEndpoint and WorkloadEndpointKey.
 // This is part of the conversionHelper interface.
 func (w *workloadEndpoints) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {

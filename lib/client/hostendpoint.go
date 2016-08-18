@@ -120,7 +120,7 @@ func (h *hostEndpoints) convertMetadataToKey(m unversioned.ResourceMetadata) (mo
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API HostEndpoint structure to a KVPair containing a 
+// convertAPIToKVPair converts an API HostEndpoint structure to a KVPair containing a
 // backend HostEndpoint and HostEndpointKey.
 // This is part of the conversionHelper interface.
 func (h *hostEndpoints) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {

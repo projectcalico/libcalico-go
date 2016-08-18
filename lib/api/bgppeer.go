@@ -19,20 +19,21 @@ import (
 	. "github.com/tigera/libcalico-go/lib/net"
 )
 
-
 type BGPPeerMetadata struct {
 	ObjectMetadata
+
 	// The hostname of the node that is peering with this peer.  If left blank,
 	// Calico assumes this is a "global" BGP peer - i.e. it peers with every Calico
 	// node in the deployment.
 	Hostname string `json:"hostname,omitempty" validate:"omitempty,name"`
+
 	// The IP address of the peer.
-	PeerIP   IP     `json:"peerIP" validate:"omitempty,ip"`
+	PeerIP IP `json:"peerIP" validate:"required,ip"`
 }
 
 type BGPPeerSpec struct {
-	// The AS Number of the peer
-	ASNum int `json:"asNum" validate:"omitempty,asn"`
+	// The AS Number of the peer.
+	ASNumber int `json:"asNumber" validate:"required,asn"`
 }
 
 type BGPPeer struct {

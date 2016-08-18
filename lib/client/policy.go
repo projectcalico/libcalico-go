@@ -131,7 +131,7 @@ func (h *policies) convertMetadataToKey(m unversioned.ResourceMetadata) (model.K
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API Policy structure to a KVPair containing a 
+// convertAPIToKVPair converts an API Policy structure to a KVPair containing a
 // backend Policy and PolicyKey.
 // This is part of the conversionHelper interface.
 func (h *policies) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {

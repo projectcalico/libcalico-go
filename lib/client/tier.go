@@ -101,7 +101,7 @@ func (h *tiers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key,
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API Tier structure to a KVPair containing a 
+// convertAPIToKVPair converts an API Tier structure to a KVPair containing a
 // backend Tier and TierKey.
 // This is part of the conversionHelper interface.
 func (h *tiers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {

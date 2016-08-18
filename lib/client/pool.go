@@ -97,7 +97,7 @@ func (h *pools) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key,
 	return k, nil
 }
 
-// convertAPIToKVPair converts an API Pool structure to a KVPair containing a 
+// convertAPIToKVPair converts an API Pool structure to a KVPair containing a
 // backend Pool and PoolKey.
 // This is part of the conversionHelper interface.
 func (h *pools) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
