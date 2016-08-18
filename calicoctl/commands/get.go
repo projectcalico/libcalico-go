@@ -94,7 +94,7 @@ Options:
 				case "go-template-file":
 					rp = resourcePrinterTemplateFile{templateFile: outputValue}
 				case "custom-columns":
-					rp = resourcePrinterTable{headings:outputValues}
+					rp = resourcePrinterTable{headings: outputValues}
 				}
 			}
 		}

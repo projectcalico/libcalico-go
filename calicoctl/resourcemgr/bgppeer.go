@@ -24,10 +24,10 @@ func init() {
 		api.NewBGPPeerList(),
 		[]string{"PEERIP", "HOSTNAME"},
 		[]string{"PEERIP", "HOSTNAME", "ASNUM"},
-		map[string]string {
-			"PEERIP": "{{.Metadata.PeerIP}}",
+		map[string]string{
+			"PEERIP":   "{{.Metadata.PeerIP}}",
 			"HOSTNAME": "{{.Metadata.Hostname}}",
-			"ASNUM": "{{.Spec.ASNum}}",
+			"ASNUM":    "{{.Spec.ASNum}}",
 		},
 	)
 }

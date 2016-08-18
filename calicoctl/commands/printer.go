@@ -22,13 +22,14 @@ import (
 
 	"bytes"
 	"encoding/json"
+	"os"
+	"text/tabwriter"
+	"text/template"
+
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/calicoctl/resourcemgr"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
-	"os"
-	"text/tabwriter"
-	"text/template"
 )
 
 type resourcePrinter interface {
@@ -36,7 +37,8 @@ type resourcePrinter interface {
 }
 
 // JSON output formatter
-type resourcePrinterJSON struct {}
+type resourcePrinterJSON struct{}
+
 func (r resourcePrinterJSON) print(resources []unversioned.Resource) error {
 	// TODO Handle better - results should be groups as per input file
 	// For simplicity convert the returned list of resources to expand any lists
@@ -50,7 +52,8 @@ func (r resourcePrinterJSON) print(resources []unversioned.Resource) error {
 }
 
 //YAML output formatter
-type resourcePrinterYAML struct {}
+type resourcePrinterYAML struct{}
+
 func (r resourcePrinterYAML) print(resources []unversioned.Resource) error {
 	// TODO Handle better - results should be groups as per input file
 	// For simplicity convert the returned list of resources to expand any lists
@@ -63,7 +66,6 @@ func (r resourcePrinterYAML) print(resources []unversioned.Resource) error {
 	return nil
 }
 
-
 // Table output formatter
 type resourcePrinterTable struct {
 	// The headings to display in the table.  If this is nil, the default headings for the
@@ -75,6 +77,7 @@ type resourcePrinterTable struct {
 	// determine whether to the resource-specific default wide or narrow headings.
 	wide bool
 }
+
 func (r resourcePrinterTable) print(resources []unversioned.Resource) error {
 	glog.V(2).Infof("Output in table format (wide=%v)", r.wide)
 	for idx, resource := range resources {
@@ -131,6 +134,7 @@ func (r resourcePrinterTable) print(resources []unversioned.Resource) error {
 type resourcePrinterTemplateFile struct {
 	templateFile string
 }
+
 func (r resourcePrinterTemplateFile) print(resources []unversioned.Resource) error {
 	template, err := ioutil.ReadFile(r.templateFile)
 	if err != nil {
@@ -144,6 +148,7 @@ func (r resourcePrinterTemplateFile) print(resources []unversioned.Resource) err
 type resourcePrinterTemplate struct {
 	template string
 }
+
 func (r resourcePrinterTemplate) print(resources []unversioned.Resource) error {
 
 	fns := template.FuncMap{

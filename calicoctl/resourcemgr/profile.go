@@ -24,7 +24,7 @@ func init() {
 		api.NewProfileList(),
 		[]string{"NAME"},
 		[]string{"NAME"},
-		map[string]string {
+		map[string]string{
 			"NAME": "{{.Metadata.Name}}",
 		},
 	)

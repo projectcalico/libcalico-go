@@ -24,9 +24,9 @@ func init() {
 		api.NewPoolList(),
 		[]string{"CIDR"},
 		[]string{"CIDR", "NAT", "IPIP"},
-		map[string]string {
+		map[string]string{
 			"CIDR": "{{.Metadata.CIDR}}",
-			"NAT": "{{.Spec.NATOutgoing}}",
+			"NAT":  "{{.Spec.NATOutgoing}}",
 			"IPIP": "{{if .Spec.IPIP}}{{.Spec.IPIP.Enabled}}{{else}}false{{end}}",
 		},
 	)

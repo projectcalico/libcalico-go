@@ -26,10 +26,11 @@ import (
 
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 
+	"bytes"
+
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/validator"
-	"bytes"
 )
 
 //TODO:  Move the Update/Apply/Create/Delete etc. function into the resource manager
@@ -70,23 +71,23 @@ func registerResource(res unversioned.Resource, resList unversioned.Resource,
 
 	tmd := res.GetTypeMetadata()
 	rh := resourceHelper{
-		typeMetadata:   tmd,
-		resourceType:   reflect.ValueOf(res).Elem().Type(),
-		tableHeadings: tableHeadings,
+		typeMetadata:      tmd,
+		resourceType:      reflect.ValueOf(res).Elem().Type(),
+		tableHeadings:     tableHeadings,
 		tableHeadingsWide: tableHeadingsWide,
-		headingsMap: headingsMap,
-		isList: false,
+		headingsMap:       headingsMap,
+		isList:            false,
 	}
 	helpers[tmd] = rh
 
 	tmd = resList.GetTypeMetadata()
 	rh = resourceHelper{
-		typeMetadata:   tmd,
-		resourceType:   reflect.ValueOf(resList).Elem().Type(),
-		tableHeadings: tableHeadings,
+		typeMetadata:      tmd,
+		resourceType:      reflect.ValueOf(resList).Elem().Type(),
+		tableHeadings:     tableHeadings,
 		tableHeadingsWide: tableHeadingsWide,
-		headingsMap: headingsMap,
-		isList: true,
+		headingsMap:       headingsMap,
+		isList:            true,
 	}
 	helpers[tmd] = rh
 }

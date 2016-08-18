@@ -24,8 +24,8 @@ func init() {
 		api.NewTierList(),
 		[]string{"NAME"},
 		[]string{"NAME", "ORDER"},
-		map[string]string {
-			"NAME": "{{.Metadata.Name}}",
+		map[string]string{
+			"NAME":  "{{.Metadata.Name}}",
 			"ORDER": "{{.Spec.Order}}",
 		},
 	)

@@ -24,12 +24,12 @@ func init() {
 		api.NewHostEndpointList(),
 		[]string{"HOSTNAME", "NAME"},
 		[]string{"HOSTNAME", "NAME", "INTERFACE", "IPS", "PROFILES"},
-		map[string]string {
-			"HOSTNAME": "{{.Metadata.Hostname}}",
-			"NAME": "{{.Metadata.Name}}",
+		map[string]string{
+			"HOSTNAME":  "{{.Metadata.Hostname}}",
+			"NAME":      "{{.Metadata.Name}}",
 			"INTERFACE": "{{.Spec.InterfaceName}}",
-			"IPS": "{{join .Spec.ExpectedIPs \",\"}}",
-			"PROFILES": "{{join .Spec.Profiles \",\"}}",
+			"IPS":       "{{join .Spec.ExpectedIPs \",\"}}",
+			"PROFILES":  "{{join .Spec.Profiles \",\"}}",
 		},
 	)
 }

@@ -24,10 +24,10 @@ func init() {
 		api.NewPolicyList(),
 		[]string{"NAME", "TIER"},
 		[]string{"NAME", "TIER", "ORDER", "SELECTOR"},
-		map[string]string {
-			"NAME": "{{.Metadata.Name}}",
-			"TIER": "{{.Metadata.Tier}}",
-			"ORDER": "{{.Spec.Order}}",
+		map[string]string{
+			"NAME":     "{{.Metadata.Name}}",
+			"TIER":     "{{.Metadata.Tier}}",
+			"ORDER":    "{{.Spec.Order}}",
 			"SELECTOR": "{{.Spec.Selector}}",
 		},
 	)
