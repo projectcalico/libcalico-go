@@ -49,8 +49,8 @@ Examples:
 
 Options:
   -f --filename=<FILENAME>     Filename to use to get the resource.  If set to "-" loads from stdin.
-  -o --output=<OUTPUT FORMAT>  Output format.  One of: ps, wide, yaml, json, go-template=...,
-                               go-template-file=...  [Default: ps]
+  -o --output=<OUTPUT FORMAT>  Output format.  One of: ps, wide, custom-columns=..., yaml, json,
+                               go-template=..., go-template-file=...   [Default: ps]
   -t --tier=<TIER>             The policy tier.
   -n --hostname=<HOSTNAME>     The hostname.
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
