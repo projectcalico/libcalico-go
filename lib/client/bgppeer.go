@@ -31,37 +31,37 @@ type BGPPeerInterface interface {
 }
 
 // peers implements BGPPeerInterface
-type peers struct {
+type bgpPeers struct {
 	c *Client
 }
 
-// newBGPPeers returns a peers
-func newBGPPeers(c *Client) *peers {
-	return &peers{c}
+// newBGPPeers returns a new BGPPeerInterface bound to the supplied client.
+func newBGPPeers(c *Client) BGPPeerInterface {
+	return &bgpPeers{c}
 }
 
-// Create creates a new pool.
-func (h *peers) Create(a *api.BGPPeer) (*api.BGPPeer, error) {
+// Create creates a new BGP peer.
+func (h *bgpPeers) Create(a *api.BGPPeer) (*api.BGPPeer, error) {
 	return a, h.c.create(*a, h)
 }
 
-// Create creates a new pool.
-func (h *peers) Update(a *api.BGPPeer) (*api.BGPPeer, error) {
+// Update updates an existing BGP peer.
+func (h *bgpPeers) Update(a *api.BGPPeer) (*api.BGPPeer, error) {
 	return a, h.c.update(*a, h)
 }
 
-// Create creates a new pool.
-func (h *peers) Apply(a *api.BGPPeer) (*api.BGPPeer, error) {
+// Apply updates a BGP peer if it exists, or creates a new BGP peer if it does not exist.
+func (h *bgpPeers) Apply(a *api.BGPPeer) (*api.BGPPeer, error) {
 	return a, h.c.apply(*a, h)
 }
 
-// Delete deletes an existing pool.
-func (h *peers) Delete(metadata api.BGPPeerMetadata) error {
+// Delete deletes an existing BGP peer.
+func (h *bgpPeers) Delete(metadata api.BGPPeerMetadata) error {
 	return h.c.delete(metadata, h)
 }
 
-// Get returns information about a particular pool.
-func (h *peers) Get(metadata api.BGPPeerMetadata) (*api.BGPPeer, error) {
+// Get returns information about a particular BGP peer.
+func (h *bgpPeers) Get(metadata api.BGPPeerMetadata) (*api.BGPPeer, error) {
 	if a, err := h.c.get(metadata, h); err != nil {
 		return nil, err
 	} else {
@@ -69,16 +69,17 @@ func (h *peers) Get(metadata api.BGPPeerMetadata) (*api.BGPPeer, error) {
 	}
 }
 
-// List takes a Metadata, and returns the list of peers that match that Metadata
-// (wildcarding missing fields)
-func (h *peers) List(metadata api.BGPPeerMetadata) (*api.BGPPeerList, error) {
+// List takes a Metadata, and returns a BGPPeerList that contains the list of BGP peers
+// that match the Metadata (wildcarding missing fields).
+func (h *bgpPeers) List(metadata api.BGPPeerMetadata) (*api.BGPPeerList, error) {
 	l := api.NewBGPPeerList()
 	err := h.c.list(metadata, h, l)
 	return l, err
 }
 
-// Convert a BGPPeerMetadata to a BGPPeerListInterface
-func (h *peers) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
+// convertMetadataToListInterface converts a BGPPeerMetadata to a BGPPeerListOptions.
+// This is part of the conversionHelper interface.
+func (h *bgpPeers) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.BGPPeerMetadata)
 	l := model.BGPPeerListOptions{
 		PeerIP:   pm.PeerIP,
@@ -87,8 +88,9 @@ func (h *peers) convertMetadataToListInterface(m unversioned.ResourceMetadata) (
 	return l, nil
 }
 
-// Convert a BGPPeerMetadata to a BGPPeerKeyInterface
-func (h *peers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
+// convertMetadataToKey converts a BGPPeerMetadata to a BGPPeerKeyInterface
+// This is part of the conversionHelper interface.
+func (h *bgpPeers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.BGPPeerMetadata)
 	k := model.BGPPeerKey{
 		PeerIP:   pm.PeerIP,
@@ -97,8 +99,9 @@ func (h *peers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key,
 	return k, nil
 }
 
-// Convert an API BGPPeer structure to a Backend BGPPeer structure
-func (h *peers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
+// convertAPIToKVPair converts an API BGPPeer structure to a Backend BGPPeer structure.
+// This is part of the conversionHelper interface.
+func (h *bgpPeers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.BGPPeer)
 	k, err := h.convertMetadataToKey(ap.Metadata)
 	if err != nil {
@@ -116,8 +119,9 @@ func (h *peers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 	return &d, nil
 }
 
-// Convert a Backend BGPPeer structure to an API BGPPeer structure
-func (h *peers) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
+// convertKVPairToAPI converts a Backend BGPPeer structure to an API BGPPeer structure.
+// This is part of the conversionHelper interface.
+func (h *bgpPeers) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	backendBGPPeer := d.Value.(model.BGPPeer)
 	backendBGPPeerKey := d.Key.(model.BGPPeerKey)
 

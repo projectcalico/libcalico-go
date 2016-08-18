@@ -78,7 +78,7 @@ func (c *Client) WorkloadEndpoints() WorkloadEndpointInterface {
 	return newWorkloadEndpoints(c)
 }
 
-// Profiles returns an interface for managing BGP peer resources.
+// BGPPeers returns an interface for managing BGP peer resources.
 func (c *Client) BGPPeers() BGPPeerInterface {
 	return newBGPPeers(c)
 }
