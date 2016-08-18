@@ -62,7 +62,7 @@ func (r resourceHelper) String() string {
 var helpers map[unversioned.TypeMetadata]resourceHelper
 
 func registerResource(res unversioned.Resource, resList unversioned.Resource,
-	psHeadings []string, psWideHeadings []string, headingsMap map[string]string) {
+	tableHeadings []string, tableHeadingsWide []string, headingsMap map[string]string) {
 
 	if helpers == nil {
 		helpers = make(map[unversioned.TypeMetadata]resourceHelper)
@@ -72,8 +72,8 @@ func registerResource(res unversioned.Resource, resList unversioned.Resource,
 	rh := resourceHelper{
 		typeMetadata:   tmd,
 		resourceType:   reflect.ValueOf(res).Elem().Type(),
-		tableHeadings: psHeadings,
-		tableHeadingsWide: psWideHeadings,
+		tableHeadings: tableHeadings,
+		tableHeadingsWide: tableHeadingsWide,
 		headingsMap: headingsMap,
 		isList: false,
 	}
@@ -83,8 +83,8 @@ func registerResource(res unversioned.Resource, resList unversioned.Resource,
 	rh = resourceHelper{
 		typeMetadata:   tmd,
 		resourceType:   reflect.ValueOf(resList).Elem().Type(),
-		tableHeadings: psHeadings,
-		tableHeadingsWide: psWideHeadings,
+		tableHeadings: tableHeadings,
+		tableHeadingsWide: tableHeadingsWide,
 		headingsMap: headingsMap,
 		isList: true,
 	}
