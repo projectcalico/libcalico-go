@@ -32,6 +32,13 @@ import (
 	"bytes"
 )
 
+//TODO:  Move the Update/Apply/Create/Delete etc. function into the resource manager
+//       to remove all of the switch/case code in calicoctl.
+type ResourceManager interface {
+	GetTableDefaultHeadings(wide bool) []string
+	GetTableTemplate(columns []string) (string, error)
+}
+
 // ResourceHelper encapsulates details about a specific version of a specific resource:
 //
 // 	-  The type of resource (Kind and Version).  This includes the list types (even
@@ -39,16 +46,16 @@ import (
 // 	-  The concrete resource struct for this version
 //	-  Template strings used to format output for each resource type.
 type resourceHelper struct {
-	typeMetadata   unversioned.TypeMetadata
-	resourceType   reflect.Type
-	psHeadings     []string
-	psWideHeadings []string
-	headingsMap    map[string]string
-	isList         bool
+	typeMetadata      unversioned.TypeMetadata
+	resourceType      reflect.Type
+	tableHeadings     []string
+	tableHeadingsWide []string
+	headingsMap       map[string]string
+	isList            bool
 }
 
 func (r resourceHelper) String() string {
-	return fmt.Sprintf("Resource %s, version %s", r.typeMetadata.Kind, r.typeMetadata.APIVersion)
+	return fmt.Sprintf("Resource(%s %s)", r.typeMetadata.Kind, r.typeMetadata.APIVersion)
 }
 
 // Store a resourceHelper for each resource unversioned.TypeMetadata.
@@ -65,8 +72,8 @@ func registerResource(res unversioned.Resource, resList unversioned.Resource,
 	rh := resourceHelper{
 		typeMetadata:   tmd,
 		resourceType:   reflect.ValueOf(res).Elem().Type(),
-		psHeadings: psHeadings,
-		psWideHeadings: psWideHeadings,
+		tableHeadings: psHeadings,
+		tableHeadingsWide: psWideHeadings,
 		headingsMap: headingsMap,
 		isList: false,
 	}
@@ -76,8 +83,8 @@ func registerResource(res unversioned.Resource, resList unversioned.Resource,
 	rh = resourceHelper{
 		typeMetadata:   tmd,
 		resourceType:   reflect.ValueOf(resList).Elem().Type(),
-		psHeadings: psHeadings,
-		psWideHeadings: psWideHeadings,
+		tableHeadings: psHeadings,
+		tableHeadingsWide: psWideHeadings,
 		headingsMap: headingsMap,
 		isList: true,
 	}
@@ -212,20 +219,23 @@ func CreateResourcesFromFile(f string) ([]unversioned.Resource, error) {
 	return createResourcesFromBytes(b)
 }
 
-// GetPSTemplate returns the golang template used to provide ps-style output for a particular
-// resource.  The output ay be displayed in wide-format if required.
-func GetPSHeadings(resource unversioned.Resource, wide bool) []string {
-	rh := helpers[resource.GetTypeMetadata()]
+// Implement the ResourceManager interface on the resourceHelper struct.
+
+// GetTableDefaultHeadings returns the default headings to use in the ps-style get output
+// for the resource.  Wide indicates whether the wide (true) or concise (false) column set is
+// required.
+func (rh resourceHelper) GetTableDefaultHeadings(wide bool) []string {
 	if wide {
-		return rh.psWideHeadings
+		return rh.tableHeadingsWide
 	} else {
-		return rh.psHeadings
+		return rh.tableHeadings
 	}
 }
 
-// Construct the go-lang template string from the supplied set of headings.
-func GetPSTemplateCustom(resource unversioned.Resource, headings []string) (string, error) {
-	rh := helpers[resource.GetTypeMetadata()]
+// GetTableTemplate constructs the go-lang template string from the supplied set of headings.
+// The template separates columns using tabs so that a tabwriter can be used to pretty-print
+// the table.
+func (rh resourceHelper) GetTableTemplate(headings []string) (string, error) {
 	buf := new(bytes.Buffer)
 	for _, heading := range headings {
 		buf.WriteString(heading)
@@ -233,10 +243,12 @@ func GetPSTemplateCustom(resource unversioned.Resource, headings []string) (stri
 	}
 	buf.WriteByte('\n')
 
+	// If this is a list type, we need to iterate over the list items.
 	if rh.isList {
 		buf.WriteString("{{range .Items}}")
 	}
 
+	// For each heading, add the corresponding go-template snippet.
 	for _, heading := range headings {
 		value, ok := rh.headingsMap[heading]
 		if !ok {
@@ -253,9 +265,15 @@ func GetPSTemplateCustom(resource unversioned.Resource, headings []string) (stri
 	}
 	buf.WriteByte('\n')
 
+	// If this is a list, close off the range.
 	if rh.isList {
 		buf.WriteString("{{end}}")
 	}
 
 	return buf.String(), nil
+}
+
+// Return the Resource Manager for a particular resource type.
+func GetResourceManager(resource unversioned.Resource) ResourceManager {
+	return helpers[resource.GetTypeMetadata()]
 }

@@ -78,19 +78,24 @@ type resourcePrinterTable struct {
 func (r resourcePrinterTable) print(resources []unversioned.Resource) error {
 	glog.V(2).Infof("Output in table format (wide=%v)", r.wide)
 	for idx, resource := range resources {
+		// Get the resource manager for the resource type.
+		rm := resourcemgr.GetResourceManager(resource)
+
 		// If there are multiple resources then make sure we leave a gap
 		// between each table.
 		if idx > 0 {
 			fmt.Printf("\n")
 		}
 
+		// If no headings have been specified then we must be using the default
+		// headings for that resource type.
 		headings := r.headings
 		if r.headings == nil {
-			headings = resourcemgr.GetPSHeadings(resource, r.wide)
+			headings = rm.GetTableDefaultHeadings(r.wide)
 		}
 
 		// Look up the template string for the specific resource type.
-		tpls, err := resourcemgr.GetPSTemplateCustom(resource, headings)
+		tpls, err := rm.GetTableTemplate(headings)
 		if err != nil {
 			return err
 		}
@@ -106,7 +111,7 @@ func (r resourcePrinterTable) print(resources []unversioned.Resource) error {
 		}
 
 		// Use a tabwriter to write out the teplate - this provides better formatting.
-		writer := tabwriter.NewWriter(os.Stdout, 5, 1, 3, ' ', tabwriter.AlignRight)
+		writer := tabwriter.NewWriter(os.Stdout, 5, 1, 3, ' ', 0)
 		err = tmpl.Execute(writer, resource)
 		if err != nil {
 			panic(err)
