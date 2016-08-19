@@ -84,6 +84,7 @@ func (h *bgpPeers) List(metadata api.BGPPeerMetadata) (*api.BGPPeerList, error) 
 func (h *bgpPeers) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.BGPPeerMetadata)
 	l := model.BGPPeerListOptions{
+		Scope:    pm.Scope,
 		PeerIP:   pm.PeerIP,
 		Hostname: pm.Hostname,
 	}
@@ -101,6 +102,7 @@ func (h *bgpPeers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.K
 		return nil, fmt.Errorf("hostname should not be specified if BGP peer scope is global")
 	}
 	k := model.BGPPeerKey{
+		Scope:    pm.Scope,
 		PeerIP:   pm.PeerIP,
 		Hostname: pm.Hostname,
 	}
@@ -136,6 +138,7 @@ func (h *bgpPeers) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, er
 	backendBGPPeerKey := d.Key.(model.BGPPeerKey)
 
 	apiBGPPeer := api.NewBGPPeer()
+	apiBGPPeer.Metadata.Scope = backendBGPPeerKey.Scope
 	apiBGPPeer.Metadata.PeerIP = backendBGPPeerKey.PeerIP
 	apiBGPPeer.Metadata.Hostname = backendBGPPeerKey.Hostname
 	apiBGPPeer.Spec.ASNumber = backendBGPPeer.ASNum

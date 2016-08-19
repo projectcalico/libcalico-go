@@ -23,6 +23,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/errors"
 	"github.com/tigera/libcalico-go/lib/net"
+	"github.com/tigera/libcalico-go/lib/scope"
 )
 
 var (
@@ -32,23 +33,29 @@ var (
 )
 
 type BGPPeerKey struct {
-	Hostname string `json:"-" validate:"omitempty"`
-	PeerIP   net.IP `json:"-" validate:"required"`
+	Scope    scope.GlobalOrNode `json:"-" validate:"omitempty"`
+	Hostname string             `json:"-" validate:"omitempty"`
+	PeerIP   net.IP             `json:"-" validate:"required"`
 }
 
 func (key BGPPeerKey) DefaultPath() (string, error) {
 	if key.PeerIP.IP == nil {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "peerIP"}
 	}
-	if key.Hostname == "" {
+	switch key.Scope {
+	case scope.Global:
 		e := fmt.Sprintf("/calico/bgp/v1/global/peer_v%d/%s",
 			key.PeerIP.Version(), key.PeerIP)
 		return e, nil
-	} else {
+	case scope.Node:
+		if key.Hostname == "" {
+			return "", errors.ErrorInsufficientIdentifiers{Name: "hostname"}
+		}
 		e := fmt.Sprintf("/calico/bgp/v1/host/%s/peer_v%d/%s",
 			key.Hostname, key.PeerIP.Version(), key.PeerIP)
 		return e, nil
 	}
+	panic(fmt.Errorf("Unexpected scope value: %d", key.Scope))
 }
 
 func (key BGPPeerKey) DefaultDeletePath() (string, error) {
@@ -68,20 +75,42 @@ func (key BGPPeerKey) String() string {
 }
 
 type BGPPeerListOptions struct {
+	Scope    scope.GlobalOrNode `json:"-" validate:"omitempty"`
 	Hostname string
 	PeerIP   net.IP
 }
 
 func (options BGPPeerListOptions) DefaultPathRoot() string {
-	if options.Hostname == "" {
-		return "/calico/bgp/v1"
-	} else if options.PeerIP.IP == nil {
-		return fmt.Sprintf("/calico/bgp/v1/host/%s",
-			options.Hostname)
-	} else {
-		return fmt.Sprintf("/calico/bgp/v1/host/%s/peer_v%d/%s",
-			options.Hostname, options.PeerIP.Version(), options.PeerIP)
+	switch options.Scope {
+	case scope.Undefined:
+		if options.Hostname == "" {
+			return "/calico/bgp/v1"
+		} else if options.PeerIP.IP == nil {
+			return fmt.Sprintf("/calico/bgp/v1/host/%s",
+				options.Hostname)
+		} else {
+			return fmt.Sprintf("/calico/bgp/v1/host/%s/peer_v%d/%s",
+				options.Hostname, options.PeerIP.Version(), options.PeerIP)
+		}
+	case scope.Global:
+		if options.PeerIP.IP == nil {
+			return "/calico/bgp/v1/global"
+		} else {
+			return fmt.Sprintf("/calico/bgp/v1/global/peer_v%d/%s",
+				options.PeerIP.Version(), options.PeerIP)
+		}
+	case scope.Node:
+		if options.Hostname == "" {
+			return "/calico/bgp/v1/host"
+		} else if options.PeerIP.IP == nil {
+			return fmt.Sprintf("/calico/bgp/v1/host/%s",
+				options.Hostname)
+		} else {
+			return fmt.Sprintf("/calico/bgp/v1/host/%s/peer_v%d/%s",
+				options.Hostname, options.PeerIP.Version(), options.PeerIP)
+		}
 	}
+	panic(fmt.Errorf("Unexpected scope value: %d", options.Scope))
 }
 
 func (options BGPPeerListOptions) ParseDefaultKey(ekey string) Key {
@@ -89,12 +118,15 @@ func (options BGPPeerListOptions) ParseDefaultKey(ekey string) Key {
 	hostname := ""
 	peerIP := net.IP{}
 	ekeyb := []byte(ekey)
+	var peerScope scope.GlobalOrNode
 
 	if r := matchGlobalBGPPeer.FindAllSubmatch(ekeyb, -1); len(r) == 1 {
 		_ = peerIP.UnmarshalText(r[0][1])
+		peerScope = scope.Global
 	} else if r := matchHostBGPPeer.FindAllSubmatch(ekeyb, -1); len(r) == 1 {
 		hostname = string(r[0][1])
 		_ = peerIP.UnmarshalText(r[0][2])
+		peerScope = scope.Node
 	} else {
 		glog.V(2).Infof("%s didn't match regex", ekey)
 		return nil
@@ -108,7 +140,7 @@ func (options BGPPeerListOptions) ParseDefaultKey(ekey string) Key {
 		glog.V(2).Infof("Didn't match hostname %s != %s", options.Hostname, hostname)
 		return nil
 	}
-	return BGPPeerKey{PeerIP: peerIP, Hostname: hostname}
+	return BGPPeerKey{Scope: peerScope, PeerIP: peerIP, Hostname: hostname}
 }
 
 type BGPPeer struct {

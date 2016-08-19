@@ -35,7 +35,10 @@ By specifying the output as 'template' and providing a Go template as the value
 of the --template flag, you can filter the attributes of the fetched resource(s).
 
 Usage:
-  calicoctl get ([--tier=<TIER>] [--hostname=<HOSTNAME>] (<KIND> [<NAME>]) | --filename=<FILENAME>) [--output=<OUTPUT>] [--config=<CONFIG>]
+  calicoctl get ([--tier=<TIER>] [--hostname=<HOSTNAME>] [--scope=<SCOPE>] (<KIND> [<NAME>]) |
+                 --filename=<FILENAME>)
+                [--output=<OUTPUT>] [--config=<CONFIG>]
+
 
 Examples:
   # List all policy in default output format.
@@ -51,6 +54,9 @@ Options:
   -n --hostname=<HOSTNAME>     The hostname.
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
                                [default: /etc/calico/calicoctl.cfg]
+  --scope=<SCOPE>              The scope of the resource type.  One of global, node.  This is only valid
+                               for BGP peers and is used to indicate whether the peer is a global peer
+                               or node-specific.
 `
 	parsedArgs, err := docopt.Parse(doc, args, true, "calicoctl", false, false)
 	if err != nil {

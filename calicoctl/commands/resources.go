@@ -26,6 +26,7 @@ import (
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/client"
+	"github.com/tigera/libcalico-go/lib/scope"
 	"github.com/tigera/libcalico-go/lib/net"
 )
 
@@ -90,6 +91,7 @@ func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource
 	name := stringOrBlank("<NAME>")
 	tier := stringOrBlank("--tier")
 	hostname := stringOrBlank("--hostname")
+	resScope := stringOrBlank("--scope")
 	switch kind {
 	case "hostEndpoint":
 		h := api.NewHostEndpoint()
@@ -133,6 +135,16 @@ func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource
 			}
 		}
 		p.Metadata.Hostname = hostname
+		switch resScope {
+		case "node":
+			p.Metadata.Scope = scope.Node
+		case "global":
+			p.Metadata.Scope = scope.Global
+		case "":
+			p.Metadata.Scope = scope.Undefined
+		default:
+			return nil, fmt.Errorf("Unrecognized scope '%s', must be one of: global, node", resScope)
+		}
 		return *p, nil
 
 	default:

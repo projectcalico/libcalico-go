@@ -28,7 +28,7 @@ const (
 )
 
 const (
-	UndefinedStr = ""
+	UndefinedStr = "undefined"
 	GlobalStr = "global"
 	NodeStr = "node"
 )
@@ -43,11 +43,11 @@ func (f *GlobalOrNode) UnmarshalJSON(b []byte) error {
 
 	switch value {
 	case UndefinedStr:
-		f = Undefined
+		*f = Undefined
 	case GlobalStr:
-		f = Global
+		*f = Global
 	case NodeStr:
-		f = Node
+		*f = Node
 	default:
 		return fmt.Errorf("Unrecognised scope value '%s'", value)
 	}
@@ -62,7 +62,7 @@ func (f *GlobalOrNode) String() string {
 		return "scope:undefined"
 	case Global:
 		return "scope:global"
-	case NodeStr:
+	case Node:
 		return "scope:node"
 	default:
 		return "scope:unknown"
@@ -76,7 +76,7 @@ func (f GlobalOrNode) MarshalJSON() ([]byte, error) {
 		return json.Marshal(UndefinedStr)
 	case Global:
 		return json.Marshal(GlobalStr)
-	case NodeStr:
+	case Node:
 		return json.Marshal(NodeStr)
 	default:
 		return nil, fmt.Errorf("Unrecognised scope value `%d`", f)
