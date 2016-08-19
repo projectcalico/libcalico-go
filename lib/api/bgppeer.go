@@ -17,14 +17,23 @@ package api
 import (
 	. "github.com/tigera/libcalico-go/lib/api/unversioned"
 	. "github.com/tigera/libcalico-go/lib/net"
+	"github.com/tigera/libcalico-go/lib/scope"
+)
+
+const (
+
 )
 
 type BGPPeerMetadata struct {
 	ObjectMetadata
 
-	// The hostname of the node that is peering with this peer.  If left blank,
-	// Calico assumes this is a "global" BGP peer - i.e. it peers with every Calico
-	// node in the deployment.
+	// The scope of the peer.  This may with be global or node.  A global peer is a
+	// BGP device that peers with all Calico nodes.  A node peer is a BGP device that
+	// peers with the specified Calico node (specified by the node hostname).
+	Scope scope.GlobalOrNode
+
+	// The hostname of the node that is peering with this peer.  This is only valid
+	// when the scope of the peer is Host and should be left blank for global peers.
 	Hostname string `json:"hostname,omitempty" validate:"omitempty,name"`
 
 	// The IP address of the peer.

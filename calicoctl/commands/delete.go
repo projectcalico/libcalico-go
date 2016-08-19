@@ -30,7 +30,9 @@ func Delete(args []string) error {
 	doc := EtcdIntro + `Delete a resource identified by file, stdin or resource type and name.
 
 Usage:
-  calicoctl delete [--skip-not-exists] (([--tier=<TIER>] [--hostname=<HOSTNAME>] <KIND> <NAME>) | --filename=<FILE>) [--config=<CONFIG>]
+  calicoctl delete [--skip-not-exists] [--config=<CONFIG>]
+      (([--tier=<TIER>] [--hostname=<HOSTNAME>] [--scope=<SCOPE>] <KIND> <NAME>) |
+       --filename=<FILE>)
 
 Examples:
   # Delete a policy using the type and name specified in policy.yaml.
@@ -52,6 +54,7 @@ Options:
   -n --hostname=<HOSTNAME>     The hostname.
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
                                [default: /etc/calico/calicoctl.cfg]
+  --scope=<SCOPE>              The scope of the resource type.  This is only valid for
 `
 	parsedArgs, err := docopt.Parse(doc, args, true, "calicoctl", false, false)
 	if err != nil {
