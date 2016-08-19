@@ -1,7 +1,26 @@
 > ![warning](images/warning.png) This document describes an alpha release of calicoctl
 >
-> The version of calico
-> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.21.0/README.md).
+> The version of calico described in this document is an alpha release of
+> calicoctl that provides management of resources using YAML and JSON
+> file-based input.  The same set of commands are used for managing all 
+> different resource types.
+>
+> This version of calicoctl does not yet contain any container-specific
+> processing, this includes:
+>
+> -  Starting/stopping Calico node and the libnetwork plugin
+> -  Management of Docker network profiles
+> -  Container management commands to add/remove Calico networking from
+>    and existing container.
+>
+> If you require any of those features, please use the latest version of
+> calicoctl attached to the releases at [calico-containers](https://github.com/projectcalico/calico-containers/releases).
+>
+> If you are using Calico as a CNI driver, this version of calicoctl will
+> allow you to manage all required Calico features, however you will need
+> to start the Calico node image directly as a container.  For example,
+> see [Running Calico node containers as services](https://github.com/projectcalico/calico-containers/blob/master/docs/CalicoAsService.md) for details on
+> running these images as systemd services.
 
 # calicoctl command line interface user reference
 
@@ -35,17 +54,11 @@ See 'calicoctl <command> --help' to read about a specific subcommand.
 Details on the `calicoctl` commands are described in the documents linked below
 organized by top level command.
 
--  [calicoctl status](calicoctl/status.md)
--  [calicoctl node](calicoctl/node.md)
--  [calicoctl container](calicoctl/container.md)
--  [calicoctl profile](calicoctl/profile.md)
--  [calicoctl endpoint](calicoctl/endpoint.md)
--  [calicoctl pool](calicoctl/pool.md)
--  [calicoctl bgp](calicoctl/bgp.md)
--  [calicoctl ipam](calicoctl/ipam.md)
--  [calicoctl checksystem](calicoctl/checksystem.md)
--  [calicoctl diags](calicoctl/diags.md)
+-  [calicoctl create](calicoctl/create.md)
+-  [calicoctl replace](calicoctl/replace.md)
+-  [calicoctl apply](calicoctl/apply.md)
+-  [calicoctl delete](calicoctl/delete.md)
+-  [calicoctl get](calicoctl/get.md)
 -  [calicoctl version](calicoctl/version.md)
--  [calicoctl config](calicoctl/config.md)
 
 [![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/calico-containers/docs/calicoctl.md?pixel)](https://github.com/igrigorik/ga-beacon)
