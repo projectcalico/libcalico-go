@@ -20,14 +20,10 @@ import (
 	"github.com/tigera/libcalico-go/lib/scope"
 )
 
-const (
-
-)
-
 type BGPPeerMetadata struct {
 	ObjectMetadata
 
-	// The scope of the peer.  This may with be global or node.  A global peer is a
+	// The scope of the peer.  This may be global or node.  A global peer is a
 	// BGP device that peers with all Calico nodes.  A node peer is a BGP device that
 	// peers with the specified Calico node (specified by the node hostname).
 	Scope scope.GlobalOrNode `json:"scope" validate:"omitempty,scopeglobalornode"`
