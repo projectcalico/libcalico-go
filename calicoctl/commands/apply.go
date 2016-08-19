@@ -91,7 +91,6 @@ Options:
 // commandInterface for create command.
 // Maps the generic resource types to the typed client interface.
 type apply struct {
-	skipIfExists bool
 }
 
 func (a apply) execute(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
