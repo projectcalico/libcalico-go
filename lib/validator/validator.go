@@ -25,6 +25,7 @@ import (
 	"github.com/tigera/libcalico-go/lib/numorstring"
 	"github.com/tigera/libcalico-go/lib/selector"
 	"gopkg.in/go-playground/validator.v8"
+	"github.com/tigera/libcalico-go/lib/scope"
 )
 
 var validate *validator.Validate
@@ -52,6 +53,7 @@ func init() {
 	RegisterFieldValidator("interface", validateInterface)
 	RegisterFieldValidator("order", validateOrder)
 	RegisterFieldValidator("asn", validateASNum)
+	RegisterFieldValidator("scopeglobalornode", validateScopeGlobalOrNode)
 
 	RegisterStructValidator(validateProtocol, numorstring.Protocol{})
 	RegisterStructValidator(validatePort, numorstring.Port{})
@@ -141,6 +143,12 @@ func validateASNum(v *validator.Validate, topStruct reflect.Value, currentStruct
 	f := field.Interface().(int)
 	glog.V(2).Infof("Validate AS number: %v\n", f)
 	return f >= 0 && f <= 4294967295
+}
+
+func validateScopeGlobalOrNode(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
+	f := field.Interface().(scope.GlobalOrNode)
+	glog.V(2).Infof("Validate scope: %v\n", f)
+	return f == scope.Global || f == scope.Node
 }
 
 func validateProtocol(v *validator.Validate, structLevel *validator.StructLevel) {
