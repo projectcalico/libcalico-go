@@ -148,7 +148,8 @@ type resourcePrinterTemplate struct {
 }
 
 func (r resourcePrinterTemplate) print(resources []unversioned.Resource) error {
-
+	// We include a join function in the template as it's useful for multi
+	// value columns.
 	fns := template.FuncMap{
 		"join": join,
 	}
@@ -169,8 +170,6 @@ func join(items interface{}, separator string) string {
 	switch s := items.(type) {
 	case []string:
 		return strings.Join(s, separator)
-	case fmt.Stringer:
-		return s.String()
 	}
 
 	// Otherwise, provided this is a slice, just convert each item to a string and
