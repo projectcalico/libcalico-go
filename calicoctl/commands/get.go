@@ -20,8 +20,8 @@ import (
 	"github.com/tigera/libcalico-go/lib/client"
 
 	"fmt"
+	"strings"
 
-	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 )
@@ -49,7 +49,8 @@ Examples:
 
 Options:
   -f --filename=<FILENAME>     Filename to use to get the resource.  If set to "-" loads from stdin.
-  -o --output=<OUTPUT FORMAT>  Output format.  One of: yaml, json.  [Default: yaml]
+  -o --output=<OUTPUT FORMAT>  Output format.  One of: ps, wide, custom-columns=..., yaml, json,
+                               go-template=..., go-template-file=...   [Default: ps]
   -t --tier=<TIER>             The policy tier.
   -n --hostname=<HOSTNAME>     The hostname.
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
@@ -66,6 +67,43 @@ Options:
 		return nil
 	}
 
+	var rp resourcePrinter
+	output := parsedArgs["--output"].(string)
+	switch output {
+	case "yaml":
+		rp = resourcePrinterYAML{}
+	case "json":
+		rp = resourcePrinterJSON{}
+	case "ps":
+		rp = resourcePrinterTable{wide: false}
+	case "wide":
+		rp = resourcePrinterTable{wide: true}
+	default:
+		// Output format may be a key=value pair, so split on "=" to find out.  Pull
+		// out the key and value, and split the value by "," as some options allow
+		// a multiple-valued value.
+		outputParms := strings.SplitN(output, "=", 2)
+		if len(outputParms) == 2 {
+			outputKey := outputParms[0]
+			outputValue := outputParms[1]
+			outputValues := strings.Split(outputValue, ",")
+			if len(outputParms) == 2 {
+				switch outputKey {
+				case "go-template":
+					rp = resourcePrinterTemplate{template: outputValue}
+				case "go-template-file":
+					rp = resourcePrinterTemplateFile{templateFile: outputValue}
+				case "custom-columns":
+					rp = resourcePrinterTable{headings: outputValues}
+				}
+			}
+		}
+	}
+
+	if rp == nil {
+		return fmt.Errorf("Unrecognized output format: %s", output)
+	}
+
 	cmd := get{}
 	results := executeConfigCommand(parsedArgs, cmd)
 	glog.V(2).Infof("results: %+v", results)
@@ -75,17 +113,7 @@ Options:
 		return err
 	}
 
-	// TODO Handle better - results should be groups as per input file
-	// For simplicity convert the returned list of resources to expand any lists
-	resources := convertToSliceOfResources(results.resources)
-
-	if output, err := yaml.Marshal(resources); err != nil {
-		fmt.Printf("Error outputing data: %v", err)
-	} else {
-		fmt.Printf("%s", string(output))
-	}
-
-	return nil
+	return rp.print(results.resources)
 }
 
 // commandInterface for replace command.
