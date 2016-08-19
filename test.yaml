@@ -1,0 +1,22 @@
+- apiVersion: v1
+  kind: hostEndpoint
+  metadata:
+    hostname: host1
+    labels:
+      type: database
+    name: endpoint1
+  spec:
+    expectedIPs:
+    - 1.2.3.4
+    - 0:bb::aa
+    profiles:
+    - prof1
+    - prof2
+- apiVersion: v1
+  kind: hostEndpoint
+  metadata:
+    hostname: myhost
+    name: eth0
+  spec:
+    profiles:
+    - profile1

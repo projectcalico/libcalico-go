@@ -13,9 +13,11 @@
 // limitations under the License.
 
 /*
-Package resourcemgr implements generic resource handling methods.  This includes:
-	- a mechanism for creating specific resources from a JSON or YAML input.
-	- an untyped resource management interface for each resource type
-	- table template data for each resource type
+Package scope implements field types that represent different scopes for resource
+types.  For example, a resource may be valid at the global scope in that applies to
+all Calico nodes, or may be at a node scope in that applies to a specific node.
+
+The internal representation is an integer, but the JSON serialization of these
+values is a string.
 */
-package resourcemgr
+package scope

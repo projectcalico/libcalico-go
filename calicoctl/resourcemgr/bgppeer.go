@@ -12,10 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package resourcemgr implements generic resource handling methods.  This includes:
-	- a mechanism for creating specific resources from a JSON or YAML input.
-	- an untyped resource management interface for each resource type
-	- table template data for each resource type
-*/
 package resourcemgr
+
+import (
+	"github.com/tigera/libcalico-go/lib/api"
+)
+
+func init() {
+	registerResource(
+		api.NewBGPPeer(),
+		api.NewBGPPeerList(),
+		[]string{"PEERIP", "HOSTNAME"},
+		[]string{"PEERIP", "HOSTNAME", "ASNUM"},
+		map[string]string{
+			"PEERIP":   "{{.Metadata.PeerIP}}",
+			"HOSTNAME": "{{.Metadata.Hostname}}",
+			"ASNUM":    "{{.Spec.ASNum}}",
+		},
+	)
+}

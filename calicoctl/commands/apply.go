@@ -91,7 +91,6 @@ Options:
 // commandInterface for create command.
 // Maps the generic resource types to the typed client interface.
 type apply struct {
-	skipIfExists bool
 }
 
 func (a apply) execute(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
@@ -109,6 +108,8 @@ func (a apply) execute(client *client.Client, resource unversioned.Resource) (un
 		_, err = client.Tiers().Apply(&r)
 	case api.WorkloadEndpoint:
 		err = fmt.Errorf("Workload endpoints cannot be managed directly")
+	case api.BGPPeer:
+		_, err = client.BGPPeers().Apply(&r)
 	default:
 		panic(fmt.Errorf("Unhandled resource type: %v", resource))
 	}
