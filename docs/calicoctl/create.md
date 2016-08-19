@@ -4,69 +4,43 @@
 
 # User reference for 'calicoctl create' commands
 
-This sections describes the `calicoctl create` commands.
+This sections describes the `calicoctl create` command.
 
 Read the [calicoctl command line interface user reference](../calicoctl.md) 
 for a full list of calicoctl commands.
 
-## Displaying the help text for 'calicoctl create' commands
+## Displaying the help text for 'calicoctl create' command
 
 Run `calicoctl create --help` to display the following help menu for the 
-calicoctl status commands.
+calicoctl create command.
 
 ```
+Set the ETCD server access information in the environment variables
+or supply details in a config file.
+
+Create a resource by filename or stdin.
 
 Usage:
-  calicoctl status
+  calicoctl create --filename=<FILENAME> [--skip-exists] [--config=<CONFIG>]
 
-Description:
-  Print current status information regarding calico-node container
-  and the BIRD routing daemon.
+Examples:
+  # Create a policy using the data in policy.yaml.
+  calicoctl create -f ./policy.yaml
 
-```
+  # Create a policy based on the JSON passed into stdin.
+  cat policy.json | calicoctl create -f -
 
-## calicoctl status commands
-
-
-### calicoctl status
-This command allows you to view state information about the `calico/node` and 
-the BGP peers of the Calico node.
-
-This command shows:
- - State and uptime of `calico/node` container
- - BGP State for IPv4 and IPv6 peers
-   - Peer address: Host address used as BGP peer IP to route to Calico workloads
-   - Peer type: How the two BGP peers are connected, such as through a 
-   `node-to-node mesh`, a direct peer between two nodes as `node-specific`, 
-   or as a `global` BGP peer (See the [`calicoctl bgp` reference](./bgp.md) for 
-   more info)
-   - State: Peer instance state, `up` or `down`
-   - Since: How long the peer has been up
-   - Info: BGP connection state, such as Established
-
-
-Command syntax:
-
-```
-calicoctl status
+Options:
+  -f --filename=<FILENAME>     Filename to use to create the resource.  If set to "-" loads from stdin.
+  -s --skip-exists             Skip over and treat as successful any attempts to create an entry that
+                               already exists.
+  -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
+                               [default: /etc/calico/calicoctl.cfg]
 ```
 
 Examples:
 
 ```
-$ calicoctl status
-calico-node container is running. Status: Up 5 seconds
-
-IPv4 BGP status
-IP: 172.17.8.100    AS Number: 64511 (inherited)
-+--------------+-------------------+-------+----------+-------------+
-| Peer address |     Peer type     | State |  Since   |     Info    |
-+--------------+-------------------+-------+----------+-------------+
-| 172.17.8.101 | node-to-node mesh |   up  | 17:54:00 | Established |
-+--------------+-------------------+-------+----------+-------------+
-
-IPv6 BGP status
-No IPv6 address configured.
 
 ```
-[![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/calico-containers/docs/calicoctl/status.md?pixel)](https://github.com/igrigorik/ga-beacon)
+[![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/calicoctl/docs/calicoctl/create.md?pixel)](https://github.com/igrigorik/ga-beacon)
