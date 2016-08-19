@@ -33,9 +33,9 @@ var (
 )
 
 type BGPPeerKey struct {
-	Scope    scope.GlobalOrNode `json:"-" validate:"omitempty"`
-	Hostname string             `json:"-" validate:"omitempty"`
-	PeerIP   net.IP             `json:"-" validate:"required"`
+	Scope    scope.Scope `json:"-" validate:"omitempty"`
+	Hostname string      `json:"-" validate:"omitempty"`
+	PeerIP   net.IP      `json:"-" validate:"required"`
 }
 
 func (key BGPPeerKey) DefaultPath() (string, error) {
@@ -43,7 +43,12 @@ func (key BGPPeerKey) DefaultPath() (string, error) {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "peerIP"}
 	}
 	switch key.Scope {
+	case scope.Undefined:
+		return "", errors.ErrorInsufficientIdentifiers{Name: "scope"}
 	case scope.Global:
+		if key.Hostname != "" {
+			return "", fmt.Errorf("hostname should not be specified when BGP peer scope is global")
+		}
 		e := fmt.Sprintf("/calico/bgp/v1/global/peer_v%d/%s",
 			key.PeerIP.Version(), key.PeerIP)
 		return e, nil
@@ -54,8 +59,9 @@ func (key BGPPeerKey) DefaultPath() (string, error) {
 		e := fmt.Sprintf("/calico/bgp/v1/host/%s/peer_v%d/%s",
 			key.Hostname, key.PeerIP.Version(), key.PeerIP)
 		return e, nil
+	default:
+		return "", fmt.Errorf("invalid scope value: %d", key.Scope)
 	}
-	panic(fmt.Errorf("Unexpected scope value: %d", key.Scope))
 }
 
 func (key BGPPeerKey) DefaultDeletePath() (string, error) {
@@ -67,7 +73,7 @@ func (key BGPPeerKey) valueType() reflect.Type {
 }
 
 func (key BGPPeerKey) String() string {
-	if key.Hostname == "" {
+	if key.Scope == scope.Global {
 		return fmt.Sprintf("BGPPeer(global, ip=%s)", key.PeerIP)
 	} else {
 		return fmt.Sprintf("BGPPeer(hostname=%s, ip=%s)", key.Hostname, key.PeerIP)
@@ -75,7 +81,7 @@ func (key BGPPeerKey) String() string {
 }
 
 type BGPPeerListOptions struct {
-	Scope    scope.GlobalOrNode `json:"-" validate:"omitempty"`
+	Scope    scope.Scope `json:"-" validate:"omitempty"`
 	Hostname string
 	PeerIP   net.IP
 }
@@ -118,7 +124,7 @@ func (options BGPPeerListOptions) ParseDefaultKey(ekey string) Key {
 	hostname := ""
 	peerIP := net.IP{}
 	ekeyb := []byte(ekey)
-	var peerScope scope.GlobalOrNode
+	var peerScope scope.Scope
 
 	if r := matchGlobalBGPPeer.FindAllSubmatch(ekeyb, -1); len(r) == 1 {
 		_ = peerIP.UnmarshalText(r[0][1])

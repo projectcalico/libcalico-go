@@ -26,10 +26,11 @@ type BGPPeerMetadata struct {
 	// The scope of the peer.  This may be global or node.  A global peer is a
 	// BGP device that peers with all Calico nodes.  A node peer is a BGP device that
 	// peers with the specified Calico node (specified by the node hostname).
-	Scope scope.GlobalOrNode `json:"scope" validate:"omitempty,scopeglobalornode"`
+	Scope scope.Scope `json:"scope" validate:"omitempty,scopeglobalornode"`
 
-	// The hostname of the node that is peering with this peer.  This is only valid
-	// when the scope of the peer is Host and should be left blank for global peers.
+	// The hostname of the node that is peering with this peer.  When modifying a
+	// BGP peer, the hostname must be specified when the scope is `node`, and must
+	// be omitted when the scope is `global`.
 	Hostname string `json:"hostname,omitempty" validate:"omitempty,name"`
 
 	// The IP address of the peer.

@@ -21,4 +21,3 @@ The internal representation is an integer, but the JSON serialization of these
 values is a string.
 */
 package scope
-

@@ -19,7 +19,7 @@ import (
 	"fmt"
 )
 
-type GlobalOrNode int
+type Scope int
 
 const (
 	Undefined = iota
@@ -29,12 +29,12 @@ const (
 
 const (
 	UndefinedStr = "undefined"
-	GlobalStr = "global"
-	NodeStr = "node"
+	GlobalStr    = "global"
+	NodeStr      = "node"
 )
 
 // UnmarshalJSON implements the json.Unmarshaller interface.
-func (f *GlobalOrNode) UnmarshalJSON(b []byte) error {
+func (f *Scope) UnmarshalJSON(b []byte) error {
 	var value string
 	err := json.Unmarshal(b, &value)
 	if err != nil {
@@ -56,7 +56,7 @@ func (f *GlobalOrNode) UnmarshalJSON(b []byte) error {
 }
 
 // String returns a friendly string value for this scope.
-func (f *GlobalOrNode) String() string {
+func (f *Scope) String() string {
 	switch *f {
 	case Undefined:
 		return "scope:undefined"
@@ -70,7 +70,7 @@ func (f *GlobalOrNode) String() string {
 }
 
 // MarshalJSON implements the json.Marshaller interface.
-func (f GlobalOrNode) MarshalJSON() ([]byte, error) {
+func (f Scope) MarshalJSON() ([]byte, error) {
 	switch f {
 	case Undefined:
 		return json.Marshal(UndefinedStr)
@@ -79,6 +79,6 @@ func (f GlobalOrNode) MarshalJSON() ([]byte, error) {
 	case Node:
 		return json.Marshal(NodeStr)
 	default:
-		return nil, fmt.Errorf("Unrecognised scope value `%d`", f)
+		return nil, fmt.Errorf("unknown scope value `%d`", f)
 	}
 }

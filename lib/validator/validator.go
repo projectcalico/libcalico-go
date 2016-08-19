@@ -23,9 +23,9 @@ import (
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/errors"
 	"github.com/tigera/libcalico-go/lib/numorstring"
+	"github.com/tigera/libcalico-go/lib/scope"
 	"github.com/tigera/libcalico-go/lib/selector"
 	"gopkg.in/go-playground/validator.v8"
-	"github.com/tigera/libcalico-go/lib/scope"
 )
 
 var validate *validator.Validate
@@ -146,7 +146,7 @@ func validateASNum(v *validator.Validate, topStruct reflect.Value, currentStruct
 }
 
 func validateScopeGlobalOrNode(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
-	f := field.Interface().(scope.GlobalOrNode)
+	f := field.Interface().(scope.Scope)
 	glog.V(2).Infof("Validate scope: %v\n", f)
 	return f == scope.Global || f == scope.Node
 }

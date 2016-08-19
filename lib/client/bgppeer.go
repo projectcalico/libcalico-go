@@ -18,8 +18,6 @@ import (
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend/model"
-	"github.com/tigera/libcalico-go/lib/scope"
-	"fmt"
 )
 
 // BGPPeerInterface has methods to work with BGPPeer resources.
@@ -95,12 +93,6 @@ func (h *bgpPeers) convertMetadataToListInterface(m unversioned.ResourceMetadata
 // This is part of the conversionHelper interface.
 func (h *bgpPeers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.BGPPeerMetadata)
-	if pm.Scope == scope.Undefined {
-		return nil, fmt.Errorf("BGP peer scope is undefined")
-	}
-	if pm.Scope == scope.Global && pm.Hostname != "" {
-		return nil, fmt.Errorf("hostname should not be specified if BGP peer scope is global")
-	}
 	k := model.BGPPeerKey{
 		Scope:    pm.Scope,
 		PeerIP:   pm.PeerIP,

@@ -26,8 +26,8 @@ import (
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/client"
-	"github.com/tigera/libcalico-go/lib/scope"
 	"github.com/tigera/libcalico-go/lib/net"
+	"github.com/tigera/libcalico-go/lib/scope"
 )
 
 // Convert loaded resources to a slice of resources for easier processing.
