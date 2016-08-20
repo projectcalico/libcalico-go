@@ -15,29 +15,52 @@
 package api
 
 import (
-	"github.com/golang/glog"
-	"github.com/tigera/libcalico-go/lib/backend/etcd"
+	. "github.com/tigera/libcalico-go/lib/api/unversioned"
+	. "github.com/tigera/libcalico-go/lib/net"
+	"github.com/tigera/libcalico-go/lib/scope"
 )
 
-type BackendType string
+type ConfigMetadata struct {
+	ObjectMetadata
 
-const (
-	EtcdV2 BackendType = "etcdv2"
-)
+	// The scope of the config.  This may be global or node.  If the config scope is
+	// node, the hostname must also be supplied.
+	Scope scope.Scope `json:"scope" validate:"omitempty,scopeglobalornode"`
 
-// NewConfig returns a pointer to a new config struct for the relevant datastore.
-func (b BackendType) NewConfig() interface{} {
-	switch b {
-	case EtcdV2:
-		return &etcd.EtcdConfig{}
-	default:
-		glog.Errorf("Unknown backend type: %v", b)
-		return nil
-	}
+	// The hostname of the node that the config applies to.  When modifying config
+	// the hostname must be specified when the scope is `node`, and must
+	// be omitted when the scope is `global`.
+	Hostname string `json:"hostname,omitempty" validate:"omitempty,name"`
+
+	// The config key.
+	Key string `json:"key" validate:"omitempty,configkey"`
 }
 
-// Client configuration required to instantiate a Calico client interface.
-type ClientConfig struct {
-	BackendType   BackendType `json:"datastoreType" envconfig:"DATASTORE_TYPE" default:"etcdv2"`
-	BackendConfig interface{} `json:"-"`
+type ConfigSpec struct {
+	// The config value.
+	Value string `json:"value"`
+}
+
+type Config struct {
+	TypeMetadata
+
+	// Metadata for Config.
+	Metadata ConfigMetadata `json:"metadata,omitempty"`
+
+	// Specification for Config.
+	Spec ConfigSpec `json:"spec,omitempty"`
+}
+
+func NewConfig() *BGPPeer {
+	return &BGPPeer{TypeMetadata: TypeMetadata{Kind: "bgpPeer", APIVersion: "v1"}}
+}
+
+type BGPPeerList struct {
+	TypeMetadata
+	Metadata ListMetadata `json:"metadata,omitempty"`
+	Items    []BGPPeer    `json:"items" validate:"dive"`
+}
+
+func NewBGPPeerList() *BGPPeerList {
+	return &BGPPeerList{TypeMetadata: TypeMetadata{Kind: "bgpPeerList", APIVersion: "v1"}}
 }
