@@ -33,7 +33,7 @@ type ConfigMetadata struct {
 	Hostname string `json:"hostname,omitempty" validate:"omitempty,name"`
 
 	// The config key.
-	Key string `json:"key" validate:"omitempty,configkey"`
+	Name string `json:"key" validate:"omitempty,configkey"`
 }
 
 type ConfigSpec struct {

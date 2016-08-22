@@ -84,7 +84,7 @@ type hostFelixConfigHelper struct {}
 func (h *globalBGPConfigHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.ConfigMetadata)
 	l := model.GlobalBGPConfigListOptions{
-		Name: pm.Key,
+		Name: pm.Name,
 	}
 	return l, nil
 }
@@ -94,7 +94,7 @@ func (h *globalBGPConfigHelper) convertMetadataToListInterface(m unversioned.Res
 func (h *globalBGPConfigHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.ConfigMetadata)
 	k := model.GlobalBGPConfigKey{
-		Name: pm.Key,
+		Name: pm.Name,
 	}
 	return k, nil
 }
@@ -125,7 +125,7 @@ func (h *globalBGPConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned
 	backendConfigKey := d.Key.(model.GlobalBGPConfigKey)
 
 	apiConfig := api.NewConfig()
-	apiConfig.Metadata.Key = backendConfigKey.Name
+	apiConfig.Metadata.Name = backendConfigKey.Name
 	apiConfig.Metadata.Scope = scope.Global
 	apiConfig.Metadata.Hostname = ""
 	apiConfig.Spec.Value = backendConfigValue
@@ -138,7 +138,7 @@ func (h *globalBGPConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned
 func (h *hostBGPConfigHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.ConfigMetadata)
 	l := model.HostBGPConfigListOptions{
-		Name: pm.Key,
+		Name: pm.Name,
 	}
 	return l, nil
 }
@@ -148,7 +148,7 @@ func (h *hostBGPConfigHelper) convertMetadataToListInterface(m unversioned.Resou
 func (h *hostBGPConfigHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.ConfigMetadata)
 	k := model.HostBGPConfigKey{
-		Name: pm.Key,
+		Name: pm.Name,
 	}
 	return k, nil
 }
@@ -179,8 +179,8 @@ func (h *hostBGPConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.R
 	backendConfigKey := d.Key.(model.HostBGPConfigKey)
 
 	apiConfig := api.NewConfig()
-	apiConfig.Metadata.Key = backendConfigKey.Name
-	apiConfig.Metadata.Scope = scope.Host
+	apiConfig.Metadata.Name = backendConfigKey.Name
+	apiConfig.Metadata.Scope = scope.Node
 	apiConfig.Metadata.Hostname = ""
 	apiConfig.Spec.Value = backendConfigValue
 
@@ -192,7 +192,7 @@ func (h *hostBGPConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.R
 func (h *globalFelixConfigHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.ConfigMetadata)
 	l := model.GlobalConfigListOptions{
-		Name: pm.Key,
+		Name: pm.Name,
 	}
 	return l, nil
 }
@@ -202,7 +202,7 @@ func (h *globalFelixConfigHelper) convertMetadataToListInterface(m unversioned.R
 func (h *globalFelixConfigHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.ConfigMetadata)
 	k := model.GlobalConfigKey{
-		Name: pm.Key,
+		Name: pm.Name,
 	}
 	return k, nil
 }
@@ -233,7 +233,7 @@ func (h *globalFelixConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversion
 	backendConfigKey := d.Key.(model.GlobalConfigKey)
 
 	apiConfig := api.NewConfig()
-	apiConfig.Metadata.Key = backendConfigKey.Name
+	apiConfig.Metadata.Name = backendConfigKey.Name
 	apiConfig.Metadata.Scope = scope.Global
 	apiConfig.Metadata.Hostname = ""
 	apiConfig.Spec.Value = backendConfigValue
@@ -246,7 +246,7 @@ func (h *globalFelixConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversion
 func (h *hostFelixConfigHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.ConfigMetadata)
 	l := model.HostConfigListOptions{
-		Name: pm.Key,
+		Name: pm.Name,
 	}
 	return l, nil
 }
@@ -256,7 +256,7 @@ func (h *hostFelixConfigHelper) convertMetadataToListInterface(m unversioned.Res
 func (h *hostFelixConfigHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.ConfigMetadata)
 	k := model.HostConfigKey{
-		Name: pm.Key,
+		Name: pm.Name,
 	}
 	return k, nil
 }
@@ -287,7 +287,7 @@ func (h *hostFelixConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned
 	backendConfigKey := d.Key.(model.HostConfigKey)
 
 	apiConfig := api.NewConfig()
-	apiConfig.Metadata.Key = backendConfigKey.Name
+	apiConfig.Metadata.Name = backendConfigKey.Name
 	apiConfig.Metadata.Scope = scope.Node
 	apiConfig.Metadata.Hostname = backendConfigKey.Hostname
 	apiConfig.Spec.Value = backendConfigValue
