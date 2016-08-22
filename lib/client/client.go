@@ -89,8 +89,8 @@ func (c *Client) IPAM() IPAMInterface {
 }
 
 // Config returns an interface for managing system configuration..
-func (c *Client) Config() IPAMConfig {
-	return newConfig(c)
+func (c *Client) Config() ConfigInterface {
+	return newConfigs(c)
 }
 
 // LoadClientConfig loads the ClientConfig from the specified file (if specified)
