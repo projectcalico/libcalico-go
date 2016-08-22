@@ -24,7 +24,8 @@ import (
 )
 
 type Rule struct {
-	Action string `json:"action,omitempty" validate:"backendaction"`
+	Action    string  `json:"action,omitempty" validate:"backendaction"`
+	LogPrefix *string `json:"log_prefix,omitempty" validate:"omitempty"`
 
 	Protocol    *numorstring.Protocol `json:"protocol,omitempty" validate:"omitempty"`
 	NotProtocol *numorstring.Protocol `json:"!protocol,omitempty" validate:"omitempty"`

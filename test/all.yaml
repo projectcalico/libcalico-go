@@ -13,6 +13,7 @@
     order: 9999.9999
     ingress:
       - action: nextTier
+        logPrefix: fred
         protocol: udp
         icmpType: 10
         icmpCode: 100
@@ -26,8 +27,11 @@
           net: 10.20.30.40/32
           selector:
           ports:
-    egress:
       - action: deny
+        protocol: icmp
+    egress:
+      - action: log
+        logPrefix: ""
         protocol: tcp
         source:
           "!tag": abcd
