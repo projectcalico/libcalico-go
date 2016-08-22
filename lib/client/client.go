@@ -88,6 +88,11 @@ func (c *Client) IPAM() IPAMInterface {
 	return newIPAM(c)
 }
 
+// Config returns an interface for managing system configuration..
+func (c *Client) Config() IPAMConfig {
+	return newConfig(c)
+}
+
 // LoadClientConfig loads the ClientConfig from the specified file (if specified)
 // or from environment variables (if the file is not specified).
 func LoadClientConfig(filename string) (*api.ClientConfig, error) {

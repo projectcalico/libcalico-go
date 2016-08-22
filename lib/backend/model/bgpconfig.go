@@ -24,8 +24,10 @@ import (
 )
 
 var (
-	matchGlobalBGPConfig = regexp.MustCompile("^/?calico/bgp/v1/global/(.+)$")
+	matchGlobalBGPConfig = regexp.MustCompile("^/?calico/bgp/v1/global/([^/]+)$")
+	matchHostBGPConfig = regexp.MustCompile("^/?calico/bgp/v1/host/([^/]+)/([^/]+)$")
 	typeGlobalBGPConfig  = rawStringType
+	typeHostBGPConfig  = rawStringType
 )
 
 type GlobalBGPConfigKey struct {
@@ -78,4 +80,70 @@ func (options GlobalBGPConfigListOptions) ParseDefaultKey(ekey string) Key {
 		return nil
 	}
 	return GlobalBGPConfigKey{Name: name}
+}
+
+type HostBGPConfigKey struct {
+	Hostname string  `json:"-" validate:"required,name"`
+	Name string `json:"-" validate:"required,name"`
+}
+
+func (key HostBGPConfigKey) DefaultPath() (string, error) {
+	return key.DefaultDeletePath()
+}
+
+func (key HostBGPConfigKey) DefaultDeletePath() (string, error) {
+	if key.Hostname == "" {
+		return "", errors.ErrorInsufficientIdentifiers{Name: "hostname"}
+	}
+	if key.Name == "" {
+		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+	}
+	e := fmt.Sprintf("/calico/bgp/v1/host/%s/%s", key.Hostname, key.Name)
+	return e, nil
+}
+
+func (key HostBGPConfigKey) valueType() reflect.Type {
+	return typeHostBGPConfig
+}
+
+func (key HostBGPConfigKey) String() string {
+	return fmt.Sprintf("HostBGPConfig(hostname=%s; name=%s)", key.Hostname, key.Name)
+}
+
+type HostBGPConfigListOptions struct {
+	Hostname string
+	Name string
+}
+
+func (options HostBGPConfigListOptions) DefaultPathRoot() string {
+	k := "/calico/bgp/v1/host"
+	if options.Hostname == "" {
+		return k
+	}
+	k = k + fmt.Sprintf("/%s", options.Hostname)
+	if options.Name == "" {
+		return k
+	}
+	k = k + fmt.Sprintf("/%s", options.Name)
+	return k
+}
+
+func (options HostBGPConfigListOptions) ParseDefaultKey(ekey string) Key {
+	glog.V(2).Infof("Get HostBGPConfig key from %s", ekey)
+	r := matchHostBGPConfig.FindAllStringSubmatch(ekey, -1)
+	if len(r) != 1 {
+		glog.V(2).Infof("Didn't match regex")
+		return nil
+	}
+	hostname := r[0][1]
+	name := r[0][2]
+	if options.Hostname != "" && hostname != options.Hostname {
+		glog.V(2).Infof("Didn't match hostname %s != %s", options.Hostname, hostname)
+		return nil
+	}
+	if options.Name != "" && name != options.Name {
+		glog.V(2).Infof("Didn't match name %s != %s", options.Name, name)
+		return nil
+	}
+	return HostBGPConfigKey{Name: name}
 }
