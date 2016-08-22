@@ -51,16 +51,16 @@ type Config struct {
 	Spec ConfigSpec `json:"spec,omitempty"`
 }
 
-func NewConfig() *BGPPeer {
-	return &BGPPeer{TypeMetadata: TypeMetadata{Kind: "bgpPeer", APIVersion: "v1"}}
+func NewConfig() *Config {
+	return &Config{TypeMetadata: TypeMetadata{Kind: "config", APIVersion: "v1"}}
 }
 
-type BGPPeerList struct {
+type ConfigList struct {
 	TypeMetadata
 	Metadata ListMetadata `json:"metadata,omitempty"`
-	Items    []BGPPeer    `json:"items" validate:"dive"`
+	Items    []Config    `json:"items" validate:"dive"`
 }
 
-func NewBGPPeerList() *BGPPeerList {
-	return &BGPPeerList{TypeMetadata: TypeMetadata{Kind: "bgpPeerList", APIVersion: "v1"}}
+func NewConfigList() *ConfigList {
+	return &ConfigList{TypeMetadata: TypeMetadata{Kind: "configList", APIVersion: "v1"}}
 }
