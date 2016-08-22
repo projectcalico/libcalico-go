@@ -1,10 +1,10 @@
 hash: 1a696e4d1f4b30ceb1b1305d8baeb4201a10aa006f78ca8024b838896f6f2901
-updated: 2016-08-12T10:34:11.659733358-07:00
+updated: 2016-08-29T14:01:24.899150012-07:00
 imports:
 - name: github.com/cloudfoundry-incubator/candiedyaml
   version: 99c3df83b51532e3615f851d8c2dbb638f5313bf
 - name: github.com/coreos/etcd
-  version: 1ba7bb237fd54884381c7d4d46d78010d7aac2ad
+  version: f4c30425c0759b27d3bfca65a4497660aeeca075
   subpackages:
   - client
   - pkg/transport
@@ -13,13 +13,46 @@ imports:
   - pkg/fileutil
   - pkg/tlsutil
 - name: github.com/coreos/go-systemd
-  version: d4039021cfc2d0ea21d34afda21631314e83f75a
+  version: bfdc81d0d7e0fb19447b08571f63b774495251ce
   subpackages:
+  - daemon
   - journal
+  - util
 - name: github.com/coreos/pkg
-  version: a48e304ff9331be6d5df352b6b47bd1395ab5dd7
+  version: fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
   subpackages:
   - capnslog
+- name: github.com/docker/distribution
+  version: b1b100cf011b037b8821e8d0ae4f5ab3e2222c48
+  subpackages:
+  - reference
+  - digest
+- name: github.com/docker/engine-api
+  version: fa0eea948c32ababd784fc1ad76172d986617e56
+  subpackages:
+  - client
+  - types
+  - types/container
+  - types/filters
+  - types/mount
+  - types/network
+  - types/registry
+  - types/swarm
+  - client/transport
+  - client/transport/cancellable
+  - types/reference
+  - types/time
+  - types/versions
+  - types/blkiodev
+  - types/strslice
+- name: github.com/docker/go-connections
+  version: 0bad1a3951398f88ef4dd75fdb42af374430be89
+  subpackages:
+  - nat
+  - sockets
+  - tlsconfig
+- name: github.com/docker/go-units
+  version: 2c1805a1c750c4ea749899f49221e1d5f3e5ce42
 - name: github.com/docopt/docopt-go
   version: 784ddc588536785e7299f7272f39101f7faccc3f
 - name: github.com/ghodss/yaml
@@ -27,17 +60,37 @@ imports:
 - name: github.com/golang/glog
   version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/kelseyhightower/envconfig
-  version: 91921eb4cf999321cdbeebdba5a03555800d493b
+  version: 1e291572dcb9ba673cdcdb15e0f422702415ebaf
+- name: github.com/mattn/go-runewidth
+  version: d6bea18f789704b5f83375793155289da36a3c7f
+- name: github.com/Microsoft/go-winio
+  version: ce2922f643c8fd76b46cadc7f404a06282678b34
+- name: github.com/olekukonko/tablewriter
+  version: daf2955e742cf123959884fdff4685aa79b63135
+- name: github.com/opencontainers/runc
+  version: 189a2ab2f7acc59043e457cea25b58f631443f08
+  subpackages:
+  - libcontainer/user
 - name: github.com/satori/go.uuid
   version: 0aa62d5ddceb50dbcb909d790b5345affd3669b6
+- name: github.com/Sirupsen/logrus
+  version: 55eb11d21d2a31a3cc93838241d04800f52e823d
+  subpackages:
+  - formatters/logstash
 - name: github.com/ugorji/go
-  version: b94837a2404ab90efe9289e77a70694c355739cb
+  version: f1f1a805ed361a0e078bb537e4ea78cd37dcf065
   subpackages:
   - codec
 - name: golang.org/x/net
-  version: a728288923b47049b2ce791836767ffbe964a5bd
+  version: 6acef71eb69611914f7a30939ea9f6e194c78172
   subpackages:
   - context
+  - proxy
+- name: golang.org/x/sys
+  version: 9c60d1c508f5134d1ca726b4641db998f2523357
+  subpackages:
+  - unix
+  - windows
 - name: gopkg.in/go-playground/validator.v8
-  version: 7a080ada5ba072a91fd7f677bcf4d0e1aa286d39
-devImports: []
+  version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
+testImports: []
