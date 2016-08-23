@@ -33,6 +33,7 @@ func main() {
                    it does not exist, and replaces a resource if it does exists.
     delete         Delete a resource identified by file, stdin or resource type and name.
     get            Get a resource identified by file, stdin or resource type and name.
+    config         Manage system configuration.
     version        Display the version of calicoctl.
 
 See 'calicoctl <command> --help' to read about a specific subcommand.`
@@ -64,6 +65,8 @@ See 'calicoctl <command> --help' to read about a specific subcommand.`
 			err = commands.Get(args)
 		case "version":
 			err = commands.Version(args)
+		case "config":
+			err = commands.Config(args)
 		default:
 			fmt.Println(usage)
 		}

@@ -20,20 +20,32 @@ import (
 	"github.com/tigera/libcalico-go/lib/scope"
 )
 
+type Component string
+const (
+	ComponentFelix Component = "Felix"
+	ComponentBGP Component = "BGP"
+)
+
 type ConfigMetadata struct {
 	ObjectMetadata
+
+	// Whether we are operating on raw or transformed data.
+	Raw bool `json:"raw,required" validate:"required"`
+
+	// The config name.
+	Name string `json:"name" validate:"omitempty,configkey"`
 
 	// The scope of the config.  This may be global or node.  If the config scope is
 	// node, the hostname must also be supplied.
 	Scope scope.Scope `json:"scope" validate:"omitempty,scopeglobalornode"`
 
+	// The component that the config operates on.  This may be bgp or felix.
+	Component Component `json:"component" validate:"omitempty,component"`
+
 	// The hostname of the node that the config applies to.  When modifying config
 	// the hostname must be specified when the scope is `node`, and must
 	// be omitted when the scope is `global`.
 	Hostname string `json:"hostname,omitempty" validate:"omitempty,name"`
-
-	// The config key.
-	Name string `json:"key" validate:"omitempty,configkey"`
 }
 
 type ConfigSpec struct {

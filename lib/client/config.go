@@ -21,6 +21,32 @@ import (
 	"github.com/tigera/libcalico-go/lib/scope"
 )
 
+// configInfo contains the conversion info mapping between API and backend.
+// config names and values.
+type configInfo struct {
+	apiName string
+	backendName string
+	apiToBackendConverter func(string) (string, error)
+	backendToAPIConverter func(string) (string, error)
+	conversionHelper conversionHelper
+	scope scope.Scope
+	component api.Component
+	unsetValue *string
+}
+
+var configInfoByAPIName map[string]configInfo
+var configInfoByBackendName map[string]configInfo
+
+func init() {
+	configInfoByAPIName = make(map[string]configInfo)
+	configInfoByBackendName = make(map[string]configInfo)
+
+	rc := func (ci configInfo) {
+		configInfoByAPIName[ci.apiName] = ci
+		configInfoByBackendName[ci.backendName] = ci
+	}
+}
+
 // ConfigInterface has methods to set, unset and view system configuration.
 type ConfigInterface interface {
 	List(api.ConfigMetadata) (*api.ConfigList, error)
@@ -29,7 +55,7 @@ type ConfigInterface interface {
 	Unset(*api.Config) (*api.Config, error)
 }
 
-// peers implements ConfigInterface
+// configs implements ConfigInterface
 type configs struct {
 	c *Client
 	globalBGP globalBGPConfigHelper
@@ -45,12 +71,14 @@ func newConfigs(c *Client) ConfigInterface {
 
 // Set sets a single configuration parameter.
 func (h *configs) Set(a *api.Config) (*api.Config, error) {
-	return a, h.c.create(*a, h)
+	f := fixConfig(a)
+	return a, h.c.create(f, h)
 }
 
 // Unset removes a single configuration parameter.  For some parameters this may
 // simply reset the value to the original default value.
 func (h *configs) Unset(a *api.Config) (*api.Config, error) {
+	f := fixConfig(a)
 	return a, h.c.update(*a, h)
 }
 
@@ -72,7 +100,8 @@ func (h *configs) List(metadata api.ConfigMetadata) (*api.ConfigList, error) {
 }
 
 // The config management interface actually operates on multiple different backend
-// models.  We define a conversionHelper for each backend type.
+// models.  We define a conversionHelper for each backend type and for each config
+// name.
 
 type globalBGPConfigHelper struct {}
 type hostBGPConfigHelper struct {}
@@ -181,7 +210,7 @@ func (h *hostBGPConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.R
 	apiConfig := api.NewConfig()
 	apiConfig.Metadata.Name = backendConfigKey.Name
 	apiConfig.Metadata.Scope = scope.Node
-	apiConfig.Metadata.Hostname = ""
+	apiConfig.Metadata.Hostname = backendConfigKey.Hostname
 	apiConfig.Spec.Value = backendConfigValue
 
 	return apiConfig, nil

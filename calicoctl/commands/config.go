@@ -26,37 +26,51 @@ import (
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 )
 
-func Get(args []string) error {
-	doc := EtcdIntro + `Set system configuration parameters.
-
-Possible resource types include: policy
-
-By specifying the output as 'template' and providing a Go template as the value
-of the --template flag, you can filter the attributes of the fetched resource(s).
+func Config(args []string) error {
+	doc := EtcdIntro + `Manage system configuration parameters.
 
 Usage:
-  calicoctl get ([--tier=<TIER>] [--hostname=<HOSTNAME>] [--scope=<SCOPE>] (<KIND> [<NAME>]) |
-                 --filename=<FILENAME>)
-                [--output=<OUTPUT>] [--config=<CONFIG>]
+  calicoctl config set <NAME> <VALUE> [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--raw]
+  calicoctl config unset <NAME> <VALUE> [--scope=<SCOPE>] [--hostname=<HOSTNAME>] [--raw]
+  calicoctl config show [<NAME>] [--scope=<SCOPE>] [--hostname=<HOSTNAME>] [--raw]
 
+These commands can be used to manage system level configuration.  The table below details the
+valid config names and values, and for each specifies the valid scope and component.  The scope
+indicates whether the config applies at a global or node-specific scope.  The component indicates
+a specific component in the Calico architecture.  If a config option is only valid for a single
+scope then the scope need not be explicitly specified in the command; similarly for the component
+option.  If the scope is set to 'node' then the hostname must be specified for the set and unset
+commands.
+
+The unset command reverts configuration back to its initial value.  Depending on the configuration
+option, this either deletes the configuration completely from the datastore, or resets it to the
+original system default value.
+
+The '--raw' option allows users to set arbitrary configuration options for a particular scope and
+component.  The component and scope are required when using the '--raw' option on the set and unset
+commands.  In general we do not recommend use of the '--raw' option - it is there primarily to
+assist with certain debug or low level operations, and should only be used when instructed.
+
+ Name                | Component | Scope       | Value                                  | Unset value
+---------------------+-----------+-------------+----------------------------------------+-------------
+ logLevel            | bgp       | global,node | none,debug,info                        | -
+                     | felix     | global,node | none,debug,info,warning,error,critical | -
+ nodeToNodeMesh      | bgp       | global      | on,off                                 | off
+ defaultNodeASNumber | bgp       | global      | 0-4294967295                           | 64511
 
 Examples:
-  # List all policy in default output format.
-  calicoctl get policy
+  # Turn off the full BGP node-to-node mesh
+  calicoctl config set nodeToNodeMesh off
 
   # List a specific policy in YAML format
   calicoctl get -o yaml policy my-policy-1
 
 Options:
-  -f --filename=<FILENAME>     Filename to use to get the resource.  If set to "-" loads from stdin.
-  -o --output=<OUTPUT FORMAT>  Output format.  One of: yaml, json.  [Default: yaml]
-  -t --tier=<TIER>             The policy tier.
   -n --hostname=<HOSTNAME>     The hostname.
-  -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
-                               [default: /etc/calico/calicoctl.cfg]
-  --scope=<SCOPE>              The scope of the resource type.  One of global, node.  This is only valid
-                               for BGP peers and is used to indicate whether the peer is a global peer
-                               or node-specific.
+  --scope=<SCOPE>              The scope of the resource type.  One of global, node.
+  --component=<COMPONENT>      The component.  One of bgp, felix.
+  --raw                        Operate on raw key and values - no consistency checks or data
+                               validation are performed.
 `
 	parsedArgs, err := docopt.Parse(doc, args, true, "calicoctl", false, false)
 	if err != nil {
