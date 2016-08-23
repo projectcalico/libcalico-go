@@ -15,14 +15,17 @@
 package client
 
 import (
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"strconv"
+
 	"github.com/tigera/libcalico-go/lib/api"
-	"github.com/tigera/libcalico-go/lib/errors"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend/model"
+	"github.com/tigera/libcalico-go/lib/component"
+	"github.com/tigera/libcalico-go/lib/errors"
 	"github.com/tigera/libcalico-go/lib/scope"
-	"fmt"
-	"strconv"
-	"encoding/json"
 )
 
 // configInfo contains the conversion info mapping between API and backend.
@@ -34,63 +37,149 @@ type configInfo struct {
 	validateFuncAPI       func(string) error
 	valueConvertToAPI     func(string) (string, error)
 	valueConvertToBackend func(string) (string, error)
-	unsetValue            *string
+	unsetValue            string
 }
 
 // We extend the conversionHelper interface to add some of our own conversion
-// functions.
+// functions.  Each configConversionHelper is tied to a specific scope and
+// component (e.g. global BGP config, or host specific Felix config)
 type configConversionHelper interface {
 	conversionHelper
 	registerConfigInfo(configInfo)
-	getConfigInfoFromAPIName(string) *configInfo
-	getConfigInfoFromBackendName(string) *configInfo
-	matchesConfigMetadata(metadata *api.ConfigMetadata) bool
+	matchesConfigMetadata(metadata api.ConfigMetadata) bool
+	convertConfigToBackend(a *api.Config) (*api.Config, error)
+	convertConfigToAPI(a *api.Config) *api.Config
+	convertMetadataToBackend(metadata api.ConfigMetadata) api.ConfigMetadata
+	getUnsetValue(metadata api.ConfigMetadata) string
 }
 
-// configMap implements part of the configConversionHelper interface.
+// configMap implements part of the configConversionHelper interface.  This provides
+// the scope/component specific mappings between API and backlevel versions of the
+// field names and values.
 type configMap struct {
 	scope             scope.Scope
-	component         api.Component
-	apiNameToInfo     map[string]*configInfo
-	backendNameToInfo map[string]*configInfo
+	component         component.Component
+	apiNameToInfo     map[string]configInfo
+	backendNameToInfo map[string]configInfo
 }
 
-func (m *configMap) registerConfigInfo(info *configInfo) {
+func (m *configMap) getUnsetValue(metadata api.ConfigMetadata) string {
+	// Get the configInfo from the API name.  This method should only be called
+	// for valid field names, so no need to check.
+	configInfo := m.apiNameToInfo[metadata.Name]
+	return configInfo.unsetValue
+}
+
+// registerConfigInfo registers a config field with a particular configConversionHelper.
+func (m *configMap) registerConfigInfo(info configInfo) {
 	m.apiNameToInfo[info.apiName] = info
 	m.backendNameToInfo[info.backendName] = info
 }
 
-func (m *configMap) getConfigInfoFromAPIName(name string) *configInfo {
-	return m.apiNameToInfo[name]
+// Convert the config object to have values that are correct for the backend.
+func (m *configMap) convertConfigToBackend(a *api.Config) (*api.Config, error) {
+	// Get the configInfo from the API name.  This method should only be called
+	// for valid field names, so no need to check.
+	var err error
+	configInfo := m.apiNameToInfo[a.Metadata.Name]
+
+	// Sanity check the value.
+	value := a.Spec.Value
+	if configInfo.validateRegexAPI != "" {
+		re := regexp.MustCompile(configInfo.validateRegexAPI)
+		if !re.MatchString(value) {
+			return nil, fmt.Errorf("value '%s' not valid", value)
+		}
+	}
+	if configInfo.validateFuncAPI != nil {
+		if err = configInfo.validateFuncAPI(value); err != nil {
+			return nil, err
+		}
+	}
+
+	// If necessary convert the value.
+	if configInfo.valueConvertToBackend != nil {
+		value, err = configInfo.valueConvertToBackend(value)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	r := api.Config{
+		Metadata: api.ConfigMetadata{
+			Scope:     m.scope,
+			Component: m.component,
+			Name:      configInfo.backendName,
+		},
+		Spec: api.ConfigSpec{
+			Value: value,
+		},
+	}
+	return &r, nil
 }
 
+func (m *configMap) convertConfigToAPI(a *api.Config) *api.Config {
+	// Get the configInfo from the backend name.  This method may be called for
+	// unrecognised fields, in which case return nothing - we'll filter out the
+	// result.
+	var err error
+	configInfo, ok := m.backendNameToInfo[a.Metadata.Name]
+	if !ok {
+		return nil
+	}
 
-func (m *configMap) getConfigInfoFromBackendName(name string) *configInfo {
-	return m.backendNameToInfo[name]
+	// If necessary convert the value.
+	value := a.Spec.Value
+	if configInfo.valueConvertToAPI != nil {
+		value, err = configInfo.valueConvertToAPI(value)
+		if err != nil {
+			return nil
+		}
+	}
+
+	r := api.Config{
+		Metadata: api.ConfigMetadata{
+			Scope:     m.scope,
+			Component: m.component,
+			Name:      configInfo.apiName,
+		},
+		Spec: api.ConfigSpec{
+			Value: value,
+		},
+	}
+	return &r
 }
 
-func (m *configMap) matchesConfigMetadata(metadata *api.ConfigMetadata) bool {
+func (m *configMap) convertMetadataToBackend(metadata api.ConfigMetadata) api.ConfigMetadata {
+	// Get the configInfo from the API name, if supplied.  This method should only be called
+	// for valid field names, so no need to check.
+	name := metadata.Name
+	if name != "" {
+		configInfo := m.apiNameToInfo[metadata.Name]
+		name = configInfo.backendName
+	}
+
+	r := api.ConfigMetadata{
+		Scope:     m.scope,
+		Component: m.component,
+		Name:      name,
+	}
+	return r
+}
+
+func (m *configMap) matchesConfigMetadata(metadata api.ConfigMetadata) bool {
 	// If the Metadata includes a Name field then check if we have that field.
-	// We don't do this check if the request is raw.
-	if !metadata.Raw && metadata.Name != "" && metadata.Name {
+	if metadata.Name != "" {
 		if _, ok := m.apiNameToInfo[metadata.Name]; !ok {
 			return false
 		}
 	}
 
-	// If the request is raw then the scope and component need to match exactly, otherwise
-	// the scope and component may be wildcarded.
-	if metadata.Raw {
-		if metadata.Scope != m.scope || metadata.Component != m.component {
-			return false
-		}
-	} else {
-		if metadata.Scope != scope.Undefined && metadata.Scope != m.scope {
-			return false
-		}
-		if metadata.Component != api.ComponentUndefined && metadata.Component != m.component {
-			return false
-		}
+	if metadata.Scope != scope.Undefined && metadata.Scope != m.scope {
+		return false
+	}
+	if metadata.Component != component.Undefined && metadata.Component != m.component {
+		return false
 	}
 
 	return true
@@ -106,50 +195,49 @@ func init() {
 	globalFelix := newGlobalFelixConfigConversionHelper()
 	hostFelix := newHostFelixConfigConversionHelper()
 
-	configConversionHelpers = []configConversionHelper {
+	configConversionHelpers = []configConversionHelper{
 		globalBGP,
 		hostBGP,
 		globalFelix,
 		hostFelix,
 	}
 
-
 	// Register logLevel fields.
 	globalBGP.registerConfigInfo(configInfo{
-		apiName: "logLevel",
-		backendName: "loglevel",
+		apiName:          "logLevel",
+		backendName:      "loglevel",
 		validateRegexAPI: "none|debug|info",
 	})
 	hostBGP.registerConfigInfo(configInfo{
-		apiName: "logLevel",
-		backendName: "loglevel",
+		apiName:          "logLevel",
+		backendName:      "loglevel",
 		validateRegexAPI: "none|debug|info",
 	})
 	globalFelix.registerConfigInfo(configInfo{
-		apiName: "logLevel",
-		backendName: "LogSeverityScreen",
+		apiName:          "logLevel",
+		backendName:      "LogSeverityScreen",
 		validateRegexAPI: "none|debug|info|warning|error|critical",
 	})
 	hostFelix.registerConfigInfo(configInfo{
-		apiName: "logLevel",
-		backendName: "LogSeverityScreen",
+		apiName:          "logLevel",
+		backendName:      "LogSeverityScreen",
 		validateRegexAPI: "none|debug|info|warning|error|critical",
 	})
 
 	// Register global BGP config fields.
 	globalBGP.registerConfigInfo(configInfo{
-		apiName: "nodeToNodeMesh",
-		backendName: "node_mesh",
-		validateRegexAPI: "on|off",
-		valueConvertToAPI: nodeToNodeMeshValueConvertToAPI,
+		apiName:               "nodeToNodeMesh",
+		backendName:           "node_mesh",
+		validateRegexAPI:      "on|off",
+		valueConvertToAPI:     nodeToNodeMeshValueConvertToAPI,
 		valueConvertToBackend: nodeToNodeMeshValueConvertToBackend,
-		unsetValue: "on",
+		unsetValue:            "on",
 	})
 	globalBGP.registerConfigInfo(configInfo{
-		apiName: "defaultNodeASNumber",
-		backendName: "as_num",
+		apiName:         "defaultNodeASNumber",
+		backendName:     "as_num",
 		validateFuncAPI: defaultNodeASNumberValidate,
-		unsetValue: 64511,
+		unsetValue:      "64511",
 	})
 }
 
@@ -192,9 +280,9 @@ func nodeToNodeMeshValueConvertToAPI(value string) (string, error) {
 	if err != nil {
 		return "", err
 	} else if n.Enabled {
-		return "on"
+		return "on", nil
 	} else {
-		return "off"
+		return "off", nil
 	}
 }
 
@@ -211,13 +299,12 @@ func nodeToNodeMeshValueConvertToBackend(value string) (string, error) {
 	}
 }
 
-
 // ConfigInterface has methods to set, unset and view system configuration.
 type ConfigInterface interface {
 	List(api.ConfigMetadata) (*api.ConfigList, error)
 	Get(api.ConfigMetadata) (*api.Config, error)
 	Set(*api.Config) (*api.Config, error)
-	Unset(*api.Config) (*api.Config, error)
+	Unset(api.ConfigMetadata) error
 }
 
 // configs implements ConfigInterface
@@ -230,38 +317,91 @@ func newConfigs(c *Client) ConfigInterface {
 	return &configs{c: c}
 }
 
-// Set sets a single configuration parameter.
-func (h *configs) Set(a *api.Config) (*api.Config, error) {
-	// We at minimum need a name.
-	if a.Metadata.Name == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+// getSingleConfigConversionHelper returns the configConversionHelper that
+// match the supplied metadata.  There should be a single unique match, otherwise an
+// error is returned.
+func getSingleConfigConversionHelper(metadata api.ConfigMetadata) (configConversionHelper, error) {
+	// At minimum we need a name.
+	if metadata.Name == "" {
+		return nil, errors.ErrorInsufficientIdentifiers{Name: "name"}
 	}
 
-	// Get a slice of configConversionHelpers that match the request.  If there are
-	// more than one then insufficient identifiers have been supplied.
-	cchs := getConfigConversionHelpers(a.Metadata)
+	cchs := getConfigConversionHelpers(metadata)
 	if len(cchs) == 0 {
-		return "", fmt.Errorf("config name not recognised")
+		return nil, fmt.Errorf("config name not recognised")
 	}
 	if len(cchs) > 1 {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+		return nil, fmt.Errorf("config name not unique - specify scope and/or component")
 	}
 
-	return a, h.c.create(*a, h)
+	return cchs[0], nil
+}
+
+// Set sets a single configuration parameter.
+func (h *configs) Set(a *api.Config) (*api.Config, error) {
+	cch, err := getSingleConfigConversionHelper(a.Metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert the request to backend format name and value.
+	b, err := cch.convertConfigToBackend(a)
+	if err != nil {
+		return nil, err
+	}
+
+	// A config Set maps to an apply.
+	return a, h.c.apply(*b, cch)
 }
 
 // Unset removes a single configuration parameter.  For some parameters this may
 // simply reset the value to the original default value.
-func (h *configs) Unset(a *api.Config) (*api.Config, error) {
-	return a, h.c.update(*a, h)
+func (h *configs) Unset(metadata api.ConfigMetadata) error {
+	cch, err := getSingleConfigConversionHelper(metadata)
+	if err != nil {
+		return err
+	}
+
+	// An unset either deletes the entry or resets to default.
+	unsetValue := cch.getUnsetValue(metadata)
+	if unsetValue == "" {
+		bm := cch.convertMetadataToBackend(metadata)
+		err = h.c.delete(bm, cch)
+	} else {
+		a := api.Config{
+			Metadata: metadata,
+			Spec: api.ConfigSpec{
+				Value: unsetValue,
+			},
+		}
+		_, err = h.Set(&a)
+	}
+
+	return err
 }
 
 // Get returns information about a particular config parameter.
 func (h *configs) Get(metadata api.ConfigMetadata) (*api.Config, error) {
-	if a, err := h.c.get(metadata, h); err != nil {
+	cch, err := getSingleConfigConversionHelper(metadata)
+	if err != nil {
 		return nil, err
+	}
+
+	// Convert the Metadata to use the backend name.
+	bm := cch.convertMetadataToBackend(metadata)
+	br, err := h.c.get(bm, cch)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert the backend response to the API response.  This should always succeeed
+	// but in the event it doesn't, just return the raw backend data.
+	bc := br.(*api.Config)
+	ac := cch.convertConfigToAPI(bc)
+	if ac == nil {
+		return bc, nil
 	} else {
-		return a.(*api.Config), nil
+		return ac, nil
 	}
 }
 
@@ -269,8 +409,32 @@ func (h *configs) Get(metadata api.ConfigMetadata) (*api.Config, error) {
 // parameters that match the Metadata (wildcarding missing fields).
 func (h *configs) List(metadata api.ConfigMetadata) (*api.ConfigList, error) {
 	l := api.NewConfigList()
-	err := h.c.list(metadata, h, l)
-	return l, err
+
+	// Get a list of all of the configConversionHelpers that are valid for the
+	// supplied Metadata.  There may be multiple if the request did not specify
+	// scope or component.
+	cchs := getConfigConversionHelpers(metadata)
+	for _, cch := range cchs {
+		// Convert the Metadata to the backend version for the particular
+		// config conversion helper and then list config.
+		bm := cch.convertMetadataToBackend(metadata)
+		cl := api.NewConfigList()
+		err := h.c.list(bm, cch, cl)
+
+		if err != nil {
+			return nil, err
+		}
+
+		// Loop through the config items and convert each one to API version.
+		for _, bc := range cl.Items {
+			ac := cch.convertConfigToAPI(&bc)
+			if ac != nil {
+				l.Items = append(l.Items, *ac)
+			}
+		}
+	}
+
+	return l, nil
 }
 
 // The config management interface actually operates on multiple different backend
@@ -286,9 +450,9 @@ type globalBGPConfigConversionHelper struct {
 // instance.
 func newGlobalBGPConfigConversionHelper() *globalBGPConfigConversionHelper {
 	return &globalBGPConfigConversionHelper{
-		configMap: configMap {
-			scope: scope.Global,
-			component: api.ComponentBGP,
+		configMap: configMap{
+			scope:     scope.Global,
+			component: component.BGP,
 		},
 	}
 }
@@ -324,7 +488,7 @@ func (h *globalBGPConfigConversionHelper) convertAPIToKVPair(a unversioned.Resou
 	}
 
 	d := model.KVPair{
-		Key: k,
+		Key:   k,
 		Value: ap.Spec.Value,
 	}
 
@@ -357,9 +521,9 @@ type hostBGPConfigConversionHelper struct {
 // instance.
 func newHostBGPConfigConversionHelper() *hostBGPConfigConversionHelper {
 	return &hostBGPConfigConversionHelper{
-		configMap: configMap {
-			scope: scope.Node,
-			component: api.ComponentBGP,
+		configMap: configMap{
+			scope:     scope.Node,
+			component: component.BGP,
 		},
 	}
 }
@@ -395,7 +559,7 @@ func (h *hostBGPConfigConversionHelper) convertAPIToKVPair(a unversioned.Resourc
 	}
 
 	d := model.KVPair{
-		Key: k,
+		Key:   k,
 		Value: ap.Spec.Value,
 	}
 
@@ -428,9 +592,9 @@ type globalFelixConfigConversionHelper struct {
 // instance.
 func newGlobalFelixConfigConversionHelper() *globalFelixConfigConversionHelper {
 	return &globalFelixConfigConversionHelper{
-		configMap: configMap {
-			scope: scope.Global,
-			component: api.ComponentFelix,
+		configMap: configMap{
+			scope:     scope.Global,
+			component: component.Felix,
 		},
 	}
 }
@@ -466,7 +630,7 @@ func (h *globalFelixConfigConversionHelper) convertAPIToKVPair(a unversioned.Res
 	}
 
 	d := model.KVPair{
-		Key: k,
+		Key:   k,
 		Value: ap.Spec.Value,
 	}
 
@@ -499,9 +663,9 @@ type hostFelixConfigConversionHelper struct {
 // instance.
 func newHostFelixConfigConversionHelper() *hostFelixConfigConversionHelper {
 	return &hostFelixConfigConversionHelper{
-		configMap: configMap {
-			scope: scope.Node,
-			component: api.ComponentFelix,
+		configMap: configMap{
+			scope:     scope.Node,
+			component: component.Felix,
 		},
 	}
 }
@@ -537,7 +701,7 @@ func (h *hostFelixConfigConversionHelper) convertAPIToKVPair(a unversioned.Resou
 	}
 
 	d := model.KVPair{
-		Key: k,
+		Key:   k,
 		Value: ap.Spec.Value,
 	}
 

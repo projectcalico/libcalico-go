@@ -52,8 +52,7 @@ type GlobalConfigKey struct {
 }
 
 func (key GlobalConfigKey) DefaultPath() (string, error) {
-	k, err := key.DefaultDeletePath()
-	return k + "/metadata", err
+	return key.DefaultDeletePath()
 }
 
 func (key GlobalConfigKey) DefaultDeletePath() (string, error) {
@@ -106,8 +105,7 @@ type HostConfigKey struct {
 }
 
 func (key HostConfigKey) DefaultPath() (string, error) {
-	k, err := key.DefaultDeletePath()
-	return k + "/metadata", err
+	return key.DefaultDeletePath()
 }
 
 func (key HostConfigKey) DefaultDeletePath() (string, error) {

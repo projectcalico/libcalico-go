@@ -21,12 +21,12 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/lib/component"
 	"github.com/tigera/libcalico-go/lib/errors"
 	"github.com/tigera/libcalico-go/lib/numorstring"
 	"github.com/tigera/libcalico-go/lib/scope"
 	"github.com/tigera/libcalico-go/lib/selector"
 	"gopkg.in/go-playground/validator.v8"
-	"github.com/tigera/libcalico-go/lib/api"
 )
 
 var validate *validator.Validate
@@ -154,9 +154,9 @@ func validateScopeGlobalOrNode(v *validator.Validate, topStruct reflect.Value, c
 }
 
 func validateComponent(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
-	f := field.Interface().(api.Component)
+	f := field.Interface().(component.Component)
 	glog.V(2).Infof("Validate component: %v\n", f)
-	return f == api.ComponentBGP || f == api.ComponentFelix
+	return f == component.BGP || f == component.Felix
 }
 func validateProtocol(v *validator.Validate, structLevel *validator.StructLevel) {
 	glog.V(2).Infof("Validate protocol")

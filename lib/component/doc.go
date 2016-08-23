@@ -13,8 +13,7 @@
 // limitations under the License.
 
 /*
-Package scope implements field types that represent different scopes for resource
-types.  For example, a resource may be valid at the global scope in that applies to
-all Calico nodes, or may be at a node scope in that applies to a specific node.
+Package components implements field types that represent different components for resource
+types.
 */
-package scope
+package component
