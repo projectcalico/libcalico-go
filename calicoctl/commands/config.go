@@ -18,6 +18,7 @@ import (
 	"github.com/docopt/docopt-go"
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/client"
+	"github.com/tigera/libcalico-go/lib/scope"
 
 	"fmt"
 
@@ -30,9 +31,12 @@ func Config(args []string) error {
 	doc := EtcdIntro + `Manage system configuration parameters.
 
 Usage:
-  calicoctl config set <NAME> <VALUE> [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--raw]
-  calicoctl config unset <NAME> <VALUE> [--scope=<SCOPE>] [--hostname=<HOSTNAME>] [--raw]
-  calicoctl config show [<NAME>] [--scope=<SCOPE>] [--hostname=<HOSTNAME>] [--raw]
+  calicoctl config set <NAME> <VALUE>
+      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--raw] [--config=<CONFIG>]
+  calicoctl config unset <NAME> <VALUE>
+      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--raw] [--config=<CONFIG>]
+  calicoctl config show [<NAME>]
+      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--raw] [--config=<CONFIG>]
 
 These commands can be used to manage system level configuration.  The table below details the
 valid config names and values, and for each specifies the valid scope and component.  The scope
@@ -49,28 +53,30 @@ original system default value.
 The '--raw' option allows users to set arbitrary configuration options for a particular scope and
 component.  The component and scope are required when using the '--raw' option on the set and unset
 commands.  In general we do not recommend use of the '--raw' option - it is there primarily to
-assist with certain debug or low level operations, and should only be used when instructed.
+assist with certain debug or low level operations and should only be used when instructed.
 
  Name                | Component | Scope       | Value                                  | Unset value
 ---------------------+-----------+-------------+----------------------------------------+-------------
  logLevel            | bgp       | global,node | none,debug,info                        | -
                      | felix     | global,node | none,debug,info,warning,error,critical | -
- nodeToNodeMesh      | bgp       | global      | on,off                                 | off
+ nodeToNodeMesh      | bgp       | global      | on,off                                 | on
  defaultNodeASNumber | bgp       | global      | 0-4294967295                           | 64511
 
 Examples:
   # Turn off the full BGP node-to-node mesh
   calicoctl config set nodeToNodeMesh off
 
-  # List a specific policy in YAML format
-  calicoctl get -o yaml policy my-policy-1
+  # Display the full set of config values
+  calicoctl config show
 
 Options:
   -n --hostname=<HOSTNAME>     The hostname.
   --scope=<SCOPE>              The scope of the resource type.  One of global, node.
   --component=<COMPONENT>      The component.  One of bgp, felix.
   --raw                        Operate on raw key and values - no consistency checks or data
-                               validation are performed.
+                               validation are performed.  [default: false]
+  -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
+                               [default: /etc/calico/calicoctl.cfg]
 `
 	parsedArgs, err := docopt.Parse(doc, args, true, "calicoctl", false, false)
 	if err != nil {
@@ -80,53 +86,41 @@ Options:
 		return nil
 	}
 
-	cmd := get{}
-	results := executeConfigCommand(parsedArgs, cmd)
-	glog.V(2).Infof("results: %+v", results)
-
-	if results.err != nil {
-		fmt.Printf("Error getting resources: %v\n", results.err)
-		return err
+	// Load the client config and connect.
+	cf := parsedArgs["--config"].(string)
+	client, err := newClient(cf)
+	if err != nil {
+		return commandResults{err: err}
 	}
+	glog.V(2).Infof("Client: %v\n", client)
 
-	// TODO Handle better - results should be groups as per input file
-	// For simplicity convert the returned list of resources to expand any lists
-	resources := convertToSliceOfResources(results.resources)
+	// From the command line arguments construct the Config object to send to the client.
+	hostname := parsedArgs["--hostname"]
+	scopeStr := parsedArgs["--scope"]
+	componentStr := parsedArgs["--component"]
+	raw := parsedArgs["--raw"]
+	name := parsedArgs["<NAME>"]
+	value := parsedArgs["<VALUE>"]
 
-	if output, err := yaml.Marshal(resources); err != nil {
-		fmt.Printf("Error outputing data: %v", err)
+	config := api.NewConfig()
+	config.Metadata.Raw = raw.(bool)
+	config.Metadata.Hostname = hostname
+	config.Metadata.Scope = scope.Scope(scopeStr)
+	config.Metadata.Component = api.Component(componentStr)
+	config.Metadata.Name = name
+	config.Spec.Value = value
+
+	var configList api.ConfigList
+	if parsedArgs["set"] != nil {
+		_, err = client.Config().Set(config)
+	} else if parsedArgs["unset"] != nil {
+		_, err = client.Config().Unset(config)
 	} else {
-		fmt.Printf("%s", string(output))
+		configList, err = client.Config().List(config)
+		if err != nil {
+
+		}
 	}
 
-	return nil
-}
-
-// commandInterface for replace command.
-// Maps the generic resource types to the typed client interface.
-type get struct {
-}
-
-func (g get) execute(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
-	var err error
-	switch r := resource.(type) {
-	case api.HostEndpoint:
-		resource, err = client.HostEndpoints().List(r.Metadata)
-	case api.Policy:
-		resource, err = client.Policies().List(r.Metadata)
-	case api.Pool:
-		resource, err = client.Pools().List(r.Metadata)
-	case api.Profile:
-		resource, err = client.Profiles().List(r.Metadata)
-	case api.Tier:
-		resource, err = client.Tiers().List(r.Metadata)
-	case api.WorkloadEndpoint:
-		resource, err = client.WorkloadEndpoints().List(r.Metadata)
-	case api.BGPPeer:
-		resource, err = client.BGPPeers().List(r.Metadata)
-	default:
-		panic(fmt.Errorf("Unhandled resource type: %v", resource))
-	}
-
-	return resource, err
+	return err
 }

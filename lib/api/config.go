@@ -22,6 +22,7 @@ import (
 
 type Component string
 const (
+	ComponentUndefined Component = ""
 	ComponentFelix Component = "Felix"
 	ComponentBGP Component = "BGP"
 )

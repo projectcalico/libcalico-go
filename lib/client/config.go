@@ -16,36 +16,201 @@ package client
 
 import (
 	"github.com/tigera/libcalico-go/lib/api"
+	"github.com/tigera/libcalico-go/lib/errors"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/scope"
+	"fmt"
+	"strconv"
+	"encoding/json"
 )
 
 // configInfo contains the conversion info mapping between API and backend.
 // config names and values.
 type configInfo struct {
-	apiName string
-	backendName string
-	apiToBackendConverter func(string) (string, error)
-	backendToAPIConverter func(string) (string, error)
-	conversionHelper conversionHelper
-	scope scope.Scope
-	component api.Component
-	unsetValue *string
+	apiName               string
+	backendName           string
+	validateRegexAPI      string
+	validateFuncAPI       func(string) error
+	valueConvertToAPI     func(string) (string, error)
+	valueConvertToBackend func(string) (string, error)
+	unsetValue            *string
 }
 
-var configInfoByAPIName map[string]configInfo
-var configInfoByBackendName map[string]configInfo
+// We extend the conversionHelper interface to add some of our own conversion
+// functions.
+type configConversionHelper interface {
+	conversionHelper
+	registerConfigInfo(configInfo)
+	getConfigInfoFromAPIName(string) *configInfo
+	getConfigInfoFromBackendName(string) *configInfo
+	matchesConfigMetadata(metadata *api.ConfigMetadata) bool
+}
+
+// configMap implements part of the configConversionHelper interface.
+type configMap struct {
+	scope             scope.Scope
+	component         api.Component
+	apiNameToInfo     map[string]*configInfo
+	backendNameToInfo map[string]*configInfo
+}
+
+func (m *configMap) registerConfigInfo(info *configInfo) {
+	m.apiNameToInfo[info.apiName] = info
+	m.backendNameToInfo[info.backendName] = info
+}
+
+func (m *configMap) getConfigInfoFromAPIName(name string) *configInfo {
+	return m.apiNameToInfo[name]
+}
+
+
+func (m *configMap) getConfigInfoFromBackendName(name string) *configInfo {
+	return m.backendNameToInfo[name]
+}
+
+func (m *configMap) matchesConfigMetadata(metadata *api.ConfigMetadata) bool {
+	// If the Metadata includes a Name field then check if we have that field.
+	// We don't do this check if the request is raw.
+	if !metadata.Raw && metadata.Name != "" && metadata.Name {
+		if _, ok := m.apiNameToInfo[metadata.Name]; !ok {
+			return false
+		}
+	}
+
+	// If the request is raw then the scope and component need to match exactly, otherwise
+	// the scope and component may be wildcarded.
+	if metadata.Raw {
+		if metadata.Scope != m.scope || metadata.Component != m.component {
+			return false
+		}
+	} else {
+		if metadata.Scope != scope.Undefined && metadata.Scope != m.scope {
+			return false
+		}
+		if metadata.Component != api.ComponentUndefined && metadata.Component != m.component {
+			return false
+		}
+	}
+
+	return true
+}
+
+// configConversionHelpers contains the full list of config conversion helpers
+// that can be used to map config values between API and backend formats.
+var configConversionHelpers []configConversionHelper
 
 func init() {
-	configInfoByAPIName = make(map[string]configInfo)
-	configInfoByBackendName = make(map[string]configInfo)
+	globalBGP := newGlobalBGPConfigConversionHelper()
+	hostBGP := newHostBGPConfigConversionHelper()
+	globalFelix := newGlobalFelixConfigConversionHelper()
+	hostFelix := newHostFelixConfigConversionHelper()
 
-	rc := func (ci configInfo) {
-		configInfoByAPIName[ci.apiName] = ci
-		configInfoByBackendName[ci.backendName] = ci
+	configConversionHelpers = []configConversionHelper {
+		globalBGP,
+		hostBGP,
+		globalFelix,
+		hostFelix,
+	}
+
+
+	// Register logLevel fields.
+	globalBGP.registerConfigInfo(configInfo{
+		apiName: "logLevel",
+		backendName: "loglevel",
+		validateRegexAPI: "none|debug|info",
+	})
+	hostBGP.registerConfigInfo(configInfo{
+		apiName: "logLevel",
+		backendName: "loglevel",
+		validateRegexAPI: "none|debug|info",
+	})
+	globalFelix.registerConfigInfo(configInfo{
+		apiName: "logLevel",
+		backendName: "LogSeverityScreen",
+		validateRegexAPI: "none|debug|info|warning|error|critical",
+	})
+	hostFelix.registerConfigInfo(configInfo{
+		apiName: "logLevel",
+		backendName: "LogSeverityScreen",
+		validateRegexAPI: "none|debug|info|warning|error|critical",
+	})
+
+	// Register global BGP config fields.
+	globalBGP.registerConfigInfo(configInfo{
+		apiName: "nodeToNodeMesh",
+		backendName: "node_mesh",
+		validateRegexAPI: "on|off",
+		valueConvertToAPI: nodeToNodeMeshValueConvertToAPI,
+		valueConvertToBackend: nodeToNodeMeshValueConvertToBackend,
+		unsetValue: "on",
+	})
+	globalBGP.registerConfigInfo(configInfo{
+		apiName: "defaultNodeASNumber",
+		backendName: "as_num",
+		validateFuncAPI: defaultNodeASNumberValidate,
+		unsetValue: 64511,
+	})
+}
+
+// getConfigConversionHelpers returns a slice of configConversionHelpers that match
+// the supplied Metadata.
+func getConfigConversionHelpers(metadata api.ConfigMetadata) []configConversionHelper {
+	cchs := []configConversionHelper{}
+	for ii := 0; ii < len(configConversionHelpers); ii++ {
+		cch := configConversionHelpers[ii]
+		if cch.matchesConfigMetadata(metadata) {
+			cchs = append(cchs, cch)
+		}
+	}
+
+	return cchs
+}
+
+// defaultNodeASNumberValidate validates the the value of the default node AS number
+// configuration field.
+func defaultNodeASNumberValidate(value string) error {
+	i, err := strconv.Atoi(value)
+	if err != nil || i < 0 || i > 4294967295 {
+		return fmt.Errorf("the value '%s' is not a valid AS Number", value)
+	}
+	return nil
+}
+
+// nodeToNodeMesh is a struct containing whether node-to-node mesh is enabled.  It can be
+// JSON marshalled into the correct structure that is understood by the Calico BGP component.
+type nodeToNodeMesh struct {
+	Enabled bool `json:"enabled"`
+}
+
+// nodeToNodeMeshValueConvertToAPI converts the node-to-node mesh value to
+// the equivalent API value.  The backend value is a JSON structure with an enabled
+// field set to a true or false boolean - this maps through to an on or off value.
+func nodeToNodeMeshValueConvertToAPI(value string) (string, error) {
+	n := nodeToNodeMesh{}
+	err := json.Unmarshal([]byte(value), &n)
+	if err != nil {
+		return "", err
+	} else if n.Enabled {
+		return "on"
+	} else {
+		return "off"
 	}
 }
+
+// nodeToNodeMeshValueConvertToBackend converts the node-to-node mesh value to
+// the equivalent backend value.  The API takes an on or off value - this maps through
+// to a JSON structure with an enabled field set to a true or false boolean.
+func nodeToNodeMeshValueConvertToBackend(value string) (string, error) {
+	n := nodeToNodeMesh{Enabled: value == "on"}
+	b, err := json.Marshal(n)
+	if err != nil {
+		return "", err
+	} else {
+		return string(b), nil
+	}
+}
+
 
 // ConfigInterface has methods to set, unset and view system configuration.
 type ConfigInterface interface {
@@ -58,10 +223,6 @@ type ConfigInterface interface {
 // configs implements ConfigInterface
 type configs struct {
 	c *Client
-	globalBGP globalBGPConfigHelper
-	hostBGP hostBGPConfigHelper
-	globalFelix globalFelixConfigHelper
-	hostFelix hostFelixConfigHelper
 }
 
 // newConfigs returns a new ConfigInterface bound to the supplied client.
@@ -71,14 +232,27 @@ func newConfigs(c *Client) ConfigInterface {
 
 // Set sets a single configuration parameter.
 func (h *configs) Set(a *api.Config) (*api.Config, error) {
-	f := fixConfig(a)
-	return a, h.c.create(f, h)
+	// We at minimum need a name.
+	if a.Metadata.Name == "" {
+		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+	}
+
+	// Get a slice of configConversionHelpers that match the request.  If there are
+	// more than one then insufficient identifiers have been supplied.
+	cchs := getConfigConversionHelpers(a.Metadata)
+	if len(cchs) == 0 {
+		return "", fmt.Errorf("config name not recognised")
+	}
+	if len(cchs) > 1 {
+		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+	}
+
+	return a, h.c.create(*a, h)
 }
 
 // Unset removes a single configuration parameter.  For some parameters this may
 // simply reset the value to the original default value.
 func (h *configs) Unset(a *api.Config) (*api.Config, error) {
-	f := fixConfig(a)
 	return a, h.c.update(*a, h)
 }
 
@@ -100,17 +274,28 @@ func (h *configs) List(metadata api.ConfigMetadata) (*api.ConfigList, error) {
 }
 
 // The config management interface actually operates on multiple different backend
-// models.  We define a conversionHelper for each backend type and for each config
-// name.
+// models.  We define a conversionHelper for each backend type.
 
-type globalBGPConfigHelper struct {}
-type hostBGPConfigHelper struct {}
-type globalFelixConfigHelper struct {}
-type hostFelixConfigHelper struct {}
+// globalBGPConfigConversionHelper implements the configConversionHelper interface for
+// global BGP configuration parameters.
+type globalBGPConfigConversionHelper struct {
+	configMap
+}
+
+// newGlobalBGPConfigConversionHelper is used to instantiate a new globalBGPConfigConversionHelper
+// instance.
+func newGlobalBGPConfigConversionHelper() *globalBGPConfigConversionHelper {
+	return &globalBGPConfigConversionHelper{
+		configMap: configMap {
+			scope: scope.Global,
+			component: api.ComponentBGP,
+		},
+	}
+}
 
 // convertMetadataToListInterface converts a ConfigMetadata to a GlobalBGPConfigListOptions.
 // This is part of the conversionHelper interface.
-func (h *globalBGPConfigHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
+func (h *globalBGPConfigConversionHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.ConfigMetadata)
 	l := model.GlobalBGPConfigListOptions{
 		Name: pm.Name,
@@ -120,7 +305,7 @@ func (h *globalBGPConfigHelper) convertMetadataToListInterface(m unversioned.Res
 
 // convertMetadataToKey converts a ConfigMetadata to a GlobalBGPConfigKey
 // This is part of the conversionHelper interface.
-func (h *globalBGPConfigHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
+func (h *globalBGPConfigConversionHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.ConfigMetadata)
 	k := model.GlobalBGPConfigKey{
 		Name: pm.Name,
@@ -131,7 +316,7 @@ func (h *globalBGPConfigHelper) convertMetadataToKey(m unversioned.ResourceMetad
 // convertAPIToKVPair converts an API Config structure to a KVPair containing a
 // string value and GlobalBGPConfigKey.
 // This is part of the conversionHelper interface.
-func (h *globalBGPConfigHelper) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
+func (h *globalBGPConfigConversionHelper) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.Config)
 	k, err := h.convertMetadataToKey(ap.Metadata)
 	if err != nil {
@@ -149,7 +334,7 @@ func (h *globalBGPConfigHelper) convertAPIToKVPair(a unversioned.Resource) (*mod
 // convertKVPairToAPI converts a KVPair containing a string value and GlobalBGPConfigKey
 // to an API Config structure.
 // This is part of the conversionHelper interface.
-func (h *globalBGPConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
+func (h *globalBGPConfigConversionHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	backendConfigValue := d.Value.(string)
 	backendConfigKey := d.Key.(model.GlobalBGPConfigKey)
 
@@ -162,9 +347,26 @@ func (h *globalBGPConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned
 	return apiConfig, nil
 }
 
+// hostBGPConfigConversionHelper implements the configConversionHelper interface for
+// host BGP configuration parameters.
+type hostBGPConfigConversionHelper struct {
+	configMap
+}
+
+// newHostBGPConfigConversionHelper is used to instantiate a new globalBGPConfigConversionHelper
+// instance.
+func newHostBGPConfigConversionHelper() *hostBGPConfigConversionHelper {
+	return &hostBGPConfigConversionHelper{
+		configMap: configMap {
+			scope: scope.Node,
+			component: api.ComponentBGP,
+		},
+	}
+}
+
 // convertMetadataToListInterface converts a ConfigMetadata to a HostBGPConfigListOptions.
 // This is part of the conversionHelper interface.
-func (h *hostBGPConfigHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
+func (h *hostBGPConfigConversionHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.ConfigMetadata)
 	l := model.HostBGPConfigListOptions{
 		Name: pm.Name,
@@ -174,7 +376,7 @@ func (h *hostBGPConfigHelper) convertMetadataToListInterface(m unversioned.Resou
 
 // convertMetadataToKey converts a ConfigMetadata to a HostBGPConfigKey
 // This is part of the conversionHelper interface.
-func (h *hostBGPConfigHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
+func (h *hostBGPConfigConversionHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.ConfigMetadata)
 	k := model.HostBGPConfigKey{
 		Name: pm.Name,
@@ -185,7 +387,7 @@ func (h *hostBGPConfigHelper) convertMetadataToKey(m unversioned.ResourceMetadat
 // convertAPIToKVPair converts an API Config structure to a KVPair containing a
 // string value and HostBGPConfigKey.
 // This is part of the conversionHelper interface.
-func (h *hostBGPConfigHelper) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
+func (h *hostBGPConfigConversionHelper) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.Config)
 	k, err := h.convertMetadataToKey(ap.Metadata)
 	if err != nil {
@@ -203,7 +405,7 @@ func (h *hostBGPConfigHelper) convertAPIToKVPair(a unversioned.Resource) (*model
 // convertKVPairToAPI converts a KVPair containing a string value and HostBGPConfigKey
 // to an API Config structure.
 // This is part of the conversionHelper interface.
-func (h *hostBGPConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
+func (h *hostBGPConfigConversionHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	backendConfigValue := d.Value.(string)
 	backendConfigKey := d.Key.(model.HostBGPConfigKey)
 
@@ -216,9 +418,26 @@ func (h *hostBGPConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.R
 	return apiConfig, nil
 }
 
+// globalFelixConfigConversionHelper implements the configConversionHelper interface for
+// global Felix configuration parameters.
+type globalFelixConfigConversionHelper struct {
+	configMap
+}
+
+// newGlobalFelixConfigConversionHelper is used to instantiate a new globalFelixConfigConversionHelper
+// instance.
+func newGlobalFelixConfigConversionHelper() *globalFelixConfigConversionHelper {
+	return &globalFelixConfigConversionHelper{
+		configMap: configMap {
+			scope: scope.Global,
+			component: api.ComponentFelix,
+		},
+	}
+}
+
 // convertMetadataToListInterface converts a ConfigMetadata to a GlobalConfigListOptions.
 // This is part of the conversionHelper interface.
-func (h *globalFelixConfigHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
+func (h *globalFelixConfigConversionHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.ConfigMetadata)
 	l := model.GlobalConfigListOptions{
 		Name: pm.Name,
@@ -228,7 +447,7 @@ func (h *globalFelixConfigHelper) convertMetadataToListInterface(m unversioned.R
 
 // convertMetadataToKey converts a ConfigMetadata to a GlobalConfigKey
 // This is part of the conversionHelper interface.
-func (h *globalFelixConfigHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
+func (h *globalFelixConfigConversionHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.ConfigMetadata)
 	k := model.GlobalConfigKey{
 		Name: pm.Name,
@@ -239,7 +458,7 @@ func (h *globalFelixConfigHelper) convertMetadataToKey(m unversioned.ResourceMet
 // convertAPIToKVPair converts an API Config structure to a KVPair containing a
 // string value and GlobalConfigKey.
 // This is part of the conversionHelper interface.
-func (h *globalFelixConfigHelper) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
+func (h *globalFelixConfigConversionHelper) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.Config)
 	k, err := h.convertMetadataToKey(ap.Metadata)
 	if err != nil {
@@ -257,7 +476,7 @@ func (h *globalFelixConfigHelper) convertAPIToKVPair(a unversioned.Resource) (*m
 // convertKVPairToAPI converts a KVPair containing a string value and GlobalConfigKey
 // to an API Config structure.
 // This is part of the conversionHelper interface.
-func (h *globalFelixConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
+func (h *globalFelixConfigConversionHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	backendConfigValue := d.Value.(string)
 	backendConfigKey := d.Key.(model.GlobalConfigKey)
 
@@ -270,9 +489,26 @@ func (h *globalFelixConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversion
 	return apiConfig, nil
 }
 
+// hostFelixConfigConversionHelper implements the configConversionHelper interface for
+// host Felix configuration parameters.
+type hostFelixConfigConversionHelper struct {
+	configMap
+}
+
+// newHostFelixConfigConversionHelper is used to instantiate a new hostFelixConfigConversionHelper
+// instance.
+func newHostFelixConfigConversionHelper() *hostFelixConfigConversionHelper {
+	return &hostFelixConfigConversionHelper{
+		configMap: configMap {
+			scope: scope.Node,
+			component: api.ComponentFelix,
+		},
+	}
+}
+
 // convertMetadataToListInterface converts a ConfigMetadata to a HostConfigListOptions.
 // This is part of the conversionHelper interface.
-func (h *hostFelixConfigHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
+func (h *hostFelixConfigConversionHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.ConfigMetadata)
 	l := model.HostConfigListOptions{
 		Name: pm.Name,
@@ -282,7 +518,7 @@ func (h *hostFelixConfigHelper) convertMetadataToListInterface(m unversioned.Res
 
 // convertMetadataToKey converts a ConfigMetadata to a HostConfigKey
 // This is part of the conversionHelper interface.
-func (h *hostFelixConfigHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
+func (h *hostFelixConfigConversionHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.ConfigMetadata)
 	k := model.HostConfigKey{
 		Name: pm.Name,
@@ -293,7 +529,7 @@ func (h *hostFelixConfigHelper) convertMetadataToKey(m unversioned.ResourceMetad
 // convertAPIToKVPair converts an API Config structure to a KVPair containing a
 // string value and HostConfigKey.
 // This is part of the conversionHelper interface.
-func (h *hostFelixConfigHelper) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
+func (h *hostFelixConfigConversionHelper) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ap := a.(api.Config)
 	k, err := h.convertMetadataToKey(ap.Metadata)
 	if err != nil {
@@ -311,7 +547,7 @@ func (h *hostFelixConfigHelper) convertAPIToKVPair(a unversioned.Resource) (*mod
 // convertKVPairToAPI converts a KVPair containing a string value and HostConfigKey
 // to an API Config structure.
 // This is part of the conversionHelper interface.
-func (h *hostFelixConfigHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
+func (h *hostFelixConfigConversionHelper) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	backendConfigValue := d.Value.(string)
 	backendConfigKey := d.Key.(model.HostConfigKey)
 
