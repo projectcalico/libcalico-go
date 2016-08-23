@@ -16,22 +16,12 @@ package api
 
 import (
 	. "github.com/tigera/libcalico-go/lib/api/unversioned"
-	. "github.com/tigera/libcalico-go/lib/net"
+	"github.com/tigera/libcalico-go/lib/component"
 	"github.com/tigera/libcalico-go/lib/scope"
-)
-
-type Component string
-const (
-	ComponentUndefined Component = ""
-	ComponentFelix Component = "Felix"
-	ComponentBGP Component = "BGP"
 )
 
 type ConfigMetadata struct {
 	ObjectMetadata
-
-	// Whether we are operating on raw or transformed data.
-	Raw bool `json:"raw,required" validate:"required"`
 
 	// The config name.
 	Name string `json:"name" validate:"omitempty,configkey"`
@@ -41,7 +31,7 @@ type ConfigMetadata struct {
 	Scope scope.Scope `json:"scope" validate:"omitempty,scopeglobalornode"`
 
 	// The component that the config operates on.  This may be bgp or felix.
-	Component Component `json:"component" validate:"omitempty,component"`
+	Component component.Component `json:"component" validate:"omitempty,component"`
 
 	// The hostname of the node that the config applies to.  When modifying config
 	// the hostname must be specified when the scope is `node`, and must
@@ -71,7 +61,7 @@ func NewConfig() *Config {
 type ConfigList struct {
 	TypeMetadata
 	Metadata ListMetadata `json:"metadata,omitempty"`
-	Items    []Config    `json:"items" validate:"dive"`
+	Items    []Config     `json:"items" validate:"dive"`
 }
 
 func NewConfigList() *ConfigList {

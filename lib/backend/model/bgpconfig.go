@@ -25,12 +25,13 @@ import (
 
 var (
 	matchGlobalBGPConfig = regexp.MustCompile("^/?calico/bgp/v1/global/([^/]+)$")
-	matchHostBGPConfig = regexp.MustCompile("^/?calico/bgp/v1/host/([^/]+)/([^/]+)$")
+	matchHostBGPConfig   = regexp.MustCompile("^/?calico/bgp/v1/host/([^/]+)/([^/]+)$")
 	typeGlobalBGPConfig  = rawStringType
-	typeHostBGPConfig  = rawStringType
+	typeHostBGPConfig    = rawStringType
 )
 
 type GlobalBGPConfigKey struct {
+	// The name of the global BGP config key.
 	Name string `json:"-" validate:"required,name"`
 }
 
@@ -55,6 +56,7 @@ func (key GlobalBGPConfigKey) String() string {
 }
 
 type GlobalBGPConfigListOptions struct {
+	// The name of the global BGP config key.
 	Name string
 }
 
@@ -83,7 +85,10 @@ func (options GlobalBGPConfigListOptions) ParseDefaultKey(ekey string) Key {
 }
 
 type HostBGPConfigKey struct {
-	Hostname string  `json:"-" validate:"required,name"`
+	// The hostname for the host specific BGP config
+	Hostname string `json:"-" validate:"required,name"`
+
+	// The name of the host specific BGP config key.
 	Name string `json:"-" validate:"required,name"`
 }
 
@@ -112,7 +117,7 @@ func (key HostBGPConfigKey) String() string {
 
 type HostBGPConfigListOptions struct {
 	Hostname string
-	Name string
+	Name     string
 }
 
 func (options HostBGPConfigListOptions) DefaultPathRoot() string {

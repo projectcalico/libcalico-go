@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package scope implements field types that represent different scopes for resource
-types.  For example, a resource may be valid at the global scope in that applies to
-all Calico nodes, or may be at a node scope in that applies to a specific node.
-*/
-package scope
+package component
+
+type Component string
+
+const (
+	Undefined Component = ""
+	Felix     Component = "Felix"
+	BGP       Component = "BGP"
+)

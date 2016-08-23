@@ -17,14 +17,12 @@ package commands
 import (
 	"github.com/docopt/docopt-go"
 	"github.com/tigera/libcalico-go/lib/api"
-	"github.com/tigera/libcalico-go/lib/client"
 	"github.com/tigera/libcalico-go/lib/scope"
 
 	"fmt"
 
-	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
-	"github.com/tigera/libcalico-go/lib/api/unversioned"
+	"github.com/tigera/libcalico-go/lib/component"
 )
 
 func Config(args []string) error {
@@ -32,11 +30,11 @@ func Config(args []string) error {
 
 Usage:
   calicoctl config set <NAME> <VALUE>
-      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--raw] [--config=<CONFIG>]
+      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
   calicoctl config unset <NAME> <VALUE>
-      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--raw] [--config=<CONFIG>]
+      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
   calicoctl config show [<NAME>]
-      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--raw] [--config=<CONFIG>]
+      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
 
 These commands can be used to manage system level configuration.  The table below details the
 valid config names and values, and for each specifies the valid scope and component.  The scope
@@ -61,10 +59,14 @@ assist with certain debug or low level operations and should only be used when i
                      | felix     | global,node | none,debug,info,warning,error,critical | -
  nodeToNodeMesh      | bgp       | global      | on,off                                 | on
  defaultNodeASNumber | bgp       | global      | 0-4294967295                           | 64511
+ ipip                | felix     | global      | on,off                                 | -
 
 Examples:
   # Turn off the full BGP node-to-node mesh
   calicoctl config set nodeToNodeMesh off
+
+  # Set BGP log level to info for node with hostname "host1"
+  calicoctl config set logLevel info --scope=node --component=bgp --hostname=host1
 
   # Display the full set of config values
   calicoctl config show
@@ -73,8 +75,6 @@ Options:
   -n --hostname=<HOSTNAME>     The hostname.
   --scope=<SCOPE>              The scope of the resource type.  One of global, node.
   --component=<COMPONENT>      The component.  One of bgp, felix.
-  --raw                        Operate on raw key and values - no consistency checks or data
-                               validation are performed.  [default: false]
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
                                [default: /etc/calico/calicoctl.cfg]
 `
@@ -90,7 +90,7 @@ Options:
 	cf := parsedArgs["--config"].(string)
 	client, err := newClient(cf)
 	if err != nil {
-		return commandResults{err: err}
+		return err
 	}
 	glog.V(2).Infof("Client: %v\n", client)
 
@@ -98,28 +98,27 @@ Options:
 	hostname := parsedArgs["--hostname"]
 	scopeStr := parsedArgs["--scope"]
 	componentStr := parsedArgs["--component"]
-	raw := parsedArgs["--raw"]
 	name := parsedArgs["<NAME>"]
 	value := parsedArgs["<VALUE>"]
 
 	config := api.NewConfig()
-	config.Metadata.Raw = raw.(bool)
 	config.Metadata.Hostname = hostname
 	config.Metadata.Scope = scope.Scope(scopeStr)
-	config.Metadata.Component = api.Component(componentStr)
+	config.Metadata.Component = component.Component(componentStr)
 	config.Metadata.Name = name
 	config.Spec.Value = value
 
-	var configList api.ConfigList
+	var configList *api.ConfigList
 	if parsedArgs["set"] != nil {
 		_, err = client.Config().Set(config)
 	} else if parsedArgs["unset"] != nil {
-		_, err = client.Config().Unset(config)
+		err = client.Config().Unset(config.Metadata)
 	} else {
-		configList, err = client.Config().List(config)
+		configList, err = client.Config().List(config.Metadata)
 		if err != nil {
 
 		}
+		fmt.Println(configList)
 	}
 
 	return err
