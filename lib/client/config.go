@@ -29,20 +29,51 @@ import (
 )
 
 // configInfo contains the conversion info mapping between API and backend.
-// config names and values.
+// config names and values.  This is defined for each valid config field, and is
+// stored in a configConversionHelper for which is there is one per valid combination
+// of component and scope.
 type configInfo struct {
+	// The name of the config field in the API.
 	apiName               string
+
+	// The name of the config field in the backend structure.
 	backendName           string
+
+	// A regex string used to validate the value in the API config.  If blank, we do
+	// not validate using this regex.
 	validateRegexAPI      string
+
+	// A function used to validate the value in the API config.  If nil, we do not
+	// validate using this function.
 	validateFuncAPI       func(string) error
-	valueConvertToAPI     func(string) (string, error)
+
+	// Function to convert the API value to the equivalent value in the backend.  If
+	// nil, the value does not need converting.
 	valueConvertToBackend func(string) (string, error)
+
+	// Function to convert the backend value to the equivalent value in the API.  If
+	// nil, the value does not need converting.
+	valueConvertToAPI     func(string) (string, error)
+
+	// The value used to unset the config option.  If blank, the config option is
+	// deleted from the datastore.
 	unsetValue            string
 }
 
 // We extend the conversionHelper interface to add some of our own conversion
 // functions.  Each configConversionHelper is tied to a specific scope and
-// component (e.g. global BGP config, or host specific Felix config)
+// component (e.g. global BGP config, or host specific Felix config).
+//
+// The convertConfigToBackend/convertMetadataToBackend and convertConfigToAPI convert
+// an api.Config object or api.ConfigMetadata to use the backend and api representations
+// of the Name and Value.  By performing the conversion at this layer rather than in the
+// backend processing is useful because:
+// 	-  We can group together all of the mapping in a single location.
+// 	-  It will be easier to add a "--raw" option to pass values unaltered (as we may want
+// 	   to do to handle config options that haven't been added to libcalico yet).
+// Note though that this is not particularly architectural - and so this mapping may be later
+// pushed out into the backend (which will make more sense longer term to allow us to have
+// different data models for different backends).
 type configConversionHelper interface {
 	conversionHelper
 	registerConfigInfo(configInfo)
@@ -63,6 +94,7 @@ type configMap struct {
 	backendNameToInfo map[string]configInfo
 }
 
+// Return the "unset" value for the field indicated in the Metadata.
 func (m *configMap) getUnsetValue(metadata api.ConfigMetadata) string {
 	// Get the configInfo from the API name.  This method should only be called
 	// for valid field names, so no need to check.
@@ -83,7 +115,7 @@ func (m *configMap) convertConfigToBackend(a *api.Config) (*api.Config, error) {
 	var err error
 	configInfo := m.apiNameToInfo[a.Metadata.Name]
 
-	// Sanity check the value.
+	// Validate the value.
 	value := a.Spec.Value
 	if configInfo.validateRegexAPI != "" {
 		re := regexp.MustCompile(configInfo.validateRegexAPI)
@@ -242,7 +274,9 @@ func init() {
 }
 
 // getConfigConversionHelpers returns a slice of configConversionHelpers that match
-// the supplied Metadata.
+// the supplied Metadata.  For example, if the Metadata has a config name of "logLevel",
+// but does not qualify with scope or component - this will return a list of helpers
+// for BGP (global and node scope) and Felix (global and node scope).
 func getConfigConversionHelpers(metadata api.ConfigMetadata) []configConversionHelper {
 	cchs := []configConversionHelper{}
 	for ii := 0; ii < len(configConversionHelpers); ii++ {
@@ -253,6 +287,29 @@ func getConfigConversionHelpers(metadata api.ConfigMetadata) []configConversionH
 	}
 
 	return cchs
+}
+
+// getSingleConfigConversionHelper returns the configConversionHelper that
+// match the supplied metadata.  There should be a single unique match, otherwise an
+// error is returned.
+//
+// This is used by the Set, Unset and Get methods.  For these methods sufficient identifiers
+// must be supplied in the Metadata to uniquely identify the config option.
+func getSingleConfigConversionHelper(metadata api.ConfigMetadata) (configConversionHelper, error) {
+	// At minimum we need a name.
+	if metadata.Name == "" {
+		return nil, errors.ErrorInsufficientIdentifiers{Name: "name"}
+	}
+
+	cchs := getConfigConversionHelpers(metadata)
+	if len(cchs) == 0 {
+		return nil, fmt.Errorf("config name not recognised")
+	}
+	if len(cchs) > 1 {
+		return nil, fmt.Errorf("config name is not unique - specify scope and/or component")
+	}
+
+	return cchs[0], nil
 }
 
 // defaultNodeASNumberValidate validates the the value of the default node AS number
@@ -317,28 +374,9 @@ func newConfigs(c *Client) ConfigInterface {
 	return &configs{c: c}
 }
 
-// getSingleConfigConversionHelper returns the configConversionHelper that
-// match the supplied metadata.  There should be a single unique match, otherwise an
-// error is returned.
-func getSingleConfigConversionHelper(metadata api.ConfigMetadata) (configConversionHelper, error) {
-	// At minimum we need a name.
-	if metadata.Name == "" {
-		return nil, errors.ErrorInsufficientIdentifiers{Name: "name"}
-	}
-
-	cchs := getConfigConversionHelpers(metadata)
-	if len(cchs) == 0 {
-		return nil, fmt.Errorf("config name not recognised")
-	}
-	if len(cchs) > 1 {
-		return nil, fmt.Errorf("config name not unique - specify scope and/or component")
-	}
-
-	return cchs[0], nil
-}
-
 // Set sets a single configuration parameter.
 func (h *configs) Set(a *api.Config) (*api.Config, error) {
+	// Get the configConversionHelper for the Set - there should be only one.
 	cch, err := getSingleConfigConversionHelper(a.Metadata)
 	if err != nil {
 		return nil, err
@@ -357,6 +395,7 @@ func (h *configs) Set(a *api.Config) (*api.Config, error) {
 // Unset removes a single configuration parameter.  For some parameters this may
 // simply reset the value to the original default value.
 func (h *configs) Unset(metadata api.ConfigMetadata) error {
+	// Get the configConversionHelper for the Set - there should be only one.
 	cch, err := getSingleConfigConversionHelper(metadata)
 	if err != nil {
 		return err
@@ -382,6 +421,7 @@ func (h *configs) Unset(metadata api.ConfigMetadata) error {
 
 // Get returns information about a particular config parameter.
 func (h *configs) Get(metadata api.ConfigMetadata) (*api.Config, error) {
+	// Get the configConversionHelper for the Set - there should be only one.
 	cch, err := getSingleConfigConversionHelper(metadata)
 	if err != nil {
 		return nil, err
