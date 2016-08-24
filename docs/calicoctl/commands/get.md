@@ -1,6 +1,6 @@
-get.md> ![warning](images/warning.png) This document describes an alpha release of calicoctl
+> ![warning](../images/warning.png) This document describes an alpha release of calicoctl
 >
-> See note at top of [calicoctl guide](../calicoctl.md) main page.
+> See note at top of [calicoctl guide](../README.md) main page.
 
 # User reference for 'calicoctl get' commands
 
@@ -15,15 +15,10 @@ Run `calicoctl get --help` to display the following help menu for the
 calicoctl get command.
 
 ```
-Set the ETCD server access information in the environment variables
-or supply details in a config file.
-
 Display one or many resources identified by file, stdin or resource type and name.
 
-Possible resource types include: policy
-
-By specifying the output as 'template' and providing a Go template as the value
-of the --template flag, you can filter the attributes of the fetched resource(s).
+By specifying the output as 'go-template' and providing a Go template as the value
+of the --go-template flag, you can filter the attributes of the fetched resource(s).
 
 Usage:
   calicoctl get ([--tier=<TIER>] [--hostname=<HOSTNAME>] [--scope=<SCOPE>] (<KIND> [<NAME>]) |
@@ -40,7 +35,8 @@ Examples:
 
 Options:
   -f --filename=<FILENAME>     Filename to use to get the resource.  If set to "-" loads from stdin.
-  -o --output=<OUTPUT FORMAT>  Output format.  One of: yaml, json.  [Default: yaml]
+  -o --output=<OUTPUT FORMAT>  Output format.  One of: ps, wide, custom-columns=..., yaml, json,
+                               go-template=..., go-template-file=...   [Default: ps]
   -t --tier=<TIER>             The policy tier.
   -n --hostname=<HOSTNAME>     The hostname.
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
@@ -55,4 +51,4 @@ Examples:
 ```
 
 ```
-[![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/calicoctl/docs/calicoctl/get.md?pixel)](https://github.com/igrigorik/ga-beacon)
+[![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/libcalico-go/docs/calicoctl/commands/get.md?pixel)](https://github.com/igrigorik/ga-beacon)

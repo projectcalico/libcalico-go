@@ -1,6 +1,6 @@
-delete.md> ![warning](images/warning.png) This document describes an alpha release of calicoctl
+> ![warning](../images/warning.png) This document describes an alpha release of calicoctl
 >
-> See note at top of [calicoctl guide](../calicoctl.md) main page.
+> See note at top of [calicoctl guide](../README.md) main page.
 
 # User reference for 'calicoctl delete' commands
 
@@ -55,4 +55,4 @@ Examples:
 ```
 
 ```
-[![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/calicoctl/docs/calicoctl/delete.md?pixel)](https://github.com/igrigorik/ga-beacon)
+[![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/libcalico-go/docs/calicoctl/commands/delete.md?pixel)](https://github.com/igrigorik/ga-beacon)
