@@ -19,12 +19,13 @@ import (
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/scope"
 
-	"text/template"
 	"text/tabwriter"
+	"text/template"
+
+	"os"
 
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/component"
-	"os"
 )
 
 const (

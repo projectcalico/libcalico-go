@@ -19,10 +19,11 @@ import (
 	"reflect"
 	"strings"
 
+	"fmt"
+
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/net"
 	"time"
-	"fmt"
 )
 
 // RawString is used a value type to indicate that the value is a bare non-JSON string

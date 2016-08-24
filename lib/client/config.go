@@ -20,13 +20,13 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/component"
 	"github.com/tigera/libcalico-go/lib/errors"
 	"github.com/tigera/libcalico-go/lib/scope"
-	"github.com/golang/glog"
 )
 
 // configInfo contains the conversion info mapping between API and backend.
@@ -35,18 +35,18 @@ import (
 // of component and scope.
 type configInfo struct {
 	// The name of the config field in the API.
-	apiName               string
+	apiName string
 
 	// The name of the config field in the backend structure.
-	backendName           string
+	backendName string
 
 	// A regex string used to validate the value in the API config.  If blank, we do
 	// not validate using this regex.
-	validateRegexAPI      string
+	validateRegexAPI string
 
 	// A function used to validate the value in the API config.  If nil, we do not
 	// validate using this function.
-	validateFuncAPI       func(string) error
+	validateFuncAPI func(string) error
 
 	// Function to convert the API value to the equivalent value in the backend.  If
 	// nil, the value does not need converting.
@@ -54,11 +54,11 @@ type configInfo struct {
 
 	// Function to convert the backend value to the equivalent value in the API.  If
 	// nil, the value does not need converting.
-	valueConvertToAPI     func(string) (string, error)
+	valueConvertToAPI func(string) (string, error)
 
 	// The value used to unset the config option.  If blank, the config option is
 	// deleted from the datastore.
-	unsetValue            string
+	unsetValue string
 }
 
 // We extend the conversionHelper interface to add some of our own conversion
@@ -299,8 +299,8 @@ func init() {
 
 	// Register global Felix config fields.
 	globalFelix.registerConfigInfo(configInfo{
-		apiName: "ipip",
-		backendName: "IpInIpEnabled",
+		apiName:               "ipip",
+		backendName:           "IpInIpEnabled",
 		validateRegexAPI:      "on|off",
 		valueConvertToAPI:     trueFalseToOnOff,
 		valueConvertToBackend: onOffToTrueFalse,
@@ -632,7 +632,7 @@ func newHostBGPConfigConversionHelper() *hostBGPConfigConversionHelper {
 func (h *hostBGPConfigConversionHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.ConfigMetadata)
 	l := model.HostBGPConfigListOptions{
-		Name: pm.Name,
+		Name:     pm.Name,
 		Hostname: pm.Hostname,
 	}
 	return l, nil
@@ -643,7 +643,7 @@ func (h *hostBGPConfigConversionHelper) convertMetadataToListInterface(m unversi
 func (h *hostBGPConfigConversionHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.ConfigMetadata)
 	k := model.HostBGPConfigKey{
-		Name: pm.Name,
+		Name:     pm.Name,
 		Hostname: pm.Hostname,
 	}
 	return k, nil
@@ -774,7 +774,7 @@ func newHostFelixConfigConversionHelper() *hostFelixConfigConversionHelper {
 func (h *hostFelixConfigConversionHelper) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.ConfigMetadata)
 	l := model.HostConfigListOptions{
-		Name: pm.Name,
+		Name:     pm.Name,
 		Hostname: pm.Hostname,
 	}
 	return l, nil
@@ -785,7 +785,7 @@ func (h *hostFelixConfigConversionHelper) convertMetadataToListInterface(m unver
 func (h *hostFelixConfigConversionHelper) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.ConfigMetadata)
 	k := model.HostConfigKey{
-		Name: pm.Name,
+		Name:     pm.Name,
 		Hostname: pm.Hostname,
 	}
 	return k, nil
