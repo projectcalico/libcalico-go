@@ -58,11 +58,6 @@ The unset command reverts configuration back to its initial value.  Depending on
 option, this either deletes the configuration completely from the datastore, or resets it to the
 original system default value.
 
-The '--raw' option allows users to set arbitrary configuration options for a particular scope and
-component.  The component and scope are required when using the '--raw' option on the set and unset
-commands.  In general we do not recommend use of the '--raw' option - it is there primarily to
-assist with certain debug or low level operations and should only be used when instructed.
-
  Name                | Component | Scope       | Value                                  | Unset value
 ---------------------+-----------+-------------+----------------------------------------+-------------
  logLevel            | bgp       | global,node | none,debug,info                        | -
