@@ -42,7 +42,7 @@ Usage:
       [--scope=<SCOPE>] [--component=<COMPONENT>] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
   calicoctl config unset <NAME>
       [--scope=<SCOPE>] [--component=<COMPONENT>] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
-  calicoctl config show [<NAME>]
+  calicoctl config view [<NAME>]
       [--scope=<SCOPE>] [--component=<COMPONENT>] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
 
 These commands can be used to manage system level configuration.  The table below details the
@@ -78,7 +78,7 @@ Examples:
   calicoctl config set logLevel info --scope=node --component=bgp --hostname=host1
 
   # Display the full set of config values
-  calicoctl config show
+  calicoctl config view
 
 Options:
   -n --hostname=<HOSTNAME>     The hostname.
@@ -124,7 +124,7 @@ Options:
 		_, err = client.Config().Set(config)
 	} else if parsedArgs["unset"].(bool) {
 		err = client.Config().Unset(config.Metadata)
-	} else if parsedArgs["show"].(bool) {
+	} else if parsedArgs["view"].(bool) {
 		configList, err = client.Config().List(config.Metadata)
 		if err != nil {
 			return err
