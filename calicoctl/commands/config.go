@@ -29,9 +29,9 @@ import (
 )
 
 const (
-	configTemplate = "NAME\tCOMPONENT\tSCOPE\tHOSTNAME\tVALUE\t\n" +
+	configTemplate = "COMPONENT\tSCOPE\tHOSTNAME\tNAME\tVALUE\t\n" +
 		"{{range .Items}}" +
-		"{{.Metadata.Name}}\t{{.Metadata.Component}}\t{{.Metadata.Scope}}\t{{.Metadata.Hostname}}\t{{.Spec.Value}}\t\n" +
+		"{{.Metadata.Component}}\t{{.Metadata.Scope}}\t{{.Metadata.Hostname}}\t{{.Metadata.Name}}\t{{.Spec.Value}}\t\n" +
 		"{{end}}\n"
 )
 
