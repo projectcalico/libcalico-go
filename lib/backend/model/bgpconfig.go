@@ -150,5 +150,5 @@ func (options HostBGPConfigListOptions) ParseDefaultKey(ekey string) Key {
 		glog.V(2).Infof("Didn't match name %s != %s", options.Name, name)
 		return nil
 	}
-	return HostBGPConfigKey{Name: name}
+	return HostBGPConfigKey{Name: name, Hostname: hostname}
 }

@@ -117,9 +117,6 @@ func (r resourcePrinterTable) print(resources []unversioned.Resource) error {
 		// Use a tabwriter to write out the teplate - this provides better formatting.
 		writer := tabwriter.NewWriter(os.Stdout, 5, 1, 3, ' ', 0)
 		err = tmpl.Execute(writer, resource)
-		if err != nil {
-			panic(err)
-		}
 		writer.Flush()
 
 		// Templates for ps format are internally defined and therefore we should not

@@ -26,6 +26,7 @@ import (
 	"github.com/tigera/libcalico-go/lib/component"
 	"github.com/tigera/libcalico-go/lib/errors"
 	"github.com/tigera/libcalico-go/lib/scope"
+	"github.com/golang/glog"
 )
 
 // configInfo contains the conversion info mapping between API and backend.
@@ -104,6 +105,12 @@ func (m *configMap) getUnsetValue(metadata api.ConfigMetadata) string {
 
 // registerConfigInfo registers a config field with a particular configConversionHelper.
 func (m *configMap) registerConfigInfo(info configInfo) {
+	if m.apiNameToInfo == nil {
+		m.apiNameToInfo = make(map[string]configInfo)
+	}
+	if m.backendNameToInfo == nil {
+		m.backendNameToInfo = make(map[string]configInfo)
+	}
 	m.apiNameToInfo[info.apiName] = info
 	m.backendNameToInfo[info.backendName] = info
 }
@@ -142,6 +149,7 @@ func (m *configMap) convertConfigToBackend(a *api.Config) (*api.Config, error) {
 			Scope:     m.scope,
 			Component: m.component,
 			Name:      configInfo.backendName,
+			Hostname:  a.Metadata.Hostname,
 		},
 		Spec: api.ConfigSpec{
 			Value: value,
@@ -174,6 +182,7 @@ func (m *configMap) convertConfigToAPI(a *api.Config) *api.Config {
 			Scope:     m.scope,
 			Component: m.component,
 			Name:      configInfo.apiName,
+			Hostname:  a.Metadata.Hostname,
 		},
 		Spec: api.ConfigSpec{
 			Value: value,
@@ -195,6 +204,7 @@ func (m *configMap) convertMetadataToBackend(metadata api.ConfigMetadata) api.Co
 		Scope:     m.scope,
 		Component: m.component,
 		Name:      name,
+		Hostname:  metadata.Hostname,
 	}
 	return r
 }
@@ -203,14 +213,17 @@ func (m *configMap) matchesConfigMetadata(metadata api.ConfigMetadata) bool {
 	// If the Metadata includes a Name field then check if we have that field.
 	if metadata.Name != "" {
 		if _, ok := m.apiNameToInfo[metadata.Name]; !ok {
+			glog.V(2).Infof("Name %s not found in helper", metadata.Name)
 			return false
 		}
 	}
 
 	if metadata.Scope != scope.Undefined && metadata.Scope != m.scope {
+		glog.V(2).Infof("Scope '%s' does not match helper '%s'", metadata.Scope, m.scope)
 		return false
 	}
 	if metadata.Component != component.Undefined && metadata.Component != m.component {
+		glog.V(2).Infof("Component '%s' does not match helper '%s'", metadata.Component, m.component)
 		return false
 	}
 
@@ -376,6 +389,8 @@ func newConfigs(c *Client) ConfigInterface {
 
 // Set sets a single configuration parameter.
 func (h *configs) Set(a *api.Config) (*api.Config, error) {
+	glog.V(2).Info("Config set invoked")
+
 	// Get the configConversionHelper for the Set - there should be only one.
 	cch, err := getSingleConfigConversionHelper(a.Metadata)
 	if err != nil {
@@ -395,6 +410,8 @@ func (h *configs) Set(a *api.Config) (*api.Config, error) {
 // Unset removes a single configuration parameter.  For some parameters this may
 // simply reset the value to the original default value.
 func (h *configs) Unset(metadata api.ConfigMetadata) error {
+	glog.V(2).Info("Config unset invoked")
+
 	// Get the configConversionHelper for the Set - there should be only one.
 	cch, err := getSingleConfigConversionHelper(metadata)
 	if err != nil {
@@ -421,6 +438,8 @@ func (h *configs) Unset(metadata api.ConfigMetadata) error {
 
 // Get returns information about a particular config parameter.
 func (h *configs) Get(metadata api.ConfigMetadata) (*api.Config, error) {
+	glog.V(2).Info("Config get invoked")
+
 	// Get the configConversionHelper for the Set - there should be only one.
 	cch, err := getSingleConfigConversionHelper(metadata)
 	if err != nil {
@@ -448,6 +467,8 @@ func (h *configs) Get(metadata api.ConfigMetadata) (*api.Config, error) {
 // List takes a Metadata, and returns a ConfigList that contains the list of config
 // parameters that match the Metadata (wildcarding missing fields).
 func (h *configs) List(metadata api.ConfigMetadata) (*api.ConfigList, error) {
+	glog.V(2).Info("Config list invoked")
+
 	l := api.NewConfigList()
 
 	// Get a list of all of the configConversionHelpers that are valid for the
@@ -544,7 +565,6 @@ func (h *globalBGPConfigConversionHelper) convertKVPairToAPI(d *model.KVPair) (u
 
 	apiConfig := api.NewConfig()
 	apiConfig.Metadata.Name = backendConfigKey.Name
-	apiConfig.Metadata.Scope = scope.Global
 	apiConfig.Metadata.Hostname = ""
 	apiConfig.Spec.Value = backendConfigValue
 
@@ -574,6 +594,7 @@ func (h *hostBGPConfigConversionHelper) convertMetadataToListInterface(m unversi
 	pm := m.(api.ConfigMetadata)
 	l := model.HostBGPConfigListOptions{
 		Name: pm.Name,
+		Hostname: pm.Hostname,
 	}
 	return l, nil
 }
@@ -584,6 +605,7 @@ func (h *hostBGPConfigConversionHelper) convertMetadataToKey(m unversioned.Resou
 	pm := m.(api.ConfigMetadata)
 	k := model.HostBGPConfigKey{
 		Name: pm.Name,
+		Hostname: pm.Hostname,
 	}
 	return k, nil
 }
@@ -615,7 +637,6 @@ func (h *hostBGPConfigConversionHelper) convertKVPairToAPI(d *model.KVPair) (unv
 
 	apiConfig := api.NewConfig()
 	apiConfig.Metadata.Name = backendConfigKey.Name
-	apiConfig.Metadata.Scope = scope.Node
 	apiConfig.Metadata.Hostname = backendConfigKey.Hostname
 	apiConfig.Spec.Value = backendConfigValue
 
@@ -686,7 +707,6 @@ func (h *globalFelixConfigConversionHelper) convertKVPairToAPI(d *model.KVPair) 
 
 	apiConfig := api.NewConfig()
 	apiConfig.Metadata.Name = backendConfigKey.Name
-	apiConfig.Metadata.Scope = scope.Global
 	apiConfig.Metadata.Hostname = ""
 	apiConfig.Spec.Value = backendConfigValue
 
@@ -716,6 +736,7 @@ func (h *hostFelixConfigConversionHelper) convertMetadataToListInterface(m unver
 	pm := m.(api.ConfigMetadata)
 	l := model.HostConfigListOptions{
 		Name: pm.Name,
+		Hostname: pm.Hostname,
 	}
 	return l, nil
 }
@@ -726,6 +747,7 @@ func (h *hostFelixConfigConversionHelper) convertMetadataToKey(m unversioned.Res
 	pm := m.(api.ConfigMetadata)
 	k := model.HostConfigKey{
 		Name: pm.Name,
+		Hostname: pm.Hostname,
 	}
 	return k, nil
 }
@@ -757,7 +779,6 @@ func (h *hostFelixConfigConversionHelper) convertKVPairToAPI(d *model.KVPair) (u
 
 	apiConfig := api.NewConfig()
 	apiConfig.Metadata.Name = backendConfigKey.Name
-	apiConfig.Metadata.Scope = scope.Node
 	apiConfig.Metadata.Hostname = backendConfigKey.Hostname
 	apiConfig.Spec.Value = backendConfigValue
 

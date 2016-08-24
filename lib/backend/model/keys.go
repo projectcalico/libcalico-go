@@ -22,6 +22,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/net"
 	"time"
+	"fmt"
 )
 
 // RawString is used a value type to indicate that the value is a bare non-JSON string
@@ -230,4 +231,17 @@ func ParseValue(key Key, rawData []byte) (interface{}, error) {
 		iface = elem.Interface()
 	}
 	return iface, nil
+}
+
+// Serialize a value in the model to a []byte to stored in the datastore.  This performs
+// the opposite processing to ParseValue()
+func SerializeValue(d *KVPair) ([]byte, error) {
+	valueType := d.Key.valueType()
+	if valueType == rawStringType {
+		return []byte(d.Value.(string)), nil
+	}
+	if valueType == rawBoolType {
+		return []byte(fmt.Sprint(d.Value)), nil
+	}
+	return json.Marshal(d.Value)
 }

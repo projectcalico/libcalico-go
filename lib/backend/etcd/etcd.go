@@ -21,8 +21,6 @@ import (
 
 	"time"
 
-	"encoding/json"
-
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/pkg/transport"
 	"github.com/golang/glog"
@@ -199,7 +197,7 @@ func (c *EtcdClient) set(d *KVPair, options *etcd.SetOptions) (*KVPair, error) {
 	if err != nil {
 		return nil, err
 	}
-	bytes, err := json.Marshal(d.Value)
+	bytes, err := SerializeValue(d)
 	if err != nil {
 		return nil, err
 	}

@@ -19,10 +19,19 @@ import (
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/scope"
 
-	"fmt"
+	"text/template"
+	"text/tabwriter"
 
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/component"
+	"os"
+)
+
+const (
+	configTemplate = "NAME\tCOMPONENT\tSCOPE\tHOSTNAME\tVALUE\t\n" +
+		"{{range .Items}}" +
+		"{{.Metadata.Name}}\t{{.Metadata.Component}}\t{{.Metadata.Scope}}\t{{.Metadata.Hostname}}\t{{.Spec.Value}}\t\n" +
+		"{{end}}\n"
 )
 
 func Config(args []string) error {
@@ -30,11 +39,11 @@ func Config(args []string) error {
 
 Usage:
   calicoctl config set <NAME> <VALUE>
-      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
-  calicoctl config unset <NAME> <VALUE>
-      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
+      [--scope=<SCOPE>] [--component=<COMPONENT>] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
+  calicoctl config unset <NAME>
+      [--scope=<SCOPE>] [--component=<COMPONENT>] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
   calicoctl config show [<NAME>]
-      [--scope=<SCOPE>] [--component=<COMPONENT] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
+      [--scope=<SCOPE>] [--component=<COMPONENT>] [--hostname=<HOSTNAME>] [--config=<CONFIG>]
 
 These commands can be used to manage system level configuration.  The table below details the
 valid config names and values, and for each specifies the valid scope and component.  The scope
@@ -85,6 +94,7 @@ Options:
 	if len(parsedArgs) == 0 {
 		return nil
 	}
+	glog.V(2).Info("Parsed command line")
 
 	// Load the client config and connect.
 	cf := parsedArgs["--config"].(string)
@@ -93,13 +103,14 @@ Options:
 		return err
 	}
 	glog.V(2).Infof("Client: %v\n", client)
+	glog.V(2).Infof("Parsed args: %v\n", parsedArgs)
 
 	// From the command line arguments construct the Config object to send to the client.
-	hostname := parsedArgs["--hostname"]
-	scopeStr := parsedArgs["--scope"]
-	componentStr := parsedArgs["--component"]
-	name := parsedArgs["<NAME>"]
-	value := parsedArgs["<VALUE>"]
+	hostname := argStringOrBlank(parsedArgs, "--hostname")
+	scopeStr := argStringOrBlank(parsedArgs, "--scope")
+	componentStr := argStringOrBlank(parsedArgs, "--component")
+	name := argStringOrBlank(parsedArgs, "<NAME>")
+	value := argStringOrBlank(parsedArgs, "<VALUE>")
 
 	config := api.NewConfig()
 	config.Metadata.Hostname = hostname
@@ -109,16 +120,28 @@ Options:
 	config.Spec.Value = value
 
 	var configList *api.ConfigList
-	if parsedArgs["set"] != nil {
+	if parsedArgs["set"].(bool) {
 		_, err = client.Config().Set(config)
-	} else if parsedArgs["unset"] != nil {
+	} else if parsedArgs["unset"].(bool) {
 		err = client.Config().Unset(config.Metadata)
-	} else {
+	} else if parsedArgs["show"].(bool) {
 		configList, err = client.Config().List(config.Metadata)
 		if err != nil {
-
+			return err
 		}
-		fmt.Println(configList)
+
+		tmpl, err := template.New("get").Parse(configTemplate)
+		if err != nil {
+			panic(err)
+		}
+
+		// Use a tabwriter to write out the template - this provides better formatting.
+		writer := tabwriter.NewWriter(os.Stdout, 5, 1, 3, ' ', 0)
+		err = tmpl.Execute(writer, configList)
+		if err != nil {
+			panic(err)
+		}
+		writer.Flush()
 	}
 
 	return err

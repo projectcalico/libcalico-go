@@ -18,6 +18,6 @@ type Component string
 
 const (
 	Undefined Component = ""
-	Felix     Component = "Felix"
-	BGP       Component = "BGP"
+	Felix     Component = "felix"
+	BGP       Component = "bgp"
 )
