@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/lib/component"
 	"github.com/tigera/libcalico-go/lib/errors"
 	"github.com/tigera/libcalico-go/lib/numorstring"
 	"github.com/tigera/libcalico-go/lib/scope"
@@ -54,6 +55,7 @@ func init() {
 	RegisterFieldValidator("order", validateOrder)
 	RegisterFieldValidator("asn", validateASNum)
 	RegisterFieldValidator("scopeglobalornode", validateScopeGlobalOrNode)
+	RegisterFieldValidator("component", validateComponent)
 
 	RegisterStructValidator(validateProtocol, numorstring.Protocol{})
 	RegisterStructValidator(validatePort, numorstring.Port{})
@@ -151,6 +153,11 @@ func validateScopeGlobalOrNode(v *validator.Validate, topStruct reflect.Value, c
 	return f == scope.Global || f == scope.Node
 }
 
+func validateComponent(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
+	f := field.Interface().(component.Component)
+	glog.V(2).Infof("Validate component: %v\n", f)
+	return f == component.BGP || f == component.Felix
+}
 func validateProtocol(v *validator.Validate, structLevel *validator.StructLevel) {
 	glog.V(2).Infof("Validate protocol")
 	p := structLevel.CurrentStruct.Interface().(numorstring.Protocol)
