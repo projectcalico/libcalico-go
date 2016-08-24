@@ -95,7 +95,7 @@ type configMap struct {
 	backendNameToInfo map[string]configInfo
 }
 
-// Return the "unset" value for the field indicated in the Metadata.
+// getUnsetValue return the "unset" value for the field indicated in the Metadata.
 func (m *configMap) getUnsetValue(metadata api.ConfigMetadata) string {
 	// Get the configInfo from the API name.  This method should only be called
 	// for valid field names, so no need to check.
@@ -115,7 +115,8 @@ func (m *configMap) registerConfigInfo(info configInfo) {
 	m.backendNameToInfo[info.backendName] = info
 }
 
-// Convert the config object to have values that are correct for the backend.
+// convertConfigToBackend converts the config object to have values that are correct for
+// the backend.
 func (m *configMap) convertConfigToBackend(a *api.Config) (*api.Config, error) {
 	// Get the configInfo from the API name.  This method should only be called
 	// for valid field names, so no need to check.
@@ -158,6 +159,8 @@ func (m *configMap) convertConfigToBackend(a *api.Config) (*api.Config, error) {
 	return &r, nil
 }
 
+// convertConfigToAPI converts the config object to have values that are correct for
+// the API.
 func (m *configMap) convertConfigToAPI(a *api.Config) *api.Config {
 	// Get the configInfo from the backend name.  This method may be called for
 	// unrecognised fields, in which case return nothing - we'll filter out the
@@ -191,6 +194,8 @@ func (m *configMap) convertConfigToAPI(a *api.Config) *api.Config {
 	return &r
 }
 
+// convertMetadataToBackend converts the metadata object to have values that are correct for
+// the backend.
 func (m *configMap) convertMetadataToBackend(metadata api.ConfigMetadata) api.ConfigMetadata {
 	// Get the configInfo from the API name, if supplied.  This method should only be called
 	// for valid field names, so no need to check.
@@ -209,6 +214,8 @@ func (m *configMap) convertMetadataToBackend(metadata api.ConfigMetadata) api.Co
 	return r
 }
 
+// matchesConfigMetadata returns true if the supplied Metadata matches configuration stored in
+// the configConversionHelper.
 func (m *configMap) matchesConfigMetadata(metadata api.ConfigMetadata) bool {
 	// If the Metadata includes a Name field then check if we have that field.
 	if metadata.Name != "" {
@@ -218,10 +225,15 @@ func (m *configMap) matchesConfigMetadata(metadata api.ConfigMetadata) bool {
 		}
 	}
 
+	// If the Metadata has specified a Scope, check it matches the scope for the
+	// configConversinHelper
 	if metadata.Scope != scope.Undefined && metadata.Scope != m.scope {
 		glog.V(2).Infof("Scope '%s' does not match helper '%s'", metadata.Scope, m.scope)
 		return false
 	}
+
+	// If the Metadata has specified a Component, check it matches the component for the
+	// configConversinHelper
 	if metadata.Component != component.Undefined && metadata.Component != m.component {
 		glog.V(2).Infof("Component '%s' does not match helper '%s'", metadata.Component, m.component)
 		return false
@@ -283,6 +295,15 @@ func init() {
 		backendName:     "as_num",
 		validateFuncAPI: defaultNodeASNumberValidate,
 		unsetValue:      "64511",
+	})
+
+	// Register global Felix config fields.
+	globalFelix.registerConfigInfo(configInfo{
+		apiName: "ipip",
+		backendName: "IpInIpEnabled",
+		validateRegexAPI:      "on|off",
+		valueConvertToAPI:     trueFalseToOnOff,
+		valueConvertToBackend: onOffToTrueFalse,
 	})
 }
 
@@ -366,6 +387,24 @@ func nodeToNodeMeshValueConvertToBackend(value string) (string, error) {
 		return "", err
 	} else {
 		return string(b), nil
+	}
+}
+
+// trueFalseToOnOff converts true/false to on/off.
+func trueFalseToOnOff(value string) (string, error) {
+	if value == "true" {
+		return "on", nil
+	} else {
+		return "off", nil
+	}
+}
+
+// onOffToTrueFalse converts on/off to true/false.
+func onOffToTrueFalse(value string) (string, error) {
+	if value == "one" {
+		return "true", nil
+	} else {
+		return "false", nil
 	}
 }
 
