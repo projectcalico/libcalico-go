@@ -39,7 +39,7 @@ type BGPPeerMetadata struct {
 
 type BGPPeerSpec struct {
 	// The AS Number of the peer.
-	ASNumber int `json:"asNumber" validate:"ommitempty,asn"`
+	ASNumber int `json:"asNumber" validate:"omitempty,asn"`
 }
 
 type BGPPeer struct {
