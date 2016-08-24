@@ -15,17 +15,17 @@
 package commands
 
 import (
-	"github.com/docopt/docopt-go"
-	"github.com/tigera/libcalico-go/lib/api"
-	"github.com/tigera/libcalico-go/lib/scope"
+	"os"
 
 	"text/tabwriter"
 	"text/template"
 
-	"os"
-
+	"github.com/docopt/docopt-go"
 	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/component"
+	"github.com/tigera/libcalico-go/lib/errors"
+	"github.com/tigera/libcalico-go/lib/scope"
 )
 
 const (
@@ -125,6 +125,12 @@ Options:
 		_, err = client.Config().Set(config)
 	} else if parsedArgs["unset"].(bool) {
 		err = client.Config().Unset(config.Metadata)
+
+		// If the config does not exist, then ignore.
+		switch err.(type) {
+		case errors.ErrorResourceDoesNotExist:
+			err = nil
+		}
 	} else if parsedArgs["view"].(bool) {
 		configList, err = client.Config().List(config.Metadata)
 		if err != nil {
@@ -133,6 +139,7 @@ Options:
 
 		tmpl, err := template.New("get").Parse(configTemplate)
 		if err != nil {
+			// The template is hard coded so should always parse.
 			panic(err)
 		}
 

@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"errors"
+	goerrors "errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -26,7 +26,7 @@ import (
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/client"
-	calicoErrors "github.com/tigera/libcalico-go/lib/errors"
+	"github.com/tigera/libcalico-go/lib/errors"
 	"github.com/tigera/libcalico-go/lib/net"
 	"github.com/tigera/libcalico-go/lib/scope"
 )
@@ -82,7 +82,7 @@ func convertToSliceOfResources(loaded interface{}) []unversioned.Resource {
 			r = append(r, lr)
 		}
 	default:
-		panic(errors.New(fmt.Sprintf("unhandled type %v converting to resource slice",
+		panic(goerrors.New(fmt.Sprintf("unhandled type %v converting to resource slice",
 			reflect.TypeOf(loaded).Kind())))
 	}
 
@@ -223,7 +223,7 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 	}
 
 	if len(resources) == 0 {
-		return commandResults{err: errors.New("no resources specified")}
+		return commandResults{err: goerrors.New("no resources specified")}
 	}
 
 	if glog.V(2) {
@@ -314,9 +314,9 @@ func executeResourceAction(args map[string]interface{}, client *client.Client, r
 	if err != nil {
 		skip := false
 		switch err.(type) {
-		case calicoErrors.ErrorResourceAlreadyExists:
+		case errors.ErrorResourceAlreadyExists:
 			skip = argBoolOrFalse(args, "--skip-exists")
-		case calicoErrors.ErrorResourceDoesNotExist:
+		case errors.ErrorResourceDoesNotExist:
 			skip = argBoolOrFalse(args, "--skip-not-exists")
 		}
 		if skip {

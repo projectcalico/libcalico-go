@@ -15,13 +15,13 @@
 package api
 
 import (
-	. "github.com/tigera/libcalico-go/lib/api/unversioned"
+	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/component"
 	"github.com/tigera/libcalico-go/lib/scope"
 )
 
 type ConfigMetadata struct {
-	ObjectMetadata
+	unversioned.ObjectMetadata
 
 	// The config name.
 	Name string `json:"name" validate:"omitempty,configkey"`
@@ -45,7 +45,7 @@ type ConfigSpec struct {
 }
 
 type Config struct {
-	TypeMetadata
+	unversioned.TypeMetadata
 
 	// Metadata for Config.
 	Metadata ConfigMetadata `json:"metadata,omitempty"`
@@ -55,15 +55,15 @@ type Config struct {
 }
 
 func NewConfig() *Config {
-	return &Config{TypeMetadata: TypeMetadata{Kind: "config", APIVersion: "v1"}}
+	return &Config{TypeMetadata: unversioned.TypeMetadata{Kind: "config", APIVersion: "v1"}}
 }
 
 type ConfigList struct {
-	TypeMetadata
-	Metadata ListMetadata `json:"metadata,omitempty"`
-	Items    []Config     `json:"items" validate:"dive"`
+	unversioned.TypeMetadata
+	Metadata unversioned.ListMetadata `json:"metadata,omitempty"`
+	Items    []Config                 `json:"items" validate:"dive"`
 }
 
 func NewConfigList() *ConfigList {
-	return &ConfigList{TypeMetadata: TypeMetadata{Kind: "configList", APIVersion: "v1"}}
+	return &ConfigList{TypeMetadata: unversioned.TypeMetadata{Kind: "configList", APIVersion: "v1"}}
 }
