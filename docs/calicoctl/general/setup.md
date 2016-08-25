@@ -2,9 +2,9 @@
 >
 > See note at top of [calicoctl guide](../README.md) main page.
 
-# Initial configuration for calicoctl
+# Setup for calicoctl
 The `calicoctl` command line tool needs to be configured with details of
-your datastore cluster so that it can manage system configurationa and
+your datastore cluster so that it can manage system configurations and
 resources.
 
 The configuration may be specified either using a YAML or JSON input file, or through
@@ -65,7 +65,7 @@ ETCD_CERT_FILE=<CERT FILE e.g. /etc/calico/server.pem>
 ETCD_CA_CERT_FILE=<CA FILE e.g. /etc/calico/ca.pem>
 ```
 
-The `<ETCD_ENPOINTS>` variable is a comma separated list of endpoint URLs.
+The `<ETCD_ENDPOINTS>` variable is a comma separated list of endpoint URLs.
 
 Replace `<...>` with appropriate values for your etcd cluster.  Username and password 
 may be omitted if your etcd cluster does not require authentication. Similarly, the 

@@ -2,72 +2,9 @@
 >
 > See note at top of [calicoctl guide](../../README.md) main page.
 
-# Calico resources
+# BGP Peer resources
 
-This guide describes the set of valid resource types that can be managed
-through `calicoctl`. 
-
-
-## Overview of resource YAML file structure
-The calicoctl commands for resource management (create, delete, replace, get) 
-all take YAML files as input.  The YAML file may contain a single resource type
-(e.g. a tier resource), or a list of multiple resource types (e.g. a tier and two
-policy resources).
-
-### A single resource
-The general structure of a single resource is as follows:
-
-```
-apiVersion: v1
-kind: <type of resource>
-metadata:
-  name: <name of resource>
-  ... other identifiers required to uniquely identify the resource
-  ... labels (when appropriate for the resource type)
-spec:
-  ... configuration for the resource
-```
-
-The `apiVersion` indicates that the version of the API that the data corresponds to is v1
-(currently the only version supported).
- 
-The `kind` specifies the type of resource described by the YAML document.
-
-The `metadata` contains sub-fields which are used identify the particular instance of the
-resource.
-
-The `spec` contains the resource specification, i.e. the configuration for the resource.
-
-### Multiple resources in a single file
-A file may contain multiple resource documents specified in a YAML list format.
-
-For example, the following is the contents of a file containing two `tier` resources.
-```
-- apiVersion: v1
-  kind: tier
-  metadata:
-    name: tier1
-  spec:
-    order: 10
-- apiVersion: v1
-  kind: tier
-  metadata:
-    name: tier2
-  spec:
-    order: 20
-```
-
-### Required information for calicoctl management commands
-
-#### `calicoctl apply/create/replace`
-
-
-#### `calicoctl get`
-
-
-#### `calicoctl delete`
-
-
+## YAML format
 
 Type
 Brief description
