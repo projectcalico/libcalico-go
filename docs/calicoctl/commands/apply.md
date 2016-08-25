@@ -79,10 +79,10 @@ Successfully applied 2 'policy' resource(s)
 ```
 
 #### See also
--  [Resources](resources/README.md) for details on all valid resources, including file format
+-  [Resources](../resources/README.md) for details on all valid resources, including file format
    and schema
--  [Policy](resources/policy.md) for details on the Calico tiered policy model
--  [calicoctl configuration](general/config.md) for details on configuring `calicoctl` to access
+-  [Policy](../resources/policy.md) for details on the Calico tiered policy model
+-  [calicoctl configuration](../general/config.md) for details on configuring `calicoctl` to access
    the Calico datastore.
 
 [![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/libcalico-go/docs/calicoctl/commands/apply.md?pixel)](https://github.com/igrigorik/ga-beacon)

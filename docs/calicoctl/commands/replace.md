@@ -53,7 +53,7 @@ The resources are replaced in the order they are specified.  In the event of a f
 replacing a specific resource it is possible to work out which resource failed based on the 
 number of resources successfully replaced.
 
-#### Examples
+### Examples
 ```
 # Replace a set of resources (of mixed type) using the data in resources.yaml.
 # Results indicate that 8 resources were successfully replaced.
@@ -67,22 +67,22 @@ Failed to replace any 'policy' resources: resource does not exist: Policy(name=d
 ```
 
 
-#### Options
+### Options
 ```
   -f --filename=<FILENAME>     Filename to use to apply the resource.  If set to "-" loads from stdin.
 ```
 
-#### General options
+### General options
 ```
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
                                [default: /etc/calico/calicoctl.cfg]
 ```
 
-#### See also
--  [Resources](resources/README.md) for details on all valid resources, including file format
+### See also
+-  [Resources](../resources/README.md) for details on all valid resources, including file format
    and schema
--  [Policy](resources/policy.md) for details on the Calico tiered policy model
--  [calicoctl configuration](general/config.md) for details on configuring `calicoctl` to access
+-  [Policy](../resources/policy.md) for details on the Calico tiered policy model
+-  [calicoctl configuration](../general/config.md) for details on configuring `calicoctl` to access
    the Calico datastore.
 
 [![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/libcalico-go/docs/calicoctl/commands/replace.md?pixel)](https://github.com/igrigorik/ga-beacon)

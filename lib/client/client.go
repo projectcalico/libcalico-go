@@ -91,7 +91,7 @@ func (c *Client) IPAM() IPAMInterface {
 // LoadClientConfig loads the ClientConfig from the specified file (if specified)
 // or from environment variables (if the file is not specified).
 func LoadClientConfig(filename string) (*api.ClientConfig, error) {
-	var c api.ClientConfig
+	c := api.ClientConfig{BackendType: api.EtcdV2}
 
 	// Override / merge with values loaded from the specified file.
 	if filename != "" {

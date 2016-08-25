@@ -52,56 +52,66 @@ Options:
 
 ## calicoctl delete
 
-The delete command is used to create a set of resources by filename or stdin.  JSON and
-YAML formats are accepted.
+The delete command is used to delete a set of resources by filename or stdin, or
+by type and identifiers.  JSON and YAML formats are accepted for file and stdin format.
 
-Attempting to create a resource that already exists is treated as a terminating error unless the
-`--skip-exists` flag is set.  If this flag is set, resources that already exist are skipped.
+Attempting to delete a resource that does not exists is treated as a terminating error unless the
+`--skip-not-exists` flag is set.  If this flag is set, resources that do not exist are skipped.
    
-The output of the command indicates how many resources were successfully created, and the error
-reason if an error occurred.  If the `--skip-exists` flag is set then skipped resources are 
+When deleting resources by type, only a single type may be specified at a time.  The name
+is required along with any and other identifiers required to uniquely identify a resource of the
+specified type.  The only exception is that the `--tier` need not be specified for a policy resource
+where, if omitted, is assumed to be in the "default" tier.
+
+Possible resource types are bgppeer, hostendpoint, policy, pool, profile and tier.  The <TYPE> is
+case insensitive and may be pluralized.
+
+The output of the command indicates how many resources were successfully deleted, and the error
+reason if an error occurred.  If the `--skip-not-exists` flag is set then skipped resources are 
 included in the success count.
 
-The resources are created in the order they are specified.  In the event of a failure
-creating a specific resource it is possible to work out which resource failed based on the 
-number of resources successfully created.
+The resources are deleted in the order they are specified.  In the event of a failure
+deleting a specific resource it is possible to work out which resource failed based on the 
+number of resources successfully deleted.
 
-#### Examples
+### Examples
 ```
-# Create a set of resources (of mixed type) using the data in resources.yaml.
-# Results indicate that 8 resources were successfully created.
-$ calicoctl create -f ./resources.yaml
-Successfully created 8 resource(s)
+# Delete a set of resources (of mixed type) using the data in resources.yaml.
+# Results indicate that 8 resources were successfully deleted.
+$ calicoctl delete -f ./resources.yaml
+Successfully deleted 8 resource(s)
 
-# Create the same set of resources reading from stdin.
-# Results indicate failure because the first resource (in this case a Tier) already exists.
-$ cat resources.yaml | calicoctl apply -f -
-Failed to create any resources: resource already exists: Tier(name=tier1)
+# Delete a policy resource by name.  The policy is called "policy1" and is in tier "tier1".
+# Note that the --tier option is specified to uniquely identify the resource.
+$ bin/calicoctl delete policy policy1 --tier=tier1
+Successfully deleted 1 'policy' resource(s)
 ```
 
 
-#### Options
+### Options
 ```
   -s --skip-not-exists         Skip over and treat as successful, resources that don't exist.
   -f --filename=<FILENAME>     Filename to use to delete the resource.  If set to "-" loads from stdin.
-  -t --tier=<TIER>             The policy tier.
-  -n --hostname=<HOSTNAME>     The hostname.
-  --scope=<SCOPE>              The scope of the resource type.  One of global, node.  This is only valid
-                               for BGP peers and is used to indicate whether the peer is a global peer
-                               or node-specific.
+  -t --tier=<TIER>             The policy tier.  This is used when deleting policy resources, if not
+                               specified it defaults to the "default" tier.
+     --scope=<SCOPE>           The scope of the resource type.  One of global, node.  This is required
+                               for BGP peers and is used to indicate whether the scope of the peer 
+                               resource is a global or node-specific.
+  -n --hostname=<HOSTNAME>     The hostname.  This is required when deleting 'hostEndpoint' resources, 
+                               and 'bgpPeer' resources with scope 'node'.
 ```
 
-#### General options
+### General options
 ```
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
                                [default: /etc/calico/calicoctl.cfg]
 ```
 
-#### See also
--  [Resources](resources/README.md) for details on all valid resources, including file format
+### See also
+-  [Resources](../resources/README.md) for details on all valid resources, including file format
    and schema
--  [Policy](resources/policy.md) for details on the Calico tiered policy model
--  [calicoctl configuration](general/config.md) for details on configuring `calicoctl` to access
+-  [Policy](../resources/policy.md) for details on the Calico tiered policy model
+-  [calicoctl configuration](../general/config.md) for details on configuring `calicoctl` to access
    the Calico datastore.
 
 [![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/libcalico-go/docs/calicoctl/commands/delete.md?pixel)](https://github.com/igrigorik/ga-beacon)

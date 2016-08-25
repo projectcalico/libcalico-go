@@ -126,7 +126,7 @@ func (h *policies) convertMetadataToKey(m unversioned.ResourceMetadata) (model.K
 	pm := m.(api.PolicyMetadata)
 	k := model.PolicyKey{
 		Name: pm.Name,
-		Tier: TierOrDefault(pm.Tier),
+		Tier: pm.Tier,
 	}
 	return k, nil
 }

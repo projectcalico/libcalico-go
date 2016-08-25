@@ -22,7 +22,7 @@ import (
 type BackendType string
 
 const (
-	EtcdV2 BackendType = "etcdv2"
+	EtcdV2         BackendType = "etcdv2"
 )
 
 // NewConfig returns a pointer to a new config struct for the relevant datastore.
