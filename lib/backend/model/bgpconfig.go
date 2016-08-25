@@ -35,11 +35,11 @@ type GlobalBGPConfigKey struct {
 	Name string `json:"-" validate:"required,name"`
 }
 
-func (key GlobalBGPConfigKey) DefaultPath() (string, error) {
-	return key.DefaultDeletePath()
+func (key GlobalBGPConfigKey) defaultPath() (string, error) {
+	return key.defaultDeletePath()
 }
 
-func (key GlobalBGPConfigKey) DefaultDeletePath() (string, error) {
+func (key GlobalBGPConfigKey) defaultDeletePath() (string, error) {
 	if key.Name == "" {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
 	}
@@ -60,7 +60,7 @@ type GlobalBGPConfigListOptions struct {
 	Name string
 }
 
-func (options GlobalBGPConfigListOptions) DefaultPathRoot() string {
+func (options GlobalBGPConfigListOptions) defaultPathRoot() string {
 	k := "/calico/bgp/v1/global"
 	if options.Name == "" {
 		return k
@@ -69,7 +69,7 @@ func (options GlobalBGPConfigListOptions) DefaultPathRoot() string {
 	return k
 }
 
-func (options GlobalBGPConfigListOptions) ParseDefaultKey(ekey string) Key {
+func (options GlobalBGPConfigListOptions) KeyFromDefaultPath(ekey string) Key {
 	glog.V(2).Infof("Get GlobalBGPConfig key from %s", ekey)
 	r := matchGlobalBGPConfig.FindAllStringSubmatch(ekey, -1)
 	if len(r) != 1 {
@@ -92,11 +92,11 @@ type HostBGPConfigKey struct {
 	Name string `json:"-" validate:"required,name"`
 }
 
-func (key HostBGPConfigKey) DefaultPath() (string, error) {
-	return key.DefaultDeletePath()
+func (key HostBGPConfigKey) defaultPath() (string, error) {
+	return key.defaultDeletePath()
 }
 
-func (key HostBGPConfigKey) DefaultDeletePath() (string, error) {
+func (key HostBGPConfigKey) defaultDeletePath() (string, error) {
 	if key.Hostname == "" {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "hostname"}
 	}
@@ -120,7 +120,7 @@ type HostBGPConfigListOptions struct {
 	Name     string
 }
 
-func (options HostBGPConfigListOptions) DefaultPathRoot() string {
+func (options HostBGPConfigListOptions) defaultPathRoot() string {
 	k := "/calico/bgp/v1/host"
 	if options.Hostname == "" {
 		return k
@@ -133,7 +133,7 @@ func (options HostBGPConfigListOptions) DefaultPathRoot() string {
 	return k
 }
 
-func (options HostBGPConfigListOptions) ParseDefaultKey(ekey string) Key {
+func (options HostBGPConfigListOptions) KeyFromDefaultPath(ekey string) Key {
 	glog.V(2).Infof("Get HostBGPConfig key from %s", ekey)
 	r := matchHostBGPConfig.FindAllStringSubmatch(ekey, -1)
 	if len(r) != 1 {
