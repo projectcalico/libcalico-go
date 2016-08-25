@@ -48,11 +48,11 @@ Options:
   -f --filename=<FILENAME>     Filename to use to delete the resource.  If set to "-" loads from stdin.
   -t --tier=<TIER>             The policy tier.
   -n --hostname=<HOSTNAME>     The hostname.
-  -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
-                               [default: /etc/calico/calicoctl.cfg]
   --scope=<SCOPE>              The scope of the resource type.  One of global, node.  This is only valid
                                for BGP peers and is used to indicate whether the peer is a global peer
                                or node-specific.
+  -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
+                               [default: /etc/calico/calicoctl.cfg]
 `
 	parsedArgs, err := docopt.Parse(doc, args, true, "calicoctl", false, false)
 	if err != nil {

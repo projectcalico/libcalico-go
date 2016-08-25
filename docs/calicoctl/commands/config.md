@@ -148,4 +148,4 @@ If you require IP-in-IP for your deployment, it is necessary to enable IP-in-IP 
 this configuration option, *and* to enable IP-in-IP on pools that will be used for IP allocation
 on the workloads requiring IP-in-IP connectivity.
 
-[![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/libcalico-go/docs/calicoctl/commands/create.md?pixel)](https://github.com/igrigorik/ga-beacon)
+[![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/libcalico-go/docs/calicoctl/commands/config.md?pixel)](https://github.com/igrigorik/ga-beacon)

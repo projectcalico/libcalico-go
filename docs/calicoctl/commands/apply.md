@@ -47,24 +47,36 @@ When applying a resource:
    then it is created
 -  if the resource already exists then the specification for that resource is replaced
    in it's entirety by the new resource specification.
+   
+The output of the command indicates how many resources were successfully applied, and the error
+reason if an error occurred.
+
+The resources are applied in the order they are specified.  In the event of a failure
+applying a specific resource it is possible to work out which resource failed based on the 
+number of resources successfully applied.
 
 #### Examples
-  # Apply a policy using the data in policy.yaml.
-  $ calicoctl apply -f ./policy.yaml
+```
+# Apply a set of resources (of mixed type) using the data in resources.yaml.
+# Results indicate that 8 resources were successfully applied
+$ calicoctl apply -f ./resources.yaml
+Successfully applied 8 resource(s)
 
-  # Apply a policy based on the JSON passed into stdin.
-  $ cat policy.json | calicoctl apply -f -
-
-
-
+# Apply two policy resources based on the JSON passed into stdin.
+$ cat policy.json | calicoctl apply -f -
+Successfully applied 2 'policy' resource(s)
+```
 
 #### Options
-
-
+```
+  -f --filename=<FILENAME>     Filename to use to apply the resource.  If set to "-" loads from stdin.
+```
 
 #### General options
-
-
+```
+  -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
+                               [default: /etc/calico/calicoctl.cfg]
+```
 
 #### See also
 -  [Resources](resources/README.md) for details on all valid resources, including file format
