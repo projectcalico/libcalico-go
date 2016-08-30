@@ -1,4 +1,4 @@
-> ![warning](../images/warning.png) This document describes an alpha release of calicoctl
+> ![warning](../../images/warning.png) This document describes an alpha release of calicoctl
 >
 > See note at top of [calicoctl guide](../README.md) main page.
 
@@ -78,4 +78,86 @@ If you are running in TLS mode, your endpoint addresses should be https not http
 ETCD_ENDPOINTS=http://myhost1:2379 calicoctl get bgppeers
 ```
 
-[![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/libcalico-go/docs/calicoctl/general/config.md?pixel)](https://github.com/igrigorik/ga-beacon)
+# Additional information
+
+## Configure role based access for etcd v2
+
+The section describes how to configure your etcd v2 cluster to have role-based access 
+control to require password authentication when modifying calico configuration.  This covers:
+
+- Creating a read/write user for modification of Calico configuration
+- Setting up the guest user (no authentication) for read-only access
+- Creating a full access root user
+- Turnin on role based access control
+
+For more details, see the main etcd documentation.
+
+To configure the roles in etcd, we use the etcdctl command line tool - 
+this is packaged up alongside the etcd binary downloads.
+
+### Configure roles
+
+#### Read-write calico configuration
+Create a write role that allows full read/write access of the calico portion of the etcd tree
+
+```
+$ etcdctl role add calico-readwrite
+$ etcdctl role grant calico-readwrite -path '/calico' -readwrite
+$ etcdctl role grant calico-readwrite -path '/calico/*' -readwrite
+```
+
+#### Revoke write access for the guest user
+Revoke write access for the guest user.  This means the non-authenticated user of
+the etcd cluster will have read-only access.
+
+```
+$ etcdctl role revoke guest -path '/*' -write
+```
+
+### Configure users
+
+#### Configure calicooctl user
+Create a calicoctl user and enter your chosen password.
+
+```
+$ etcdctl user add calicoctl
+New password:
+```
+
+#### Assign the calicoctl role to this user
+
+```
+$ etcdctl user grant calicoctl -roles calico-readwrite
+```
+
+#### Create the root user
+Before enabling authentication, it is also necessary to create a root user for the
+cluster.  
+
+Create the root user and enter your chosen password
+
+```
+$ etcdctl user add root 
+New password:
+```
+
+### Enable authentication
+
+Finally enable authentication
+```
+$ etcdctl auth enable
+```
+
+Your etcd is now running with authentication enabled. To disable it for any reason, 
+use the reciprocal command:
+
+```
+$ etcdctl -u root:<rootpw> auth disable
+```
+
+### Configuring calicoctl to use authenticated etcd access
+To allow calicoctl to use the new calicoctl user, ensure you specify the username 
+and password either in environment variables or in the calicoctl config file as 
+described above.
+
+[![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/libcalico-go/docs/calicoctl/general/setup.md?pixel)](https://github.com/igrigorik/ga-beacon)

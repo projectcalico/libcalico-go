@@ -173,8 +173,8 @@ The `go-template` and `go-template-file` options display the output using a gola
 on the CLI, or defined in a separate file.
 
 When writing a template, be aware that the data passed to the template is a golang slice of resource-lists.  The 
-resource-lists are defined in the [libcalic API](https://github.com/tigera/libcalico-go/tree/master/lib/api) and
-there is a resource-list defined for each resource type.  A resource-list contains an Items field which is iteself
+resource-lists are defined in the [libcalic API](../resources/README.md) and
+there is a resource-list defined for each resource type.  A resource-list contains an Items field which is itself
 a slice of resources.  Thus, to output the "Name" field from the supplied data, it is necessary to enumerate over
 the slice of resource-lists and the items within that list.
 

@@ -41,7 +41,7 @@ Options:
 
 ## calicoctl replace
 
-The create command is used to replace a set of resources by filename or stdin.  JSON and
+The replace command is used to replace a set of resources by filename or stdin.  JSON and
 YAML formats are accepted.
 
 Attempting to replace a resource that does not exist is treated as a terminating error.
