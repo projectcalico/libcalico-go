@@ -20,7 +20,7 @@ import (
 	"github.com/docopt/docopt-go"
 )
 
-const VERSION = "0.1.0-go"
+const VERSION = "1.0.0-alpha.1"
 
 func Version(args []string) error {
 	doc := `Usage:

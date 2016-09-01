@@ -16,7 +16,7 @@
 package commands
 
 const (
-	BUILD_DATE      = "__BUILD_DATE__"
-	GIT_REVISION    = "__GIT_REVISION__"
-	GIT_DESCRIPTION = "__GIT_DESCRIPTION__"
+  BUILD_DATE      = "2016-09-01T01:28:19Z"
+	GIT_REVISION    = "unknown"
+	GIT_DESCRIPTION = "v1.0.0-alpha.1"
 )
