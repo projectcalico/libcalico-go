@@ -16,7 +16,7 @@ dependencies:
 checkout:
   post:
     - mkdir -p ${HOME}/.go_project/src/github.com/tigera/
-    - mv ${HOME}/libcalico-go ${HOME}/.go_project/src/github.com/tigera/
+    - ln -s ${HOME}/libcalico-go ${HOME}/.go_project/src/github.com/tigera/
     - go get "github.com/Masterminds/glide"
     - go get "github.com/onsi/ginkgo/ginkgo"
     - go get "github.com/onsi/gomega"
@@ -29,4 +29,4 @@ test:
 
 general:
   artifacts:
-    - "${GOPATH}/src/github.com/tigera/libcalico-go/bin"
+    - ${GOPATH}/src/github.com/tigera/libcalico-go/bin
