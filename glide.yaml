@@ -13,6 +13,8 @@ import:
 - package: github.com/ghodss/yaml
 - package: github.com/golang/glog
 - package: github.com/kelseyhightower/envconfig
+- package: github.com/olekukonko/tablewriter
+- package: github.com/docker/engine-api
 - package: golang.org/x/net
   subpackages:
   - context
