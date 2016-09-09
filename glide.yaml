@@ -22,3 +22,4 @@ import:
 - package: github.com/satori/go.uuid
 - package: github.com/Sirupsen/logrus
   version: ^0.10.0
+- package: github.com/termie/go-shutil
