@@ -20,7 +20,7 @@ import (
 
 	"reflect"
 
-	"github.com/golang/glog"
+	log "github.com/Sirupsen/logrus"
 	"github.com/tigera/libcalico-go/lib/errors"
 )
 
@@ -68,15 +68,15 @@ func (options TierListOptions) defaultPathRoot() string {
 }
 
 func (options TierListOptions) KeyFromDefaultPath(path string) Key {
-	glog.V(2).Infof("Get Tier key from %s", path)
+	log.Infof("Get Tier key from %s", path)
 	r := matchTier.FindAllStringSubmatch(path, -1)
 	if len(r) != 1 {
-		glog.V(2).Infof("Didn't match regex")
+		log.Infof("Didn't match regex")
 		return nil
 	}
 	name := r[0][1]
 	if options.Name != "" && name != options.Name {
-		glog.V(2).Infof("Didn't match name %s != %s", options.Name, name)
+		log.Infof("Didn't match name %s != %s", options.Name, name)
 		return nil
 	}
 	return TierKey{Name: name}

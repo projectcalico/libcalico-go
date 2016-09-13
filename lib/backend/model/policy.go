@@ -22,7 +22,7 @@ import (
 
 	"strings"
 
-	"github.com/golang/glog"
+	log "github.com/Sirupsen/logrus"
 	"github.com/tigera/libcalico-go/lib/errors"
 )
 
@@ -79,20 +79,20 @@ func (options PolicyListOptions) defaultPathRoot() string {
 }
 
 func (options PolicyListOptions) KeyFromDefaultPath(path string) Key {
-	glog.V(2).Infof("Get Policy key from %s", path)
+	log.Infof("Get Policy key from %s", path)
 	r := matchPolicy.FindAllStringSubmatch(path, -1)
 	if len(r) != 1 {
-		glog.V(2).Infof("Didn't match regex")
+		log.Infof("Didn't match regex")
 		return nil
 	}
 	tier := r[0][1]
 	name := r[0][2]
 	if options.Tier != "" && tier != options.Tier {
-		glog.V(2).Infof("Didn't match tier %s != %s", options.Tier, tier)
+		log.Infof("Didn't match tier %s != %s", options.Tier, tier)
 		return nil
 	}
 	if options.Name != "" && name != options.Name {
-		glog.V(2).Infof("Didn't match name %s != %s", options.Name, name)
+		log.Infof("Didn't match name %s != %s", options.Name, name)
 		return nil
 	}
 	return PolicyKey{Tier: tier, Name: name}
