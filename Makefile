@@ -23,7 +23,7 @@ vendor: glide.lock
 	glide install -strip-vendor -strip-vcs --cache
 	touch vendor
 
-ut: bin/calicoctl
+ut: update-tools bin/calicoctl
 	./run-uts
 
 .PHONEY: force
@@ -34,14 +34,12 @@ bin/calicoctl: vendor $(GO_FILES) glide.*
 	mkdir -p bin
 	go build -o "$@" $(LDFLAGS) "./calicoctl/calicoctl.go"
 
-release/calicoctl: clean force
+release/calicoctl: clean force $(BUILD_CONTAINER_MARKER)
 	mkdir -p bin release
-	docker build -t calicoctl-build .
 	docker run --rm --privileged --net=host \
 	-v ${PWD}:/go/src/github.com/tigera/libcalico-go:rw \
 	-v ${PWD}/bin:/go/src/github.com/tigera/libcalico-go/bin:rw \
-	-w /go/src/github.com/tigera/libcalico-go \
-	calicoctl-build make bin/calicoctl
+	$(BUILD_CONTAINER_NAME) make bin/calicoctl
 	mv bin/calicoctl release/calicoctl
 	rm -rf bin
 	mv release/calicoctl release/calicoctl-$(CALICOCTL_VERSION)
@@ -87,4 +85,4 @@ run-etcd:
 	--listen-client-urls "http://0.0.0.0:2379,http://0.0.0.0:4001"
 
 clean:
-	rm -rf bin release
+	rm -rf bin release $(BUILD_CONTAINER_MARKER)
