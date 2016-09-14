@@ -52,7 +52,7 @@ spec:
 | name | description  | requirements                  | schema |
 |------|--------------|-------------------------------|--------|
 | name | The name of the policy. | | string |
-| tier | The name of the parent tier. | If omitted, assumed to mean the "default" tier - which is automatically created by the calicoctl and is the last tier to be acted on. | string |
+| tier | The name of the parent tier. | If omitted, assumed to mean the "default" tier.  A "default" tier is automatically created if required, with default order (i.e. applied last) - the order of this tier may be modified after it is created. | string |
 
 
 #### PolicySpec
