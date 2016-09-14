@@ -1,4 +1,4 @@
-.PHONEY: all test ut update-vendor
+.PHONY: all test ut update-vendor
 
 BUILD_CONTAINER_NAME=calico/calicoctl_build_container
 BUILD_CONTAINER_MARKER=calicoctl_build_container.created
@@ -26,7 +26,7 @@ vendor: glide.lock
 ut: update-tools bin/calicoctl
 	./run-uts
 
-.PHONEY: force
+.PHONY: force
 force:
 	true
 
