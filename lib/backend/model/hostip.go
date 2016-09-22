@@ -16,13 +16,14 @@ package model
 
 import (
 	"fmt"
+	"github.com/projectcalico/libcalico-go/lib/net"
 	"reflect"
 	"regexp"
 )
 
 var (
 	matchHostIp = regexp.MustCompile(`^/?calico/v1/host/([^/]+)/bird_ip`)
-	typeHostIp  = reflect.TypeOf(HostIP{})
+	typeHostIp  = reflect.TypeOf(net.IP{})
 )
 
 // TODO find a place to put this
@@ -41,7 +42,4 @@ func (key HostIPKey) defaultDeletePath() (string, error) {
 
 func (key HostIPKey) valueType() reflect.Type {
 	return typeHostIp
-}
-
-type HostIP struct {
 }
