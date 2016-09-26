@@ -21,7 +21,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docopt/docopt-go"
-	"github.com/tigera/libcalico-go/calicoctl/commands"
+	"github.com/projectcalico/libcalico-go/calicoctl/commands"
 )
 
 func main() {
@@ -35,6 +35,7 @@ func main() {
     get            Get a resource identified by file, stdin or resource type and name.
     version        Display the version of calicoctl.
     node           Node related commands.
+    ipam           Configure IP address management.
 
 Options:
   -h --help  Show this screen.
@@ -48,7 +49,7 @@ Options:
 	if logLevel := arguments["--log-level"]; logLevel != nil {
 		parsedLogLevel, err := log.ParseLevel(logLevel.(string))
 		if err != nil {
-			fmt.Printf("Unknown log level: %s, expected one of: \n" +
+			fmt.Printf("Unknown log level: %s, expected one of: \n"+
 				"panic, fatal, error, warn, info, debug.\n", logLevel)
 			os.Exit(1)
 		} else {
@@ -76,6 +77,8 @@ Options:
 			err = commands.Version(args)
 		case "node":
 			err = commands.Node(args)
+		case "ipam":
+			err = commands.IPAM(args)
 		default:
 			fmt.Println(usage)
 		}
