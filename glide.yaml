@@ -20,6 +20,7 @@ import:
   - context
 - package: gopkg.in/go-playground/validator.v8
 - package: github.com/satori/go.uuid
+- package: github.com/mcuadros/go-version
 - package: github.com/Sirupsen/logrus
   version: ^0.10.0
 - package: github.com/termie/go-shutil
