@@ -83,5 +83,5 @@ func (options TierListOptions) KeyFromDefaultPath(path string) Key {
 }
 
 type Tier struct {
-	Order *float32 `json:"order,omitempty"`
+	Order *float64 `json:"order,omitempty"`
 }
