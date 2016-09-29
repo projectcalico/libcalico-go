@@ -96,6 +96,8 @@ func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource
 	name := argStringOrBlank(args, "<NAME>")
 	tier := argStringOrBlank(args, "--tier")
 	hostname := argStringOrBlank(args, "--hostname")
+	workload := argStringOrBlank(args, "--workload")
+	orchestrator := argStringOrBlank(args, "--orchestrator")
 	resScope := argStringOrBlank(args, "--scope")
 	switch strings.ToLower(kind) {
 	case "hostendpoints":
@@ -103,6 +105,15 @@ func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource
 	case "hostendpoint":
 		h := api.NewHostEndpoint()
 		h.Metadata.Name = name
+		h.Metadata.Hostname = hostname
+		return *h, nil
+	case "workloadendpoints":
+		fallthrough
+	case "workloadendpoint":
+		h := api.NewWorkloadEndpoint()
+		h.Metadata.Name = name
+		h.Metadata.OrchestratorID = orchestrator
+		h.Metadata.WorkloadID = workload
 		h.Metadata.Hostname = hostname
 		return *h, nil
 	case "tiers":
