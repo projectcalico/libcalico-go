@@ -39,21 +39,21 @@ type Rule struct {
 	//
 	// Must be one of these string values: "tcp", "udp", "icmp", "icmpv6", "sctp", "udplite"
 	// or an integer in the range 1-255.
-	Protocol *Protocol   `json:"protocol,omitempty" validate:"omitempty"`
+	Protocol *Protocol `json:"protocol,omitempty" validate:"omitempty"`
 
 	// ICMP is an optional field that restricts the rule to apply to a specific type and
 	// code of ICMP traffic.  This should only be specified if the Protocol field is set to
 	// "icmp" or "icmpv6".
-	ICMP     *ICMPFields `json:"icmp,omitempty" validate:"omitempty"`
+	ICMP *ICMPFields `json:"icmp,omitempty" validate:"omitempty"`
 
 	// NotProtocol is the negated version of the Protocol field.
-	NotProtocol *Protocol   `json:"!protocol,omitempty" validate:"omitempty"`
+	NotProtocol *Protocol `json:"!protocol,omitempty" validate:"omitempty"`
 
 	// NotICMP is the negated version of the ICMP field.
-	NotICMP     *ICMPFields `json:"!icmp,omitempty" validate:"omitempty"`
+	NotICMP *ICMPFields `json:"!icmp,omitempty" validate:"omitempty"`
 
 	// Source contains the match criteria that apply to source entity.
-	Source      EntityRule `json:"source,omitempty" validate:"omitempty"`
+	Source EntityRule `json:"source,omitempty" validate:"omitempty"`
 
 	// Destination contains the match criteria that apply to destination entity.
 	Destination EntityRule `json:"destination,omitempty" validate:"omitempty"`
@@ -80,11 +80,11 @@ type EntityRule struct {
 	// Tag is an optional field that restricts the rule to only apply to traffic that
 	// originates from (or terminates at) endpoints that have profiles with the given tag
 	// in them.
-	Tag      string `json:"tag,omitempty" validate:"omitempty,tag"`
+	Tag string `json:"tag,omitempty" validate:"omitempty,tag"`
 
 	// Net is an optional field that restricts the rule to only apply to traffic that
 	// originates from (or terminates at) IP addresses in the given subnet.
-	Net      *IPNet `json:"net,omitempty" validate:"omitempty"`
+	Net *IPNet `json:"net,omitempty" validate:"omitempty"`
 
 	// Selector is an optional field that contains a selector expression (see Policy for
 	// sample syntax).  Only traffic that originates from (terminates at) endpoints matching
@@ -110,13 +110,13 @@ type EntityRule struct {
 	//
 	// Since only some protocols have ports, if any ports are specified it requires the
 	// Protocol match in the Rule to be set to "tcp" or "udp".
-	Ports    []Port `json:"ports,omitempty" validate:"omitempty,dive"`
+	Ports []Port `json:"ports,omitempty" validate:"omitempty,dive"`
 
 	// NotTag is the negated version of the Tag field.
-	NotTag      string `json:"!tag,omitempty" validate:"omitempty,tag"`
+	NotTag string `json:"!tag,omitempty" validate:"omitempty,tag"`
 
 	// NotNet is the negated version of the Net field.
-	NotNet      *IPNet `json:"!net,omitempty" validate:"omitempty"`
+	NotNet *IPNet `json:"!net,omitempty" validate:"omitempty"`
 
 	// NotSelector is the negated version of the Selector field.  See Selector field for
 	// subtleties with negated selectors.
@@ -126,7 +126,7 @@ type EntityRule struct {
 	//
 	// Since only some protocols have ports, if any ports are specified it requires the
 	// Protocol match in the Rule to be set to "tcp" or "udp".
-	NotPorts    []Port `json:"!ports,omitempty" validate:"omitempty,dive"`
+	NotPorts []Port `json:"!ports,omitempty" validate:"omitempty,dive"`
 }
 
 // Register v1 structure validators to validate cross-field dependencies in any of the
@@ -137,12 +137,15 @@ func init() {
 
 func validateRule(v *validator.Validate, structLevel *validator.StructLevel) {
 	rule := structLevel.CurrentStruct.Interface().(Rule)
+
+	// When icmp code is present by type is not
 	if rule.ICMP != nil && rule.ICMP.Code != nil && rule.ICMP.Type == nil {
-		structLevel.ReportError(reflect.ValueOf(rule.ICMP.Code), "Code", "code", "icmpCodeWithoutType")
+		structLevel.ReportError(reflect.ValueOf(rule.ICMP.Code), "Code", "(icmp Code without Type) code", "icmpCodeWithoutType")
 	}
 
+	// When !icmp code is present but type is not
 	if rule.NotICMP != nil && rule.NotICMP.Code != nil && rule.NotICMP.Type == nil {
-		structLevel.ReportError(reflect.ValueOf(rule.NotICMP.Code), "Code", "code", "icmpCodeWithoutType")
+		structLevel.ReportError(reflect.ValueOf(rule.NotICMP.Code), "Code", "(!icmp Code without Type) code", "icmpCodeWithoutType")
 	}
 
 	// TODO other cross-struct validation
