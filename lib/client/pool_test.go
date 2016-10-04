@@ -30,12 +30,12 @@ import (
 
 var _ = Describe("Pool tests", func() {
 
-	// Describe and call convertAPItoKVPairTest
+	// Describe and call convertAPItoKVPairTest.
 	Describe("Pool API to KVPair tests", func() {
 		convertAPItoKVPairTest()
 	})
 
-	// Describe and call convertKVPairtoAPITest
+	// Describe and call convertKVPairtoAPITest.
 	Describe("Pool KVPair to API tests", func() {
 		convertKVPairtoAPITest()
 	})
