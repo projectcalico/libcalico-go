@@ -15,6 +15,8 @@
 package client
 
 import (
+	"fmt"
+
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend/model"
@@ -101,6 +103,8 @@ func (h *pools) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key,
 // backend Pool and PoolKey.
 // This is part of the conversionHelper interface.
 func (h *pools) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
+	fmt.Println("in convertAPIToKVPair in: ", a)
+	fmt.Printf("A's type: %T \n", a)
 	ap := a.(api.Pool)
 	k, err := h.convertMetadataToKey(ap.Metadata)
 	if err != nil {
@@ -125,7 +129,7 @@ func (h *pools) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 			Disabled:      ap.Spec.Disabled,
 		},
 	}
-
+	fmt.Println("in convertAPIToKVPair out: ", d.Key, "Val", d.Value)
 	return &d, nil
 }
 
@@ -133,6 +137,7 @@ func (h *pools) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 // to an API Pool structure.
 // This is part of the conversionHelper interface.
 func (h *pools) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
+	//	fmt.Println("in convertKVPairToAPI in: ", d)
 	backendPool := d.Value.(model.Pool)
 
 	apiPool := api.NewPool()
@@ -144,6 +149,6 @@ func (h *pools) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error
 	if backendPool.IPIPInterface != "" {
 		apiPool.Spec.IPIP = &api.IPIPConfiguration{Enabled: true}
 	}
-
+	//	fmt.Println("in convertKVPairToAPI out: ", apiPool)
 	return apiPool, nil
 }
