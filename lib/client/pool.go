@@ -125,6 +125,7 @@ func (h *pools) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 			Disabled:      ap.Spec.Disabled,
 		},
 	}
+
 	return &d, nil
 }
 
@@ -143,5 +144,6 @@ func (h *pools) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error
 	if backendPool.IPIPInterface != "" {
 		apiPool.Spec.IPIP = &api.IPIPConfiguration{Enabled: true}
 	}
+
 	return apiPool, nil
 }
