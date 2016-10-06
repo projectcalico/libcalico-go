@@ -1,4 +1,4 @@
-package: github.com/tigera/libcalico-go
+package: github.com/projectcalico/libcalico-go
 homepage: https://projectcalico.org
 license: Apache-2.0
 owners:
