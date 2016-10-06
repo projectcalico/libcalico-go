@@ -54,10 +54,10 @@ func (i *Uint8OrString) UnmarshalJSON(b []byte) error {
 
 // MarshalJSON implements the json.Marshaller interface.
 func (i Uint8OrString) MarshalJSON() ([]byte, error) {
-	if num, err := i.NumValue(); err == nil {
-		return json.Marshal(num)
-	} else {
+	if i.Type == NumOrStringString {
 		return json.Marshal(i.StrVal)
+	} else {
+		return json.Marshal(i.NumVal)
 	}
 }
 
