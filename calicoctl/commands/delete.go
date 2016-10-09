@@ -25,11 +25,12 @@ import (
 func Delete(args []string) error {
 	doc := EtcdIntro + `Delete a resource identified by file, stdin or resource type and name.
 
-Valid resource kinds are bgpPeer, hostEndpoint, policy, pool, profile and tier.  The <KIND>
-parameter is case insensitive and may be pluralized.
+Valid resource kinds are bgpPeer, hostEndpoint, workloadEndpoint, policy, pool, profile and tier.
+The <KIND> parameter is case insensitive and may be pluralized.
 
 Usage:
-  calicoctl delete (([--tier=<TIER>] [--hostname=<HOSTNAME>] [--scope=<SCOPE>] <KIND> <NAME>) |
+  calicoctl delete ([--tier=<TIER>] [--hostname=<HOSTNAME>] [--orchestrator=<ORCH>] [--workload=<WORKLOAD>] [--scope=<SCOPE>]
+                    (<KIND> [<NAME>])
                     --filename=<FILE>)
                    [--skip-not-exists] [--config=<CONFIG>]
 
@@ -51,6 +52,8 @@ Options:
   -f --filename=<FILENAME>     Filename to use to delete the resource.  If set to "-" loads from stdin.
   -t --tier=<TIER>             The policy tier.
   -n --hostname=<HOSTNAME>     The hostname.
+     --orchestrator=<ORCH>     The orchestrator (only used for workload endpoints).
+     --workload=<WORKLOAD>     The workload (only used for workload endpoints).
   --scope=<SCOPE>              The scope of the resource type.  One of global, node.  This is only valid
                                for BGP peers and is used to indicate whether the peer is a global peer
                                or node-specific.

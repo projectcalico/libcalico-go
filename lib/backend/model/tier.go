@@ -46,6 +46,10 @@ func (key TierKey) defaultDeletePath() (string, error) {
 	return e, nil
 }
 
+func (key TierKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
+}
+
 func (key TierKey) valueType() reflect.Type {
 	return typeTier
 }
