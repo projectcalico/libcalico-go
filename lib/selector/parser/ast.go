@@ -86,56 +86,45 @@ func (node LabelEqValueNode) collectFragments(fragments []string) []string {
 
 type LabelInSetNode struct {
 	LabelName string
-	Value     map[string]bool
+	Value     StringSet
 }
 
 func (node LabelInSetNode) Evaluate(labels map[string]string) bool {
 	if val, ok := labels[node.LabelName]; ok {
-		return node.Value[val]
+		return node.Value.Contains(val)
 	} else {
 		return false
 	}
 }
 
 func (node LabelInSetNode) collectFragments(fragments []string) []string {
-	var quote string
-	fragments = append(fragments, node.LabelName, " in {")
-	first := true
-	for s, _ := range node.Value {
-		if strings.Contains(s, `"`) {
-			quote = `'`
-		} else {
-			quote = `"`
-		}
-		if !first {
-			fragments = append(fragments, ", ")
-		} else {
-			first = false
-		}
-		fragments = append(fragments, quote, s, quote)
-	}
-	fragments = append(fragments, "}")
-	return fragments
+	return collectInOpFragments(fragments, node.LabelName, "in", node.Value)
 }
 
 type LabelNotInSetNode struct {
 	LabelName string
-	Value     map[string]bool
+	Value     StringSet
 }
 
 func (node LabelNotInSetNode) Evaluate(labels map[string]string) bool {
 	if val, ok := labels[node.LabelName]; ok {
-		return !node.Value[val]
+		return !node.Value.Contains(val)
 	} else {
 		return true
 	}
 }
 
 func (node LabelNotInSetNode) collectFragments(fragments []string) []string {
+	return collectInOpFragments(fragments, node.LabelName, "not in", node.Value)
+}
+
+// collectInOpFragments is a shared implementation of collectFragments
+// for the 'in' and 'not in' operators.
+func collectInOpFragments(fragments []string, labelName, op string, values StringSet) []string {
 	var quote string
-	fragments = append(fragments, node.LabelName, " not in {")
+	fragments = append(fragments, labelName, " ", op, " {")
 	first := true
-	for s, _ := range node.Value {
+	for _, s := range values {
 		if strings.Contains(s, `"`) {
 			quote = `'`
 		} else {
