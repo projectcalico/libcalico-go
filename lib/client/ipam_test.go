@@ -44,13 +44,14 @@
 // - ReleaseIPs should return a slice with one (unallocatedIPs) and no error.
 
 // Test cases (ClaimAffinity):
-// Test 1: claim affinity for an unclaimed IPNet of size 64 - expect the same IPNet and empty slice of IPNet with no error.
-// Test 2: claim affinity for a IPNet that has an IP already assigned to another host.
-// - Assign an IP with AssignIP to "host-A" from a configured pool - expect no error.
-// - Claim affinity to the block that IP belongs to - expect ????.
-// Test 3: claim affinity to a block twice.
-// - Claim affinity to an unclaimed block - expect to get the same IPNet back in claimed IP slice and no error.
-// - Claim affinity to the same block again - expect the IPNet back as the second return value (failed) and an error.
+// Test 1: claim affinity for an unclaimed IPNet of size 64 - expect 1 claimed blocks, 0 failed and expect no error.
+// Test 2: claim affinity for an unclaimed IPNet of size smaller than 64 - expect 0 claimed blocks, 0 failed and expect an error error.
+// Test 3: claim affinity for a IPNet that has an IP already assigned to another host.
+// - Assign an IP with AssignIP to "host-A" from a configured pool - expect 0 claimed blocks, 0 failed and expect no error.
+// - Claim affinity for "Host-B" to the block that IP belongs to - expect 3 claimed blocks and 1 failed.
+// Test 4: claim affinity to a block twice from different hosts.
+// - Claim affinity to an unclaimed block for "Host-A" - expect 4 claimed blocks, 0 failed and expect no error.
+// - Claim affinity to the same block again but for "host-B" this time - expect 0 claimed blocks, 4 failed and expect no error.
 
 package client_test
 
@@ -205,10 +206,10 @@ var _ = Describe("IPAM tests", func() {
 
 		// Test cases (ClaimAffinity):
 		// Test 1: claim affinity for an unclaimed IPNet of size 64 - expect 1 claimed blocks, 0 failed and expect no error.
-		FEntry("Claim affinity for an unclaimed IPNet of size 64", "192.168.1.0/26", "host-A", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 1, 0, nil),
+		Entry("Claim affinity for an unclaimed IPNet of size 64", "192.168.1.0/26", "host-A", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 1, 0, nil),
 
 		// Test 2: claim affinity for an unclaimed IPNet of size smaller than 64 - expect 0 claimed blocks, 0 failed and expect an error error.
-		FEntry("Claim affinity for an unclaimed IPNet of size smaller than 64", "192.168.1.0/27", "host-A", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 0, 0, errors.New("The requested CIDR (192.168.1.0/27) is smaller than the minimum.")),
+		Entry("Claim affinity for an unclaimed IPNet of size smaller than 64", "192.168.1.0/27", "host-A", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 0, 0, errors.New("The requested CIDR (192.168.1.0/27) is smaller than the minimum.")),
 
 		// // Test 3: claim affinity for a IPNet that has an IP already assigned to another host.
 		// // - Assign an IP with AssignIP to "host-A" from a configured pool - expect 0 claimed blocks, 0 failed and expect no error.
@@ -226,7 +227,8 @@ var _ = Describe("IPAM tests", func() {
 	)
 })
 
-// testIPAMClaimAffinity ...
+// testIPAMClaimAffinity thakes inNet which is the CIDR to claim affinity to. It also takes host, poolSubnets to configure a new pool,
+// when assignIP is not empty it will assign that IP and return zero-value for the return values, and cleanEnv is to clear the datastore etc.
 func testIPAMClaimAffinity(inNet net.IPNet, host string, poolSubnet []string, assignIP net.IP, cleanEnv bool) (claimed []cnet.IPNet, failed []cnet.IPNet, outErr error) {
 	if cleanEnv {
 		testutils.CleanEtcd()
@@ -251,8 +253,8 @@ func testIPAMClaimAffinity(inNet net.IPNet, host string, poolSubnet []string, as
 	}
 
 	claimed, failed, outErr = ic.ClaimAffinity(cnet.IPNet{inNet}, host)
-	fmt.Println("############### claimed: ", claimed)
-	fmt.Println("############### failed: ", failed)
+	log.Println("Claimed IP blocks: ", claimed)
+	log.Println("Failed to claim IP blocks: ", failed)
 
 	return claimed, failed, outErr
 
