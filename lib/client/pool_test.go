@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Test cases:
+// Test 1: IPv4 with non-default values for IPIP, NATOut, IPAM - assert the returned Metadata and Spec values.
+// Test 2: IPv4 with default values for IPIP, NATOut, IPAM - assert the returned Metadata and Spec values.
+// Test 3: IPv6 with non-default bools for IPIP, NATOut, IPAM - assert the returned Metadata and Spec values.
+
 package client
 
 import (
@@ -120,7 +125,7 @@ func convertKVPairtoAPITest() {
 			Expect(out.(*api.Pool).Spec.NATOutgoing).To(Equal(v.NATOut))
 			Expect(out.(*api.Pool).Spec.Disabled).To(Equal(v.Disabled))
 			Expect(out.(*api.Pool).Spec.IPIP.Enabled).To(Equal(v.expectedIPIP))
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	}
 }
@@ -213,7 +218,7 @@ func convertAPItoKVPairTest() {
 			Expect(out.Value.(model.Pool).Masquerade).To(Equal(v.NATOut))
 			Expect(out.Value.(model.Pool).Disabled).To(Equal(v.Disabled))
 			Expect(out.Value.(model.Pool).IPIPInterface).To(Equal(v.expectedIPIPInterface))
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	}
 }
