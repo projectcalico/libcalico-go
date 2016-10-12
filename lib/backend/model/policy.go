@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/tigera/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
 var (
@@ -50,6 +50,10 @@ func (key PolicyKey) defaultPath() (string, error) {
 
 func (key PolicyKey) defaultDeletePath() (string, error) {
 	return key.defaultPath()
+}
+
+func (key PolicyKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
 }
 
 func (key PolicyKey) valueType() reflect.Type {

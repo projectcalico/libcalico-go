@@ -17,7 +17,7 @@ package api
 import (
 	"fmt"
 
-	"github.com/tigera/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 )
 
 // SyncStatus represents the overall state of the datastore.
@@ -82,6 +82,11 @@ type Client interface {
 	// Some keys are hierarchical, and Delete is a recursive operation.
 	// For example, deleting a Tier also deletes all the policies under
 	// that Tier.
+	//
+	// Any objects that were implicitly added by a Create operation should
+	// also be removed when deleting the objects that implicitly created it.
+	// For example, deleting the last WorkloadEndpoint in a Workload will
+	// also remove the Workload.
 	Delete(object *model.KVPair) error
 
 	// Get returns the object identified by the given key as a KVPair with

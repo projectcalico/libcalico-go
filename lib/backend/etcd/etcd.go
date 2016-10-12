@@ -26,18 +26,19 @@ import (
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/pkg/transport"
-	"github.com/tigera/libcalico-go/lib/backend/api"
-	"github.com/tigera/libcalico-go/lib/backend/model"
-	"github.com/tigera/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 	"golang.org/x/net/context"
 )
 
 var (
-	etcdApplyOpts  = &etcd.SetOptions{PrevExist: etcd.PrevIgnore}
-	etcdCreateOpts = &etcd.SetOptions{PrevExist: etcd.PrevNoExist}
-	etcdGetOpts    = &etcd.GetOptions{Quorum: true}
-	etcdListOpts   = &etcd.GetOptions{Quorum: true, Recursive: true, Sort: true}
-	clientTimeout  = 30 * time.Second
+	etcdApplyOpts       = &etcd.SetOptions{PrevExist: etcd.PrevIgnore}
+	etcdCreateOpts      = &etcd.SetOptions{PrevExist: etcd.PrevNoExist}
+	etcdDeleteEmptyOpts = &etcd.DeleteOptions{Recursive: false}
+	etcdGetOpts         = &etcd.GetOptions{Quorum: true}
+	etcdListOpts        = &etcd.GetOptions{Quorum: true, Recursive: true, Sort: true}
+	clientTimeout       = 30 * time.Second
 )
 
 type EtcdConfig struct {
@@ -142,6 +143,25 @@ func (c *EtcdClient) Delete(d *model.KVPair) error {
 	}
 	log.Infof("Delete Key: %s", key)
 	_, err = c.etcdKeysAPI.Delete(context.Background(), key, etcdDeleteOpts)
+	if err != nil {
+		return err
+	}
+
+	// If there are parents to be deleted, delete these as well provided there
+	// are no more children.
+	parents, err := model.KeyToDefaultDeleteParentPaths(d.Key)
+	if err != nil {
+		return err
+	}
+	for _, parent := range parents {
+		log.Infof("Delete empty Key: %s", parent)
+		_, err2 := c.etcdKeysAPI.Delete(context.Background(), parent, etcdDeleteEmptyOpts)
+		if err2 != nil {
+			log.Infof("Unable to delete parent: %s", err2)
+			break
+		}
+	}
+
 	return convertEtcdError(err, d.Key)
 }
 

@@ -22,33 +22,42 @@ import (
 
 func init() {
 	registerResource(
-		api.NewTier(),
-		api.NewTierList(),
-		[]string{"NAME", "ORDER"},
-		[]string{"NAME", "ORDER"},
+		api.NewWorkloadEndpoint(),
+		api.NewWorkloadEndpointList(),
+		[]string{"HOSTNAME", "ORCHESTRATOR", "WORKLOAD", "NAME"},
+		[]string{"HOSTNAME", "ORCHESTRATOR", "WORKLOAD", "NAME", "NETWORKS", "NATS", "INTERFACE", "PROFILES"},
 		map[string]string{
-			"NAME":  "{{.Metadata.Name}}",
-			"ORDER": "{{.Spec.Order}}",
+			"HOSTNAME":     "{{.Metadata.Hostname}}",
+			"ORCHESTRATOR": "{{.Metadata.OrchestratorID}}",
+			"WORKLOAD":     "{{.Metadata.WorkloadID}}",
+			"NAME":         "{{.Metadata.Name}}",
+			"NETWORKS":     "{{join .Spec.IPNetworks \",\"}}",
+			"NATS":         "{{join .Spec.IPNATs \",\"}}",
+			"IPV4GATEWAY":  "{{.Spec.IPv4Gateway}}",
+			"IPV6GATEWAY":  "{{.Spec.IPv4Gateway}}",
+			"PROFILES":     "{{join .Spec.Profiles \",\"}}",
+			"INTERFACE":    "{{.Spec.InterfaceName}}",
+			"MAC":          "{{.Spec.MAC}}",
 		},
 		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
-			r := resource.(api.Tier)
-			return client.Tiers().Apply(&r)
+			r := resource.(api.WorkloadEndpoint)
+			return client.WorkloadEndpoints().Apply(&r)
 		},
 		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
-			r := resource.(api.Tier)
-			return client.Tiers().Create(&r)
+			r := resource.(api.WorkloadEndpoint)
+			return client.WorkloadEndpoints().Create(&r)
 		},
 		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
-			r := resource.(api.Tier)
-			return client.Tiers().Update(&r)
+			r := resource.(api.WorkloadEndpoint)
+			return client.WorkloadEndpoints().Update(&r)
 		},
 		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
-			r := resource.(api.Tier)
-			return nil, client.Tiers().Delete(r.Metadata)
+			r := resource.(api.WorkloadEndpoint)
+			return nil, client.WorkloadEndpoints().Delete(r.Metadata)
 		},
 		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
-			r := resource.(api.Tier)
-			return client.Tiers().List(r.Metadata)
+			r := resource.(api.WorkloadEndpoint)
+			return client.WorkloadEndpoints().List(r.Metadata)
 		},
 	)
 }
