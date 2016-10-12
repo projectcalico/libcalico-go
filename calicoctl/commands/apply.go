@@ -17,15 +17,16 @@ package commands
 import (
 	"fmt"
 
-	"github.com/docopt/docopt-go"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docopt/docopt-go"
 )
 
 func Apply(args []string) error {
 	doc := EtcdIntro + `Apply a resource by filename or stdin.  This creates a resource
 if it does not exist, and replaces a resource if it does exist.
 
-Valid resource kinds are bgpPeer, hostEndpoint, policy, pool, profile and tier.
+Valid resource kinds are bgpPeer, hostEndpoint, workloadEndpoint, policy, pool, profile
+and tier.
 
 Usage:
   calicoctl apply --filename=<FILENAME> [--config=<CONFIG>]

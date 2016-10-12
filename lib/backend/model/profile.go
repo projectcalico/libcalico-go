@@ -23,7 +23,7 @@ import (
 	"sort"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/tigera/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
 var (
@@ -48,6 +48,10 @@ func (key ProfileKey) defaultPath() (string, error) {
 
 func (key ProfileKey) defaultDeletePath() (string, error) {
 	return key.defaultPath()
+}
+
+func (key ProfileKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
 }
 
 func (key ProfileKey) valueType() reflect.Type {

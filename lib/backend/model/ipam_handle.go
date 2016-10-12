@@ -20,7 +20,7 @@ import (
 	"regexp"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/tigera/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
 var (
@@ -42,6 +42,10 @@ func (key IPAMHandleKey) defaultPath() (string, error) {
 
 func (key IPAMHandleKey) defaultDeletePath() (string, error) {
 	return key.defaultPath()
+}
+
+func (key IPAMHandleKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
 }
 
 func (key IPAMHandleKey) valueType() reflect.Type {

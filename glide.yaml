@@ -1,4 +1,4 @@
-package: github.com/tigera/libcalico-go
+package: github.com/projectcalico/libcalico-go
 homepage: https://projectcalico.org
 license: Apache-2.0
 owners:
@@ -24,3 +24,4 @@ import:
 - package: github.com/Sirupsen/logrus
   version: ^0.10.0
 - package: github.com/termie/go-shutil
+- package: github.com/mitchellh/go-ps

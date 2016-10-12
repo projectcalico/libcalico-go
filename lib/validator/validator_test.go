@@ -15,16 +15,16 @@
 package validator_test
 
 import (
-	. "github.com/tigera/libcalico-go/lib/validator"
+	"github.com/projectcalico/libcalico-go/lib/validator"
 
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"github.com/tigera/libcalico-go/lib/api"
-	"github.com/tigera/libcalico-go/lib/backend/model"
-	"github.com/tigera/libcalico-go/lib/net"
-	"github.com/tigera/libcalico-go/lib/numorstring"
-	"github.com/tigera/libcalico-go/lib/scope"
-	"github.com/tigera/libcalico-go/lib/testutils"
+	"github.com/projectcalico/libcalico-go/lib/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/numorstring"
+	"github.com/projectcalico/libcalico-go/lib/scope"
+	"github.com/projectcalico/libcalico-go/lib/testutils"
 )
 
 func init() {
@@ -58,10 +58,10 @@ func init() {
 	DescribeTable("Validator",
 		func(input interface{}, valid bool) {
 			if valid {
-				Expect(Validate(input)).To(BeNil(),
+				Expect(validator.Validate(input)).To(BeNil(),
 					"expected value to be valid")
 			} else {
-				Expect(Validate(input)).ToNot(BeNil(),
+				Expect(validator.Validate(input)).ToNot(BeNil(),
 					"expected value to be invalid")
 			}
 		},

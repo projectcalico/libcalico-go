@@ -10,8 +10,12 @@
   spec:
     interface: eth0
     profiles: [prof1, prof2]
-    ipNetworks: [1.2.3.4/32, "00:bb::aa/10"]
+    ipNetworks: ["1.2.3.4/32", "00:bb::aa/128"]
+    ipNATs:
+    - externalIP: 10.20.30.40
+      internalIP: 1.2.3.4
     mac: "ee:ee:ee:ee:ee:ee"
+    interfaceName: eth0
 - apiVersion: v1
   kind: workloadEndpoint
   metadata:
@@ -23,5 +27,6 @@
       type: otherthing
   spec:
     interface: eth0
-    ipNetworks: [1.2.3.4/22]
+    ipNetworks: [1.2.3.4/32]
     mac: "ab:cd:ef:12:34:56"
+    interfaceName: eth0

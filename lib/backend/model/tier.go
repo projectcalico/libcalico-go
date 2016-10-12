@@ -21,7 +21,7 @@ import (
 	"reflect"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/tigera/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
 var (
@@ -44,6 +44,10 @@ func (key TierKey) defaultDeletePath() (string, error) {
 	}
 	e := fmt.Sprintf("/calico/v1/policy/tier/%s", key.Name)
 	return e, nil
+}
+
+func (key TierKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
 }
 
 func (key TierKey) valueType() reflect.Type {

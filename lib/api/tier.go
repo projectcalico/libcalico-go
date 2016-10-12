@@ -15,7 +15,7 @@
 package api
 
 import (
-	"github.com/tigera/libcalico-go/lib/api/unversioned"
+	"github.com/projectcalico/libcalico-go/lib/api/unversioned"
 )
 
 // Tier contains the details of a security policy tier resource.  A tier contains a set of

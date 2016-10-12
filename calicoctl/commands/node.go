@@ -17,9 +17,10 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/docopt/docopt-go"
-	"github.com/tigera/libcalico-go/calicoctl/commands/node"
+	"github.com/projectcalico/libcalico-go/calicoctl/commands/node"
 )
 
 // Node function is a switch to node related sub-commands
@@ -64,11 +65,11 @@ Description:
 			fmt.Printf("Invalid option.\n")
 			fmt.Println(doc)
 		}
-	}
 
-	if err != nil {
-		fmt.Printf("Error executing command: %s\n", err)
-		os.Exit(1)
+		if err != nil {
+			fmt.Printf("Error executing command. Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
+			os.Exit(1)
+		}
 	}
 
 	return nil
