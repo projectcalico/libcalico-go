@@ -102,7 +102,7 @@ func convertKVPairtoAPITest() {
 
 			// Initialize KVPair struct with test arguments.
 			kvp := model.KVPair{
-				Value: model.Pool{
+				Value: &model.Pool{
 					CIDR:          cnet.IPNet{v.CIDR},
 					IPIPInterface: v.IPIPInterface,
 					Masquerade:    v.NATOut,
@@ -214,10 +214,10 @@ func convertAPItoKVPairTest() {
 			out, err := p.convertAPIToKVPair(pool)
 
 			// Assert output to the expected values.
-			Expect(out.Value.(model.Pool).CIDR.IPNet).To(Equal(v.CIDR))
-			Expect(out.Value.(model.Pool).Masquerade).To(Equal(v.NATOut))
-			Expect(out.Value.(model.Pool).Disabled).To(Equal(v.Disabled))
-			Expect(out.Value.(model.Pool).IPIPInterface).To(Equal(v.expectedIPIPInterface))
+			Expect(out.Value.(*model.Pool).CIDR.IPNet).To(Equal(v.CIDR))
+			Expect(out.Value.(*model.Pool).Masquerade).To(Equal(v.NATOut))
+			Expect(out.Value.(*model.Pool).Disabled).To(Equal(v.Disabled))
+			Expect(out.Value.(*model.Pool).IPIPInterface).To(Equal(v.expectedIPIPInterface))
 			Expect(err).ToNot(HaveOccurred())
 		})
 	}
