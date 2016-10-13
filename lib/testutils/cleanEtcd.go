@@ -12,8 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package numorstring implements a set of type definitions that in YAML or JSON
-format may be represented by either a number or a string.
-*/
-package numorstring
+package testutils
+
+import (
+	"log"
+	"os/exec"
+)
+
+// CleanEtcd is a utility function to wipe clean "/calico" recursively from etcd.
+func CleanEtcd() {
+	err := exec.Command("etcdctl", "rm", "/calico", "--recursive").Run()
+	if err != nil {
+		log.Println(err)
+	}
+}

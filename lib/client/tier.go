@@ -113,7 +113,7 @@ func (h *tiers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 
 	d := model.KVPair{
 		Key: k,
-		Value: model.Tier{
+		Value: &model.Tier{
 			Order: at.Spec.Order,
 		},
 	}
@@ -125,7 +125,7 @@ func (h *tiers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 // to an API Tier structure.
 // This is part of the conversionHelper interface.
 func (h *tiers) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
-	bt := d.Value.(model.Tier)
+	bt := d.Value.(*model.Tier)
 	bk := d.Key.(model.TierKey)
 
 	at := api.NewTier()

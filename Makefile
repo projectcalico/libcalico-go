@@ -1,4 +1,4 @@
-.PHONEY: all test ut update-vendor
+.PHONY: all test ut update-vendor
 
 BUILD_CONTAINER_NAME=calico/calicoctl_build_container
 BUILD_CONTAINER_MARKER=calicoctl_build_container.created
@@ -56,7 +56,7 @@ build-containerized: $(BUILD_CONTAINER_MARKER)
 
 # Run the tests in a container. Useful for CI, Mac dev.
 .PHONY: test-containerized
-test-containerized: $(BUILD_CONTAINER_MARKER)
+test-containerized: run-etcd $(BUILD_CONTAINER_MARKER)
 	docker run -ti --rm --privileged --net=host \
 	-e PLUGIN=calico \
 	-v ${PWD}:/go/src/github.com/projectcalico/libcalico-go:rw \

@@ -54,7 +54,7 @@ var ipv6 ipVersion = ipVersion{
 // Wrap the backend AllocationBlock struct so that we can
 // attach methods to it.
 type allocationBlock struct {
-	model.AllocationBlock
+	*model.AllocationBlock
 }
 
 func newBlock(cidr cnet.IPNet) allocationBlock {
@@ -69,7 +69,7 @@ func newBlock(cidr cnet.IPNet) allocationBlock {
 		b.Unallocated[i] = i
 	}
 
-	return allocationBlock{b}
+	return allocationBlock{&b}
 }
 
 func (b *allocationBlock) autoAssign(
@@ -79,7 +79,7 @@ func (b *allocationBlock) autoAssign(
 	checkAffinity := b.StrictAffinity || affinityCheck
 	if checkAffinity && b.HostAffinity != nil && host != *b.HostAffinity {
 		// Affinity check is enabled but the host does not match - error.
-		s := fmt.Sprintf("Block affinity (%s) does not match provided (%s)", b.HostAffinity, host)
+		s := fmt.Sprintf("Block affinity (%s) does not match provided (%s)", *b.HostAffinity, host)
 		return nil, errors.New(s)
 	}
 
@@ -314,13 +314,13 @@ func (b allocationBlock) attributesForIP(ip cnet.IP) (map[string]string, error) 
 	// Convert to an ordinal.
 	ordinal := ipToOrdinal(ip, b)
 	if (ordinal < 0) || (ordinal > blockSize) {
-		return nil, errors.New("IP address not in block")
+		return nil, errors.New(fmt.Sprintf("IP %s not in block %s", ip, b.AllocationBlock.CIDR))
 	}
 
 	// Check if allocated.
 	attrIndex := b.Allocations[ordinal]
 	if attrIndex == nil {
-		return nil, errors.New("IP address is not assigned in block")
+		return nil, errors.New(fmt.Sprintf("IP %s is not currently assigned in block", ip))
 	}
 	return b.Attributes[*attrIndex].AttrSecondary, nil
 }
