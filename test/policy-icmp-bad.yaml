@@ -51,10 +51,9 @@
     name: profile1
   spec:
     tags: [a, b, c, a1]
-    rules:
-      ingress:
-        - action: deny
-      egress:
-        - action: deny
+    ingress:
+    - action: deny
+    egress:
+    - action: deny
     labels:
       type: database
