@@ -22,8 +22,8 @@ import (
 	"reflect"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/tigera/libcalico-go/lib/errors"
-	"github.com/tigera/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/net"
 )
 
 var (
@@ -46,6 +46,10 @@ func (key PoolKey) defaultPath() (string, error) {
 
 func (key PoolKey) defaultDeletePath() (string, error) {
 	return key.defaultPath()
+}
+
+func (key PoolKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
 }
 
 func (key PoolKey) valueType() reflect.Type {

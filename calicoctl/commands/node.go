@@ -17,9 +17,10 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/docopt/docopt-go"
-	"github.com/tigera/libcalico-go/calicoctl/commands/node"
+	"github.com/projectcalico/libcalico-go/calicoctl/commands/node"
 )
 
 // Node function is a switch to node related sub-commands
@@ -28,12 +29,14 @@ func Node(args []string) error {
 	doc := `Usage: 
 	calicoctl node status 
 	calicoctl node diags [--log-dir=<LOG_DIR>]
+	calicoctl node checksystem
 
 Options:
     --help                  Show this screen.
     status                  Shows the status of the node.
     diags                   Collects diagnostic information.
-    --log-dir=<LOG_DIR>     The directory for logs [default: /var/log/calico] 
+    --log-dir=<LOG_DIR>     The directory for logs [default: /var/log/calico]
+    checksystem             Check for compatibility with the host system.
 	
 Description:
   Node specific commands for calicoctl
@@ -56,15 +59,17 @@ Description:
 			err = node.Status()
 		} else if arguments["diags"].(bool) {
 			err = node.Diags(logDir)
+		} else if arguments["checksystem"].(bool) {
+			err = node.Checksystem()
 		} else {
 			fmt.Printf("Invalid option.\n")
 			fmt.Println(doc)
 		}
-	}
 
-	if err != nil {
-		fmt.Printf("Error executing command: %s\n", err)
-		os.Exit(1)
+		if err != nil {
+			fmt.Printf("Error executing command. Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
+			os.Exit(1)
+		}
 	}
 
 	return nil

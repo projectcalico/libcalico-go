@@ -11,18 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+package numorstring_test
 
-package selector
+import (
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 
-import "github.com/projectcalico/libcalico-go/lib/selector/parser"
+	"testing"
+)
 
-type Selector interface {
-	Evaluate(labels map[string]string) bool
-	String() string
-	UniqueId() string
-}
-
-// Parse a string representation of a selector expression into a Selector.
-func Parse(selector string) (sel parser.Selector, err error) {
-	return parser.Parse(selector)
+func TestNumorstring(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Numorstring Suite")
 }

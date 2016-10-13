@@ -11,18 +11,27 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+package testutils
 
-package selector
+import (
+	gonet "net"
 
-import "github.com/projectcalico/libcalico-go/lib/selector/parser"
+	"github.com/projectcalico/libcalico-go/lib/net"
+)
 
-type Selector interface {
-	Evaluate(labels map[string]string) bool
-	String() string
-	UniqueId() string
+func MustParseCIDR(c string) net.IPNet {
+	_, cidr, err := gonet.ParseCIDR(c)
+	if err != nil {
+		panic(err)
+	}
+	return net.IPNet{*cidr}
 }
 
-// Parse a string representation of a selector expression into a Selector.
-func Parse(selector string) (sel parser.Selector, err error) {
-	return parser.Parse(selector)
+func MustParseIP(i string) net.IP {
+	var ip net.IP
+	err := ip.UnmarshalText([]byte(i))
+	if err != nil {
+		panic(err)
+	}
+	return ip
 }

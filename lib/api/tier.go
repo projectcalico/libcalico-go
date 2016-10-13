@@ -15,7 +15,7 @@
 package api
 
 import (
-	"github.com/tigera/libcalico-go/lib/api/unversioned"
+	"github.com/projectcalico/libcalico-go/lib/api/unversioned"
 )
 
 // Tier contains the details of a security policy tier resource.  A tier contains a set of
@@ -42,7 +42,7 @@ type TierSpec struct {
 	// is omitted, it may be considered to be "infinite" - i.e. the tier will be applied
 	// last.  Tiers with identical order will be applied in alphanumerical order based
 	// on the Tier "Name".
-	Order *float32 `json:"order,omitempty"`
+	Order *float64 `json:"order,omitempty"`
 }
 
 // NewTier creates a new (zeroed) Tier struct with the TypeMetadata initialised to the current

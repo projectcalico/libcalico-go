@@ -11,18 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+package testutils
 
-package selector
+import (
+	"github.com/Sirupsen/logrus"
+	"github.com/onsi/ginkgo"
+)
 
-import "github.com/projectcalico/libcalico-go/lib/selector/parser"
-
-type Selector interface {
-	Evaluate(labels map[string]string) bool
-	String() string
-	UniqueId() string
-}
-
-// Parse a string representation of a selector expression into a Selector.
-func Parse(selector string) (sel parser.Selector, err error) {
-	return parser.Parse(selector)
+func HookLogrusForGinkgo() {
+	logrus.SetOutput(ginkgo.GinkgoWriter)
+	logrus.SetLevel(logrus.DebugLevel)
 }

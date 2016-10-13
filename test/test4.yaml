@@ -37,6 +37,6 @@
   labels:
     type: production
   spec:
-    interface: eth0
+    interfaceName: eth0
     profiles:
     - profile1

@@ -21,14 +21,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ghodss/yaml"
 	log "github.com/Sirupsen/logrus"
+	"github.com/ghodss/yaml"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/tigera/libcalico-go/lib/api"
-	"github.com/tigera/libcalico-go/lib/api/unversioned"
-	"github.com/tigera/libcalico-go/lib/backend"
-	bapi "github.com/tigera/libcalico-go/lib/backend/api"
-	"github.com/tigera/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/api"
+	"github.com/projectcalico/libcalico-go/lib/api/unversioned"
+	"github.com/projectcalico/libcalico-go/lib/backend"
+	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 )
 
 // Client contains

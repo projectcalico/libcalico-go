@@ -5,6 +5,10 @@
   spec:
     order: 12.345
 - apiVersion: v1
+  kind: tier
+  metadata:
+    name: tier2
+- apiVersion: v1
   kind: policy
   metadata:
     name: policy1
@@ -89,4 +93,8 @@
     peerIP: 1.3.5.6
   spec:
     asNumber: 145794
+- apiVersion: v1
+  kind: pool
+  metadata:
+    cidr: 10.10.0.0/16
 

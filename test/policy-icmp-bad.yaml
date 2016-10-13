@@ -15,7 +15,6 @@
       - action: nextTier
         protocol: udp
         icmp:
-          type: 10
           code: 100
         source:
           tag: web
@@ -44,7 +43,7 @@
     labels:
       type: database
   spec:
-    interfaceName: eth0
+    interface: eth0
     profiles: [prof1, prof2]
 - apiVersion: v1
   kind: profile

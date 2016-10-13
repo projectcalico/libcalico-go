@@ -19,12 +19,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tigera/libcalico-go/lib/net"
-	"github.com/tigera/libcalico-go/lib/numorstring"
+	"github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
 
 type Rule struct {
 	Action string `json:"action,omitempty" validate:"backendaction"`
+
+	IPVersion *int `json:"ip_version,omitempty" validate:"omitempty,ipversion"`
 
 	Protocol    *numorstring.Protocol `json:"protocol,omitempty" validate:"omitempty"`
 	NotProtocol *numorstring.Protocol `json:"!protocol,omitempty" validate:"omitempty"`

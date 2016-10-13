@@ -17,14 +17,15 @@ package commands
 import (
 	"fmt"
 
-	"github.com/docopt/docopt-go"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docopt/docopt-go"
 )
 
 func Create(args []string) error {
 	doc := EtcdIntro + `Create a resource by filename or stdin.
 
-Valid resource kinds are bgpPeer, hostEndpoint, policy, pool, profile and tier.
+Valid resource kinds are bgpPeer, hostEndpoint, workloadEndpoint, policy, pool, profile
+and tier.
 
 Usage:
   calicoctl create --filename=<FILENAME> [--skip-exists] [--config=<CONFIG>]

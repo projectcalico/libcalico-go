@@ -17,7 +17,7 @@ package model
 import (
 	"reflect"
 
-	"github.com/tigera/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
 var (
@@ -39,6 +39,10 @@ func (key IPAMHostKey) defaultPath() (string, error) {
 
 func (key IPAMHostKey) defaultDeletePath() (string, error) {
 	return key.defaultPath()
+}
+
+func (key IPAMHostKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
 }
 
 func (key IPAMHostKey) valueType() reflect.Type {

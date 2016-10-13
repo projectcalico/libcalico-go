@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/tigera/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
 var (
@@ -50,6 +50,10 @@ func (key PolicyKey) defaultPath() (string, error) {
 
 func (key PolicyKey) defaultDeletePath() (string, error) {
 	return key.defaultPath()
+}
+
+func (key PolicyKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
 }
 
 func (key PolicyKey) valueType() reflect.Type {
@@ -99,7 +103,7 @@ func (options PolicyListOptions) KeyFromDefaultPath(path string) Key {
 }
 
 type Policy struct {
-	Order         *float32 `json:"order,omitempty" validate:"omitempty"`
+	Order         *float64 `json:"order,omitempty" validate:"omitempty"`
 	InboundRules  []Rule   `json:"inbound_rules,omitempty" validate:"omitempty,dive"`
 	OutboundRules []Rule   `json:"outbound_rules,omitempty" validate:"omitempty,dive"`
 	Selector      string   `json:"selector" validate:"selector"`

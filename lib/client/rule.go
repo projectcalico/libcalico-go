@@ -15,8 +15,8 @@
 package client
 
 import (
-	"github.com/tigera/libcalico-go/lib/api"
-	"github.com/tigera/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 )
 
 // ruleActionAPIToBackend converts the rule action field value from the API
@@ -33,6 +33,9 @@ func ruleActionAPIToBackend(action string) string {
 func ruleActionBackendToAPI(action string) string {
 	if action == "next-tier" {
 		return "nextTier"
+	}
+	if action == "" {
+		return "allow"
 	}
 	return action
 }
@@ -52,6 +55,7 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 
 	return model.Rule{
 		Action:      ruleActionAPIToBackend(ar.Action),
+		IPVersion:   ar.IPVersion,
 		Protocol:    ar.Protocol,
 		ICMPCode:    icmpCode,
 		ICMPType:    icmpType,
@@ -82,8 +86,9 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 // ruleBackendToAPI convert a Backend Rule structure to an API Rule structure.
 func ruleBackendToAPI(br model.Rule) api.Rule {
 	return api.Rule{
-		Action:   ruleActionBackendToAPI(br.Action),
-		Protocol: br.Protocol,
+		Action:    ruleActionBackendToAPI(br.Action),
+		IPVersion: br.IPVersion,
+		Protocol:  br.Protocol,
 		ICMP: &api.ICMPFields{
 			Code: br.ICMPCode,
 			Type: br.ICMPType,

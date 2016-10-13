@@ -21,8 +21,8 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/tigera/libcalico-go/lib/errors"
-	"github.com/tigera/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/net"
 )
 
 var (
@@ -46,6 +46,10 @@ func (key BlockAffinityKey) defaultPath() (string, error) {
 
 func (key BlockAffinityKey) defaultDeletePath() (string, error) {
 	return key.defaultPath()
+}
+
+func (key BlockAffinityKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
 }
 
 func (key BlockAffinityKey) valueType() reflect.Type {
