@@ -200,7 +200,7 @@ var _ = Describe("IPAM tests", func() {
 			// Assert if an error was expected.
 			if expError != nil {
 				Expect(outError).To(HaveOccurred())
-				Expect(outError).To(Equal(expError))
+				Expect(outError.Error()).To(Equal(expError.Error()))
 			}
 		},
 
@@ -211,18 +211,18 @@ var _ = Describe("IPAM tests", func() {
 		// Test 2: claim affinity for an unclaimed IPNet of size smaller than 64 - expect 0 claimed blocks, 0 failed and expect an error error.
 		Entry("Claim affinity for an unclaimed IPNet of size smaller than 64", "192.168.1.0/27", "host-A", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 0, 0, errors.New("The requested CIDR (192.168.1.0/27) is smaller than the minimum.")),
 
-		// // Test 3: claim affinity for a IPNet that has an IP already assigned to another host.
-		// // - Assign an IP with AssignIP to "host-A" from a configured pool - expect 0 claimed blocks, 0 failed and expect no error.
+		// Test 3: claim affinity for a IPNet that has an IP already assigned to another host.
+		// - Assign an IP with AssignIP to "host-A" from a configured pool - expect 0 claimed blocks, 0 failed and expect no error.
 		Entry("Claim affinity for a IPNet that has an IP already assigned to another host (Assign IP)", "", "host-A", true, []string{"10.0.0.0/24", "fd80:24e2:f998:72d6::/120"}, net.ParseIP("10.0.0.1"), 0, 0, nil),
 
-		// // - Claim affinity for "Host-B" to the block that IP belongs to - expect 3 claimed blocks and 1 failed.
+		// - Claim affinity for "Host-B" to the block that IP belongs to - expect 3 claimed blocks and 1 failed.
 		Entry("Claim affinity for a IPNet that has an IP already assigned to another host (Claim affinity for Host-B)", "10.0.0.0/24", "host-B", false, []string{"10.0.0.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 3, 1, nil),
 
-		// // Test 4: claim affinity to a block twice from different hosts.
-		// // - Claim affinity to an unclaimed block for "Host-A" - expect 4 claimed blocks, 0 failed and expect no error.
+		// Test 4: claim affinity to a block twice from different hosts.
+		// - Claim affinity to an unclaimed block for "Host-A" - expect 4 claimed blocks, 0 failed and expect no error.
 		Entry("Claim affinity to an unclaimed block for Host-A", "10.0.0.0/24", "host-A", true, []string{"10.0.0.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 4, 0, nil),
 
-		// // - Claim affinity to the same block again but for "host-B" this time - expect 0 claimed blocks, 4 failed and expect no error.
+		// - Claim affinity to the same block again but for "host-B" this time - expect 0 claimed blocks, 4 failed and expect no error.
 		Entry("Claim affinity to the same block again but for Host-B this time", "10.0.0.0/24", "host-B", false, []string{"10.0.0.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 0, 4, nil),
 	)
 })
