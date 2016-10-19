@@ -53,7 +53,7 @@ build-containerized: $(BUILD_CONTAINER_MARKER)
 	-v ${PWD}:/go/src/github.com/projectcalico/libcalico-go:rw \
 	-v ${PWD}/dist:/go/src/github.com/projectcalico/libcalico-go/dist:rw \
 	$(BUILD_CONTAINER_NAME) bash -c 'make bin/calicoctl; \
-	chown $(shell id -u):$(shell id -g) -R ./'
+	chown $(shell id -u):$(shell id -g) -R ./bin ./vendor'
 
 # Run the tests in a container. Useful for CI, Mac dev.
 .PHONY: test-containerized
@@ -62,7 +62,7 @@ test-containerized: run-etcd $(BUILD_CONTAINER_MARKER)
 	-e PLUGIN=calico \
 	-v ${PWD}:/go/src/github.com/projectcalico/libcalico-go:rw \
 	$(BUILD_CONTAINER_NAME) bash -c 'make ut; \
-	chown $(shell id -u):$(shell id -g) -R ./'
+	chown $(shell id -u):$(shell id -g) -R ./bin ./vendor'
 	
 $(BUILD_CONTAINER_MARKER): Dockerfile.build
 	docker build -f Dockerfile.build -t $(BUILD_CONTAINER_NAME) .
