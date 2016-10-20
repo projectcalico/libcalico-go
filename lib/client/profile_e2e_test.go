@@ -172,23 +172,23 @@ var _ = Describe("Profile tests", func() {
 			*createAPIProfileSpecObject("profile2", []string{"profile2-tag1", "profile2-tag2"}),
 		),
 
-		// // Test 2: Pass one fully populated ProfileSpec and another empty ProfileSpec and expect the series of operations to succeed.
-		// Entry("One fully populated ProfileSpec and another empty ProfileSpec",
-		// 	api.ProfileMetadata{Name: "profile1"},
-		// 	api.ProfileMetadata{Name: "profile2"},
-		// 	*createAPIProfileSpecObject("profile1", 99.999, "profile1-selector"),
-		// 	api.ProfileSpec{},
-		// ),
+		// Test 2: Pass one fully populated ProfileSpec and another empty ProfileSpec and expect the series of operations to succeed.
+		Entry("One fully populated ProfileSpec and another empty ProfileSpec",
+			api.ProfileMetadata{Name: "profile1"},
+			api.ProfileMetadata{Name: "profile2"},
+			*createAPIProfileSpecObject("profile1", []string{"profile1-tag1", "profile1-tag2"}),
+			api.ProfileSpec{},
+		),
 
-		// // Test 3: Pass one partially populated ProfileSpec and another fully populated ProfileSpec and expect the series of operations to succeed.
-		// Entry("One partially populated ProfileSpec and another fully populated ProfileSpec",
-		// 	api.ProfileMetadata{Name: "profile1"},
-		// 	api.ProfileMetadata{Name: "profile2"},
-		// 	api.ProfileSpec{
-		// 		Selector: "profile1-selector",
-		// 	},
-		// 	*createAPIProfileSpecObject("profile2", 22.222, "profile2-selector"),
-		// ),
+		// Test 3: Pass one partially populated ProfileSpec and another fully populated ProfileSpec and expect the series of operations to succeed.
+		Entry("One partially populated ProfileSpec and another fully populated ProfileSpec",
+			api.ProfileMetadata{Name: "profile1"},
+			api.ProfileMetadata{Name: "profile2"},
+			api.ProfileSpec{
+				Tags: []string{"profile1-tag1"},
+			},
+			*createAPIProfileSpecObject("profile2", []string{"profile2-tag1", "profile2-tag2"}),
+		),
 	)
 })
 
@@ -231,8 +231,8 @@ func profileUpdate(c *client.Client, p *api.Profile) (*api.Profile, error) {
 // creates 2 fixed set of ingress and egress rules (one with IPv4 and one with IPv6),
 // and composes & returns an api.ProfileSpec object.
 func createAPIProfileSpecObject(name string, tags []string) *api.ProfileSpec {
-	inRule1, eRule1 := createRule(4, 100, 200, "icmp", "10.0.0.0/24", "abc-tag", "abc-selector", "allow", "deny")
-	inRule2, eRule2 := createRule(6, 111, 222, "111", "fe80::00/120", "xyz-tag", "xyz-selector", "deny", "allow")
+	inRule1, eRule1 := createProfileRule(4, 100, 200, "icmp", "10.0.0.0/24", "abc-tag", "abc-selector", "allow", "deny")
+	inRule2, eRule2 := createProfileRule(6, 111, 222, "111", "fe80::00/120", "xyz-tag", "xyz-selector", "deny", "allow")
 
 	inRules := []api.Rule{inRule1, inRule2}
 	eRules := []api.Rule{eRule1, eRule2}
