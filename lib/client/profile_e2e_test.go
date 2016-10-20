@@ -36,19 +36,14 @@ package client_test
 import (
 	"errors"
 	"log"
-	"net"
-	"strconv"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/projectcalico/libcalico-go/lib/client"
-	"github.com/projectcalico/libcalico-go/lib/numorstring"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
-
-	cnet "github.com/projectcalico/libcalico-go/lib/net"
 )
 
 var _ = Describe("Profile tests", func() {
@@ -142,7 +137,7 @@ var _ = Describe("Profile tests", func() {
 			_, outError = c.Profiles().Get(meta1)
 
 			// Expect an error since the profile was deleted.
-			Expect(outError.Error()).To(Equal(errors.New("resource does not exist: Profile(name=profile1)").Error()))
+			Expect(outError.Error()).To(Equal(errors.New("resource does not exist: ProfileTags(name=profile1)").Error()))
 
 			// Delete the second profile with meta2.
 			outError1 = c.Profiles().Delete(meta2)
@@ -231,8 +226,8 @@ func profileUpdate(c *client.Client, p *api.Profile) (*api.Profile, error) {
 // creates 2 fixed set of ingress and egress rules (one with IPv4 and one with IPv6),
 // and composes & returns an api.ProfileSpec object.
 func createAPIProfileSpecObject(name string, tags []string) *api.ProfileSpec {
-	inRule1, eRule1 := createProfileRule(4, 100, 200, "icmp", "10.0.0.0/24", "abc-tag", "abc-selector", "allow", "deny")
-	inRule2, eRule2 := createProfileRule(6, 111, 222, "111", "fe80::00/120", "xyz-tag", "xyz-selector", "deny", "allow")
+	inRule1, eRule1 := testutils.CreateRule(4, 100, 200, "icmp", "10.0.0.0/24", "abc-tag", "abc-selector", "allow", "deny")
+	inRule2, eRule2 := testutils.CreateRule(6, 111, 222, "111", "fe80::00/120", "xyz-tag", "xyz-selector", "deny", "allow")
 
 	inRules := []api.Rule{inRule1, inRule2}
 	eRules := []api.Rule{eRule1, eRule2}
@@ -242,52 +237,4 @@ func createAPIProfileSpecObject(name string, tags []string) *api.ProfileSpec {
 		EgressRules:  eRules,
 		Tags:         tags,
 	}
-}
-
-// createProfileRule takes all fields necessary to create a api.Rule object and returns ingress and egress api.Rules.
-func createProfileRule(ipv, icmpType, icmpCode int, proto, cidrStr, tag, selector, inAction, eAction string) (api.Rule, api.Rule) {
-
-	var protocol numorstring.Protocol
-
-	i, err := strconv.Atoi(proto)
-	if err != nil {
-		protocol = numorstring.ProtocolFromString(proto)
-	} else {
-		protocol = numorstring.ProtocolFromInt(uint8(i))
-	}
-
-	icmp := api.ICMPFields{
-		Type: &icmpType,
-		Code: &icmpCode,
-	}
-
-	_, cidr, err := net.ParseCIDR(cidrStr)
-	if err != nil {
-		log.Printf("Error parsing CIDR: %s\n", err)
-	}
-
-	src := api.EntityRule{
-		Tag: tag,
-		Net: &cnet.IPNet{
-			*cidr,
-		},
-		Selector: selector,
-	}
-
-	inRule := api.Rule{
-		Action:    inAction,
-		IPVersion: &ipv,
-		Protocol:  &protocol,
-		ICMP:      &icmp,
-		Source:    src,
-	}
-
-	eRule := api.Rule{
-		Action:    eAction,
-		IPVersion: &ipv,
-		Protocol:  &protocol,
-		ICMP:      &icmp,
-	}
-
-	return inRule, eRule
 }
