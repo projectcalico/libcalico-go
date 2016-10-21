@@ -83,8 +83,8 @@ var _ = Describe("Profile tests", func() {
 			// Should match spec1 & outProfile1 and outProfile2 & spec2 and errors to be nil.
 			Expect(outProfile1.Spec).To(Equal(spec1))
 			Expect(outProfile2.Spec).To(Equal(spec2))
-			Expect(outError1).To(BeNil())
-			Expect(outError2).To(BeNil())
+			Expect(outError1).NotTo(HaveOccurred())
+			Expect(outError2).NotTo(HaveOccurred())
 
 			By("Update, Get and compare")
 
@@ -96,7 +96,7 @@ var _ = Describe("Profile tests", func() {
 
 			// Assert the Spec for profile with meta1 matches spec2 and no error.
 			Expect(outProfile1.Spec).To(Equal(spec2))
-			Expect(outError1).To(BeNil())
+			Expect(outError1).NotTo(HaveOccurred())
 
 			By("List all the profiles and compare")
 
@@ -125,7 +125,7 @@ var _ = Describe("Profile tests", func() {
 
 			// Assert they are equal and no errors.
 			Expect(profileList.Items[0].Spec).To(Equal(outProfile1.Spec))
-			Expect(outError1).To(BeNil())
+			Expect(outError1).NotTo(HaveOccurred())
 
 			By("Delete, Get and assert error")
 
