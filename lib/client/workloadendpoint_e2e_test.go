@@ -41,7 +41,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"github.com/projectcalico/libcalico-go/lib/client"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
@@ -69,7 +68,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				log.Println("Error creating client:", err)
 			}
 			By("Updating the WorkloadEndpoint before it is created")
-			_, outError := WorkloadEndpointUpdate(c, &api.WorkloadEndpoint{Metadata: meta1, Spec: spec1})
+			_, outError := c.WorkloadEndpoints().Update(&api.WorkloadEndpoint{Metadata: meta1, Spec: spec1})
 
 			// Should return an error.
 			Expect(outError.Error()).To(Equal(errors.New("resource does not exist: WorkloadEndpoint(hostname=node1, orchestrator=kubernetes, workload=workload1, name=host1)").Error()))
@@ -77,10 +76,10 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 			By("Create, Apply, Get and compare")
 
 			// Create a WorkloadEndpoint with meta1 and spec1.
-			_, outError = WorkloadEndpointCreate(c, &api.WorkloadEndpoint{Metadata: meta1, Spec: spec1})
+			_, outError = c.WorkloadEndpoints().Create(&api.WorkloadEndpoint{Metadata: meta1, Spec: spec1})
 
 			// Apply a WorkloadEndpoint with meta2 and spec2.
-			_, outError = WorkloadEndpointApply(c, &api.WorkloadEndpoint{Metadata: meta2, Spec: spec2})
+			_, outError = c.WorkloadEndpoints().Apply(&api.WorkloadEndpoint{Metadata: meta2, Spec: spec2})
 
 			// Get WorkloadEndpoint with meta1.
 			outWorkloadEndpoint1, outError1 := c.WorkloadEndpoints().Get(meta1)
@@ -93,20 +92,20 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 			// Should match spec1 & outWorkloadEndpoint1 and outWorkloadEndpoint2 & spec2 and errors to be nil.
 			Expect(outWorkloadEndpoint1.Spec).To(Equal(spec1))
 			Expect(outWorkloadEndpoint2.Spec).To(Equal(spec2))
-			Expect(outError1).To(BeNil())
-			Expect(outError2).To(BeNil())
+			Expect(outError1).NotTo(HaveOccurred())
+			Expect(outError2).NotTo(HaveOccurred())
 
 			By("Update, Get and compare")
 
 			// Update meta1 WorkloadEndpoint with spec2.
-			WorkloadEndpointUpdate(c, &api.WorkloadEndpoint{Metadata: meta1, Spec: spec2})
+			c.WorkloadEndpoints().Update(&api.WorkloadEndpoint{Metadata: meta1, Spec: spec2})
 
 			// Get WorkloadEndpoint with meta1.
 			outWorkloadEndpoint1, outError1 = c.WorkloadEndpoints().Get(meta1)
 
 			// Assert the Spec for WorkloadEndpoint with meta1 matches spec2 and no error.
 			Expect(outWorkloadEndpoint1.Spec).To(Equal(spec2))
-			Expect(outError1).To(BeNil())
+			Expect(outError1).NotTo(HaveOccurred())
 
 			By("List all the WorkloadEndpoints and compare")
 
@@ -135,7 +134,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 
 			// Assert they are equal and no errors.
 			Expect(WorkloadEndpointList.Items[0].Spec).To(Equal(outWorkloadEndpoint1.Spec))
-			Expect(outError1).To(BeNil())
+			Expect(outError1).NotTo(HaveOccurred())
 
 			By("Delete, Get and assert error")
 
@@ -303,38 +302,3 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 	)
 
 })
-
-// WorkloadEndpointCreate takes client and api.WorkloadEndpoint and creates a WorkloadEndpoint.
-func WorkloadEndpointCreate(c *client.Client, p *api.WorkloadEndpoint) (*api.WorkloadEndpoint, error) {
-
-	pOut, errOut := c.WorkloadEndpoints().Create(p)
-
-	if errOut != nil {
-		log.Printf("Error creating WorkloadEndpoint: %s\n", errOut)
-	}
-	return pOut, errOut
-
-}
-
-// WorkloadEndpointApply takes client and api.WorkloadEndpoint and applies the WorkloadEndpoint config to
-// an existing WorkloadEndpoint or creates a new one if it doesn't already exist.
-func WorkloadEndpointApply(c *client.Client, p *api.WorkloadEndpoint) (*api.WorkloadEndpoint, error) {
-
-	pOut, errOut := c.WorkloadEndpoints().Apply(p)
-	if errOut != nil {
-		log.Printf("Error applying WorkloadEndpoint: %s\n", errOut)
-	}
-
-	return pOut, errOut
-}
-
-// WorkloadEndpointUpdate takes client and api.WorkloadEndpoint and updates an existing WorkloadEndpoint.
-func WorkloadEndpointUpdate(c *client.Client, p *api.WorkloadEndpoint) (*api.WorkloadEndpoint, error) {
-
-	pOut, errOut := c.WorkloadEndpoints().Update(p)
-	if errOut != nil {
-		log.Printf("Error updating WorkloadEndpoint: %s\n", errOut)
-	}
-
-	return pOut, errOut
-}
