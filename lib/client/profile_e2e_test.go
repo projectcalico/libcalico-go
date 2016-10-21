@@ -40,7 +40,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"github.com/projectcalico/libcalico-go/lib/client"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
@@ -60,7 +59,7 @@ var _ = Describe("Profile tests", func() {
 				log.Println("Error creating client:", err)
 			}
 			By("Updating the profile before it is created")
-			_, outError := profileUpdate(c, &api.Profile{Metadata: meta1, Spec: spec1})
+			_, outError := c.Profiles().Update(&api.Profile{Metadata: meta1, Spec: spec1})
 
 			// Should return an error.
 			Expect(outError.Error()).To(Equal(errors.New("resource does not exist: ProfileTags(name=profile1)").Error()))
@@ -68,10 +67,10 @@ var _ = Describe("Profile tests", func() {
 			By("Create, Apply, Get and compare")
 
 			// Create a profile with meta1 and spec1.
-			_, outError = profileCreate(c, &api.Profile{Metadata: meta1, Spec: spec1})
+			_, outError = c.Profiles().Create(&api.Profile{Metadata: meta1, Spec: spec1})
 
 			// Apply a profile with meta2 and spec2.
-			_, outError = profileApply(c, &api.Profile{Metadata: meta2, Spec: spec2})
+			_, outError = c.Profiles().Apply(&api.Profile{Metadata: meta2, Spec: spec2})
 
 			// Get profile with meta1.
 			outProfile1, outError1 := c.Profiles().Get(meta1)
@@ -90,7 +89,7 @@ var _ = Describe("Profile tests", func() {
 			By("Update, Get and compare")
 
 			// Update meta1 profile with spec2.
-			profileUpdate(c, &api.Profile{Metadata: meta1, Spec: spec2})
+			c.Profiles().Update(&api.Profile{Metadata: meta1, Spec: spec2})
 
 			// Get profile with meta1.
 			outProfile1, outError1 = c.Profiles().Get(meta1)
@@ -186,41 +185,6 @@ var _ = Describe("Profile tests", func() {
 		),
 	)
 })
-
-// profileCreate takes client and api.Profile and creates a profile.
-func profileCreate(c *client.Client, p *api.Profile) (*api.Profile, error) {
-
-	pOut, errOut := c.Profiles().Create(p)
-
-	if errOut != nil {
-		log.Printf("Error creating profile: %s\n", errOut)
-	}
-	return pOut, errOut
-
-}
-
-// profileApply takes client and api.Profile and applies the profile config to
-// an existing profile or creates a new one if it doesn't already exist.
-func profileApply(c *client.Client, p *api.Profile) (*api.Profile, error) {
-
-	pOut, errOut := c.Profiles().Apply(p)
-	if errOut != nil {
-		log.Printf("Error applying profile: %s\n", errOut)
-	}
-
-	return pOut, errOut
-}
-
-// profileUpdate takes client and api.Profile and updates an existing profile.
-func profileUpdate(c *client.Client, p *api.Profile) (*api.Profile, error) {
-
-	pOut, errOut := c.Profiles().Update(p)
-	if errOut != nil {
-		log.Printf("Error updating profile: %s\n", errOut)
-	}
-
-	return pOut, errOut
-}
 
 // createAPIProfileSpecObject takes profile configuration options (name, order, selector),
 // creates 2 fixed set of ingress and egress rules (one with IPv4 and one with IPv6),
