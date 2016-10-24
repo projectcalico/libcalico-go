@@ -56,16 +56,15 @@ type GlobalConfigKey struct {
 }
 
 func (key GlobalConfigKey) defaultPath() (string, error) {
-	k, err := key.defaultDeletePath()
-	return k + "/metadata", err
-}
-
-func (key GlobalConfigKey) defaultDeletePath() (string, error) {
 	if key.Name == "" {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
 	}
 	e := fmt.Sprintf("/calico/v1/config/%s", key.Name)
 	return e, nil
+}
+
+func (key GlobalConfigKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
 }
 
 func (key GlobalConfigKey) defaultDeleteParentPaths() ([]string, error) {
@@ -114,19 +113,18 @@ type HostConfigKey struct {
 }
 
 func (key HostConfigKey) defaultPath() (string, error) {
-	k, err := key.defaultDeletePath()
-	return k + "/metadata", err
-}
-
-func (key HostConfigKey) defaultDeletePath() (string, error) {
 	if key.Name == "" {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
 	}
 	if key.Hostname == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "hostname"}
+		return "", errors.ErrorInsufficientIdentifiers{Name: "node"}
 	}
 	e := fmt.Sprintf("/calico/v1/host/%s/config/%s", key.Hostname, key.Name)
 	return e, nil
+}
+
+func (key HostConfigKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
 }
 
 func (key HostConfigKey) defaultDeleteParentPaths() ([]string, error) {
