@@ -54,7 +54,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 	_, cidr3, _ := net.ParseCIDR("192.168.0.0/24")
 	_, cidr4, _ := net.ParseCIDR("172.56.0.0/24")
 	mac1, _ := net.ParseMAC("01:23:45:67:89:ab")
-	mac2, _ := net.ParseMAC("01:23:4b:ad:be:ef")
+	mac2, _ := net.ParseMAC("CA:FE:00:01:02:03")
 
 	DescribeTable("WorkloadEndpoint e2e tests",
 		func(meta1, meta2 api.WorkloadEndpointMetadata, spec1, spec2 api.WorkloadEndpointSpec) {
@@ -191,8 +191,8 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr1}, cnet.IPNet{*cidr2}},
 				IPNATs: []api.IPNAT{
 					{
-						InternalIP: cnet.IP{net.ParseIP("10.0.0.0")},
-						ExternalIP: cnet.IP{net.ParseIP("20.0.0.0")},
+						InternalIP: testutils.MustParseIP("10.0.0.0"),
+						ExternalIP: testutils.MustParseIP("20.0.0.0"),
 					},
 				},
 
@@ -206,8 +206,8 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr3}, cnet.IPNet{*cidr4}},
 				IPNATs: []api.IPNAT{
 					{
-						InternalIP: cnet.IP{net.ParseIP("192.168.0.0")},
-						ExternalIP: cnet.IP{net.ParseIP("192.168.1.1")},
+						InternalIP: testutils.MustParseIP("192.168.0.0"),
+						ExternalIP: testutils.MustParseIP("192.168.1.1"),
 					},
 				},
 
@@ -242,17 +242,18 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr1}, cnet.IPNet{*cidr2}},
 				IPNATs: []api.IPNAT{
 					{
-						InternalIP: cnet.IP{net.ParseIP("10.0.0.0")},
+						InternalIP: testutils.MustParseIP("10.0.0.0"),
 					},
 				},
 				InterfaceName: "eth1",
+				MAC:           cnet.MAC{mac2},
 			},
 			api.WorkloadEndpointSpec{
 				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr3}, cnet.IPNet{*cidr4}},
 				IPNATs: []api.IPNAT{
 					{
-						InternalIP: cnet.IP{net.ParseIP("192.168.0.0")},
-						ExternalIP: cnet.IP{net.ParseIP("192.168.1.1")},
+						InternalIP: testutils.MustParseIP("192.168.0.0"),
+						ExternalIP: testutils.MustParseIP("192.168.1.1"),
 					},
 				},
 
@@ -287,8 +288,8 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr1}, cnet.IPNet{*cidr2}},
 				IPNATs: []api.IPNAT{
 					{
-						InternalIP: cnet.IP{net.ParseIP("10.0.0.0")},
-						ExternalIP: cnet.IP{net.ParseIP("20.0.0.0")},
+						InternalIP: testutils.MustParseIP("10.0.0.0"),
+						ExternalIP: testutils.MustParseIP("20.0.0.0"),
 					},
 				},
 
