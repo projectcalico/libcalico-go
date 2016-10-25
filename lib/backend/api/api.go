@@ -121,7 +121,7 @@ type SyncerCallbacks interface {
 	//
 	// When a recursive delete is made, deleting many leaf keys, the Syncer
 	// generates deletion updates for all the leaf keys.
-	OnUpdates(updates []model.KVPair)
+	OnUpdates(updates []model.Update)
 }
 
 // SyncerParseFailCallbacks is an optional interface that can be implemented

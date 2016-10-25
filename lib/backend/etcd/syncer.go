@@ -273,7 +273,15 @@ func (syn *etcdSyncer) mergeUpdates(snapshotUpdates <-chan event, watcherUpdates
 			if oldIdx < e.modifiedIndex {
 				// Event is newer than value for that key.
 				// Send the update to Felix.
-				syn.sendUpdate(e.key, &e.value, e.modifiedIndex)
+				var updateType model.UpdateType
+				if oldIdx > 0 {
+					log.WithField("oldIdx", oldIdx).Debug("Set updates known key")
+					updateType = model.UpdateTypeKVUpdated
+				} else {
+					log.WithField("oldIdx", oldIdx).Debug("Set is a new key")
+					updateType = model.UpdateTypeKVNew
+				}
+				syn.sendUpdate(e.key, &e.value, e.modifiedIndex, updateType)
 			}
 		case actionDel:
 			deletedKeys := hwms.StoreDeletion(e.key,
@@ -296,7 +304,7 @@ func (syn *etcdSyncer) mergeUpdates(snapshotUpdates <-chan event, watcherUpdates
 	}
 }
 
-func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64) {
+func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64, updateType model.UpdateType) {
 	log.Debugf("Parsing etcd key %#v", key)
 	parsedKey := model.KeyFromDefaultPath(key)
 	if parsedKey == nil {
@@ -317,14 +325,21 @@ func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64) {
 		}
 		log.Debugf("Parsed value: %#v", parsedValue)
 	}
-	updates := []model.KVPair{
-		{Key: parsedKey, Value: parsedValue, Revision: revision},
+	updates := []model.Update{
+		{
+			KVPair: model.KVPair{
+				Key:      parsedKey,
+				Value:    parsedValue,
+				Revision: revision,
+			},
+			UpdateType: updateType,
+		},
 	}
 	syn.callbacks.OnUpdates(updates)
 }
 
 func (syn *etcdSyncer) sendDeletions(deletedKeys []string, revision uint64) {
-	updates := make([]model.KVPair, 0, len(deletedKeys))
+	updates := make([]model.Update, 0, len(deletedKeys))
 	for _, key := range deletedKeys {
 		parsedKey := model.KeyFromDefaultPath(key)
 		if parsedKey == nil {
@@ -334,10 +349,13 @@ func (syn *etcdSyncer) sendDeletions(deletedKeys []string, revision uint64) {
 			}
 			continue
 		}
-		updates = append(updates, model.KVPair{
-			Key:      parsedKey,
-			Value:    nil,
-			Revision: revision,
+		updates = append(updates, model.Update{
+			KVPair: model.KVPair{
+				Key:      parsedKey,
+				Value:    nil,
+				Revision: revision,
+			},
+			UpdateType: model.UpdateTypeKVDeleted,
 		})
 	}
 	syn.callbacks.OnUpdates(updates)
