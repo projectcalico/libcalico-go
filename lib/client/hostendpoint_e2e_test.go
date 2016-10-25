@@ -41,7 +41,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"github.com/projectcalico/libcalico-go/lib/client"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
@@ -63,7 +62,7 @@ var _ = Describe("HostEndpoint tests", func() {
 				log.Println("Error creating client:", err)
 			}
 			By("Updating the HostEndpoint before it is created")
-			_, outError := hostEndpointUpdate(c, &api.HostEndpoint{Metadata: meta1, Spec: spec1})
+			_, outError := c.HostEndpoints().Update(&api.HostEndpoint{Metadata: meta1, Spec: spec1})
 
 			// Should return an error.
 			Expect(outError.Error()).To(Equal(errors.New("resource does not exist: HostEndpoint(hostname=hostname1, name=host1)").Error()))
@@ -71,10 +70,12 @@ var _ = Describe("HostEndpoint tests", func() {
 			By("Create, Apply, Get and compare")
 
 			// Create a HostEndpoint with meta1 and spec1.
-			_, outError = hostEndpointCreate(c, &api.HostEndpoint{Metadata: meta1, Spec: spec1})
+			_, outError = c.HostEndpoints().Create(&api.HostEndpoint{Metadata: meta1, Spec: spec1})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Apply a HostEndpoint with meta2 and spec2.
-			_, outError = hostEndpointApply(c, &api.HostEndpoint{Metadata: meta2, Spec: spec2})
+			_, outError = c.HostEndpoints().Apply(&api.HostEndpoint{Metadata: meta2, Spec: spec2})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Get HostEndpoint with meta1.
 			outHostEndpoint1, outError1 := c.HostEndpoints().Get(meta1)
@@ -93,7 +94,8 @@ var _ = Describe("HostEndpoint tests", func() {
 			By("Update, Get and compare")
 
 			// Update meta1 HostEndpoint with spec2.
-			hostEndpointUpdate(c, &api.HostEndpoint{Metadata: meta1, Spec: spec2})
+			_, outError = c.HostEndpoints().Update(&api.HostEndpoint{Metadata: meta1, Spec: spec2})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Get HostEndpoint with meta1.
 			outHostEndpoint1, outError1 = c.HostEndpoints().Get(meta1)
@@ -106,12 +108,15 @@ var _ = Describe("HostEndpoint tests", func() {
 
 			// Get a list of HostEndpoints.
 			hostEndpointList, outError := c.HostEndpoints().List(api.HostEndpointMetadata{})
+			Expect(outError).NotTo(HaveOccurred())
+
 			log.Println("Get HostEndpoint list returns: ", hostEndpointList.Items)
 			metas := []api.HostEndpointMetadata{meta1, meta2}
 			expectedHostEndpoints := []api.HostEndpoint{}
 			// Go through meta list and append them to expectedHostEndpoints.
 			for _, v := range metas {
-				p, _ := c.HostEndpoints().Get(v)
+				p, outError := c.HostEndpoints().Get(v)
+				Expect(outError).NotTo(HaveOccurred())
 				expectedHostEndpoints = append(expectedHostEndpoints, *p)
 			}
 
@@ -122,6 +127,7 @@ var _ = Describe("HostEndpoint tests", func() {
 
 			// Get a HostEndpoint list with meta1.
 			hostEndpointList, outError = c.HostEndpoints().List(meta1)
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get HostEndpoint list returns: ", hostEndpointList.Items)
 
 			// Get a HostEndpoint with meta1.
@@ -135,6 +141,7 @@ var _ = Describe("HostEndpoint tests", func() {
 
 			// Delete a HostEndpoint with meta1.
 			outError1 = c.HostEndpoints().Delete(meta1)
+			Expect(outError1).NotTo(HaveOccurred())
 
 			// Get a HostEndpoint with meta1.
 			_, outError = c.HostEndpoints().Get(meta1)
@@ -144,12 +151,14 @@ var _ = Describe("HostEndpoint tests", func() {
 
 			// Delete the second HostEndpoint with meta2.
 			outError1 = c.HostEndpoints().Delete(meta2)
+			Expect(outError1).NotTo(HaveOccurred())
 
 			By("Delete all the HostEndpoints, Get HostEndpoint list and expect empty HostEndpoint list")
 
 			// Both HostEndpoints are deleted in the calls above.
 			// Get the list of all the HostEndpoints.
 			hostEndpointList, outError = c.HostEndpoints().List(api.HostEndpointMetadata{})
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get HostEndpoint list returns: ", hostEndpointList.Items)
 
 			// Create an empty HostEndpoint list.
@@ -266,38 +275,3 @@ var _ = Describe("HostEndpoint tests", func() {
 	)
 
 })
-
-// hostEndpointCreate takes client and api.HostEndpoint and creates a HostEndpoint.
-func hostEndpointCreate(c *client.Client, p *api.HostEndpoint) (*api.HostEndpoint, error) {
-
-	pOut, errOut := c.HostEndpoints().Create(p)
-
-	if errOut != nil {
-		log.Printf("Error creating HostEndpoint: %s\n", errOut)
-	}
-	return pOut, errOut
-
-}
-
-// hostEndpointApply takes client and api.HostEndpoint and applies the HostEndpoint config to
-// an existing HostEndpoint or creates a new one if it doesn't already exist.
-func hostEndpointApply(c *client.Client, p *api.HostEndpoint) (*api.HostEndpoint, error) {
-
-	pOut, errOut := c.HostEndpoints().Apply(p)
-	if errOut != nil {
-		log.Printf("Error applying HostEndpoint: %s\n", errOut)
-	}
-
-	return pOut, errOut
-}
-
-// hostEndpointUpdate takes client and api.HostEndpoint and updates an existing HostEndpoint.
-func hostEndpointUpdate(c *client.Client, p *api.HostEndpoint) (*api.HostEndpoint, error) {
-
-	pOut, errOut := c.HostEndpoints().Update(p)
-	if errOut != nil {
-		log.Printf("Error updating HostEndpoint: %s\n", errOut)
-	}
-
-	return pOut, errOut
-}
