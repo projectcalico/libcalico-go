@@ -90,10 +90,10 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 			log.Println("Out WorkloadEndpoint object: ", outWorkloadEndpoint2)
 
 			// Should match spec1 & outWorkloadEndpoint1 and outWorkloadEndpoint2 & spec2 and errors to be nil.
-			Expect(outWorkloadEndpoint1.Spec).To(Equal(spec1))
-			Expect(outWorkloadEndpoint2.Spec).To(Equal(spec2))
 			Expect(outError1).NotTo(HaveOccurred())
 			Expect(outError2).NotTo(HaveOccurred())
+			Expect(outWorkloadEndpoint1.Spec).To(Equal(spec1))
+			Expect(outWorkloadEndpoint2.Spec).To(Equal(spec2))
 
 			By("Update, Get and compare")
 
@@ -104,8 +104,8 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 			outWorkloadEndpoint1, outError1 = c.WorkloadEndpoints().Get(meta1)
 
 			// Assert the Spec for WorkloadEndpoint with meta1 matches spec2 and no error.
-			Expect(outWorkloadEndpoint1.Spec).To(Equal(spec2))
 			Expect(outError1).NotTo(HaveOccurred())
+			Expect(outWorkloadEndpoint1.Spec).To(Equal(spec2))
 
 			By("List all the WorkloadEndpoints and compare")
 
@@ -133,8 +133,8 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 			outWorkloadEndpoint1, outError1 = c.WorkloadEndpoints().Get(meta1)
 
 			// Assert they are equal and no errors.
-			Expect(WorkloadEndpointList.Items[0].Spec).To(Equal(outWorkloadEndpoint1.Spec))
 			Expect(outError1).NotTo(HaveOccurred())
+			Expect(WorkloadEndpointList.Items[0].Spec).To(Equal(outWorkloadEndpoint1.Spec))
 
 			By("Delete, Get and assert error")
 
@@ -200,7 +200,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				IPv6Gateway:   &cnet.IP{net.ParseIP("fe80::33")},
 				Profiles:      []string{"profile1", "profile2"},
 				InterfaceName: "eth0",
-				MAC:           cnet.MAC{mac1},
+				MAC:           &cnet.MAC{mac1},
 			},
 			api.WorkloadEndpointSpec{
 				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr3}, cnet.IPNet{*cidr4}},
@@ -215,7 +215,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				IPv6Gateway:   &cnet.IP{net.ParseIP("fe80::33")},
 				Profiles:      []string{"profile3", "profile4"},
 				InterfaceName: "eth1",
-				MAC:           cnet.MAC{mac2},
+				MAC:           &cnet.MAC{mac2},
 			}),
 
 		// Test 2: Pass one partially populated WorkloadEndpointSpec and another fully populated WorkloadEndpointSpec and expect the series of operations to succeed.
@@ -246,7 +246,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 					},
 				},
 				InterfaceName: "eth1",
-				MAC:           cnet.MAC{mac2},
+				MAC:           &cnet.MAC{mac2},
 			},
 			api.WorkloadEndpointSpec{
 				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr3}, cnet.IPNet{*cidr4}},
@@ -261,7 +261,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				IPv6Gateway:   &cnet.IP{net.ParseIP("fe80::33")},
 				Profiles:      []string{"profile3", "profile4"},
 				InterfaceName: "eth1",
-				MAC:           cnet.MAC{mac2},
+				MAC:           &cnet.MAC{mac2},
 			}),
 
 		// Test 3: Pass one fully populated WorkloadEndpointSpec and another empty WorkloadEndpointSpec and expect the series of operations to succeed.
@@ -297,7 +297,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				IPv6Gateway:   &cnet.IP{net.ParseIP("fe80::33")},
 				Profiles:      []string{"profile1", "profile2"},
 				InterfaceName: "eth0",
-				MAC:           cnet.MAC{mac1},
+				MAC:           &cnet.MAC{mac1},
 			},
 			api.WorkloadEndpointSpec{}),
 	)
