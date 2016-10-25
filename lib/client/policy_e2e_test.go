@@ -85,9 +85,11 @@ var _ = Describe("Policy tests", func() {
 
 			// Create a policy with meta1 and spec1.
 			_, outError = c.Policies().Create(&api.Policy{Metadata: meta1, Spec: spec1})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Apply a policy with meta2 and spec2.
 			_, outError = c.Policies().Apply(&api.Policy{Metadata: meta2, Spec: spec2})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Get policy with meta1.
 			outPolicy1, outError1 := c.Policies().Get(meta1)
@@ -106,7 +108,8 @@ var _ = Describe("Policy tests", func() {
 			By("Update, Get and compare")
 
 			// Update meta1 policy with spec2.
-			c.Policies().Update(&api.Policy{Metadata: meta1, Spec: spec2})
+			_, outError = c.Policies().Update(&api.Policy{Metadata: meta1, Spec: spec2})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Get policy with meta1.
 			outPolicy1, outError1 = c.Policies().Get(meta1)
@@ -119,12 +122,14 @@ var _ = Describe("Policy tests", func() {
 
 			// Get a list of policiess.
 			policyList, outError := c.Policies().List(api.PolicyMetadata{})
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get policy list returns: ", policyList.Items)
 			metas := []api.PolicyMetadata{meta1, meta2}
 			expectedPolicies := []api.Policy{}
 			// Go through meta list and append them to expectedPolicies.
 			for _, v := range metas {
-				p, _ := c.Policies().Get(v)
+				p, outError := c.Policies().Get(v)
+				Expect(outError).NotTo(HaveOccurred())
 				expectedPolicies = append(expectedPolicies, *p)
 			}
 
@@ -135,6 +140,7 @@ var _ = Describe("Policy tests", func() {
 
 			// Get a policy list with meta1.
 			policyList, outError = c.Policies().List(meta1)
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get policy list returns: ", policyList.Items)
 
 			// Get a policy with meta1.
@@ -148,6 +154,7 @@ var _ = Describe("Policy tests", func() {
 
 			// Delete a policy with meta1.
 			outError1 = c.Policies().Delete(meta1)
+			Expect(outError1).NotTo(HaveOccurred())
 
 			// Get a policy with meta1.
 			_, outError = c.Policies().Get(meta1)
@@ -157,12 +164,14 @@ var _ = Describe("Policy tests", func() {
 
 			// Delete the second policy with meta2.
 			outError1 = c.Policies().Delete(meta2)
+			Expect(outError1).NotTo(HaveOccurred())
 
 			By("Delete all the policies, Get policy list and expect empty policy list")
 
 			// Both policies are deleted in the calls above.
 			// Get the list of all the policys.
 			policyList, outError = c.Policies().List(api.PolicyMetadata{})
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get policy list returns: ", policyList.Items)
 
 			// Create an empty policy list.
