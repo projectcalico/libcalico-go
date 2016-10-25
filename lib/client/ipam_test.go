@@ -79,7 +79,9 @@ var _ = Describe("IPAM tests", func() {
 			Expect(outv4).To(Equal(expv4))
 			Expect(outv6).To(Equal(expv6))
 			if expError != nil {
-				Expect(outError).To(HaveOccurred())
+				Expect(outError.Error()).To(Equal(expError.Error()))
+			} else {
+				Expect(outError).NotTo(HaveOccurred())
 			}
 		},
 
@@ -90,10 +92,10 @@ var _ = Describe("IPAM tests", func() {
 		Entry("256 v4 256 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, 256, 256, 256, 256, nil),
 
 		// Test 3: AutoAssign 257 IPv4, 0 IPv6 - expect 256 IPv4 addresses, no IPv6, and no error.
-		Entry("257 v4 0 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, 257, 0, 256, 0, nil),
+		Entry("257 v4 0 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, 257, 0, 256, 0, errors.New("Fewer IPs than requested")),
 
 		// Test 4: AutoAssign 0 IPv4, 257 IPv6 - expect 256 IPv6 addresses, no IPv6, and no error.
-		Entry("0 v4 257 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, 0, 257, 0, 256, nil),
+		Entry("0 v4 257 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, 0, 257, 0, 256, errors.New("Fewer IPs than requested")),
 
 		// Test 5: (use pool of size /25 so only two blocks are contained):
 		// - Assign 1 address on host A (Expect 1 address).
