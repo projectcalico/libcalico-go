@@ -49,12 +49,14 @@ import (
 )
 
 var _ = Describe("WorkloadEndpoint tests", func() {
-	_, cidr1, _ := net.ParseCIDR("10.0.0.0/24")
-	_, cidr2, _ := net.ParseCIDR("20.0.0.0/24")
-	_, cidr3, _ := net.ParseCIDR("192.168.0.0/24")
-	_, cidr4, _ := net.ParseCIDR("172.56.0.0/24")
+	cidr1 := testutils.MustParseCIDR("10.0.0.0/24")
+	cidr2 := testutils.MustParseCIDR("20.0.0.0/24")
+	cidr3 := testutils.MustParseCIDR("192.168.0.0/24")
+	cidr4 := testutils.MustParseCIDR("172.56.0.0/24")
 	mac1, _ := net.ParseMAC("01:23:45:67:89:ab")
 	mac2, _ := net.ParseMAC("CA:FE:00:01:02:03")
+	ipv41 := testutils.MustParseIP("10.0.0.0")
+	ipv61 := testutils.MustParseIP("fe80::33")
 
 	DescribeTable("WorkloadEndpoint e2e tests",
 		func(meta1, meta2 api.WorkloadEndpointMetadata, spec1, spec2 api.WorkloadEndpointSpec) {
@@ -77,9 +79,11 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 
 			// Create a WorkloadEndpoint with meta1 and spec1.
 			_, outError = c.WorkloadEndpoints().Create(&api.WorkloadEndpoint{Metadata: meta1, Spec: spec1})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Apply a WorkloadEndpoint with meta2 and spec2.
 			_, outError = c.WorkloadEndpoints().Apply(&api.WorkloadEndpoint{Metadata: meta2, Spec: spec2})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Get WorkloadEndpoint with meta1.
 			outWorkloadEndpoint1, outError1 := c.WorkloadEndpoints().Get(meta1)
@@ -98,7 +102,8 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 			By("Update, Get and compare")
 
 			// Update meta1 WorkloadEndpoint with spec2.
-			c.WorkloadEndpoints().Update(&api.WorkloadEndpoint{Metadata: meta1, Spec: spec2})
+			_, outError = c.WorkloadEndpoints().Update(&api.WorkloadEndpoint{Metadata: meta1, Spec: spec2})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Get WorkloadEndpoint with meta1.
 			outWorkloadEndpoint1, outError1 = c.WorkloadEndpoints().Get(meta1)
@@ -111,12 +116,14 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 
 			// Get a list of WorkloadEndpoints.
 			WorkloadEndpointList, outError := c.WorkloadEndpoints().List(api.WorkloadEndpointMetadata{})
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get WorkloadEndpoint list returns: ", WorkloadEndpointList.Items)
 			metas := []api.WorkloadEndpointMetadata{meta1, meta2}
 			expectedWorkloadEndpoints := []api.WorkloadEndpoint{}
 			// Go through meta list and append them to expectedWorkloadEndpoints.
 			for _, v := range metas {
-				p, _ := c.WorkloadEndpoints().Get(v)
+				p, outError := c.WorkloadEndpoints().Get(v)
+				Expect(outError).NotTo(HaveOccurred())
 				expectedWorkloadEndpoints = append(expectedWorkloadEndpoints, *p)
 			}
 
@@ -127,6 +134,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 
 			// Get a WorkloadEndpoint list with meta1.
 			WorkloadEndpointList, outError = c.WorkloadEndpoints().List(meta1)
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get WorkloadEndpoint list returns: ", WorkloadEndpointList.Items)
 
 			// Get a WorkloadEndpoint with meta1.
@@ -140,6 +148,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 
 			// Delete a WorkloadEndpoint with meta1.
 			outError1 = c.WorkloadEndpoints().Delete(meta1)
+			Expect(outError1).NotTo(HaveOccurred())
 
 			// Get a WorkloadEndpoint with meta1.
 			_, outError = c.WorkloadEndpoints().Get(meta1)
@@ -149,12 +158,14 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 
 			// Delete the second WorkloadEndpoint with meta2.
 			outError1 = c.WorkloadEndpoints().Delete(meta2)
+			Expect(outError1).NotTo(HaveOccurred())
 
 			By("Delete all the WorkloadEndpoints, Get WorkloadEndpoint list and expect empty WorkloadEndpoint list")
 
 			// Both WorkloadEndpoints are deleted in the calls above.
 			// Get the list of all the WorkloadEndpoints.
 			WorkloadEndpointList, outError = c.WorkloadEndpoints().List(api.WorkloadEndpointMetadata{})
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get WorkloadEndpoint list returns: ", WorkloadEndpointList.Items)
 
 			// Create an empty WorkloadEndpoint list.
@@ -188,7 +199,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 					"prod": "yes",
 				}},
 			api.WorkloadEndpointSpec{
-				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr1}, cnet.IPNet{*cidr2}},
+				IPNetworks: []cnet.IPNet{cidr1, cidr2},
 				IPNATs: []api.IPNAT{
 					{
 						InternalIP: testutils.MustParseIP("10.0.0.0"),
@@ -203,7 +214,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				MAC:           &cnet.MAC{mac1},
 			},
 			api.WorkloadEndpointSpec{
-				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr3}, cnet.IPNet{*cidr4}},
+				IPNetworks: []cnet.IPNet{cidr3, cidr4},
 				IPNATs: []api.IPNAT{
 					{
 						InternalIP: testutils.MustParseIP("192.168.0.0"),
@@ -239,7 +250,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 					"prod": "yes",
 				}},
 			api.WorkloadEndpointSpec{
-				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr1}, cnet.IPNet{*cidr2}},
+				IPNetworks: []cnet.IPNet{cidr1, cidr2},
 				IPNATs: []api.IPNAT{
 					{
 						InternalIP: testutils.MustParseIP("10.0.0.0"),
@@ -249,7 +260,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 				MAC:           &cnet.MAC{mac2},
 			},
 			api.WorkloadEndpointSpec{
-				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr3}, cnet.IPNet{*cidr4}},
+				IPNetworks: []cnet.IPNet{cidr3, cidr4},
 				IPNATs: []api.IPNAT{
 					{
 						InternalIP: testutils.MustParseIP("192.168.0.0"),
@@ -285,7 +296,7 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 					"prod": "yes",
 				}},
 			api.WorkloadEndpointSpec{
-				IPNetworks: []cnet.IPNet{cnet.IPNet{*cidr1}, cnet.IPNet{*cidr2}},
+				IPNetworks: []cnet.IPNet{cidr1, cidr2},
 				IPNATs: []api.IPNAT{
 					{
 						InternalIP: testutils.MustParseIP("10.0.0.0"),
@@ -293,8 +304,8 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 					},
 				},
 
-				IPv4Gateway:   &cnet.IP{net.ParseIP("10.0.0.1")},
-				IPv6Gateway:   &cnet.IP{net.ParseIP("fe80::33")},
+				IPv4Gateway:   &ipv41,
+				IPv6Gateway:   &ipv61,
 				Profiles:      []string{"profile1", "profile2"},
 				InterfaceName: "eth0",
 				MAC:           &cnet.MAC{mac1},
