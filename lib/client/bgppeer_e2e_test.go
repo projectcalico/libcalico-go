@@ -69,9 +69,11 @@ var _ = Describe("BGPPeer tests", func() {
 
 			// Create a BGPPeer with meta1 and spec1.
 			_, outError = c.BGPPeers().Create(&api.BGPPeer{Metadata: meta1, Spec: spec1})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Apply a BGPPeer with meta2 and spec2.
 			_, outError = c.BGPPeers().Apply(&api.BGPPeer{Metadata: meta2, Spec: spec2})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Get BGPPeer with meta1.
 			outBGPPeer1, outError1 := c.BGPPeers().Get(meta1)
@@ -90,7 +92,8 @@ var _ = Describe("BGPPeer tests", func() {
 			By("Update, Get and compare")
 
 			// Update meta1 BGPPeer with spec2.
-			c.BGPPeers().Update(&api.BGPPeer{Metadata: meta1, Spec: spec2})
+			_, outError = c.BGPPeers().Update(&api.BGPPeer{Metadata: meta1, Spec: spec2})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Get BGPPeer with meta1.
 			outBGPPeer1, outError1 = c.BGPPeers().Get(meta1)
@@ -103,6 +106,7 @@ var _ = Describe("BGPPeer tests", func() {
 
 			// Get a list of BGPPeers.
 			BGPPeerList, outError := c.BGPPeers().List(api.BGPPeerMetadata{})
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get BGPPeer list returns: ", BGPPeerList.Items)
 
 			// Get BGPPeers for both Metadata.
@@ -117,6 +121,7 @@ var _ = Describe("BGPPeer tests", func() {
 
 			// Get a BGPPeer list with meta1.
 			BGPPeerList, outError = c.BGPPeers().List(meta1)
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get BGPPeer list returns: ", BGPPeerList.Items)
 
 			// Get a BGPPeer with meta1.
@@ -130,6 +135,7 @@ var _ = Describe("BGPPeer tests", func() {
 
 			// Delete a BGPPeer with meta1.
 			outError1 = c.BGPPeers().Delete(meta1)
+			Expect(outError1).NotTo(HaveOccurred())
 
 			// Get a BGPPeer with meta1.
 			_, outError = c.BGPPeers().Get(meta1)
@@ -139,12 +145,14 @@ var _ = Describe("BGPPeer tests", func() {
 
 			// Delete the second BGPPeer with meta2.
 			outError1 = c.BGPPeers().Delete(meta2)
+			Expect(outError1).NotTo(HaveOccurred())
 
 			By("Delete all the BGPPeers, Get BGPPeer list and expect empty BGPPeer list")
 
 			// Both BGPPeers are deleted in the calls above.
 			// Get the list of all the BGPPeers.
 			BGPPeerList, outError = c.BGPPeers().List(api.BGPPeerMetadata{})
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get BGPPeer list returns: ", BGPPeerList.Items)
 
 			// Create an empty BGPPeer list.
