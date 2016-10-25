@@ -85,10 +85,10 @@ var _ = Describe("HostEndpoint tests", func() {
 			log.Println("Out HostEndpoint object: ", outHostEndpoint2)
 
 			// Should match spec1 & outHostEndpoint1 and outHostEndpoint2 & spec2 and errors to be nil.
+			Expect(outError1).NotTo(HaveOccurred())
+			Expect(outError2).NotTo(HaveOccurred())
 			Expect(outHostEndpoint1.Spec).To(Equal(spec1))
 			Expect(outHostEndpoint2.Spec).To(Equal(spec2))
-			Expect(outError1).To(BeNil())
-			Expect(outError2).To(BeNil())
 
 			By("Update, Get and compare")
 
@@ -99,8 +99,8 @@ var _ = Describe("HostEndpoint tests", func() {
 			outHostEndpoint1, outError1 = c.HostEndpoints().Get(meta1)
 
 			// Assert the Spec for HostEndpoint with meta1 matches spec2 and no error.
+			Expect(outError1).NotTo(HaveOccurred())
 			Expect(outHostEndpoint1.Spec).To(Equal(spec2))
-			Expect(outError1).To(BeNil())
 
 			By("List all the HostEndpoints and compare")
 
@@ -128,8 +128,8 @@ var _ = Describe("HostEndpoint tests", func() {
 			outHostEndpoint1, outError1 = c.HostEndpoints().Get(meta1)
 
 			// Assert they are equal and no errors.
+			Expect(outError1).NotTo(HaveOccurred())
 			Expect(hostEndpointList.Items[0].Spec).To(Equal(outHostEndpoint1.Spec))
-			Expect(outError1).To(BeNil())
 
 			By("Delete, Get and assert error")
 
