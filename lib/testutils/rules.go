@@ -31,8 +31,8 @@ var numProtocol1 = numorstring.ProtocolFromInt(240)
 var icmpType1 = 100
 var icmpCode1 = 200
 
-var _, cidr1, _ = net.ParseCIDR("10.0.0.1/24")
-var _, cidr2, _ = net.ParseCIDR("20.0.0.1/24")
+var cidr1 = MustParseCIDR("10.0.0.1/24")
+var cidr2 = MustParseCIDR("20.0.0.1/24")
 
 var icmp1 = api.ICMPFields{
 	Type: &icmpType1,
@@ -45,10 +45,8 @@ var InRule1 = api.Rule{
 	Protocol:  &strProtocol1,
 	ICMP:      &icmp1,
 	Source: api.EntityRule{
-		Tag: "tag1",
-		Net: &cnet.IPNet{
-			*cidr1,
-		},
+		Tag:      "tag1",
+		Net:      &cidr1,
 		Selector: "selector1",
 	},
 }
@@ -73,10 +71,8 @@ var EgressRule1 = api.Rule{
 	Protocol:  &numProtocol1,
 	ICMP:      &icmp1,
 	Source: api.EntityRule{
-		Tag: "tag3",
-		Net: &cnet.IPNet{
-			*cidr2,
-		},
+		Tag:      "tag3",
+		Net:      &cidr2,
 		Selector: "selector3",
 	},
 }
