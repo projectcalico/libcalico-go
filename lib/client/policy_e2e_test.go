@@ -98,10 +98,10 @@ var _ = Describe("Policy tests", func() {
 			log.Println("Out Policy object: ", outPolicy2)
 
 			// Should match spec1 & outPolicy1 and outPolicy2 & spec2 and errors to be nil.
-			Expect(outPolicy1.Spec).To(Equal(spec1))
-			Expect(outPolicy2.Spec).To(Equal(spec2))
 			Expect(outError1).NotTo(HaveOccurred())
 			Expect(outError2).NotTo(HaveOccurred())
+			Expect(outPolicy1.Spec).To(Equal(spec1))
+			Expect(outPolicy2.Spec).To(Equal(spec2))
 
 			By("Update, Get and compare")
 
@@ -112,8 +112,8 @@ var _ = Describe("Policy tests", func() {
 			outPolicy1, outError1 = c.Policies().Get(meta1)
 
 			// Assert the Spec for policy with meta1 matches spec2 and no error.
-			Expect(outPolicy1.Spec).To(Equal(spec2))
 			Expect(outError1).NotTo(HaveOccurred())
+			Expect(outPolicy1.Spec).To(Equal(spec2))
 
 			By("List all the policies and compare")
 
@@ -141,8 +141,8 @@ var _ = Describe("Policy tests", func() {
 			outPolicy1, outError1 = c.Policies().Get(meta1)
 
 			// Assert they are equal and no errors.
-			Expect(policyList.Items[0].Spec).To(Equal(outPolicy1.Spec))
 			Expect(outError1).NotTo(HaveOccurred())
+			Expect(policyList.Items[0].Spec).To(Equal(outPolicy1.Spec))
 
 			By("Delete, Get and assert error")
 
