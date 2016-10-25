@@ -82,10 +82,10 @@ var _ = Describe("BGPPeer tests", func() {
 			log.Println("Out BGPPeer object: ", outBGPPeer2)
 
 			// Should match spec1 & outBGPPeer1 and outBGPPeer2 & spec2 and errors to be nil.
-			Expect(outBGPPeer1.Spec).To(Equal(spec1))
-			Expect(outBGPPeer2.Spec).To(Equal(spec2))
 			Expect(outError1).NotTo(HaveOccurred())
 			Expect(outError2).NotTo(HaveOccurred())
+			Expect(outBGPPeer1.Spec).To(Equal(spec1))
+			Expect(outBGPPeer2.Spec).To(Equal(spec2))
 
 			By("Update, Get and compare")
 
@@ -96,8 +96,8 @@ var _ = Describe("BGPPeer tests", func() {
 			outBGPPeer1, outError1 = c.BGPPeers().Get(meta1)
 
 			// Assert the Spec for BGPPeer with meta1 matches spec2 and no error.
-			Expect(outBGPPeer1.Spec).To(Equal(spec2))
 			Expect(outError1).NotTo(HaveOccurred())
+			Expect(outBGPPeer1.Spec).To(Equal(spec2))
 
 			By("List all the BGPPeers and compare")
 
@@ -123,8 +123,8 @@ var _ = Describe("BGPPeer tests", func() {
 			outBGPPeer1, outError1 = c.BGPPeers().Get(meta1)
 
 			// Assert they are equal and no errors.
-			Expect(BGPPeerList.Items[0].Spec).To(Equal(outBGPPeer1.Spec))
 			Expect(outError1).NotTo(HaveOccurred())
+			Expect(BGPPeerList.Items[0].Spec).To(Equal(outBGPPeer1.Spec))
 
 			By("Delete, Get and assert error")
 
@@ -154,7 +154,6 @@ var _ = Describe("BGPPeer tests", func() {
 
 			// Expect returned BGPPeerList to contain empty BGPPeerList.
 			Expect(BGPPeerList.Items).To(Equal(*emptyBGPPeerList))
-
 		},
 
 		// Test 1: Pass two fully populated BGPPeerSpecs and expect the series of operations to succeed.
