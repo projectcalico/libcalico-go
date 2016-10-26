@@ -15,10 +15,7 @@
 package testutils
 
 import (
-	"net"
-
 	"github.com/projectcalico/libcalico-go/lib/api"
-	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
 
@@ -33,6 +30,8 @@ var icmpCode1 = 200
 
 var cidr1 = MustParseCIDR("10.0.0.1/24")
 var cidr2 = MustParseCIDR("20.0.0.1/24")
+var cidrv61 = MustParseCIDR("abcd:5555::/120")
+var cidrv62 = MustParseCIDR("abcd:2345::/120")
 
 var icmp1 = api.ICMPFields{
 	Type: &icmpType1,
@@ -57,10 +56,8 @@ var InRule2 = api.Rule{
 	Protocol:  &numProtocol1,
 	ICMP:      &icmp1,
 	Source: api.EntityRule{
-		Tag: "tag2",
-		Net: &cnet.IPNet{
-			net.IPNet{IP: net.ParseIP("abcd:2345::"), Mask: net.IPMask(net.ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"))},
-		},
+		Tag:      "tag2",
+		Net:      &cidrv61,
 		Selector: "selector2",
 	},
 }
@@ -83,10 +80,8 @@ var EgressRule2 = api.Rule{
 	Protocol:  &strProtocol2,
 	ICMP:      &icmp1,
 	Source: api.EntityRule{
-		Tag: "tag4",
-		Net: &cnet.IPNet{
-			net.IPNet{IP: net.ParseIP("abcd:5555::"), Mask: net.IPMask(net.ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"))},
-		},
+		Tag:      "tag4",
+		Net:      &cidrv62,
 		Selector: "selector4",
 	},
 }
