@@ -45,6 +45,18 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/testutils"
 )
 
+var profileSpec1 = api.ProfileSpec{
+	IngressRules: []api.Rule{testutils.InRule1, testutils.InRule2},
+	EgressRules:  []api.Rule{testutils.EgressRule1, testutils.EgressRule2},
+	Tags:         []string{"profile1-tag1", "profile1-tag2"},
+}
+
+var profileSpec2 = api.ProfileSpec{
+	IngressRules: []api.Rule{testutils.InRule2, testutils.InRule1},
+	EgressRules:  []api.Rule{testutils.EgressRule2, testutils.EgressRule1},
+	Tags:         []string{"profile2-tag1", "profile2-tag2"},
+}
+
 var _ = Describe("Profile tests", func() {
 
 	DescribeTable("Profile e2e tests",
@@ -68,9 +80,11 @@ var _ = Describe("Profile tests", func() {
 
 			// Create a profile with meta1 and spec1.
 			_, outError = c.Profiles().Create(&api.Profile{Metadata: meta1, Spec: spec1})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Apply a profile with meta2 and spec2.
 			_, outError = c.Profiles().Apply(&api.Profile{Metadata: meta2, Spec: spec2})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Get profile with meta1.
 			outProfile1, outError1 := c.Profiles().Get(meta1)
@@ -81,33 +95,36 @@ var _ = Describe("Profile tests", func() {
 			log.Println("Out Profile object: ", outProfile2)
 
 			// Should match spec1 & outProfile1 and outProfile2 & spec2 and errors to be nil.
-			Expect(outProfile1.Spec).To(Equal(spec1))
-			Expect(outProfile2.Spec).To(Equal(spec2))
 			Expect(outError1).NotTo(HaveOccurred())
 			Expect(outError2).NotTo(HaveOccurred())
+			Expect(outProfile1.Spec).To(Equal(spec1))
+			Expect(outProfile2.Spec).To(Equal(spec2))
 
 			By("Update, Get and compare")
 
 			// Update meta1 profile with spec2.
-			c.Profiles().Update(&api.Profile{Metadata: meta1, Spec: spec2})
+			_, outError = c.Profiles().Update(&api.Profile{Metadata: meta1, Spec: spec2})
+			Expect(outError).NotTo(HaveOccurred())
 
 			// Get profile with meta1.
 			outProfile1, outError1 = c.Profiles().Get(meta1)
 
 			// Assert the Spec for profile with meta1 matches spec2 and no error.
-			Expect(outProfile1.Spec).To(Equal(spec2))
 			Expect(outError1).NotTo(HaveOccurred())
+			Expect(outProfile1.Spec).To(Equal(spec2))
 
 			By("List all the profiles and compare")
 
 			// Get a list of profiless.
 			profileList, outError := c.Profiles().List(api.ProfileMetadata{})
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get profile list returns: ", profileList.Items)
 			metas := []api.ProfileMetadata{meta1, meta2}
 			expectedProfiles := []api.Profile{}
 			// Go through meta list and append them to expectedProfiles.
 			for _, v := range metas {
-				p, _ := c.Profiles().Get(v)
+				p, outError := c.Profiles().Get(v)
+				Expect(outError).NotTo(HaveOccurred())
 				expectedProfiles = append(expectedProfiles, *p)
 			}
 
@@ -118,19 +135,21 @@ var _ = Describe("Profile tests", func() {
 
 			// Get a profile list with meta1.
 			profileList, outError = c.Profiles().List(meta1)
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get profile list returns: ", profileList.Items)
 
 			// Get a profile with meta1.
 			outProfile1, outError1 = c.Profiles().Get(meta1)
 
 			// Assert they are equal and no errors.
-			Expect(profileList.Items[0].Spec).To(Equal(outProfile1.Spec))
 			Expect(outError1).NotTo(HaveOccurred())
+			Expect(profileList.Items[0].Spec).To(Equal(outProfile1.Spec))
 
 			By("Delete, Get and assert error")
 
 			// Delete a profile with meta1.
 			outError1 = c.Profiles().Delete(meta1)
+			Expect(outError1).NotTo(HaveOccurred())
 
 			// Get a profile with meta1.
 			_, outError = c.Profiles().Get(meta1)
@@ -140,12 +159,14 @@ var _ = Describe("Profile tests", func() {
 
 			// Delete the second profile with meta2.
 			outError1 = c.Profiles().Delete(meta2)
+			Expect(outError1).NotTo(HaveOccurred())
 
 			By("Delete all the profiles, Get profile list and expect empty profile list")
 
 			// Both profiles are deleted in the calls above.
 			// Get the list of all the profiles.
 			profileList, outError = c.Profiles().List(api.ProfileMetadata{})
+			Expect(outError).NotTo(HaveOccurred())
 			log.Println("Get profile list returns: ", profileList.Items)
 
 			// Create an empty profile list.
@@ -162,15 +183,15 @@ var _ = Describe("Profile tests", func() {
 		Entry("Two fully populated ProfileSpecs",
 			api.ProfileMetadata{Name: "profile1"},
 			api.ProfileMetadata{Name: "profile2"},
-			*createAPIProfileSpecObject("profile1", []string{"profile1-tag1", "profile1-tag2"}),
-			*createAPIProfileSpecObject("profile2", []string{"profile2-tag1", "profile2-tag2"}),
+			profileSpec1,
+			profileSpec2,
 		),
 
 		// Test 2: Pass one fully populated ProfileSpec and another empty ProfileSpec and expect the series of operations to succeed.
 		Entry("One fully populated ProfileSpec and another empty ProfileSpec",
 			api.ProfileMetadata{Name: "profile1"},
 			api.ProfileMetadata{Name: "profile2"},
-			*createAPIProfileSpecObject("profile1", []string{"profile1-tag1", "profile1-tag2"}),
+			profileSpec1,
 			api.ProfileSpec{},
 		),
 
@@ -181,24 +202,7 @@ var _ = Describe("Profile tests", func() {
 			api.ProfileSpec{
 				Tags: []string{"profile1-tag1"},
 			},
-			*createAPIProfileSpecObject("profile2", []string{"profile2-tag1", "profile2-tag2"}),
+			profileSpec2,
 		),
 	)
 })
-
-// createAPIProfileSpecObject takes profile configuration options (name, order, selector),
-// creates 2 fixed set of ingress and egress rules (one with IPv4 and one with IPv6),
-// and composes & returns an api.ProfileSpec object.
-func createAPIProfileSpecObject(name string, tags []string) *api.ProfileSpec {
-	inRule1, eRule1 := testutils.CreateRule(4, 100, 200, "icmp", "10.0.0.0/24", "abc-tag", "abc-selector", "allow", "deny")
-	inRule2, eRule2 := testutils.CreateRule(6, 111, 222, "111", "fe80::00/120", "xyz-tag", "xyz-selector", "deny", "allow")
-
-	inRules := []api.Rule{inRule1, inRule2}
-	eRules := []api.Rule{eRule1, eRule2}
-
-	return &api.ProfileSpec{
-		IngressRules: inRules,
-		EgressRules:  eRules,
-		Tags:         tags,
-	}
-}
