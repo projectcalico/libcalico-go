@@ -181,24 +181,60 @@ var _ = Describe("Profile tests", func() {
 
 		// Test 1: Pass two fully populated ProfileSpecs and expect the series of operations to succeed.
 		Entry("Two fully populated ProfileSpecs",
-			api.ProfileMetadata{Name: "profile1"},
-			api.ProfileMetadata{Name: "profile2"},
+			api.ProfileMetadata{
+				Name: "profile1",
+				Labels: map[string]string{
+					"app":  "app-abc",
+					"prod": "yes",
+				},
+			},
+			api.ProfileMetadata{
+				Name: "profile2",
+				Labels: map[string]string{
+					"app":  "app-xyz",
+					"prod": "no",
+				},
+			},
 			profileSpec1,
 			profileSpec2,
 		),
 
 		// Test 2: Pass one fully populated ProfileSpec and another empty ProfileSpec and expect the series of operations to succeed.
 		Entry("One fully populated ProfileSpec and another empty ProfileSpec",
-			api.ProfileMetadata{Name: "profile1"},
-			api.ProfileMetadata{Name: "profile2"},
+			api.ProfileMetadata{
+				Name: "profile1",
+				Labels: map[string]string{
+					"app":  "app-abc",
+					"prod": "yes",
+				},
+			},
+			api.ProfileMetadata{
+				Name: "profile2",
+				Labels: map[string]string{
+					"app":  "app-xyz",
+					"prod": "no",
+				},
+			},
 			profileSpec1,
 			api.ProfileSpec{},
 		),
 
 		// Test 3: Pass one partially populated ProfileSpec and another fully populated ProfileSpec and expect the series of operations to succeed.
 		Entry("One partially populated ProfileSpec and another fully populated ProfileSpec",
-			api.ProfileMetadata{Name: "profile1"},
-			api.ProfileMetadata{Name: "profile2"},
+			api.ProfileMetadata{
+				Name: "profile1",
+				Labels: map[string]string{
+					"app":  "app-abc",
+					"prod": "yes",
+				},
+			},
+			api.ProfileMetadata{
+				Name: "profile2",
+				Labels: map[string]string{
+					"app":  "app-xyz",
+					"prod": "no",
+				},
+			},
 			api.ProfileSpec{
 				Tags: []string{"profile1-tag1"},
 			},
