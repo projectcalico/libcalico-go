@@ -142,6 +142,10 @@ func (c ipams) AutoAssign(args AutoAssignArgs) ([]net.IP, []net.IP, error) {
 		}
 	}
 
+	if len(v4list) < args.Num4 || len(v6list) < args.Num6 {
+		return v4list, v6list, goerrors.New("Fewer IPs than requested")
+	}
+
 	return v4list, v6list, nil
 }
 
