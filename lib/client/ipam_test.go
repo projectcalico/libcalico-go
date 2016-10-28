@@ -191,14 +191,28 @@ var _ = Describe("IPAM tests", func() {
 
 	DescribeTable("ClaimAffinity: claim IPNet vs actual number of blocks claimed",
 		func(args testArgsClaimAff) {
-			_, inIPNet, err := net.ParseCIDR(args.inNet)
-			if err != nil {
-				log.Printf("Error parsing CIDR: %s\n", err)
-			}
+			inIPNet := testutils.MustParseCIDR(args.inNet)
+
 			if args.inNet == "" {
-				inIPNet = &net.IPNet{}
+				inIPNet = cnet.IPNet{}
 			}
-			outClaimed, outFailed, outError := testIPAMClaimAffinity(*inIPNet, args.host, args.pool, args.assignIP, args.cleanEnv)
+
+			// Wipe clean etcd, create a new client, and pools when cleanEnv flag is true.
+			if args.cleanEnv {
+				testutils.CleanEtcd()
+				c, _ := testutils.NewClient("")
+				for _, v := range args.pool {
+					testutils.CreateNewPool(*c, v, false, false, true)
+				}
+			}
+
+			ic := setupIPAMClient(args.cleanEnv)
+
+			assignIPutil(ic, args.assignIP, "Host-A")
+
+			outClaimed, outFailed, outError := ic.ClaimAffinity(inIPNet, args.host)
+			log.Println("Claimed IP blocks: ", outClaimed)
+			log.Println("Failed to claim IP blocks: ", outFailed)
 
 			// Expect returned slice of claimed IPNet to be equal to expected claimed.
 			Expect(len(outClaimed)).To(Equal(args.expClaimedIPs))
@@ -233,28 +247,6 @@ var _ = Describe("IPAM tests", func() {
 		Entry("Claim affinity to the same block again but for Host-B this time", testArgsClaimAff{"10.0.0.0/24", "host-B", false, []string{"10.0.0.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 0, 4, nil}),
 	)
 })
-
-// testIPAMClaimAffinity takes inNet which is the CIDR to claim affinity to. It also takes host, poolSubnets to configure a new pool,
-// when assignIP is not empty it will assign that IP and return zero-value for the return values, and cleanEnv is to clear the datastore etc.
-func testIPAMClaimAffinity(inNet net.IPNet, host string, poolSubnet []string, assignIP net.IP, cleanEnv bool) (claimed []cnet.IPNet, failed []cnet.IPNet, outErr error) {
-	if cleanEnv {
-		testutils.CleanEtcd()
-		c, _ := testutils.NewClient("")
-		for _, v := range poolSubnet {
-			testutils.CreateNewPool(*c, v, false, false, true)
-		}
-	}
-	ic := setupIPAMClient(cleanEnv)
-
-	assignIPutil(ic, assignIP, "Host-A")
-
-	claimed, failed, outErr = ic.ClaimAffinity(cnet.IPNet{inNet}, host)
-	log.Println("Claimed IP blocks: ", claimed)
-	log.Println("Failed to claim IP blocks: ", failed)
-
-	return claimed, failed, outErr
-
-}
 
 // testIPAMReleaseIPs takes an IP, slice of string with IP pools to setup, cleanEnv flag means  setup a new environment.
 // assignIP is if you want to assign a single IP before releasing an IP, and AutoAssign is to assign IPs in bulk before releasing any.
