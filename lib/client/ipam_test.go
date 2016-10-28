@@ -193,10 +193,6 @@ var _ = Describe("IPAM tests", func() {
 		func(args testArgsClaimAff) {
 			inIPNet := testutils.MustParseCIDR(args.inNet)
 
-			if args.inNet == "" {
-				inIPNet = cnet.IPNet{}
-			}
-
 			// Wipe clean etcd, create a new client, and pools when cleanEnv flag is true.
 			if args.cleanEnv {
 				testutils.CleanEtcd()
