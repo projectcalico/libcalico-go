@@ -87,21 +87,6 @@ type KVPair struct {
 	TTL      time.Duration // For writes, if non-zero, key has a TTL.
 }
 
-// Update from the Syncer.  A KV pair plus extra metadata.
-type Update struct {
-	KVPair
-	UpdateType UpdateType
-}
-
-type UpdateType uint8
-
-const (
-	UpdateTypeKVUnknown UpdateType = iota
-	UpdateTypeKVNew
-	UpdateTypeKVUpdated
-	UpdateTypeKVDeleted
-)
-
 // KeyToDefaultPath converts one of the Keys from this package into a unique
 // '/'-delimited path, which is suitable for use as the key when storing the
 // value in a hierarchical (i.e. one with directories and leaves) key/value

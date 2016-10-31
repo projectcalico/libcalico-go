@@ -273,13 +273,13 @@ func (syn *etcdSyncer) mergeUpdates(snapshotUpdates <-chan event, watcherUpdates
 			if oldIdx < e.modifiedIndex {
 				// Event is newer than value for that key.
 				// Send the update to Felix.
-				var updateType model.UpdateType
+				var updateType api.UpdateType
 				if oldIdx > 0 {
 					log.WithField("oldIdx", oldIdx).Debug("Set updates known key")
-					updateType = model.UpdateTypeKVUpdated
+					updateType = api.UpdateTypeKVUpdated
 				} else {
 					log.WithField("oldIdx", oldIdx).Debug("Set is a new key")
-					updateType = model.UpdateTypeKVNew
+					updateType = api.UpdateTypeKVNew
 				}
 				syn.sendUpdate(e.key, &e.value, e.modifiedIndex, updateType)
 			}
@@ -304,7 +304,7 @@ func (syn *etcdSyncer) mergeUpdates(snapshotUpdates <-chan event, watcherUpdates
 	}
 }
 
-func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64, updateType model.UpdateType) {
+func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64, updateType api.UpdateType) {
 	log.Debugf("Parsing etcd key %#v", key)
 	parsedKey := model.KeyFromDefaultPath(key)
 	if parsedKey == nil {
@@ -325,7 +325,7 @@ func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64, up
 		}
 		log.Debugf("Parsed value: %#v", parsedValue)
 	}
-	updates := []model.Update{
+	updates := []api.Update{
 		{
 			KVPair: model.KVPair{
 				Key:      parsedKey,
@@ -339,7 +339,7 @@ func (syn *etcdSyncer) sendUpdate(key string, value *string, revision uint64, up
 }
 
 func (syn *etcdSyncer) sendDeletions(deletedKeys []string, revision uint64) {
-	updates := make([]model.Update, 0, len(deletedKeys))
+	updates := make([]api.Update, 0, len(deletedKeys))
 	for _, key := range deletedKeys {
 		parsedKey := model.KeyFromDefaultPath(key)
 		if parsedKey == nil {
@@ -349,13 +349,13 @@ func (syn *etcdSyncer) sendDeletions(deletedKeys []string, revision uint64) {
 			}
 			continue
 		}
-		updates = append(updates, model.Update{
+		updates = append(updates, api.Update{
 			KVPair: model.KVPair{
 				Key:      parsedKey,
 				Value:    nil,
 				Revision: revision,
 			},
-			UpdateType: model.UpdateTypeKVDeleted,
+			UpdateType: api.UpdateTypeKVDeleted,
 		})
 	}
 	syn.callbacks.OnUpdates(updates)
