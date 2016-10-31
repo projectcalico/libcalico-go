@@ -20,8 +20,6 @@ import (
 
 	"time"
 
-	"encoding/json"
-
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/pkg/transport"
@@ -221,9 +219,9 @@ func (c *EtcdClient) set(d *model.KVPair, options *etcd.SetOptions) (*model.KVPa
 		logCxt.WithError(err).Error("Failed to convert key to path")
 		return nil, err
 	}
-	bytes, err := json.Marshal(d.Value)
+	bytes, err := model.SerializeValue(d)
 	if err != nil {
-		logCxt.WithError(err).Error("Failed to marshal value")
+		logCxt.WithError(err).Error("Failed to serialize value")
 		return nil, err
 	}
 
