@@ -423,7 +423,7 @@ func (c ipams) releaseIPsFromBlock(ips []net.IP, blockCIDR net.IPNet) ([]net.IP,
 		// the Value since we have updated the structure pointed to in the
 		// KVPair.
 		var updateErr error
-		if b.empty() && b.HostAffinity == nil {
+		if b.empty() && b.Affinity == nil {
 			log.Debugf("Deleting non-affine block '%s'", b.CIDR.String())
 			updateErr = c.client.backend.Delete(obj)
 		} else {
@@ -760,7 +760,7 @@ func (c ipams) releaseByHandle(handleID string, blockCIDR net.IPNet) error {
 			return nil
 		}
 
-		if block.empty() && block.HostAffinity == nil {
+		if block.empty() && block.Affinity == nil {
 			err = c.client.backend.Delete(&model.KVPair{
 				Key: model.BlockKey{blockCIDR},
 			})
