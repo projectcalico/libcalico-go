@@ -245,22 +245,11 @@ func (c *ModelAdaptor) getBlock(k model.Key) (*model.KVPair, error) {
 	if err != nil {
 		return nil, err
 	}
-	val := v.Value.(*model.AllocationBlock)
 
-	// Check for `Affinity` field first (this is to make sure we're
-	// compatible with Python version etcd data-model).
-	if val.Affinity == nil {
-		// Check for hostAffinity if Affinity is nil.
-		if val.HostAffinity != nil {
-			// Convert HostAffinity=hostname into Affinity=host:hostname format.
-			hostAffinityStr := "host:" + *val.HostAffinity
-			val.Affinity = &hostAffinityStr
-
-			// Set AllocationBlock.HostAffinity to nil so it's never non-nil for the clients.
-			val.HostAffinity = nil
-		}
-	}
-	return &model.KVPair{Key: v.Key, Value: val}, nil
+	// Make sure Affinity field has a proper value,
+	// and map the value to Affinity if deprecated HostAffinity field is used
+	// by calling ensureBlockAffinity, and update the KVPair to return.
+	return ensureBlockAffinity(v), nil
 }
 
 // getNode gets the composite node by getting the individual components
@@ -334,22 +323,32 @@ func (c *ModelAdaptor) listBlock(l model.BlockListOptions) ([]*model.KVPair, err
 		return nil, err
 	}
 
-	// Create an empty slice of KVPair.
-	results := make([]*model.KVPair, len(bal))
-
 	// Go through the list to make sure Affinity field has a proper value,
 	// and map the value to Affinity if deprecated HostAffinity field is used
-	// by calling getBlock, and populate the KVPair slice to return.
+	// by calling ensureBlockAffinity, and update the KVPair slice to return.
 	for idx, bakv := range bal {
-		kvp, err := c.getBlock(bakv.Key)
-		if err != nil {
-			return nil, err
-		}
-
-		results[idx] = kvp
+		bal[idx] = ensureBlockAffinity(bakv)
 	}
 
-	return results, nil
+	return bal, nil
+}
+
+// ensureBlockAffinity ensures Affinity field has a proper value,
+// and map the value to Affinity if deprecated HostAffinity field is used.
+func ensureBlockAffinity(kvp *model.KVPair) *model.KVPair {
+	val := kvp.Value.(*model.AllocationBlock)
+
+	// Check for `Affinity` field first (this is to make sure we're
+	// compatible with Python version etcd data-model).
+	if val.Affinity == nil && val.HostAffinity != nil {
+		// Convert HostAffinity=hostname into Affinity=host:hostname format.
+		hostAffinityStr := "host:" + *val.HostAffinity
+		val.Affinity = &hostAffinityStr
+
+		// Set AllocationBlock.HostAffinity to nil so it's never non-nil for the clients.
+		val.HostAffinity = nil
+	}
+	return &model.KVPair{Key: kvp.Key, Value: val}
 }
 
 // Get the node sub components and fill in the details in the supplied node

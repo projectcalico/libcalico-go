@@ -103,7 +103,7 @@ func (b *allocationBlock) autoAssign(
 }
 
 func (b *allocationBlock) assign(address cnet.IP, handleID *string, attrs map[string]string, host string) error {
-	if b.StrictAffinity && b.Affinity != nil && host != *b.Affinity {
+	if b.StrictAffinity && b.Affinity != nil && !hostAffinityMatches(host, b.AllocationBlock) {
 		// Affinity check is enabled but the host does not match - error.
 		return errors.New("Block host affinity does not match")
 	}
