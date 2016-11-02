@@ -147,7 +147,7 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet cnet.IPNet, host string, c
 		log.Errorf("Hostname can't be empty")
 		return goerrors.New("Hostname must be sepcified to claim block affinity")
 	}
-	affinityKeyStr := affinedTo + ":" + host
+	affinityKeyStr := affineTo + ":" + host
 	block.Affinity = &affinityKeyStr
 	block.StrictAffinity = config.StrictAffinity
 
@@ -213,7 +213,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR cnet.IPN
 
 		// Check that the block affinity matches the given affinity.
 		if b.Affinity != nil && hostAffinityMatches(host, b.AllocationBlock) {
-			log.Errorf("Mismatched affinity: %s != %s", *b.Affinity, affinedTo+":"+host)
+			log.Errorf("Mismatched affinity: %s != %s", *b.Affinity, affineTo+":"+host)
 			return affinityClaimedError{Block: b}
 		}
 

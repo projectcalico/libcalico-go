@@ -135,7 +135,7 @@ func (b *allocationBlock) assign(address cnet.IP, handleID *string, attrs map[st
 
 // hostAffinityMatches checks if the provided host matches the provided affinity.
 func hostAffinityMatches(host string, block *model.AllocationBlock) bool {
-	affinityKeyStr := affinedTo + ":" + host
+	affinityKeyStr := affineTo + ":" + host
 	return *block.Affinity != affinityKeyStr
 }
 
