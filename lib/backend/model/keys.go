@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"strings"
 
+	"fmt"
 	net2 "net"
 	"time"
 
@@ -29,9 +30,11 @@ import (
 // RawString is used a value type to indicate that the value is a bare non-JSON string
 type rawString string
 type rawBool bool
+type rawIP net.IP
 
 var rawStringType = reflect.TypeOf(rawString(""))
 var rawBoolType = reflect.TypeOf(rawBool(true))
+var rawIPType = reflect.TypeOf(rawIP{})
 
 // Key represents a parsed datastore key.
 type Key interface {
@@ -230,7 +233,7 @@ func ParseValue(key Key, rawData []byte) (interface{}, error) {
 	if valueType == rawBoolType {
 		return string(rawData) == "true", nil
 	}
-	if valueType == reflect.TypeOf(net.IP{}) {
+	if valueType == rawIPType {
 		ip := net2.ParseIP(string(rawData))
 		if ip == nil {
 			return nil, nil
@@ -256,4 +259,23 @@ func ParseValue(key Key, rawData []byte) (interface{}, error) {
 		iface = elem.Interface()
 	}
 	return iface, nil
+}
+
+// Serialize a value in the model to a []byte to stored in the datastore.  This
+// performs the opposite processing to ParseValue()
+func SerializeValue(d *KVPair) ([]byte, error) {
+	valueType := d.Key.valueType()
+	if d.Value == nil {
+		return json.Marshal(nil)
+	}
+	if valueType == rawStringType {
+		return []byte(d.Value.(string)), nil
+	}
+	if valueType == rawBoolType {
+		return []byte(fmt.Sprint(d.Value)), nil
+	}
+	if valueType == rawIPType {
+		return []byte(fmt.Sprint(d.Value)), nil
+	}
+	return json.Marshal(d.Value)
 }

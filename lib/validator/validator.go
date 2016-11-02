@@ -33,8 +33,8 @@ var (
 	nameRegex          = regexp.MustCompile("^[a-zA-Z0-9_.-]+$")
 	interfaceRegex     = regexp.MustCompile("^[a-zA-Z0-9_-]{1,15}$")
 	labelRegex         = regexp.MustCompile("^[a-zA-Z_./-][a-zA-Z0-9_./-]*$")
-	actionRegex        = regexp.MustCompile("^(allow|deny|log)$")
-	backendActionRegex = regexp.MustCompile("^(allow|deny|log|)$")
+	actionRegex        = regexp.MustCompile("^(allow|deny|log|pass)$")
+	backendActionRegex = regexp.MustCompile("^(allow|deny|log|next-tier|)$")
 	protocolRegex      = regexp.MustCompile("^(tcp|udp|icmp|icmpv6|sctp|udplite)$")
 )
 
@@ -63,6 +63,7 @@ func init() {
 	registerStructValidator(validatePoolMetadata, api.PoolMetadata{})
 	registerStructValidator(validateICMPFields, api.ICMPFields{})
 	registerStructValidator(validateRule, api.Rule{})
+	registerStructValidator(validateNodeSpec, api.NodeSpec{})
 }
 
 func registerFieldValidator(key string, fn validator.Func) {
@@ -81,7 +82,7 @@ func Validate(current interface{}) error {
 
 	verr := errors.ErrorValidation{}
 	for _, f := range err.(validator.ValidationErrors) {
-		verr.ErrFields = append(verr.ErrFields,
+		verr.ErroredFields = append(verr.ErroredFields,
 			errors.ErroredField{Name: f.Name, Value: f.Value})
 	}
 	return verr
@@ -281,5 +282,13 @@ func validateRule(v *validator.Validate, structLevel *validator.StructLevel) {
 		if len(rule.Destination.NotPorts) > 0 {
 			structLevel.ReportError(reflect.ValueOf(rule.Destination.NotPorts), "Destination.NotPorts", "destination !ports", "port is not valid for protocol")
 		}
+	}
+}
+
+func validateNodeSpec(v *validator.Validate, structLevel *validator.StructLevel) {
+	ns := structLevel.CurrentStruct.Interface().(api.NodeSpec)
+
+	if ns.BGP != nil && ns.BGP.IPv4Address == nil && ns.BGP.IPv6Address == nil {
+		structLevel.ReportError(reflect.ValueOf(ns.BGP.IPv4Address), "BGP.IPv4Address", "ipv4Address", "no BGP IP address specified")
 	}
 }
