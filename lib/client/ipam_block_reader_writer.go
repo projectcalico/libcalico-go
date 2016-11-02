@@ -30,9 +30,9 @@ import (
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 )
 
-// affinedTo variable represents what the resource (host in
+// affineTo variable represents what the resource (host in
 // this case) is affined to.
-var affinedTo = "host"
+var affineTo = "host"
 
 type blockReaderWriter struct {
 	client *Client
@@ -210,11 +210,10 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR cnet.IPN
 			log.Errorf("Hostname can't be empty")
 			return goerrors.New("Hostname must be sepcified to release block affinity")
 		}
-		affinityKeyStr := affinedTo + ":" + host
 
 		// Check that the block affinity matches the given affinity.
-		if b.Affinity != nil && *b.Affinity != affinityKeyStr {
-			log.Errorf("Mismatched affinity: %s != %s", *b.Affinity, affinityKeyStr)
+		if b.Affinity != nil && hostAffinityMatches(host, b.AllocationBlock) {
+			log.Errorf("Mismatched affinity: %s != %s", *b.Affinity, affinedTo+":"+host)
 			return affinityClaimedError{Block: b}
 		}
 

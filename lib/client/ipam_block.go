@@ -77,7 +77,7 @@ func (b *allocationBlock) autoAssign(
 
 	// Determine if we need to check for affinity.
 	checkAffinity := b.StrictAffinity || affinityCheck
-	if checkAffinity && b.Affinity != nil && host != *b.Affinity {
+	if checkAffinity && b.Affinity != nil && hostAffinityMatches(host, b.AllocationBlock) {
 		// Affinity check is enabled but the host does not match - error.
 		s := fmt.Sprintf("Block affinity (%s) does not match provided (%s)", *b.Affinity, host)
 		return nil, errors.New(s)
@@ -131,6 +131,12 @@ func (b *allocationBlock) assign(address cnet.IP, handleID *string, attrs map[st
 		}
 	}
 	return nil
+}
+
+// hostAffinityMatches checks if the provided host matches the provided affinity.
+func hostAffinityMatches(host string, block *model.AllocationBlock) bool {
+	affinityKeyStr := affinedTo + ":" + host
+	return *block.Affinity != affinityKeyStr
 }
 
 func (b allocationBlock) numFreeAddresses() int {
