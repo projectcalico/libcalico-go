@@ -30,10 +30,6 @@ type ModelAdaptor struct {
 
 var _ api.Client = (*ModelAdaptor)(nil)
 
-// affineTo variable represents what the resource (host in
-// this case) is affined to.
-var affineTo = "host"
-
 func NewAdaptor(c api.Client) *ModelAdaptor {
 	return &ModelAdaptor{client: c}
 }
@@ -257,7 +253,7 @@ func (c *ModelAdaptor) getBlock(k model.Key) (*model.KVPair, error) {
 		// Check for hostAffinity if Affinity is nil.
 		if val.HostAffinity != nil {
 			// Convert HostAffinity=hostname into Affinity=host:hostname format.
-			hostAffinityStr := affineTo + ":" + *val.HostAffinity
+			hostAffinityStr := "host:" + *val.HostAffinity
 			val.Affinity = &hostAffinityStr
 
 			// Set AllocationBlock.HostAffinity to nil so it's never non-nil for the clients.
