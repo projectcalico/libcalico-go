@@ -486,7 +486,7 @@ func (c ipams) assignFromExistingBlock(
 
 		// Update the block using CAS by passing back the original
 		// KVPair.
-		obj.Value = &b.AllocationBlock
+		obj.Value = b.AllocationBlock
 		_, err = c.client.backend.Update(obj)
 		if err != nil {
 			log.Infof("Failed to update block '%s' - try again", b.CIDR.String())

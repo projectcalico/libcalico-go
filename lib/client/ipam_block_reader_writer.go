@@ -154,7 +154,7 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet cnet.IPNet, host string, c
 	// Create the new block in the datastore.
 	o := model.KVPair{
 		Key:   model.BlockKey{block.CIDR},
-		Value: &block.AllocationBlock,
+		Value: block.AllocationBlock,
 	}
 	_, err = rw.client.backend.Create(&o)
 	if err != nil {

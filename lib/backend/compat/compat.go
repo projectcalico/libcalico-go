@@ -289,7 +289,7 @@ func (c *ModelAdaptor) getNode(nk model.NodeKey) (*model.KVPair, error) {
 // validateBlockValue validates the AllocationBlock fields (specifically Affinity) to
 // make sure the deprecated HostAffinity field is not used.
 func validateBlockValue(kvp *model.KVPair) error {
-	if kvp.Value.(model.AllocationBlock).HostAffinity != nil {
+	if kvp.Value.(*model.AllocationBlock).HostAffinity != nil {
 		return goerrors.New("HostAffinity field is deprecated, use Affinity")
 	}
 	return nil
