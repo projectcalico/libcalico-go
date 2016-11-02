@@ -247,7 +247,7 @@ func (c *ModelAdaptor) getBlock(k model.Key) (*model.KVPair, error) {
 	}
 
 	// Make sure Affinity field has a proper value,
-	// and map the value to Affinity if deprecated HostAffinity field is used
+	// and map the value to Affinity if the deprecated HostAffinity field is used
 	// by calling ensureBlockAffinity, and update the KVPair to return.
 	return ensureBlockAffinity(v), nil
 }
@@ -318,23 +318,26 @@ func (c *ModelAdaptor) listNodes(l model.NodeListOptions) ([]*model.KVPair, erro
 func (c *ModelAdaptor) listBlock(l model.BlockListOptions) ([]*model.KVPair, error) {
 
 	// Get a list of block KVPairs.
-	bal, err := c.client.List(l)
+	blockList, err := c.client.List(l)
 	if err != nil {
 		return nil, err
 	}
 
+	// Create an empty slice of KVPair.
+	results := make([]*model.KVPair, len(blockList))
+
 	// Go through the list to make sure Affinity field has a proper value,
-	// and map the value to Affinity if deprecated HostAffinity field is used
-	// by calling ensureBlockAffinity, and update the KVPair slice to return.
-	for idx, bakv := range bal {
-		bal[idx] = ensureBlockAffinity(bakv)
+	// and maps the value to Affinity if the deprecated HostAffinity field is used
+	// by calling ensureBlockAffinity, and populate the KVPair slice to return.
+	for i, bkv := range blockList {
+		results[i] = ensureBlockAffinity(bkv)
 	}
 
-	return bal, nil
+	return results, nil
 }
 
 // ensureBlockAffinity ensures Affinity field has a proper value,
-// and map the value to Affinity if deprecated HostAffinity field is used.
+// and maps the value to Affinity if the deprecated HostAffinity field is used.
 func ensureBlockAffinity(kvp *model.KVPair) *model.KVPair {
 	val := kvp.Value.(*model.AllocationBlock)
 
