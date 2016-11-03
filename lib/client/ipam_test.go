@@ -95,7 +95,7 @@ type testArgsClaimAff struct {
 
 var _ = Describe("IPAM tests", func() {
 
-	FDescribeTable("AutoAssign: requested IPs vs returned IPs",
+	DescribeTable("AutoAssign: requested IPs vs returned IPs",
 		func(host string, cleanEnv bool, pool []string, usePool string, inv4, inv6, expv4, expv6 int, expError error) {
 			outv4, outv6, outError := testIPAMAutoAssign(inv4, inv6, host, cleanEnv, pool, usePool)
 			Expect(outv4).To(Equal(expv4))
