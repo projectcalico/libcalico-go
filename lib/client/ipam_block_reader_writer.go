@@ -55,7 +55,7 @@ func (rw blockReaderWriter) getAffineBlocks(host string, ver ipVersion, pool *cn
 	ids := []cnet.IPNet{}
 	for _, o := range datastoreObjs {
 		k := o.Key.(model.BlockAffinityKey)
-		if reflect.DeepEqual(k.CIDR.IPNet, pool.IPNet) {
+		if pool.Contains(k.CIDR.IPNet.IP) {
 			ids = append(ids, k.CIDR)
 		}
 	}
