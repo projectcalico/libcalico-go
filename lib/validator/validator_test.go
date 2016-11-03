@@ -251,12 +251,12 @@ func init() {
 			}, false),
 
 		// (API) PoolMetadata
-		Entry("should accept IP pool with IPv4 CIDR /26", api.PoolMetadata{CIDR: netv4_3}, true),
-		Entry("should accept IP pool with IPv4 CIDR /10", api.PoolMetadata{CIDR: netv4_4}, true),
-		Entry("should accept IP pool with IPv6 CIDR /122", api.PoolMetadata{CIDR: netv6_3}, true),
-		Entry("should accept IP pool with IPv6 CIDR /10", api.PoolMetadata{CIDR: netv6_4}, true),
-		Entry("should reject IP pool with IPv4 CIDR /27", api.PoolMetadata{CIDR: netv4_5}, false),
-		Entry("should reject IP pool with IPv6 CIDR /128", api.PoolMetadata{CIDR: netv6_1}, false),
+		Entry("should accept IP pool with IPv4 CIDR /26", api.IPPoolMetadata{CIDR: netv4_3}, true),
+		Entry("should accept IP pool with IPv4 CIDR /10", api.IPPoolMetadata{CIDR: netv4_4}, true),
+		Entry("should accept IP pool with IPv6 CIDR /122", api.IPPoolMetadata{CIDR: netv6_3}, true),
+		Entry("should accept IP pool with IPv6 CIDR /10", api.IPPoolMetadata{CIDR: netv6_4}, true),
+		Entry("should reject IP pool with IPv4 CIDR /27", api.IPPoolMetadata{CIDR: netv4_5}, false),
+		Entry("should reject IP pool with IPv6 CIDR /128", api.IPPoolMetadata{CIDR: netv6_1}, false),
 
 		// (API) ICMPFields
 		Entry("should accept ICMP with no config", api.ICMPFields{}, true),
@@ -314,6 +314,14 @@ func init() {
 					Ports: []numorstring.Port{numorstring.SinglePort(1)},
 				},
 			}, true),
+		Entry("should reject Rule with invalid port (port 0)",
+			api.Rule{
+				Action:   "allow",
+				Protocol: protocolFromString("tcp"),
+				Destination: api.EntityRule{
+					NotPorts: []numorstring.Port{numorstring.SinglePort(0)},
+				},
+			}, false),
 		Entry("should accept Rule with empty dest ports and protocol type sctp",
 			api.Rule{
 				Action:   "allow",
@@ -392,6 +400,14 @@ func init() {
 				Protocol: protocolFromString("tcp"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{numorstring.Port{MinPort: 200, MaxPort: 100}},
+				},
+			}, false),
+		Entry("should reject Rule with one invalid port in the port range (MinPort 0)",
+			api.Rule{
+				Action:   "allow",
+				Protocol: protocolFromString("tcp"),
+				Destination: api.EntityRule{
+					NotPorts: []numorstring.Port{numorstring.Port{MinPort: 0, MaxPort: 100}},
 				},
 			}, false),
 

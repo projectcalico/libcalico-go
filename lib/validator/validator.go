@@ -60,7 +60,7 @@ func init() {
 	registerStructValidator(validateIPNAT, api.IPNAT{})
 	registerStructValidator(validateWorkloadEndpointSpec, api.WorkloadEndpointSpec{})
 	registerStructValidator(validateHostEndpointSpec, api.HostEndpointSpec{})
-	registerStructValidator(validatePoolMetadata, api.PoolMetadata{})
+	registerStructValidator(validatePoolMetadata, api.IPPoolMetadata{})
 	registerStructValidator(validateICMPFields, api.ICMPFields{})
 	registerStructValidator(validateRule, api.Rule{})
 	registerStructValidator(validateNodeSpec, api.NodeSpec{})
@@ -178,6 +178,11 @@ func validatePort(v *validator.Validate, structLevel *validator.StructLevel) {
 	if p.MinPort > p.MaxPort {
 		structLevel.ReportError(reflect.ValueOf(p.MaxPort), "Port", "port", "port range invalid")
 	}
+
+	// No need to check for the upperbound (65536) because we use uint16.
+	if p.MinPort < 1 || p.MaxPort < 1 {
+		structLevel.ReportError(reflect.ValueOf(p.MaxPort), "Port", "port", "port range invalid, port number must be between 0 and 65536")
+	}
 }
 
 func validateIPNAT(v *validator.Validate, structLevel *validator.StructLevel) {
@@ -236,7 +241,7 @@ func validateHostEndpointSpec(v *validator.Validate, structLevel *validator.Stru
 }
 
 func validatePoolMetadata(v *validator.Validate, structLevel *validator.StructLevel) {
-	pool := structLevel.CurrentStruct.Interface().(api.PoolMetadata)
+	pool := structLevel.CurrentStruct.Interface().(api.IPPoolMetadata)
 
 	// The Calico IPAM places restrictions on the minimum IP pool size, check that the
 	// pool is at least the minimum size.
