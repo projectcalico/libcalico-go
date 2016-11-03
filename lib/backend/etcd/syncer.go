@@ -26,11 +26,12 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/hwm"
 	"golang.org/x/net/context"
+	"net"
 )
 
 // defaultEtcdClusterID is default value that an etcd cluster uses if it
 // hasn't been bootstrapped with an explicit value.  We warn if we detect that
-// case because it impliese that the cluster hasn't been properly bootstrapped
+// case because it implies that the cluster hasn't been properly bootstrapped
 // for production.
 const defaultEtcdClusterID = "7e27652122e8b2ae"
 
@@ -212,8 +213,7 @@ func (syn *etcdSyncer) watchEtcd(watcherUpdateC chan<- interface{}) {
 					break watchLoop
 				}
 				// Retryable error, just retry the read.
-				log.WithError(err).Info("Retryable error from etcd")
-				time.Sleep(100 * time.Millisecond)
+				log.WithError(err).Debug("Retryable error from etcd")
 				continue watchLoop
 			}
 
@@ -263,11 +263,18 @@ func retryableWatcherError(err error) bool {
 			errCode := err.Code
 			if errCode == client.ErrorCodeWatcherCleared ||
 				errCode == client.ErrorCodeEventIndexCleared {
+				// This means that our watch has failed and needs
+				// to be restarted.
 				return false
 			}
+		case net.Error:
+			// We expect timeouts if there are no events from etcd
+			// so only log if we hit something unusual.
+			if !err.Timeout() {
+				log.WithError(err).Warn("Net error from etcd")
+			}
 		default:
-			log.WithError(err).Error("Unexpected error type from etcd")
-			return false
+			log.WithError(err).Warn("Unexpected error type from etcd")
 		}
 	}
 	// Didn't find any non-retryable errors.
