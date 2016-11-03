@@ -21,6 +21,9 @@
 // - Assign 1 address on host A (Expect 1 address)
 // - Assign 1 address on host B (Expect 1 address, different block)
 // - Assign 64 more addresses on host A (Expect 63 addresses from host A's block, 1 address from host B's block)
+// Test 6: AutoAssign IPs from different pools for the same host.
+// - Assign 1 address on host-A from pool "10.0.0.0/24" - expect 1 address in return and no error.
+// - Assign 1 address on host-A from pool "20.0.0.0/24" - expect 1 address in return and no error.
 
 // Test cases (AssignIP):
 // Test 1: Assign 1 IPv4 from a configured pool - expect no error returned.
@@ -92,9 +95,9 @@ type testArgsClaimAff struct {
 
 var _ = Describe("IPAM tests", func() {
 
-	DescribeTable("AutoAssign: requested IPs vs returned IPs",
-		func(host string, cleanEnv bool, pool []string, inv4, inv6, expv4, expv6 int, expError error) {
-			outv4, outv6, outError := testIPAMAutoAssign(inv4, inv6, host, cleanEnv, pool)
+	FDescribeTable("AutoAssign: requested IPs vs returned IPs",
+		func(host string, cleanEnv bool, pool []string, usePool string, inv4, inv6, expv4, expv6 int, expError error) {
+			outv4, outv6, outError := testIPAMAutoAssign(inv4, inv6, host, cleanEnv, pool, usePool)
 			Expect(outv4).To(Equal(expv4))
 			Expect(outv6).To(Equal(expv6))
 			if expError != nil {
@@ -103,26 +106,33 @@ var _ = Describe("IPAM tests", func() {
 		},
 
 		// Test 1: AutoAssign 1 IPv4, 1 IPv6 - expect one of each to be returned.
-		Entry("1 v4 1 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, 1, 1, 1, 1, nil),
+		Entry("1 v4 1 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, "192.168.1.0/24", 1, 1, 1, 1, nil),
 
 		// Test 2: AutoAssign 256 IPv4, 256 IPv6 - expect 256 IPv4 + IPv6 addresses.
-		Entry("256 v4 256 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, 256, 256, 256, 256, nil),
+		Entry("256 v4 256 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, "192.168.1.0/24", 256, 256, 256, 256, nil),
 
 		// Test 3: AutoAssign 257 IPv4, 0 IPv6 - expect 256 IPv4 addresses, no IPv6, and no error.
-		Entry("257 v4 0 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, 257, 0, 256, 0, nil),
+		Entry("257 v4 0 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, "192.168.1.0/24", 257, 0, 256, 0, nil),
 
 		// Test 4: AutoAssign 0 IPv4, 257 IPv6 - expect 256 IPv6 addresses, no IPv6, and no error.
-		Entry("0 v4 257 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, 0, 257, 0, 256, nil),
+		Entry("0 v4 257 v6", "testHost", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, "192.168.1.0/24", 0, 257, 0, 256, nil),
 
 		// Test 5: (use pool of size /25 so only two blocks are contained):
 		// - Assign 1 address on host A (Expect 1 address).
-		Entry("1 v4 0 v6 host-A", "host-A", true, []string{"10.0.0.1/25", "fd80:24e2:f998:72d6::/121"}, 1, 0, 1, 0, nil),
+		Entry("1 v4 0 v6 host-A", "host-A", true, []string{"10.0.0.1/25", "fd80:24e2:f998:72d6::/121"}, "10.0.0.1/25", 1, 0, 1, 0, nil),
 
 		// - Assign 1 address on host B (Expect 1 address, different block).
-		Entry("1 v4 0 v6 host-B", "host-B", false, []string{"10.0.0.1/25", "fd80:24e2:f998:72d6::/121"}, 1, 0, 1, 0, nil),
+		Entry("1 v4 0 v6 host-B", "host-B", false, []string{"10.0.0.1/25", "fd80:24e2:f998:72d6::/121"}, "10.0.0.1/25", 1, 0, 1, 0, nil),
 
 		// - Assign 64 more addresses on host A (Expect 63 addresses from host A's block, 1 address from host B's block).
-		Entry("64 v4 0 v6 host-A", "host-A", false, []string{"10.0.0.1/25", "fd80:24e2:f998:72d6::/121"}, 64, 0, 64, 0, nil),
+		Entry("64 v4 0 v6 host-A", "host-A", false, []string{"10.0.0.1/25", "fd80:24e2:f998:72d6::/121"}, "10.0.0.1/25", 64, 0, 64, 0, nil),
+
+		// Test 6: AutoAssign IPs from different pools for the same host.
+		// - Assign 1 address on host-A from pool "10.0.0.0/24" - expect 1 address in return and no error.
+		Entry("1 v4 0 v6 host-A", "host-A", true, []string{"10.0.0.0/24", "20.0.0.0/24"}, "10.0.0.0/24", 1, 0, 1, 0, nil),
+
+		// - Assign 1 address on host-A from pool "20.0.0.0/24" - expect 1 address in return and no error.
+		Entry("1 v4 0 v6 host-A", "host-A", false, []string{"10.0.0.0/24", "20.0.0.0/24"}, "20.0.0.0/24", 1, 0, 1, 0, nil),
 	)
 
 	DescribeTable("AssignIP: requested IP vs returned error",
@@ -312,12 +322,13 @@ func testIPAMAssignIP(inIP net.IP, host string, poolSubnet []string, cleanEnv bo
 
 // testIPAMAutoAssign takes number of requested IPv4 and IPv6, and hostname, and setus up/cleans up client and etcd,
 // then it calls AutoAssign (function under test) and returns the number of returned IPv4 and IPv6 addresses and returned error.
-func testIPAMAutoAssign(inv4, inv6 int, host string, cleanEnv bool, poolSubnet []string) (int, int, error) {
-
+func testIPAMAutoAssign(inv4, inv6 int, host string, cleanEnv bool, poolSubnet []string, usePool string) (int, int, error) {
+	fromPool := testutils.MustParseCIDR(usePool)
 	args := client.AutoAssignArgs{
 		Num4:     inv4,
 		Num6:     inv6,
 		Hostname: host,
+		IPv4Pool: &fromPool,
 	}
 
 	if cleanEnv {
