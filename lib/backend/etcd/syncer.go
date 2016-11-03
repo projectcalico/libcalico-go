@@ -116,6 +116,10 @@ type watcherDeletion struct {
 	key           string
 }
 
+// snapshotRequest is sent by the merge thread to the snapshot thread when a new snapshot
+// is required.  Thread safety: the merge thead should only send this message when the
+// snapshot thread is quiesced, I.e. after it receives teh snapshotFinished message from
+// the previous snapshot.
 type snapshotRequest struct {
 	minRequiredSnapshotIndex uint64
 }
