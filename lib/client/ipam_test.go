@@ -493,7 +493,7 @@ func getAffineBlocks(host string) []cnet.IPNet {
 		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
 			log.Printf("No affined blocks found")
 		} else {
-			fmt.Printf("Error getting affine blocks: %s", err)
+			Expect(err).NotTo(HaveOccurred(), "Error getting affine blocks: %s", err)
 		}
 	}
 
