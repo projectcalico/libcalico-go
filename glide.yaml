@@ -14,8 +14,6 @@ import:
 - package: github.com/ghodss/yaml
 - package: github.com/kelseyhightower/envconfig
 - package: github.com/olekukonko/tablewriter
-- package: github.com/docker/engine-api
-  version: release/1.12
 - package: golang.org/x/net
   subpackages:
   - context
@@ -26,9 +24,11 @@ import:
   version: ^0.10.0
 - package: github.com/termie/go-shutil
 - package: github.com/mitchellh/go-ps
-- package: k8s.io/kubernetes
+- package: k8s.io/client-go/1.4
   subpackages:
   - pkg/api
-  - pkg/api/v1
-  - pkg/client/clientset_generated/release_1_4
-  - pkg/client/unversioned/clientcmd
+  - pkg/api/unversioned
+  - pkg/apis/extensions
+  - pkg/watch
+  - kubernetes
+  - clientcmd
