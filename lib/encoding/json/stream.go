@@ -35,6 +35,10 @@ func NewDecoder(r io.Reader) *Decoder {
 // Number instead of as a float64.
 func (dec *Decoder) UseNumber() { dec.d.useNumber = true }
 
+// DisallowUnknownFields causes the Decoder to return an error when
+// the input contains unrecognized JSON object keys.
+func (dec *Decoder) DisallowUnknownFields() { dec.d.disallowUnknownFields = true }
+
 // Decode reads the next JSON-encoded value from its
 // input and stores it in the value pointed to by v.
 //

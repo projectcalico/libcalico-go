@@ -389,7 +389,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `"g-clef: \uD834\uDD1E"`, ptr: new(string), out: "g-clef: \U0001D11E"},
 	{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
 	{in: "null", ptr: new(interface{}), out: nil},
-	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7}},
+	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7, "[1,2,3]"}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
@@ -504,22 +504,22 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:  `{"abc":"abc"}`,
 		ptr: new(map[int]string),
-		err: &UnmarshalTypeError{"number abc", reflect.TypeOf(0), 2},
+		err: &UnmarshalTypeError{"number abc", reflect.TypeOf(0), 2, "abc"},
 	},
 	{
 		in:  `{"256":"abc"}`,
 		ptr: new(map[uint8]string),
-		err: &UnmarshalTypeError{"number 256", reflect.TypeOf(uint8(0)), 2},
+		err: &UnmarshalTypeError{"number 256", reflect.TypeOf(uint8(0)), 2, "256"},
 	},
 	{
 		in:  `{"128":"abc"}`,
 		ptr: new(map[int8]string),
-		err: &UnmarshalTypeError{"number 128", reflect.TypeOf(int8(0)), 2},
+		err: &UnmarshalTypeError{"number 128", reflect.TypeOf(int8(0)), 2, "128"},
 	},
 	{
 		in:  `{"-1":"abc"}`,
 		ptr: new(map[uint8]string),
-		err: &UnmarshalTypeError{"number -1", reflect.TypeOf(uint8(0)), 2},
+		err: &UnmarshalTypeError{"number -1", reflect.TypeOf(uint8(0)), 2, "-1"},
 	},
 
 	// Map keys can be encoding.TextUnmarshalers.
@@ -538,7 +538,6 @@ var unmarshalTests = []unmarshalTest{
 			"Level0": 1,
 			"Level1b": 2,
 			"Level1c": 3,
-			"x": 4,
 			"Level1a": 5,
 			"LEVEL1B": 6,
 			"e": {
@@ -592,6 +591,17 @@ var unmarshalTests = []unmarshalTest{
 		in:  `{"hello": 1}`,
 		ptr: new(Ambig),
 		out: Ambig{First: 1},
+	},
+
+	{
+		in:  `{"Y":2}`,
+		ptr: new(S5),
+		out: S5{S8: S8{S9: S9{Y: 2}}},
+	},
+	{
+		in:  `{"Y":2}`,
+		ptr: new(S10),
+		out: S10{S13: S13{S8: S8{S9: S9{Y: 2}}}},
 	},
 
 	{
@@ -653,12 +663,12 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
 		ptr: &map[Point]string{},
-		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[Point]string{}), 1},
+		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[Point]string{}), 1, `{"2009-11-10T23:00:00Z": "hello world"}`},
 	},
 	{
 		in:  `{"asdf": "hello world"}`,
 		ptr: &map[unmarshaler]string{},
-		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[unmarshaler]string{}), 1},
+		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[unmarshaler]string{}), 1,  `{"asdf": "hello world"}`},
 	},
 
 	// related to issue 13783.
@@ -1637,11 +1647,17 @@ type unexportedFields struct {
 func TestUnmarshalUnexported(t *testing.T) {
 	input := `{"Name": "Bob", "m": {"x": 123}, "m2": {"y": 456}, "abcd": {"z": 789}}`
 	want := &unexportedFields{Name: "Bob"}
-
 	out := &unexportedFields{}
-	err := Unmarshal([]byte(input), out)
+
+	decoder := NewDecoder(bytes.NewReader([]byte(input)))
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(out)
+	expected := &UnmarshalUnknownFieldsError{[]string{"m", "m2", "abcd"}}
+	if !reflect.DeepEqual(err, expected) {
+		t.Errorf("got error %v, expected %v", err, expected)
+	}
+
 	if err != nil {
-		t.Errorf("got error %v, expected nil", err)
 	}
 	if !reflect.DeepEqual(out, want) {
 		t.Errorf("got %q, want %q", out, want)
@@ -1753,7 +1769,7 @@ var invalidUnmarshalTextTests = []struct {
 	{nil, "json: Unmarshal(nil)"},
 	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
 	{(*int)(nil), "json: Unmarshal(nil *int)"},
-	{new(net.IP), "json: cannot unmarshal string into Go value of type *net.IP"},
+	{new(net.IP), "cannot parse string '123' into value of type *net.IP"},
 }
 
 func TestInvalidUnmarshalText(t *testing.T) {

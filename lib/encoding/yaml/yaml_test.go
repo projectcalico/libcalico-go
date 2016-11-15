@@ -11,15 +11,13 @@ import (
 type MarshalTest struct {
 	A string
 	B int64
-	// Would like to test float64, but it's not supported in go-yaml.
-	// (See https://github.com/go-yaml/yaml/issues/83.)
-	C float32
+	C float64
 }
 
 func TestMarshal(t *testing.T) {
-	f32String := strconv.FormatFloat(math.MaxFloat32, 'g', -1, 32)
-	s := MarshalTest{"a", math.MaxInt64, math.MaxFloat32}
-	e := []byte(fmt.Sprintf("A: a\nB: %d\nC: %s\n", math.MaxInt64, f32String))
+	f64String := strconv.FormatFloat(math.MaxFloat64, 'g', -1, 64)
+	s := MarshalTest{"a", math.MaxInt64, math.MaxFloat64}
+	e := []byte(fmt.Sprintf("A: a\nB: %d\nC: %s\n", math.MaxInt64, f64String))
 
 	y, err := Marshal(s)
 	if err != nil {
@@ -58,6 +56,10 @@ type NestedSlice struct {
 	C *string
 }
 
+type UnmarshalFloat64 struct {
+	A float64
+}
+
 func TestUnmarshal(t *testing.T) {
 	y := []byte("a: 1")
 	s1 := UnmarshalString{}
@@ -88,6 +90,12 @@ func TestUnmarshal(t *testing.T) {
 	s4 := UnmarshalStringMap{}
 	e4 := UnmarshalStringMap{map[string]string{"b": "1"}}
 	unmarshal(t, y, &s4, &e4)
+
+	f64String := strconv.FormatFloat(math.MaxFloat64, 'g', -1, 64)
+	y = []byte("a: " + f64String)
+	s5 := UnmarshalFloat64{}
+	e5 := UnmarshalFloat64{A: math.MaxFloat64}
+	unmarshal(t, y, &s5, &e5)
 }
 
 func unmarshal(t *testing.T, y []byte, s, e interface{}) {
@@ -99,6 +107,47 @@ func unmarshal(t *testing.T, y []byte, s, e interface{}) {
 	if !reflect.DeepEqual(s, e) {
 		t.Errorf("unmarshal YAML was unsuccessful, expected: %+#v, got: %+#v",
 			e, s)
+	}
+}
+
+func TestUnmarshalStrict(t *testing.T) {
+	y := []byte("a: 1\nb: 2")
+	s1 := UnmarshalString{}
+	f1 := "error parsing document: field in document is not recognized or is in the wrong location: b"
+	unmarshalStrict(t, y, &s1, f1)
+
+	y = []byte("a: 1\nb: 2\nc: foo\nd: 123\ne: baz\nff: bar\nqq: baz")
+	s1 = UnmarshalString{}
+	f1 = "error parsing document: fields in document are not recognized or are in the wrong location: b, c, d, e (+ 2 more)"
+	unmarshalStrict(t, y, &s1, f1)
+
+	y = []byte("a: 1\nb: 2\nc: foo\nd: 123")
+	s1 = UnmarshalString{}
+	f1 = "error parsing document: fields in document are not recognized or are in the wrong location: b, c, d"
+	unmarshalStrict(t, y, &s1, f1)
+
+	y = []byte("a: 1")
+	s1 = UnmarshalString{}
+	f1 = ""
+	unmarshalStrict(t, y, &s1, f1)
+
+}
+
+func unmarshalStrict(t *testing.T, y []byte, s interface{}, errmsg string) {
+	err := UnmarshalStrict(y, s)
+	if errmsg == "" && err != nil {
+		t.Errorf("unexpected error unmarshaling YAML: %v", err)
+	}
+
+	if errmsg != "" {
+		if err == nil {
+			t.Errorf("expected error %s", errmsg)
+		} else {
+			actualmsg := fmt.Sprint(err)
+			if actualmsg != errmsg {
+				t.Errorf("expect %s, got %s", errmsg, actualmsg)
+			}
+		}
 	}
 }
 

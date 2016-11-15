@@ -6,13 +6,14 @@ package yaml
 import (
 	"bytes"
 	"encoding"
-	"encoding/json"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/projectcalico/libcalico-go/lib/encoding/json"
 )
 
 // indirect walks down v allocating pointers as needed,

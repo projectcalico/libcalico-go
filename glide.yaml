@@ -11,7 +11,6 @@ import:
   - client
   - pkg/transport
 - package: github.com/docopt/docopt-go
-- package: github.com/ghodss/yaml
 - package: github.com/kelseyhightower/envconfig
 - package: github.com/olekukonko/tablewriter
 - package: github.com/docker/engine-api
@@ -20,6 +19,7 @@ import:
   subpackages:
   - context
 - package: gopkg.in/go-playground/validator.v8
+- package: gopkg.in/check.v1/check
 - package: github.com/satori/go.uuid
 - package: github.com/mcuadros/go-version
 - package: github.com/Sirupsen/logrus
