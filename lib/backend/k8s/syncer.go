@@ -21,9 +21,9 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/compat"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	k8sapi "k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/watch"
+	k8sapi "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/pkg/apis/extensions"
+	"k8s.io/client-go/pkg/watch"
 	"reflect"
 )
 

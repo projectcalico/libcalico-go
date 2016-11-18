@@ -1,7 +1,9 @@
 .PHONY: all test
 
-BUILD_CONTAINER_NAME=calico/libcalico_test_container
-BUILD_CONTAINER_MARKER=libcalico_test_container.created
+GLIDE_CONTAINER_NAME?=dockerepo/glide
+TEST_CONTAINER_NAME=calico/libcalico_test_container
+TEST_CONTAINER_MARKER=libcalico_test_container.created
+VENDOR_CREATED=vendor/.vendor.created
 
 GO_FILES:=$(shell find lib -name '*.go')
 
@@ -9,23 +11,55 @@ default: all
 all: test
 test: ut
 
+.PHONY: vendor
 ## Use this to populate the vendor directory after checking out the repository.
 ## To update upstream dependencies, delete the glide.lock file first.
-vendor: 
-	glide install -strip-vendor -strip-vcs --cache
+vendor: glide.lock $(VENDOR_CREATED)
+
+# If glide.lock is missing then do the vendoring which will create the lock file
+# (delete the vendor created flag if it exists to force vendoring).
+glide.lock:
+	rm -f $(VENDOR_CREATED)
+	$(MAKE) $(VENDOR_CREATED)
+
+# Perform the vendoring.  This writes a created flag file only after the vendoring
+# completed successfully - this allows us to easily re-run in the event of a partially
+# incomplete vendoring.
+$(VENDOR_CREATED):
+	docker run --rm -v ${PWD}:/go/src/github.com/projectcalico/libcalico-go:rw \
+      --entrypoint /bin/sh $(GLIDE_CONTAINER_NAME) -e -c ' \
+        cd /go/src/github.com/projectcalico/libcalico-go && \
+        glide install -strip-vendor && \
+        chown -R $(shell id -u):$(shell id -u) vendor'
+	touch $(VENDOR_CREATED)
 
 .PHONY: ut
 ## Run the UTs locally.  This requires a local etcd to be running.
-ut: vendor
-	./run-uts
+ut:
+	# Run tests in random order find tests recursively (-r).
+	ginkgo -cover -r --skipPackage vendor
+
+	@echo
+	@echo '+==============+'
+	@echo '| All coverage |'
+	@echo '+==============+'
+	@echo
+	@find . -iname '*.coverprofile' | xargs -I _ go tool cover -func=_
+
+	@echo
+	@echo '+==================+'
+	@echo '| Missing coverage |'
+	@echo '+==================+'
+	@echo
+	@find . -iname '*.coverprofile' | xargs -I _ go tool cover -func=_ | grep -v '100.0%'
 
 .PHONY: test-containerized
 ## Run the tests in a container. Useful for CI, Mac dev.
-test-containerized: run-etcd $(BUILD_CONTAINER_MARKER)
+test-containerized: vendor run-etcd $(TEST_CONTAINER_MARKER)
 	docker run --rm --privileged --net=host \
 	-e PLUGIN=calico \
 	-v ${PWD}:/go/src/github.com/projectcalico/libcalico-go:rw \
-	$(BUILD_CONTAINER_NAME) bash -c 'make ut && chown $(shell id -u):$(shell id -g) -R ./vendor'
+	$(TEST_CONTAINER_NAME) bash -c 'make ut && chown $(shell id -u):$(shell id -g) -R ./vendor'
 
 ## Install or update the tools used by the build
 .PHONY: update-tools
@@ -45,7 +79,7 @@ run-etcd:
 	--advertise-client-urls "http://127.0.0.1:2379,http://127.0.0.1:4001" \
 	--listen-client-urls "http://0.0.0.0:2379,http://0.0.0.0:4001"
 
-$(BUILD_CONTAINER_MARKER):
+$(TEST_CONTAINER_MARKER):
 	docker build -f Dockerfile -t $(BUILD_CONTAINER_NAME) .
 	touch $@
 
@@ -53,7 +87,7 @@ $(BUILD_CONTAINER_MARKER):
 clean:
 	find . -name '*.coverprofile' -type f -delete
 	rm -rf vendor
-	-rm $(BUILD_CONTAINER_MARKER)
+	-rm $(TEST_CONTAINER_MARKER)
 
 .PHONY: help
 ## Display this help text
