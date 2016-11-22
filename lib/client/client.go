@@ -22,7 +22,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ghodss/yaml"
+	"github.com/projectcalico/yaml"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/api/unversioned"

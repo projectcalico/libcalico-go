@@ -32,3 +32,4 @@ import:
   - pkg/api/v1
   - pkg/client/clientset_generated/release_1_4
   - pkg/client/unversioned/clientcmd
+- package: github.com/projectcalico/yaml

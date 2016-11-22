@@ -1,5 +1,5 @@
-hash: e7f822d7a5dab681e021f9ce2a188963f6e44946ebd4856e514e962a24db2614
-updated: 2016-11-18T12:54:30.773909825-08:00
+hash: 7298c0025e43b0b826633225a9054aa85d25fbccbf70ea0f14daa004aa8ad13a
+updated: 2016-11-21T22:29:19.150680127-08:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -127,6 +127,14 @@ imports:
   - types
 - name: github.com/pborman/uuid
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
+- name: github.com/projectcalico/go-json
+  version: 13272c20b888244b30cc8daf99dee80124ec0b3e
+  subpackages:
+  - json
+- name: github.com/projectcalico/go-yaml
+  version: a24e162d308633fed72ed0ee4fd038570b74e444
+- name: github.com/projectcalico/yaml
+  version: 861b50ed8b5f5922373b50e9bc50021b6a5fa548
 - name: github.com/PuerkitoBio/purell
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - name: github.com/PuerkitoBio/urlesc
@@ -208,7 +216,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
 - name: k8s.io/kubernetes
-  version: 9d4f94dcec42e9d79b09e0108acc77986c683f02
+  version: 435268ac1915564aecb2fd5abe5f74a426235423
   subpackages:
   - pkg/api
   - pkg/api/errors
