@@ -104,7 +104,7 @@ func newSyncer(keysAPI etcd.KeysAPI, callbacks api.SyncerCallbacks) *etcdSyncer 
 //
 // The watcher goroutine polls etcd for new events.  A typical use of the
 // etcd API would load a snapshot first, then start polling from the snapshot
-// index.  However, that approach deosn't work at high event throughput because
+// index.  However, that approach doesn't work at high event throughput because
 // etcd's event buffer can be exhausted before the snapshot is received, leading
 // to a resync loop.  We avoid that scenario by having the watcher be free
 // running.  If it loses sync, it immediately starts polling again from the
