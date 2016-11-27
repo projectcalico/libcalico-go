@@ -9,6 +9,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	k8sapi "k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
@@ -59,7 +60,7 @@ func (c cb) OnUpdates(updates []api.Update) {
 func CreateClientAndStartSyncer() *KubeClient {
 	// First create the client.
 	cfg := KubeConfig{
-		Server: "http://localhost:8080",
+		K8sServer: "http://localhost:8080",
 	}
 	c, err := NewKubeClient(&cfg)
 	if err != nil {
@@ -92,12 +93,21 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		}
 		_, err := c.clientSet.Namespaces().Create(&ns)
 
-		// Clean up after ourselves.
+		// Make sure we clean up.
 		defer func() {
 			err = c.clientSet.Namespaces().Delete(ns.ObjectMeta.Name, &k8sapi.DeleteOptions{})
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
+		// Check to see if the create succeeded.
+		Expect(err).NotTo(HaveOccurred())
+
+		// Perform a List and ensure it shows up in the Calico API.
+		_, err = c.List(model.ProfileListOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		// Perform a Get and ensure no error in the Calico API.
+		_, err = c.Get(model.ProfileKey{Name: fmt.Sprintf("default.%s", ns.ObjectMeta.Name)})
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -118,6 +128,15 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
+		// Check to see if the create succeeded.
+		Expect(err).NotTo(HaveOccurred())
+
+		// Perform a List and ensure it shows up in the Calico API.
+		_, err = c.List(model.ProfileListOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		// Perform a Get and ensure no error in the Calico API.
+		_, err = c.Get(model.ProfileKey{Name: fmt.Sprintf("default.%s", ns.ObjectMeta.Name)})
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -156,6 +175,15 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
+		// Check to see if the create succeeded.
+		Expect(err).NotTo(HaveOccurred())
+
+		// Perform a List and ensure it shows up in the Calico API.
+		_, err = c.List(model.PolicyListOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		// Perform a Get and ensure no error in the Calico API.
+		_, err = c.Get(model.PolicyKey{Name: fmt.Sprintf("default.%s", np.ObjectMeta.Name)})
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -205,9 +233,9 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		}()
 		Expect(err).NotTo(HaveOccurred())
 
-		// Wait up to 60s for pod to start running.
+		// Wait up to 120s for pod to start running.
 		log.Warnf("[TEST] Waiting for pod %s to start", pod.ObjectMeta.Name)
-		for i := 0; i < 60; i++ {
+		for i := 0; i < 120; i++ {
 			p, err := c.clientSet.Pods("default").Get(pod.ObjectMeta.Name)
 			Expect(err).NotTo(HaveOccurred())
 			if p.Status.Phase == k8sapi.PodRunning {
@@ -220,7 +248,20 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(p.Status.Phase).To(Equal(k8sapi.PodRunning))
 
-		err = c.clientSet.Pods("default").Delete(pod.ObjectMeta.Name, &k8sapi.DeleteOptions{})
+		// Perform List and ensure it shows up in the Calico API.
+		weps, err := c.List(model.WorkloadEndpointListOptions{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(len(weps)).To(BeNumerically(">", 0))
+
+		// Perform List, including a workloadID
+		weps, err = c.List(model.WorkloadEndpointListOptions{
+			WorkloadID: fmt.Sprintf("default.%s", pod.ObjectMeta.Name),
+		})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(len(weps)).To(Equal(1))
+
+		// Perform a Get and ensure no error in the Calico API.
+		_, err = c.Get(model.WorkloadEndpointKey{WorkloadID: fmt.Sprintf("default.%s", pod.ObjectMeta.Name)})
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -243,4 +284,10 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 			panic(fmt.Sprintf("Failed to clean up pods: %+v", pods))
 		})
 	}()
+
+	It("should not error on unsupported List() calls", func() {
+		objs, err := c.List(model.BGPPeerListOptions{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(len(objs)).To(Equal(0))
+	})
 })
