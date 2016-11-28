@@ -49,8 +49,6 @@ run-etcd:
 
 run-kubernetes-master: stop-kubernetes-master run-etcd
 	# Run the kubelet which will launch the master components in a pod.
-	docker images
-	docker version
 	docker pull gcr.io/google_containers/hyperkube-amd64:v${K8S_VERSION}
 	docker run \
                 -v /:/rootfs:ro \
