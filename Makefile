@@ -62,7 +62,7 @@ run-kubernetes-master: stop-kubernetes-master run-etcd-host
 	        -v /sys:/sys:ro \
 	        -v /var/run:/var/run:rw \
 	        -v /var/lib/kubelet/:/var/lib/kubelet:rw \
-	        -v ${PWD}/kubernetes-manifests:/etc/kubernetes/manifests-multi:rw \
+	        -v ${PWD}/kubernetes-manifests:/etc/kubernetes/:rw \
 	        --net=host \
 		--pid=host \
 		--privileged=true \
