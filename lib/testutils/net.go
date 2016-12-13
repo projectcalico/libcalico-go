@@ -27,6 +27,9 @@ func MustParseCIDR(c string) net.IPNet {
 	return net.IPNet{*cidr}
 }
 
+// MustParseIP parses an IP address into a net.IP struct.  The default golang
+// net library always converts IPv4 addresses to an IPv6 16-byte format, so use
+// MustParseIPv4 if your tests require 4-byte lengths.
 func MustParseIP(i string) net.IP {
 	var ip net.IP
 	err := ip.UnmarshalText([]byte(i))
@@ -34,4 +37,19 @@ func MustParseIP(i string) net.IP {
 		panic(err)
 	}
 	return ip
+}
+
+// MustParseIPv4 parses an IPv4 address into a net.IP struct and ensures the
+// IP address is a 4-byte representation.
+func MustParseIPv4(i string) net.IP {
+	var ip net.IP
+	err := ip.UnmarshalText([]byte(i))
+	if err != nil {
+		panic(err)
+	}
+	if ip.Version() != 4 {
+		panic("IP version is not v4")
+	}
+
+	return net.IP{ip.To4()}
 }

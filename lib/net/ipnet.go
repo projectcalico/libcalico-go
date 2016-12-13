@@ -35,12 +35,31 @@ func (i *IPNet) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &s); err != nil {
 		return err
 	}
-	if _, ipnet, err := net.ParseCIDR(s); err != nil {
-		return err
-	} else {
-		i.IP = ipnet.IP
+
+	// First try to parse as a CIDR, if that does not work try to parse as
+	// an IP address (with /32 or /128 mask).  If neither parse, return the
+	// original error.
+	//
+	// the golang net library seems to be inconsistent in it's choice of
+	// internal slice size of IPv4 addresses - so for consistency let's
+	// always uses 4-byte slice for IPv4 addresses in an IPNet.
+	if ip, ipnet, err := net.ParseCIDR(s); err == nil {
+		i.IP = ip.To4()
+		if i.IP == nil {
+			i.IP = ip
+		}
 		i.Mask = ipnet.Mask
 		return nil
+	} else if ip = net.ParseIP(s); ip != nil {
+		i.IP = ip.To4()
+		if i.IP == nil {
+			i.IP = ip
+		}
+		ipbits := 8 * len(i.IP)
+		i.Mask = net.CIDRMask(ipbits, ipbits)
+		return nil
+	} else {
+		return err
 	}
 }
 
@@ -52,6 +71,23 @@ func (i *IPNet) Version() int {
 	return 4
 }
 
+// MaskedIP returns the masked IP address stored in this IPNet object.
+func (i IPNet) IPAddress() IP {
+	return IP{i.IP}
+}
+
+// MaskedIP returns the masked IP address stored in this IPNet object.
+func (i IPNet) MaskedIPAddress() IP {
+	return IP{i.IP.Mask(i.IPNet.Mask)}
+}
+
+// Network returns the normalized network of this IPNet object.
+func (i IPNet) MaskedIPNet() IPNet {
+	return IPNet{net.IPNet{IP: i.MaskedIPAddress().IP, Mask: i.Mask}}
+}
+
+// ParseCIDR parses a CIDR string returning the IP address and the normalized
+// network (i.e. the IP address with mask applied).
 func ParseCIDR(c string) (*IP, *IPNet, error) {
 	netIP, netIPNet, e := net.ParseCIDR(c)
 	if netIPNet == nil {
@@ -64,6 +100,6 @@ func ParseCIDR(c string) (*IP, *IPNet, error) {
 // implements String() on the pointer, which means it will not be invoked on a
 // struct type, so we re-implement on the struct type.
 func (i IPNet) String() string {
-	ip := &i.IPNet
-	return ip.String()
+	ipn := &i.IPNet
+	return ipn.String()
 }
