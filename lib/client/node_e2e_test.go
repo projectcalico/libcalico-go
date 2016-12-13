@@ -264,16 +264,17 @@ var _ = Describe("Node tests", func() {
 
 		// Step-2: Check the network has been set.
 		Context("Check the BGP subnets", func() {
+			v4, err4 := testutils.GetEtcdValue("/calico/bgp/v1/host/node1/network_v4")
+			v6, err6 := testutils.GetEtcdValue("/calico/bgp/v1/host/node1/network_v6")
+
 			It("should have created a v4 subnet entry", func() {
-				v, err := testutils.GetEtcdValue("/calico/bgp/v1/host/node1/network_v4")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(v).To(Equal(netv4Str))
+				Expect(err4).NotTo(HaveOccurred())
+				Expect(v4).To(Equal(netv4Str))
 			})
 
 			It("should have created a v6 subnet entry", func() {
-				v, err := testutils.GetEtcdValue("/calico/bgp/v1/host/node1/network_v6")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(v).To(Equal(netv6Str))
+				Expect(err6).NotTo(HaveOccurred())
+				Expect(v6).To(Equal(netv6Str))
 			})
 		})
 
@@ -281,8 +282,8 @@ var _ = Describe("Node tests", func() {
 		Context("Create node 2 and get the node resource", func() {
 			testutils.CleanEtcdSubtree("/calico/bgp/v1/host/node1/network_v4")
 			testutils.CleanEtcdSubtree("/calico/bgp/v1/host/node1/network_v6")
-
 			node, err := c.Nodes().Get(api.NodeMetadata{Name: "node1"})
+
 			It("should return the node", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
