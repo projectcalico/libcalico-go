@@ -19,12 +19,16 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/net"
 )
 
+// MustParseCIDR returns the parsed CIDR as a net.IPNet.  This returns the
+// unnormalized form of the CIDR (i.e. the mask is not applied to the IP).
 func MustParseCIDR(c string) net.IPNet {
-	_, cidr, err := gonet.ParseCIDR(c)
+	ip, cidr, err := gonet.ParseCIDR(c)
 	if err != nil {
 		panic(err)
 	}
-	return net.IPNet{*cidr}
+	ipn := net.IPNet{}
+	ipn.FromIPAndMask(ip, cidr.Mask)
+	return ipn
 }
 
 // MustParseIP parses an IP address into a net.IP struct.  The default golang

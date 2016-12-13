@@ -34,9 +34,16 @@ func init() {
 			err := json.Unmarshal([]byte("\""+jtext+"\""), &ipn)
 			Expect(err).To(Not(HaveOccurred()))
 
+			ipn2 := &net.IPNet{}
+			err = ipn2.UnmarshalText([]byte(jtext))
+			Expect(err).To(Not(HaveOccurred()))
+			Expect(ipn).To(Equal(*ipn2))
+
 			// Check the masked IP.
-			Expect(ipn.IPAddress()).To(Equal(storedIP))
-			Expect(ipn.MaskedIPAddress()).To(Equal(maskedIP))
+			ip := *ipn.IPAddress()
+			mip := *ipn.MaskedIPAddress()
+			Expect(ip).To(Equal(storedIP))
+			Expect(mip).To(Equal(maskedIP))
 
 			// Check the mask size.
 			ones, _ := ipn.Mask.Size()
@@ -52,9 +59,10 @@ func init() {
 			Expect(strconv.Atoi(parts[1])).To(Equal(ones))
 
 			// Check the network.
-			ipn = ipn.MaskedIPNet()
+			ipn2 = ipn.MaskedIPNet()
+			ip = *ipn2.IPAddress()
 			ones, _ = ipn.Mask.Size()
-			Expect(ipn.IPAddress()).To(Equal(maskedIP))
+			Expect(ip).To(Equal(maskedIP))
 			Expect(ones).To(Equal(maskSize))
 		},
 		// IPNet tests.

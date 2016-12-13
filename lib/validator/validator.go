@@ -327,8 +327,20 @@ func validateRule(v *validator.Validate, structLevel *validator.StructLevel) {
 func validateNodeSpec(v *validator.Validate, structLevel *validator.StructLevel) {
 	ns := structLevel.CurrentStruct.Interface().(api.NodeSpec)
 
-	if ns.BGP != nil && ns.BGP.IPv4Address == nil && ns.BGP.IPv6Address == nil {
-		structLevel.ReportError(reflect.ValueOf(ns.BGP.IPv4Address),
-			"BGP.IPv4Address", "", reason("no BGP IP address specified"))
+	if ns.BGP != nil {
+		if ns.BGP.IPv4CIDR == nil && ns.BGP.IPv6CIDR == nil {
+			structLevel.ReportError(reflect.ValueOf(ns.BGP.IPv4CIDR),
+				"BGP.IPv4CIDR", "", reason("no BGP IP addresses specified"))
+		}
+
+		if ns.BGP.IPv4CIDR != nil && ns.BGP.IPv4CIDR.Version() != 4 {
+			structLevel.ReportError(reflect.ValueOf(ns.BGP.IPv4CIDR),
+				"BGP.IPv4CIDR", "", reason("IPv4CIDR is not a valid IPv4 address"))
+		}
+
+		if ns.BGP.IPv6CIDR != nil && ns.BGP.IPv6CIDR.Version() != 6 {
+			structLevel.ReportError(reflect.ValueOf(ns.BGP.IPv6CIDR),
+				"BGP.IPv6CIDR", "", reason("IPv6CIDR is not a valid IPv6 address"))
+		}
 	}
 }

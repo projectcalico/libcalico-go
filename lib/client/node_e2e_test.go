@@ -41,8 +41,12 @@ import (
 )
 
 var _ = Describe("Node tests", func() {
-	ipv4 := testutils.MustParseIP("1.2.3.4")
-	ipv6 := testutils.MustParseIP("aa::bb:dd")
+	cidrv4 := testutils.MustParseCIDR("1.2.3.190/25")
+	cidrv6 := testutils.MustParseCIDR("aa::bb:dd/124")
+	cidrv4Full := testutils.MustParseCIDR("1.2.3.4/32")
+	cidrv6Full := testutils.MustParseCIDR("aa::bb:dd/128")
+	netv4Str := "1.2.3.128/25"
+	netv6Str := "aa::bb:d0/124"
 	asn := numorstring.ASNumber(12345)
 
 	DescribeTable("Node e2e tests",
@@ -164,13 +168,13 @@ var _ = Describe("Node tests", func() {
 			api.NodeMetadata{Name: "node2"},
 			api.NodeSpec{
 				BGP: &api.NodeBGPSpec{
-					IPv4Address: &ipv4,
+					IPv4CIDR: &cidrv4,
 				},
 			},
 			api.NodeSpec{
 				BGP: &api.NodeBGPSpec{
-					IPv6Address: &ipv6,
-					ASNumber:    &asn,
+					IPv6CIDR: &cidrv6,
+					ASNumber: &asn,
 				},
 			}),
 
@@ -181,9 +185,9 @@ var _ = Describe("Node tests", func() {
 			api.NodeSpec{},
 			api.NodeSpec{
 				BGP: &api.NodeBGPSpec{
-					IPv4Address: &ipv4,
-					IPv6Address: &ipv6,
-					ASNumber:    &asn,
+					IPv4CIDR: &cidrv4,
+					IPv6CIDR: &cidrv6,
+					ASNumber: &asn,
 				},
 			}),
 	)
@@ -234,4 +238,59 @@ var _ = Describe("Node tests", func() {
 		})
 	})
 
+	// The BGP IP subnet is introduced after the IP - so check that the node
+	// resource can handle the subnet being missing.
+	Describe("Checking node resource handles subnet being missing", func() {
+		testutils.CleanEtcd()
+		c, _ := testutils.NewClient("")
+		var err error
+
+		// Step-1: Create node 1.
+		Context("Create node1", func() {
+			_, err = c.Nodes().Create(&api.Node{
+				Metadata: api.NodeMetadata{Name: "node1"},
+				Spec: api.NodeSpec{
+					BGP: &api.NodeBGPSpec{
+						IPv4CIDR: &cidrv4,
+						IPv6CIDR: &cidrv6,
+						ASNumber: &asn,
+					},
+				},
+			})
+			It("should create the node", func() {
+				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+
+		// Step-2: Check the network has been set.
+		Context("Check the BGP subnets", func() {
+			It("should have created a v4 subnet entry", func() {
+				v, err := testutils.GetEtcdValue("/calico/bgp/v1/host/node1/network_v4")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(v).To(Equal(netv4Str))
+			})
+
+			It("should have created a v6 subnet entry", func() {
+				v, err := testutils.GetEtcdValue("/calico/bgp/v1/host/node1/network_v6")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(v).To(Equal(netv6Str))
+			})
+		})
+
+		// Step-2: Delete the etcd entries for the IPv4 and IPv6 networks.
+		Context("Create node 2 and get the node resource", func() {
+			testutils.CleanEtcdSubtree("/calico/bgp/v1/host/node1/network_v4")
+			testutils.CleanEtcdSubtree("/calico/bgp/v1/host/node1/network_v6")
+
+			node, err := c.Nodes().Get(api.NodeMetadata{Name: "node1"})
+			It("should return the node", func() {
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("should have the correct IP address and full mask", func() {
+				Expect(*node.Spec.BGP.IPv4CIDR).To(Equal(cidrv4Full))
+				Expect(*node.Spec.BGP.IPv6CIDR).To(Equal(cidrv6Full))
+			})
+		})
+	})
 })

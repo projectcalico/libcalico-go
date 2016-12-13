@@ -61,13 +61,13 @@ type NodeBGPSpec struct {
 	// default value will be used.
 	ASNumber *numorstring.ASNumber `json:"asNumber,omitempty"`
 
-	// IPv4Address is the IPv4 address of this node.  At least one of the
-	// IPv4 and IPv6 addresses should be specified.
-	IPv4Address *net.IP `json:"ipv4Address,omitempty" validate:"omitempty,ipv4"`
+	// IPv4CIDR is the IPv4 address and subnet of this node.  At least one
+	// of the IPv4 and IPv6 CIDRs should be specified.
+	IPv4CIDR *net.IPNet `json:"ipv4CIDR,omitempty" validate:"omitempty"`
 
-	// IPv6Address is the IPv6 address of this node.  At least one of the
-	// IPv4 and IPv6 addresses should be specified.
-	IPv6Address *net.IP `json:"ipv6Address,omitempty" validate:"omitempty,ipv6"`
+	// IPv6CIDR is the IPv6 address and subnet of this node.  At least one
+	// of the IPv4 and IPv6 CIDRs should be specified.
+	IPv6CIDR *net.IPNet `json:"ipv6CIDR,omitempty" validate:"omitempty"`
 }
 
 // NewNode creates a new (zeroed) NodeList struct with the TypeMetadata initialised to the current
