@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"fmt"
 	"time"
 
 	"reflect"
@@ -22,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/compat"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/thirdparty"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 
@@ -36,7 +38,7 @@ func newSyncer(kc KubeClient, callbacks api.SyncerCallbacks) *kubeSyncer {
 	syn := &kubeSyncer{
 		kc:         kc,
 		callbacks:  callbacks,
-		tracker:    map[model.Key]interface{}{},
+		tracker:    map[string]model.KVPair{},
 		labelCache: map[string]map[string]string{},
 	}
 	return syn
@@ -46,7 +48,7 @@ type kubeSyncer struct {
 	kc         KubeClient
 	callbacks  api.SyncerCallbacks
 	OneShot    bool
-	tracker    map[model.Key]interface{}
+	tracker    map[string]model.KVPair
 	labelCache map[string]map[string]string
 }
 
@@ -56,6 +58,7 @@ type resourceVersions struct {
 	namespaceVersion     string
 	networkPolicyVersion string
 	globalConfigVersion  string
+	poolVersion          string
 }
 
 func (syn *kubeSyncer) Start() {
@@ -80,7 +83,7 @@ func (syn *kubeSyncer) sendUpdates(kvps []model.KVPair) {
 func (syn *kubeSyncer) convertKVPairsToUpdates(kvps []model.KVPair) []api.Update {
 	updates := []api.Update{}
 	for _, kvp := range kvps {
-		if _, ok := syn.tracker[kvp.Key]; !ok && kvp.Value == nil {
+		if _, ok := syn.tracker[fmt.Sprintf("%s", kvp.Key)]; !ok && kvp.Value == nil {
 			// The given KVPair is not in the tracker, and is a delete, so no need to
 			// send a delete update.
 			continue
@@ -96,10 +99,10 @@ func (syn *kubeSyncer) updateTracker(updates []api.Update) {
 	for _, upd := range updates {
 		if upd.UpdateType == api.UpdateTypeKVDeleted {
 			log.Debugf("Delete from tracker: %+v", upd.KVPair.Key)
-			delete(syn.tracker, upd.KVPair.Key)
+			delete(syn.tracker, fmt.Sprintf("%s", upd.KVPair.Key))
 		} else {
 			log.Debugf("Update tracker: %+v: %+v", upd.KVPair.Key, upd.KVPair.Revision)
-			syn.tracker[upd.KVPair.Key] = upd.KVPair.Revision
+			syn.tracker[fmt.Sprintf("%s", upd.KVPair.Key)] = upd.KVPair
 		}
 	}
 }
@@ -111,7 +114,7 @@ func (syn *kubeSyncer) getUpdateType(kvp model.KVPair) api.UpdateType {
 	}
 
 	// Not a delete.
-	if _, ok := syn.tracker[kvp.Key]; !ok {
+	if _, ok := syn.tracker[fmt.Sprintf("%s", kvp.Key)]; !ok {
 		// If not a delete and it does not exist in the tracker, this is an add.
 		return api.UpdateTypeKVNew
 	} else {
@@ -127,7 +130,7 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 	latestVersions := resourceVersions{}
 
 	// Other watcher vars.
-	var nsChan, poChan, npChan, gcChan <-chan watch.Event
+	var nsChan, poChan, npChan, gcChan, poolChan <-chan watch.Event
 	var event watch.Event
 	var kvp *model.KVPair
 	var opts k8sapi.ListOptions
@@ -187,14 +190,27 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 			}
 
 			// Create watcher for Calico global config resources.
-			tprListWatcher := cache.NewListWatchFromClient(
+			globalConfigWatcher := cache.NewListWatchFromClient(
 				syn.kc.tprClient,
 				"globalconfigs",
 				"kube-system",
 				fields.Everything())
-			tprWatch, err := tprListWatcher.WatchFunc(opts)
+			globalConfigWatch, err := globalConfigWatcher.WatchFunc(opts)
 			if err != nil {
 				log.Warnf("Failed to watch GlobalConfig, retrying: %s", err)
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			// Watcher for Calico IP Pool resources.
+			ipPoolWatcher := cache.NewListWatchFromClient(
+				syn.kc.tprClient,
+				"ippools",
+				"kube-system",
+				fields.Everything())
+			ipPoolWatch, err := ipPoolWatcher.WatchFunc(opts)
+			if err != nil {
+				log.Warnf("Failed to watch IPPools, retrying: %s", err)
 				time.Sleep(1 * time.Second)
 				continue
 			}
@@ -202,7 +218,8 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 			nsChan = nsWatch.ResultChan()
 			poChan = poWatch.ResultChan()
 			npChan = npWatch.ResultChan()
-			gcChan = tprWatch.ResultChan()
+			gcChan = globalConfigWatch.ResultChan()
+			poolChan = ipPoolWatch.ResultChan()
 
 			// Success - reset the flag.
 			needsResync = false
@@ -267,20 +284,33 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 			kvp = syn.parseGlobalConfigEvent(event)
 			latestVersions.globalConfigVersion = kvp.Revision.(string)
 			syn.sendUpdates([]model.KVPair{*kvp})
+		case event = <-poolChan:
+			log.Debugf("Incoming IPPool watch event. Type=%s", event.Type)
+			if needsResync = syn.eventTriggersResync(event); needsResync {
+				// We need to resync.  Break out into the sync loop.
+				log.Warn("Event triggered resync: %+v", event)
+				continue
+			}
+
+			// Event is OK - parse it and send it over the channel.
+			kvp = syn.parseIPPoolEvent(event)
+			latestVersions.poolVersion = kvp.Revision.(string)
+			syn.sendUpdates([]model.KVPair{*kvp})
+
 		}
 	}
 }
 
-func (syn *kubeSyncer) performSnapshotDeletes(exists map[model.Key]bool) {
+func (syn *kubeSyncer) performSnapshotDeletes(exists map[string]*model.KVPair) {
 	log.Info("Checking for any deletes for snapshot")
 	deletes := []model.KVPair{}
 	log.Debugf("Keys in snapshot: %+v", exists)
-	for cachedKey, _ := range syn.tracker {
+	for cachedKey, cachedKvp := range syn.tracker {
 		// Check each cached key to see if it exists in the snapshot.  If it doesn't,
 		// we need to send a delete for it.
 		if _, stillExists := exists[cachedKey]; !stillExists {
 			log.Debugf("Cached key not in snapshot: %+v", cachedKey)
-			deletes = append(deletes, model.KVPair{Key: cachedKey, Value: nil})
+			deletes = append(deletes, model.KVPair{Key: cachedKvp.Key, Value: nil})
 		}
 	}
 	log.Infof("Sending snapshot deletes: %+v", deletes)
@@ -291,17 +321,17 @@ func (syn *kubeSyncer) performSnapshotDeletes(exists map[model.Key]bool) {
 // a mapping of model.Key objects representing the objects which exist in the datastore, and
 // populates the provided resourceVersions with the latest k8s resource version
 // for each.
-func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[model.Key]bool, resourceVersions) {
+func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]*model.KVPair, resourceVersions) {
 	opts := k8sapi.ListOptions{}
 	versions := resourceVersions{}
 	var snap []model.KVPair
-	var keys map[model.Key]bool
+	var keys map[string]*model.KVPair
 
 	// Loop until we successfully are able to accesss the API.
 	for {
 		// Initialize the values to return.
 		snap = []model.KVPair{}
-		keys = map[model.Key]bool{}
+		keys = map[string]*model.KVPair{}
 
 		// Get Namespaces (Profiles)
 		log.Info("Syncing Namespaces")
@@ -325,9 +355,9 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[model.Key]bool, re
 			labels.Revision = profile.Revision
 
 			snap = append(snap, *rules, *tags, *labels)
-			keys[rules.Key] = true
-			keys[tags.Key] = true
-			keys[labels.Key] = true
+			keys[fmt.Sprintf("%s", rules.Key)] = rules
+			keys[fmt.Sprintf("%s", tags.Key)] = tags
+			keys[fmt.Sprintf("%s", labels.Key)] = labels
 		}
 
 		// Get NetworkPolicies (Policies)
@@ -348,7 +378,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[model.Key]bool, re
 		for _, np := range npList.Items {
 			pol, _ := syn.kc.converter.networkPolicyToPolicy(&np)
 			snap = append(snap, *pol)
-			keys[pol.Key] = true
+			keys[fmt.Sprintf("%s", pol.Key)] = pol
 		}
 
 		// Get Pods (WorkloadEndpoints)
@@ -365,7 +395,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[model.Key]bool, re
 			wep, _ := syn.kc.converter.podToWorkloadEndpoint(&po)
 			if wep != nil {
 				snap = append(snap, *wep)
-				keys[wep.Key] = true
+				keys[fmt.Sprintf("%s", wep.Key)] = wep
 			}
 		}
 
@@ -379,7 +409,20 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[model.Key]bool, re
 
 		for _, c := range confList {
 			snap = append(snap, *c)
-			keys[c.Key] = true
+			keys[fmt.Sprintf("%s", c.Key)] = c
+		}
+
+		// Sync IP Pools.
+		poolList, err := syn.kc.List(model.IPPoolListOptions{})
+		if err != nil {
+			log.Warnf("Error syncing IP Pools, retrying: %s", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		for _, p := range poolList {
+			snap = append(snap, *p)
+			keys[fmt.Sprintf("%s", p.Key)] = p
 		}
 
 		// Include ready state.
@@ -390,7 +433,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[model.Key]bool, re
 			continue
 		}
 		snap = append(snap, *ready)
-		keys[ready.Key] = true
+		keys[fmt.Sprintf("%s", ready.Key)] = ready
 
 		log.Infof("Snapshot resourceVersions: %+v", versions)
 		log.Debugf("Created snapshot: %+v", snap)
@@ -522,6 +565,24 @@ func (syn *kubeSyncer) parseGlobalConfigEvent(e watch.Event) *model.KVPair {
 
 	// Convert the received GlobalConfig into a KVPair.
 	kvp := syn.kc.converter.tprToGlobalConfig(gc)
+
+	// For deletes, we need to nil out the Value part of the KVPair
+	if e.Type == watch.Deleted {
+		kvp.Value = nil
+	}
+	return kvp
+}
+
+func (syn *kubeSyncer) parseIPPoolEvent(e watch.Event) *model.KVPair {
+	log.Debug("Parsing IPPool watch event")
+	// First, check the event type.
+	tpr, ok := e.Object.(*thirdparty.IpPool)
+	if !ok {
+		log.Panicf("Invalid IPPool event. Type: %s, Object: %+v", e.Type, e.Object)
+	}
+
+	// Convert the received IPPool into a KVPair.
+	kvp := resources.ThirdPartyToIPPool(tpr)
 
 	// For deletes, we need to nil out the Value part of the KVPair
 	if e.Type == watch.Deleted {
