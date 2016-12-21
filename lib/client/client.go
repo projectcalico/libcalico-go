@@ -47,6 +47,12 @@ func New(config api.CalicoAPIConfig) (*Client, error) {
 	return &cc, err
 }
 
+// EnsureInitialized calls backend.EnsureInitialized
+func (c *Client) EnsureInitialized() error {
+	err := c.backend.EnsureInitialized()
+	return err
+}
+
 // Nodes returns an interface for managing node resources.
 func (c *Client) Nodes() NodeInterface {
 	return newNodes(c)
