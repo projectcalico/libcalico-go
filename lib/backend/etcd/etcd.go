@@ -102,7 +102,21 @@ func NewEtcdClient(config *EtcdConfig) (*EtcdClient, error) {
 	return &EtcdClient{etcdClient: client, etcdKeysAPI: keys}, nil
 }
 
+// EnsureInitialized makes sure that the etcd data is initialized for use by
+// Calico.  This function is idempotent, it may be called after intialization
+// without error.
 func (c *EtcdClient) EnsureInitialized() error {
+	// Make sure the Ready flag is initialized in the datastore
+	_, err := c.Create(&model.KVPair{
+		Key:   model.ReadyFlagKey{},
+		Value: true,
+	})
+	if err != nil {
+		if _, ok := err.(errors.ErrorResourceAlreadyExists); !ok {
+			return err
+		}
+	}
+
 	return nil
 }
 
