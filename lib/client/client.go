@@ -17,17 +17,19 @@ package client
 import (
 	"io/ioutil"
 	"reflect"
-
-	"errors"
+	"encoding/hex"
+	goerrors "errors"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kelseyhightower/envconfig"
 	yaml "github.com/projectcalico/go-yaml-wrapper"
 	"github.com/projectcalico/libcalico-go/lib/api"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/api/unversioned"
 	"github.com/projectcalico/libcalico-go/lib/backend"
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/satori/go.uuid"
 )
 
 // Client contains
@@ -45,6 +47,30 @@ func New(config api.CalicoAPIConfig) (*Client, error) {
 		return nil, err
 	}
 	return &cc, err
+}
+
+// EnsureInitialized calls backend.EnsureInitialized
+func (c *Client) EnsureInitialized() error {
+
+	// Ensure a cluster GUID is set.  This is required for all datastore
+	// types.
+	kv := &model.KVPair{
+		Key:   model.GlobalConfigKey{Name: "ClusterGUID"},
+		Value: hex.EncodeToString(uuid.NewV4().Bytes()),
+	}
+	if _, err := c.backend.Create(kv); err == nil {
+		log.Infof("Assigned ClusterGUID %v", kv.Value)
+	} else {
+		if _, ok := err.(errors.ErrorResourceAlreadyExists); !ok {
+			log.Warnf("Failed to set ClusterGUID: %s", err)
+			return err
+		}
+		log.Infof("Using previously configured ClusterGUID")
+	}
+
+	// Perform datastore specific initialization.
+	err := c.backend.EnsureInitialized()
+	return err
 }
 
 // Nodes returns an interface for managing node resources.
@@ -128,10 +154,10 @@ func LoadClientConfigFromBytes(b []byte) (*api.CalicoAPIConfig, error) {
 
 	// Validate the version and kind.
 	if c.APIVersion != unversioned.VersionCurrent {
-		return nil, errors.New("invalid config file: unknown APIVersion '" + c.APIVersion + "'")
+		return nil, goerrors.New("invalid config file: unknown APIVersion '" + c.APIVersion + "'")
 	}
 	if c.Kind != "calicoApiConfig" {
-		return nil, errors.New("invalid config file: expected kind 'calicoApiConfig', got '" + c.Kind + "'")
+		return nil, goerrors.New("invalid config file: expected kind 'calicoApiConfig', got '" + c.Kind + "'")
 	}
 
 	log.Info("Datastore type: ", c.Spec.DatastoreType)
