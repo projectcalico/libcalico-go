@@ -38,7 +38,7 @@ func newSyncer(kc KubeClient, callbacks api.SyncerCallbacks) *kubeSyncer {
 	syn := &kubeSyncer{
 		kc:         kc,
 		callbacks:  callbacks,
-		tracker:    map[string]model.KVPair{},
+		tracker:    map[string]model.Key{},
 		labelCache: map[string]map[string]string{},
 	}
 	return syn
@@ -48,7 +48,7 @@ type kubeSyncer struct {
 	kc         KubeClient
 	callbacks  api.SyncerCallbacks
 	OneShot    bool
-	tracker    map[string]model.KVPair
+	tracker    map[string]model.Key
 	labelCache map[string]map[string]string
 }
 
@@ -102,7 +102,7 @@ func (syn *kubeSyncer) updateTracker(updates []api.Update) {
 			delete(syn.tracker, fmt.Sprintf("%s", upd.KVPair.Key))
 		} else {
 			log.Debugf("Update tracker: %+v: %+v", upd.KVPair.Key, upd.KVPair.Revision)
-			syn.tracker[fmt.Sprintf("%s", upd.KVPair.Key)] = upd.KVPair
+			syn.tracker[fmt.Sprintf("%s", upd.KVPair.Key)] = upd.KVPair.Key
 		}
 	}
 }
@@ -296,21 +296,20 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 			kvp = syn.parseIPPoolEvent(event)
 			latestVersions.poolVersion = kvp.Revision.(string)
 			syn.sendUpdates([]model.KVPair{*kvp})
-
 		}
 	}
 }
 
-func (syn *kubeSyncer) performSnapshotDeletes(exists map[string]*model.KVPair) {
+func (syn *kubeSyncer) performSnapshotDeletes(exists map[string]bool) {
 	log.Info("Checking for any deletes for snapshot")
 	deletes := []model.KVPair{}
 	log.Debugf("Keys in snapshot: %+v", exists)
-	for cachedKey, cachedKvp := range syn.tracker {
+	for cachedKey, k := range syn.tracker {
 		// Check each cached key to see if it exists in the snapshot.  If it doesn't,
 		// we need to send a delete for it.
 		if _, stillExists := exists[cachedKey]; !stillExists {
 			log.Debugf("Cached key not in snapshot: %+v", cachedKey)
-			deletes = append(deletes, model.KVPair{Key: cachedKvp.Key, Value: nil})
+			deletes = append(deletes, model.KVPair{Key: k, Value: nil})
 		}
 	}
 	log.Infof("Sending snapshot deletes: %+v", deletes)
@@ -321,17 +320,17 @@ func (syn *kubeSyncer) performSnapshotDeletes(exists map[string]*model.KVPair) {
 // a mapping of model.Key objects representing the objects which exist in the datastore, and
 // populates the provided resourceVersions with the latest k8s resource version
 // for each.
-func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]*model.KVPair, resourceVersions) {
+func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resourceVersions) {
 	opts := k8sapi.ListOptions{}
 	versions := resourceVersions{}
 	var snap []model.KVPair
-	var keys map[string]*model.KVPair
+	var keys map[string]bool
 
 	// Loop until we successfully are able to accesss the API.
 	for {
 		// Initialize the values to return.
 		snap = []model.KVPair{}
-		keys = map[string]*model.KVPair{}
+		keys = map[string]bool{}
 
 		// Get Namespaces (Profiles)
 		log.Info("Syncing Namespaces")
@@ -355,9 +354,9 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]*model.KVPa
 			labels.Revision = profile.Revision
 
 			snap = append(snap, *rules, *tags, *labels)
-			keys[fmt.Sprintf("%s", rules.Key)] = rules
-			keys[fmt.Sprintf("%s", tags.Key)] = tags
-			keys[fmt.Sprintf("%s", labels.Key)] = labels
+			keys[fmt.Sprintf("%s", rules.Key)] = true
+			keys[fmt.Sprintf("%s", tags.Key)] = true
+			keys[fmt.Sprintf("%s", labels.Key)] = true
 		}
 
 		// Get NetworkPolicies (Policies)
@@ -378,7 +377,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]*model.KVPa
 		for _, np := range npList.Items {
 			pol, _ := syn.kc.converter.networkPolicyToPolicy(&np)
 			snap = append(snap, *pol)
-			keys[fmt.Sprintf("%s", pol.Key)] = pol
+			keys[fmt.Sprintf("%s", pol.Key)] = true
 		}
 
 		// Get Pods (WorkloadEndpoints)
@@ -395,7 +394,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]*model.KVPa
 			wep, _ := syn.kc.converter.podToWorkloadEndpoint(&po)
 			if wep != nil {
 				snap = append(snap, *wep)
-				keys[fmt.Sprintf("%s", wep.Key)] = wep
+				keys[fmt.Sprintf("%s", wep.Key)] = true
 			}
 		}
 
@@ -409,7 +408,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]*model.KVPa
 
 		for _, c := range confList {
 			snap = append(snap, *c)
-			keys[fmt.Sprintf("%s", c.Key)] = c
+			keys[fmt.Sprintf("%s", c.Key)] = true
 		}
 
 		// Sync IP Pools.
@@ -422,7 +421,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]*model.KVPa
 
 		for _, p := range poolList {
 			snap = append(snap, *p)
-			keys[fmt.Sprintf("%s", p.Key)] = p
+			keys[fmt.Sprintf("%s", p.Key)] = true
 		}
 
 		// Include ready state.
@@ -433,7 +432,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]*model.KVPa
 			continue
 		}
 		snap = append(snap, *ready)
-		keys[fmt.Sprintf("%s", ready.Key)] = ready
+		keys[fmt.Sprintf("%s", ready.Key)] = true
 
 		log.Infof("Snapshot resourceVersions: %+v", versions)
 		log.Debugf("Created snapshot: %+v", snap)

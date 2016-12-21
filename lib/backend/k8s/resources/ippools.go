@@ -15,13 +15,10 @@
 package resources
 
 import (
-	goerrors "errors"
-	"fmt"
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/thirdparty"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/utils"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/errors"
 
@@ -54,7 +51,7 @@ func (c *client) Create(kvp *model.KVPair) (*model.KVPair, error) {
 		Body(tpr)
 	err := req.Do().Into(&res)
 	if err != nil {
-		return nil, utils.K8sErrorToCalico(err, kvp.Key)
+		return nil, K8sErrorToCalico(err, kvp.Key)
 	}
 	kvp.Revision = res.Metadata.ResourceVersion
 	return kvp, nil
@@ -70,7 +67,7 @@ func (c *client) Update(kvp *model.KVPair) (*model.KVPair, error) {
 		Name(tpr.Metadata.Name)
 	err := req.Do().Into(&res)
 	if err != nil {
-		return nil, utils.K8sErrorToCalico(err, kvp.Key)
+		return nil, K8sErrorToCalico(err, kvp.Key)
 	}
 	kvp.Revision = tpr.Metadata.ResourceVersion
 	return kvp, nil
@@ -98,9 +95,7 @@ func (c *client) Delete(kvp *model.KVPair) error {
 		Namespace("kube-system").
 		Name(tprName(kvp.Key.(model.IPPoolKey))).
 		Do()
-
-		// TODO: Error conversion
-	return utils.K8sErrorToCalico(result.Error(), kvp.Key)
+	return K8sErrorToCalico(result.Error(), kvp.Key)
 }
 
 func (c *client) Get(key model.Key) (*model.KVPair, error) {
@@ -111,7 +106,7 @@ func (c *client) Get(key model.Key) (*model.KVPair, error) {
 		Name(tprName(key.(model.IPPoolKey))).
 		Do().Into(&tpr)
 	if err != nil {
-		return nil, utils.K8sErrorToCalico(err, key)
+		return nil, K8sErrorToCalico(err, key)
 	}
 
 	return ThirdPartyToIPPool(&tpr), nil
@@ -136,7 +131,7 @@ func (c *client) List(list model.ListInterface) ([]*model.KVPair, error) {
 		// means there are no IPPools, and we should return
 		// an empty list.
 		if !kerrors.IsNotFound(err) {
-			return nil, utils.K8sErrorToCalico(err, l)
+			return nil, K8sErrorToCalico(err, l)
 		}
 	}
 
@@ -161,7 +156,7 @@ func (c *client) EnsureInitialized() error {
 	if err != nil {
 		// Don't care if it already exists.
 		if !kerrors.IsAlreadyExists(err) {
-			return goerrors.New(fmt.Sprintf("failed to create ThirdPartyResource %s: %s", tpr.ObjectMeta.Name, err))
+			return K8sErrorToCalico(err, tpr)
 		}
 	}
 	return nil
