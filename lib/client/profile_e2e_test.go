@@ -57,7 +57,7 @@ var profileSpec2 = api.ProfileSpec{
 }
 var tags2 = []string{"profile2-tag1", "profile2-tag2"}
 
-var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV2|testutils.DatastoreConsulV1, func(config api.CalicoAPIConfig) {
 
 	DescribeTable("Profile e2e tests",
 		func(meta1, meta2 api.ProfileMetadata, spec1, spec2 api.ProfileSpec) {

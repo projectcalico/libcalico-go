@@ -29,7 +29,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/testutils"
 )
 
-var _ = testutils.E2eDatastoreDescribe("with config option API tests", testutils.DatastoreEtcdV2, func(calicoConfig api.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("with config option API tests", testutils.DatastoreEtcdV2|testutils.DatastoreConsulV1, func(calicoConfig api.CalicoAPIConfig) {
 
 	var config client.ConfigInterface
 

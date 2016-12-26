@@ -41,7 +41,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/testutils"
 )
 
-var _ = testutils.E2eDatastoreDescribe("Node tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("Node tests", testutils.DatastoreEtcdV2|testutils.DatastoreConsulV1, func(config api.CalicoAPIConfig) {
 	cidrv4 := testutils.MustParseCIDR("1.2.3.5/24")
 	cidrv6 := testutils.MustParseCIDR("aa::bb00:0001/104")
 	asn := numorstring.ASNumber(12345)

@@ -46,7 +46,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/testutils"
 )
 
-var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreEtcdV2|testutils.DatastoreConsulV1, func(config api.CalicoAPIConfig) {
 
 	DescribeTable("BGPPeer e2e tests",
 		func(meta1, meta2 api.BGPPeerMetadata, spec1, spec2 api.BGPPeerSpec) {

@@ -41,5 +41,9 @@ import:
   - rest
   - tools/cache
   - tools/clientcmd
+- package: github.com/hashicorp/consul
+  version: ^0.7.2
+  subpackages:
+  - api
 testImport:
 - package: github.com/onsi/gomega

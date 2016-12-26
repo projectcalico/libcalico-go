@@ -48,7 +48,7 @@ import (
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 )
 
-var _ = testutils.E2eDatastoreDescribe("WorkloadEndpoint tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("WorkloadEndpoint tests", testutils.DatastoreEtcdV2|testutils.DatastoreConsulV1, func(config api.CalicoAPIConfig) {
 	cidr1 := testutils.MustParseNetwork("10.0.0.0/32")
 	cidr2 := testutils.MustParseNetwork("20.0.0.0/32")
 	cidr3 := testutils.MustParseNetwork("192.168.0.0/32")

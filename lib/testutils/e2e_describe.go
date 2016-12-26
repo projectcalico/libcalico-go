@@ -17,6 +17,7 @@ import (
 	"fmt"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/consul"
 	"github.com/projectcalico/libcalico-go/lib/backend/etcd"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s"
 
@@ -28,8 +29,9 @@ type DatastoreType int
 const (
 	DatastoreEtcdV2 DatastoreType = 1 << iota
 	DatastoreK8s
+	DatastoreConsulV1
 
-	DatastoreAll = DatastoreEtcdV2 | DatastoreK8s
+	DatastoreAll = DatastoreEtcdV2 | DatastoreK8s | DatastoreConsulV1
 )
 
 // E2eDatastoreDescribe is a replacement for ginkgo.Describe which invokes Describe
@@ -63,6 +65,21 @@ func E2eDatastoreDescribe(description string, datastores DatastoreType, body fun
 						DatastoreType: api.Kubernetes,
 						KubeConfig: k8s.KubeConfig{
 							K8sAPIEndpoint: "http://localhost:8080",
+						},
+					},
+				})
+			})
+	}
+
+	if datastores&DatastoreConsulV1 != 0 {
+		Describe(fmt.Sprintf("%s (consul backend)", description),
+			func() {
+				body(api.CalicoAPIConfig{
+					Spec: api.CalicoAPIConfigSpec{
+						DatastoreType: api.ConsulV1,
+						ConsulConfig: consul.ConsulConfig{
+							ConsulAddress: "127.0.0.1:8500",
+							ConsulScheme:  "http",
 						},
 					},
 				})

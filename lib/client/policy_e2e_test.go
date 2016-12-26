@@ -63,7 +63,7 @@ var policySpec2 = api.PolicySpec{
 	DoNotTrack:   true,
 }
 
-var _ = testutils.E2eDatastoreDescribe("Policy tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("Policy tests", testutils.DatastoreEtcdV2|testutils.DatastoreConsulV1, func(config api.CalicoAPIConfig) {
 
 	DescribeTable("Policy e2e tests",
 		func(meta1, meta2 api.PolicyMetadata, spec1, spec2 api.PolicySpec) {

@@ -19,6 +19,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	etcdclient "github.com/coreos/etcd/client"
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/api/unversioned"
 	"github.com/projectcalico/libcalico-go/lib/client"
@@ -106,6 +107,18 @@ func CleanDatastore(config api.CalicoAPIConfig) {
 		} else {
 			log.Errorf("Can't create etcd backend %v", err)
 		}
+	case api.ConsulV1:
+		cfg := consulapi.Config{
+			Address: config.Spec.ConsulAddress,
+			Scheme:  config.Spec.ConsulScheme,
+		}
+		c, _ := consulapi.NewClient(&cfg)
+		kv := c.KV()
+		ops := consulapi.KVTxnOps{
+			&consulapi.KVTxnOp{Key: "calico", Verb: consulapi.KVDelete},
+			&consulapi.KVTxnOp{Key: "calico/", Verb: consulapi.KVDeleteTree},
+		}
+		_, _, _, err = kv.Txn(ops, nil)
 	default:
 		err = errors.New(fmt.Sprintf("Unknown datastore type: %v", config.Spec.DatastoreType))
 	}
@@ -132,6 +145,8 @@ func DumpBackend(config api.CalicoAPIConfig) error {
 	switch config.Spec.DatastoreType {
 	case api.EtcdV2:
 		output, err = exec.Command("curl", "http://127.0.0.1:2379/v2/keys?recursive=true").Output()
+	case api.ConsulV1:
+		output, err = exec.Command("curl", "http://127.0.0.1:8500/v1/kv/calico?recurse=").Output()
 	default:
 		err = errors.New(fmt.Sprintf("Unknown datastore type: %v", config.Spec.DatastoreType))
 	}

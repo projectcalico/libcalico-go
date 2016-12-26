@@ -48,7 +48,7 @@ import (
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 )
 
-var _ = testutils.E2eDatastoreDescribe("HostEndpoint tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("HostEndpoint tests", testutils.DatastoreEtcdV2|testutils.DatastoreConsulV1, func(config api.CalicoAPIConfig) {
 
 	DescribeTable("HostEndpoint e2e tests",
 		func(meta1, meta2 api.HostEndpointMetadata, spec1, spec2 api.HostEndpointSpec) {
