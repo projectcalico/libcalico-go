@@ -178,11 +178,7 @@ func (c *KubeClient) createThirdPartyResources() error {
 	}
 
 	// Ensure the IP Pool TPR exists.
-	err = c.ipPoolClient.EnsureInitialized()
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.ipPoolClient.EnsureInitialized()
 }
 
 // waitForClusterType polls until GlobalConfig is ready, or until 30 seconds have passed.

@@ -30,7 +30,7 @@ func ThirdPartyToIPPool(t *thirdparty.IpPool) *model.KVPair {
 	v := model.IPPool{}
 	err := json.Unmarshal([]byte(t.Spec.Value), &v)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Error unmarshalling IPPool value: %s", err)
 	}
 	return &model.KVPair{
 		Key:      model.IPPoolKey{CIDR: v.CIDR},

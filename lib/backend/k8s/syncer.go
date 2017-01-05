@@ -368,7 +368,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 			Timeout(10 * time.Second).
 			Do().Into(&npList)
 		if err != nil {
-			log.Warnf("Error syncing NetworkPolicies, retrying: %s", err)
+			log.Warnf("Error querying NetworkPolicies during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -384,7 +384,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 		log.Info("Syncing Pods")
 		poList, err := syn.kc.clientSet.Pods("").List(opts)
 		if err != nil {
-			log.Warnf("Error syncing Pods, retrying: %s", err)
+			log.Warnf("Error querying Pods during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -401,7 +401,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 		// Sync GlobalConfig.
 		confList, err := syn.kc.listGlobalConfig(model.GlobalConfigListOptions{})
 		if err != nil {
-			log.Warnf("Error syncing GlobalConfig, retrying: %s", err)
+			log.Warnf("Error querying GlobalConfig during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -414,7 +414,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 		// Sync IP Pools.
 		poolList, err := syn.kc.List(model.IPPoolListOptions{})
 		if err != nil {
-			log.Warnf("Error syncing IP Pools, retrying: %s", err)
+			log.Warnf("Error querying IP Pools during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -427,7 +427,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 		// Include ready state.
 		ready, err := syn.kc.getReadyStatus(model.ReadyFlagKey{})
 		if err != nil {
-			log.Warnf("Error getting ready status, retrying: %s", err)
+			log.Warnf("Error querying ready status during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
 			continue
 		}

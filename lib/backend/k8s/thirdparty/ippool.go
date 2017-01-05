@@ -9,10 +9,14 @@ import (
 	"k8s.io/client-go/pkg/runtime/schema"
 )
 
+// IpPoolSpec is the specification of an IP Pool as represented in the Kubernetes
+// ThirdPartyResource API.
 type IpPoolSpec struct {
+	// Value is a json encoded string which can be unmarshalled into a model.IPPool struct.
 	Value string `json:"value"`
 }
 
+// IpPool is the ThirdPartyResource definition of an IPPool in the Kubernetes API.
 type IpPool struct {
 	unversioned.TypeMeta `json:",inline"`
 	Metadata             api.ObjectMeta `json:"metadata"`
@@ -20,6 +24,7 @@ type IpPool struct {
 	Spec IpPoolSpec `json:"spec"`
 }
 
+// IpPoolList is a list of IpPool resources.
 type IpPoolList struct {
 	unversioned.TypeMeta `json:",inline"`
 	Metadata             unversioned.ListMeta `json:"metadata"`
@@ -27,22 +32,22 @@ type IpPoolList struct {
 	Items []IpPool `json:"items"`
 }
 
-// Required to satisfy Object interface
+// GetObjectKind returns the kind of this object.  Required to satisfy Object interface
 func (e *IpPool) GetObjectKind() schema.ObjectKind {
 	return &e.TypeMeta
 }
 
-// Required to satisfy ObjectMetaAccessor interface
+// GetOjbectMeta returns the object metadata of this object. Required to satisfy ObjectMetaAccessor interface
 func (e *IpPool) GetObjectMeta() meta.Object {
 	return &e.Metadata
 }
 
-// Required to satisfy Object interface
+// GetObjectKind returns the kind of this object. Required to satisfy Object interface
 func (el *IpPoolList) GetObjectKind() schema.ObjectKind {
 	return &el.TypeMeta
 }
 
-// Required to satisfy ListMetaAccessor interface
+// GetListMeta returns the list metadata of this object. Required to satisfy ListMetaAccessor interface
 func (el *IpPoolList) GetListMeta() unversioned.List {
 	return &el.Metadata
 }
