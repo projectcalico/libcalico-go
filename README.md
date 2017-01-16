@@ -7,9 +7,7 @@ This repositiory contains Calico's Go components:
 
 This library is used by both `calicoctl`, `calico-cni` and `felix`.
 
-If you are looking for the golang version of `calicoctl` it is in the process of moving and
-can be found in our
-[calico-containers repo / golang branch](https://github.com/projectcalico/calico-containers/tree/golang).
+If you are looking for `calicoctl` it's at the [calicoctl](https://github.com/projectcalico/calicoctl) repository.
  
 If you wish to use libcalico for integration with Calico networking and
 policy, the main entry point to managing Calico configuration is through
