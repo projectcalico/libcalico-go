@@ -168,8 +168,14 @@ func (h *nodes) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 
 	v := model.Node{}
 	if an.Spec.BGP != nil {
-		v.BGPIPv4 = an.Spec.BGP.IPv4Address
-		v.BGPIPv6 = an.Spec.BGP.IPv6Address
+		if an.Spec.BGP.IPv4CIDR != nil {
+			v.BGPIPv4Addr = an.Spec.BGP.IPv4CIDR.IPAddress()
+			v.BGPIPv4Net = an.Spec.BGP.IPv4CIDR.MaskedIPNet()
+		}
+		if an.Spec.BGP.IPv6CIDR != nil {
+			v.BGPIPv6Addr = an.Spec.BGP.IPv6CIDR.IPAddress()
+			v.BGPIPv6Net = an.Spec.BGP.IPv6CIDR.MaskedIPNet()
+		}
 		v.BGPASNumber = an.Spec.BGP.ASNumber
 	}
 
@@ -186,11 +192,30 @@ func (h *nodes) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error
 	apiNode := api.NewNode()
 	apiNode.Metadata.Name = bk.Hostname
 
-	if bv.BGPIPv4 != nil || bv.BGPIPv6 != nil {
+	var ipv4CIDR *net.IPNet
+	var ipv6CIDR *net.IPNet
+	if bv.BGPIPv4Addr != nil {
+		ipv4CIDR = &net.IPNet{}
+		if bv.BGPIPv4Net != nil {
+			ipv4CIDR.FromIPAndMask(bv.BGPIPv4Addr.IP, bv.BGPIPv4Net.Mask)
+		} else {
+			ipv4CIDR.FromIP(bv.BGPIPv4Addr.IP)
+		}
+	}
+	if bv.BGPIPv6Addr != nil {
+		ipv6CIDR = &net.IPNet{}
+		if bv.BGPIPv6Net != nil {
+			ipv6CIDR.FromIPAndMask(bv.BGPIPv6Addr.IP, bv.BGPIPv6Net.Mask)
+		} else {
+			ipv6CIDR.FromIP(bv.BGPIPv6Addr.IP)
+		}
+	}
+
+	if ipv4CIDR != nil || ipv6CIDR != nil {
 		apiNode.Spec.BGP = &api.NodeBGPSpec{
-			IPv4Address: bv.BGPIPv4,
-			IPv6Address: bv.BGPIPv6,
-			ASNumber:    bv.BGPASNumber,
+			IPv4CIDR: ipv4CIDR,
+			IPv6CIDR: ipv6CIDR,
+			ASNumber: bv.BGPASNumber,
 		}
 	}
 
