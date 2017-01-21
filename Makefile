@@ -13,7 +13,7 @@ test: ut
 
 ## Use this to populate the vendor directory after checking out the repository.
 ## To update upstream dependencies, delete the glide.lock file first.
-vendor: 
+vendor:
 	glide install -strip-vendor
 
 .PHONY: ut
@@ -23,11 +23,13 @@ ut: vendor
 
 .PHONY: test-containerized
 ## Run the tests in a container. Useful for CI, Mac dev.
-test-containerized: $(BUILD_CONTAINER_MARKER) run-kubernetes-master 
+test-containerized: $(BUILD_CONTAINER_MARKER) run-kubernetes-master
+	mkdir -p ${HOME}/.glide
 	docker run --rm --privileged --net=host \
 	-e PLUGIN=calico \
+	-v ${HOME}/.glide:/root/.glide:rw \
 	-v ${PWD}:/go/src/github.com/projectcalico/libcalico-go:rw \
-	$(BUILD_CONTAINER_NAME) bash -c 'make WHAT=$(WHAT) ut && chown $(shell id -u):$(shell id -g) -R ./vendor'
+	$(BUILD_CONTAINER_NAME) bash -c 'make WHAT=$(WHAT) ut && chown $(shell id -u):$(shell id -g) -R ./vendor /root/.glide'
 
 ## Install or update the tools used by the build
 .PHONY: update-tools
