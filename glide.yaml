@@ -10,6 +10,7 @@ import:
 - package: github.com/coreos/etcd
   subpackages:
   - client
+  - clientv3
   - pkg/transport
 - package: github.com/projectcalico/go-yaml-wrapper
 - package: github.com/kelseyhightower/envconfig
