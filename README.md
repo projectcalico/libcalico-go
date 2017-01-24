@@ -1,15 +1,13 @@
 [![Build Status](https://semaphoreci.com/api/v1/calico/libcalico-go/branches/master/badge.svg)](https://semaphoreci.com/calico/libcalico-go)[![Slack Status](https://slack.projectcalico.org/badge.svg)](https://slack.projectcalico.org) [![IRC Channel](https://img.shields.io/badge/irc-%23calico-blue.svg)](https://kiwiirc.com/client/irc.freenode.net/#calico)
 
 # libcalico-go
-This repositiory contains Calico's Go components:
+This repositiory contains Calico's shared Go library, `libcalico`, which can be imported as 
+`"github.com/projectcalico/libcalico-go/lib"`
 
-- `libcalico`, which can be imported as `"github.com/projectcalico/libcalico-go/lib"`
+This library is used by `calicoctl`, `calico-cni` and `felix`.
 
-This library is used by both `calicoctl`, `calico-cni` and `felix`.
-
-If you are looking for the golang version of `calicoctl` it is in the process of moving and
-can be found in our
-[calico-containers repo / golang branch](https://github.com/projectcalico/calico-containers/tree/golang).
+If you are looking for the golang version of `calicoctl` it has been moved to 
+[its own repo](https://github.com/projectcalico/calicoctl/).
  
 If you wish to use libcalico for integration with Calico networking and
 policy, the main entry point to managing Calico configuration is through
