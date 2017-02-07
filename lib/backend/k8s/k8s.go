@@ -718,10 +718,7 @@ func (c *KubeClient) deleteGlobalConfig(k *model.KVPair) error {
 }
 
 func (c *KubeClient) getHostConfig(k model.HostConfigKey) (*model.KVPair, error) {
-	return &model.KVPair{
-		Key:   k,
-		Value: nil,
-	}, nil
+	return nil, errors.ErrorResourceDoesNotExist{Identifier: k}
 }
 
 func (c *KubeClient) listHostConfig(l model.HostConfigListOptions) ([]*model.KVPair, error) {
