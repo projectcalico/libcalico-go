@@ -339,6 +339,8 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 			time.Sleep(1 * time.Second)
 			continue
 		}
+		log.Info("Received Namespace List() response")
+
 		versions.namespaceVersion = nsList.ListMeta.ResourceVersion
 		for _, ns := range nsList.Items {
 			// The Syncer API expects a profile to be broken into its underlying
@@ -378,6 +380,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 			time.Sleep(1 * time.Second)
 			continue
 		}
+		log.Info("Received NetworkPolicy List() response")
 
 		versions.networkPolicyVersion = npList.ListMeta.ResourceVersion
 		for _, np := range npList.Items {
@@ -394,9 +397,17 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 			time.Sleep(1 * time.Second)
 			continue
 		}
+		log.Info("Received Pod List() response")
 
 		versions.podVersion = poList.ListMeta.ResourceVersion
 		for _, po := range poList.Items {
+			// Ignore any updates for host networked pods.
+			if syn.kc.converter.isHostNetworked(&po) {
+				log.Debugf("Skipping host networked pod %s/%s", po.ObjectMeta.Namespace, po.ObjectMeta.Name)
+				continue
+			}
+
+			// Convert to a workload endpoint.
 			wep, _ := syn.kc.converter.podToWorkloadEndpoint(&po)
 			if wep != nil {
 				snap = append(snap, *wep)
@@ -411,6 +422,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 			time.Sleep(1 * time.Second)
 			continue
 		}
+		log.Info("Received GlobalConfig List() response")
 
 		for _, c := range confList {
 			snap = append(snap, *c)
@@ -424,6 +436,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 			time.Sleep(1 * time.Second)
 			continue
 		}
+		log.Info("Received IP Pools List() response")
 
 		for _, p := range poolList {
 			snap = append(snap, *p)
