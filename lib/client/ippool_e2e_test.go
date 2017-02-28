@@ -37,33 +37,36 @@ package client_test
 import (
 	"errors"
 	"log"
+	"reflect"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
+	"github.com/projectcalico/libcalico-go/lib/client"
+	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/ipip"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
 )
 
-var _ = Describe("IPPool tests", func() {
+var _ = testutils.E2eDatastoreDescribe("IPPool e2e tests", testutils.DatastoreEtcdV2 |testutils.DatastoreK8s, func(apiConfig api.CalicoAPIConfig) {
 
 	DescribeTable("IPPool e2e tests",
 		func(meta1, meta2 api.IPPoolMetadata, spec1, spec2 api.IPPoolSpec) {
 
-			// Erase etcd clean.
-			testutils.CleanEtcd()
-
-			// Create a new client.
-			c, err := testutils.NewClient("")
+			// Create a new client and clean the datastore
+			c, err := client.New(apiConfig)
 			if err != nil {
 				log.Println("Error creating client:", err)
 			}
+			testutils.CleanIPPools(c)
+
 			By("Updating the pool before it is created")
 			_, outError := c.IPPools().Update(&api.IPPool{Metadata: meta1, Spec: spec1})
 
 			// Should return an error.
+			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal(errors.New("resource does not exist: IPPool(cidr=10.0.0.0/24)").Error()))
 
 			By("Create, Apply, Get and compare")
@@ -133,6 +136,7 @@ var _ = Describe("IPPool tests", func() {
 
 			// Assert they are equal and no errors.
 			Expect(outError1).NotTo(HaveOccurred())
+			Expect(len(poolList.Items)).To(Equal(1))
 			Expect(poolList.Items[0].Spec).To(Equal(outPool1.Spec))
 
 			By("Delete, Get and assert error")
@@ -219,16 +223,10 @@ var _ = Describe("IPPool tests", func() {
 			api.IPPoolMetadata{CIDR: testutils.MustParseNetwork("10.0.0.0/24")},
 			api.IPPoolMetadata{CIDR: testutils.MustParseNetwork("fe80::00/120")},
 			api.IPPoolSpec{
-				IPIP: &api.IPIPConfiguration{
-					Enabled: true,
-				},
 				NATOutgoing: true,
 				Disabled:    true,
 			},
 			api.IPPoolSpec{
-				IPIP: &api.IPIPConfiguration{
-					Enabled: true,
-				},
 				NATOutgoing: false,
 				Disabled:    false,
 			},
@@ -250,7 +248,7 @@ var _ = Describe("IPPool tests", func() {
 		// Test 6: Test starting with IPIP (cross subnet mode) and moving to IPIP disabled (keeping IPIP mode)
 		Entry("IPIP (cross subnet mode) and moving to IPIP disabled (keeping IPIP mode)",
 			api.IPPoolMetadata{CIDR: testutils.MustParseNetwork("10.0.0.0/24")},
-			api.IPPoolMetadata{CIDR: testutils.MustParseNetwork("fe80::00/120")},
+			api.IPPoolMetadata{CIDR: testutils.MustParseNetwork("10.10.10.0/24")},
 			api.IPPoolSpec{
 				IPIP: &api.IPIPConfiguration{
 					Enabled: true,
@@ -265,4 +263,53 @@ var _ = Describe("IPPool tests", func() {
 			},
 		),
 	)
+
+	Describe("Checking operations perform data validation", func() {
+		c, _ := client.New(apiConfig)
+		testutils.CleanIPPools(c)
+
+		var err error
+		valErrorType := reflect.TypeOf(cerrors.ErrorValidation{})
+
+		// Step-1: Test data validation occurs on create.
+		It("should invoke validation failure", func() {
+			By("Creating a pool with small CIDR (< /26)")
+			_, err = c.IPPools().Create(&api.IPPool{
+				Metadata: api.IPPoolMetadata{CIDR: testutils.MustParseCIDR("10.10.10.0/30")},
+				Spec:     api.IPPoolSpec{},
+			})
+
+			Expect(err).To(HaveOccurred())
+			Expect(reflect.TypeOf(err)).To(Equal(valErrorType))
+		})
+
+		// Step-2: Test data validation occurs on apply.
+		It("should invoke validation failure", func() {
+			By("Applying a pool with small CIDR (< /122)")
+			_, err = c.IPPools().Apply(&api.IPPool{
+				Metadata: api.IPPoolMetadata{CIDR: testutils.MustParseCIDR("aa:bb::cc/125")},
+				Spec:     api.IPPoolSpec{},
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(reflect.TypeOf(err)).To(Equal(valErrorType))
+		})
+
+		// Step-3: Test data validation occurs on update.
+		It("should invoke validation failure", func() {
+			By("Creating a pool with a valid CIDR")
+			_, err = c.IPPools().Create(&api.IPPool{
+				Metadata: api.IPPoolMetadata{CIDR: testutils.MustParseCIDR("aa:bb::cc/120")},
+				Spec:     api.IPPoolSpec{},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the pool using invalid settings (IPIP on IPv6 pool)")
+			_, err = c.IPPools().Update(&api.IPPool{
+				Metadata: api.IPPoolMetadata{CIDR: testutils.MustParseCIDR("aa:bb::cc/120")},
+				Spec:     api.IPPoolSpec{IPIP: &api.IPIPConfiguration{Enabled: true}},
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(reflect.TypeOf(err)).To(Equal(valErrorType))
+		})
+	})
 })

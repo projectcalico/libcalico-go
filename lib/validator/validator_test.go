@@ -261,12 +261,38 @@ func init() {
 			}, false),
 
 		// (API) PoolMetadata
-		Entry("should accept IP pool with IPv4 CIDR /26", api.IPPoolMetadata{CIDR: netv4_3}, true),
-		Entry("should accept IP pool with IPv4 CIDR /10", api.IPPoolMetadata{CIDR: netv4_4}, true),
-		Entry("should accept IP pool with IPv6 CIDR /122", api.IPPoolMetadata{CIDR: netv6_3}, true),
-		Entry("should accept IP pool with IPv6 CIDR /10", api.IPPoolMetadata{CIDR: netv6_4}, true),
-		Entry("should reject IP pool with IPv4 CIDR /27", api.IPPoolMetadata{CIDR: netv4_5}, false),
-		Entry("should reject IP pool with IPv6 CIDR /128", api.IPPoolMetadata{CIDR: netv6_1}, false),
+		Entry("should accept IP pool with IPv4 CIDR /26", api.IPPool{Metadata: api.IPPoolMetadata{CIDR: netv4_3}}, true),
+		Entry("should accept IP pool with IPv4 CIDR /10", api.IPPool{Metadata: api.IPPoolMetadata{CIDR: netv4_4}}, true),
+		Entry("should accept IP pool with IPv6 CIDR /122", api.IPPool{Metadata: api.IPPoolMetadata{CIDR: netv6_3}}, true),
+		Entry("should accept IP pool with IPv6 CIDR /10", api.IPPool{Metadata: api.IPPoolMetadata{CIDR: netv6_4}}, true),
+		Entry("should accept a disabled IP pool with IPv4 CIDR /27",
+			api.IPPool{
+				Metadata: api.IPPoolMetadata{CIDR: netv4_5},
+				Spec:     api.IPPoolSpec{Disabled: true},
+			}, true),
+		Entry("should accept a disabled IP pool with IPv6 CIDR /128",
+			api.IPPool{
+				Metadata: api.IPPoolMetadata{CIDR: netv6_1},
+				Spec:     api.IPPoolSpec{Disabled: true},
+			}, true),
+		Entry("should reject IP pool with IPv4 CIDR /27", api.IPPool{Metadata: api.IPPoolMetadata{CIDR: netv4_5}}, false),
+		Entry("should reject IP pool with IPv6 CIDR /128", api.IPPool{Metadata: api.IPPoolMetadata{CIDR: netv6_1}}, false),
+		Entry("should reject IPIP enabled IP pool for IPv6",
+			api.IPPool{
+				Metadata: api.IPPoolMetadata{CIDR: netv6_3},
+				Spec: api.IPPoolSpec{
+					IPIP: &api.IPIPConfiguration{Enabled: true},
+				},
+			}, false),
+
+		// (API) IPIPConfiguration
+		Entry("should accept IPIP disabled", api.IPIPConfiguration{Enabled: false}, true),
+		Entry("should reject IPIP disabled with mode badVal", api.IPIPConfiguration{Enabled: false, Mode: "badVal"}, false),
+		Entry("should accept IPIP enabled with no mode", api.IPIPConfiguration{Enabled: true}, true),
+		Entry("should reject IPIP enabled with mode off", api.IPIPConfiguration{Enabled: true, Mode: "off"}, false),
+		Entry("should reject IPIP enabled with mode badVal", api.IPIPConfiguration{Enabled: true, Mode: "badVal"}, false),
+		Entry("should accept IPIP enabled with mode always", api.IPIPConfiguration{Enabled: true, Mode: "always"}, true),
+		Entry("should accept IPIP enabled with mode cross-subnet", api.IPIPConfiguration{Enabled: true, Mode: "cross-subnet"}, true),
 
 		// (API) ICMPFields
 		Entry("should accept ICMP with no config", api.ICMPFields{}, true),
