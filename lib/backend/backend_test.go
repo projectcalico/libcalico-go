@@ -54,9 +54,9 @@ var _ = testutils.E2eDatastoreDescribe("Backend tests", testutils.DatastoreEtcdV
 			Expect(err).NotTo(HaveOccurred())
 
 			expectedCIDR := kv.Value.(*model.AllocationBlock).CIDR
-			persitedCIRD := block.Value.(*model.AllocationBlock).CIDR
+			persitedCIDR := block.Value.(*model.AllocationBlock).CIDR
 
-			Expect(expectedCIDR).To(Equal(persitedCIRD))
+			Expect(expectedCIDR).To(Equal(persitedCIDR))
 		})
 
 		It("sets revision field", func() {
@@ -79,9 +79,9 @@ var _ = testutils.E2eDatastoreDescribe("Backend tests", testutils.DatastoreEtcdV
 			Expect(err).NotTo(HaveOccurred())
 
 			expectedCIDR := kv.Value.(*model.AllocationBlock).CIDR
-			persitedCIRD := block.Value.(*model.AllocationBlock).CIDR
+			persitedCIDR := block.Value.(*model.AllocationBlock).CIDR
 
-			Expect(expectedCIDR).To(Equal(persitedCIRD))
+			Expect(expectedCIDR).To(Equal(persitedCIDR))
 		})
 
 		It("sets revision field", func() {
@@ -110,9 +110,9 @@ var _ = testutils.E2eDatastoreDescribe("Backend tests", testutils.DatastoreEtcdV
 			Expect(err).NotTo(HaveOccurred())
 
 			expectedCIDR := kv.Value.(*model.AllocationBlock).CIDR
-			persitedCIRD := block.Value.(*model.AllocationBlock).CIDR
+			persitedCIDR := block.Value.(*model.AllocationBlock).CIDR
 
-			Expect(expectedCIDR).To(Equal(persitedCIRD))
+			Expect(expectedCIDR).To(Equal(persitedCIDR))
 		})
 
 		It("creates a kv pair", func() {
@@ -124,9 +124,9 @@ var _ = testutils.E2eDatastoreDescribe("Backend tests", testutils.DatastoreEtcdV
 			Expect(err).NotTo(HaveOccurred())
 
 			expectedCIDR := kv.Value.(*model.AllocationBlock).CIDR
-			persitedCIRD := block.Value.(*model.AllocationBlock).CIDR
+			persitedCIDR := block.Value.(*model.AllocationBlock).CIDR
 
-			Expect(expectedCIDR).To(Equal(persitedCIRD))
+			Expect(expectedCIDR).To(Equal(persitedCIDR))
 		})
 
 		It("sets revision field", func() {
@@ -167,9 +167,9 @@ var _ = testutils.E2eDatastoreDescribe("Backend tests", testutils.DatastoreEtcdV
 
 		It("List", func() {
 			bl, err := client.List(blockListOpt)
+			Expect(err).NotTo(HaveOccurred())
 
 			for _, blv := range bl {
-				Expect(err).NotTo(HaveOccurred())
 				Expect(blv.Revision).NotTo(BeNil())
 			}
 		})
