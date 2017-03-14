@@ -1,5 +1,5 @@
-hash: 283f982821510d6c8c5e48054919974b2b2b9664b838ec9f9a06705e19ed3d99
-updated: 2017-01-26T21:23:50.030310202-08:00
+hash: 6f712b91270f5dbc67feb74222210102f039c34dab245dbf2268d5e4bbae8bd1
+updated: 2017-03-08T10:22:28.593366467+03:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -81,6 +81,16 @@ imports:
   - proto
 - name: github.com/google/gofuzz
   version: bbcb9da2d746f8bdbd6a936686a0a6067ada0ec5
+- name: github.com/hashicorp/consul
+  version: 21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41
+  subpackages:
+  - api
+- name: github.com/hashicorp/go-cleanhttp
+  version: ad28ea4487f05916463e2423a55166280e8254b5
+- name: github.com/hashicorp/serf
+  version: d3a67ab21bc8a4643fa53a3633f2d951dd50c6ca
+  subpackages:
+  - coordinate
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
 - name: github.com/imdario/mergo
@@ -134,7 +144,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: b061729afc07e77a8aa4fad0a2fd840958f1942a
 - name: github.com/Sirupsen/logrus
-  version: d26492970760ca5d33129d2d799e34be5c4782eb
+  version: 0208149b40d863d2c1a2f8fe5753096a9cf2cc8b
 - name: github.com/spf13/pflag
   version: 08b1a584251b5b62f458943640fc8ebd4d50aaa5
 - name: github.com/ugorji/go
