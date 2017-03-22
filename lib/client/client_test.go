@@ -15,6 +15,8 @@
 package client_test
 
 import (
+	"reflect"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -46,6 +48,8 @@ spec:
 	cfg1data.Spec = api.CalicoAPIConfigSpec{
 		DatastoreType: api.EtcdV2,
 		EtcdConfig: etcd.EtcdConfig{
+			EtcdScheme:     "http",
+			EtcdAuthority:  "127.0.0.1:2379",
 			EtcdEndpoints:  "https://1.2.3.4:1234,https://10.20.30.40:1234",
 			EtcdUsername:   "bar",
 			EtcdPassword:   "baz",
@@ -61,6 +65,7 @@ apiVersion: v1
 kind: calicoApiConfig
 metadata:
 spec:
+  datastoreType: kubernetes
   kubeconfig: filename
   k8sAPIEndpoint: bar
   k8sCertFile: baz
@@ -70,7 +75,8 @@ spec:
 `
 	cfg2data := api.NewCalicoAPIConfig()
 	cfg2data.Spec = api.CalicoAPIConfigSpec{
-		DatastoreType: api.EtcdV2,
+		DatastoreType: api.Kubernetes,
+		EtcdConfig:    etcd.EtcdConfig{},
 		KubeConfig: k8s.KubeConfig{
 			Kubeconfig:     "filename",
 			K8sAPIEndpoint: "bar",
@@ -128,10 +134,6 @@ kind: notCalicoApiConfig
 	cfg2env := api.NewCalicoAPIConfig()
 	cfg2env.Spec = api.CalicoAPIConfigSpec{
 		DatastoreType: api.Kubernetes,
-		EtcdConfig: etcd.EtcdConfig{
-			EtcdScheme:    "http",
-			EtcdAuthority: "127.0.0.1:2379",
-		},
 		KubeConfig: k8s.KubeConfig{
 			Kubeconfig:     "filename",
 			K8sAPIEndpoint: "bar1",
@@ -168,10 +170,6 @@ kind: notCalicoApiConfig
 	cfg4env := api.NewCalicoAPIConfig()
 	cfg4env.Spec = api.CalicoAPIConfigSpec{
 		DatastoreType: api.Kubernetes,
-		EtcdConfig: etcd.EtcdConfig{
-			EtcdScheme:    "http",
-			EtcdAuthority: "127.0.0.1:2379",
-		},
 		KubeConfig: k8s.KubeConfig{
 			Kubeconfig: "filename-preferred",
 		},
@@ -225,4 +223,19 @@ kind: notCalicoApiConfig
 		Entry("valid etcd configuration with CALICO_ prefix", env3, cfg3env, nil),
 		Entry("valid k8s configuration (preferential naming)", env4, cfg4env, nil),
 	)
+
+	Describe("private LoadClientConfigFromBytesWithoutDefaults has no default data", func() {
+		It("should default no data (necessary for proper merging)", func() {
+			c, err := client.LoadClientConfigFromBytesWithoutDefaults([]byte(`
+apiVersion: v1
+kind: calicoApiConfig
+`))
+			Expect(err).To(BeNil())
+			v := reflect.ValueOf(&c.Spec).Elem()
+			for i := 0; i < v.NumField(); i++ {
+				f := v.Field(i)
+				Expect(f.Interface()).To(Equal(reflect.Zero(reflect.TypeOf(f.Interface())).Interface()))
+			}
+		})
+	})
 })

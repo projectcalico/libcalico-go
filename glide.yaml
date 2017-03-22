@@ -41,5 +41,6 @@ import:
   - rest
   - tools/cache
   - tools/clientcmd
+- package: github.com/imdario/mergo
 testImport:
 - package: github.com/onsi/gomega

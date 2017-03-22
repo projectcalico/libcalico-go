@@ -23,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/pkg/transport"
+	"github.com/imdario/mergo"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/errors"
@@ -40,15 +41,49 @@ var (
 	clientTimeout        = 30 * time.Second
 )
 
+// Do not set any defaults on the struct below, this is necessary to merge
+// multiple configs together.
 type EtcdConfig struct {
-	EtcdScheme     string `json:"etcdScheme" envconfig:"ETCD_SCHEME" default:"http"`
-	EtcdAuthority  string `json:"etcdAuthority" envconfig:"ETCD_AUTHORITY" default:"127.0.0.1:2379"`
+	EtcdScheme     string `json:"etcdScheme" envconfig:"ETCD_SCHEME"`
+	EtcdAuthority  string `json:"etcdAuthority" envconfig:"ETCD_AUTHORITY"`
 	EtcdEndpoints  string `json:"etcdEndpoints" envconfig:"ETCD_ENDPOINTS"`
 	EtcdUsername   string `json:"etcdUsername" envconfig:"ETCD_USERNAME"`
 	EtcdPassword   string `json:"etcdPassword" envconfig:"ETCD_PASSWORD"`
 	EtcdKeyFile    string `json:"etcdKeyFile" envconfig:"ETCD_KEY_FILE"`
 	EtcdCertFile   string `json:"etcdCertFile" envconfig:"ETCD_CERT_FILE"`
 	EtcdCACertFile string `json:"etcdCACertFile" envconfig:"ETCD_CA_CERT_FILE"`
+}
+
+// Set the minimum defaults necessary.
+func (c *EtcdConfig) UpdateWithDefaults() {
+	if c.EtcdScheme == "" {
+		c.EtcdScheme = "http"
+	}
+	if c.EtcdAuthority == "" {
+		c.EtcdAuthority = "127.0.0.1:2379"
+	}
+}
+
+// Merge the configs taking all values from high and any from low that are
+// not set on high.  There is a special case that if Scheme and Authority
+// are set on the high that a low Endpoints will not be used since Scheme
+// and Authority take precenence when creating a client.
+func PriorityMerge(high EtcdConfig, low EtcdConfig) (EtcdConfig, error) {
+	c := high
+
+	if err := mergo.Merge(&c, low); err != nil {
+		return EtcdConfig{}, err
+	}
+
+	// If high config has no EtcdEnpoints but does have Scheme and Authority
+	// don't want the low priority Endpoints to take precendence.
+	if high.EtcdEndpoints == "" {
+		if high.EtcdScheme != "" && high.EtcdAuthority != "" {
+			c.EtcdEndpoints = ""
+		}
+	}
+
+	return c, nil
 }
 
 type EtcdClient struct {

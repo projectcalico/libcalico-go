@@ -15,6 +15,8 @@
 package api
 
 import (
+	goerrors "errors"
+
 	"github.com/projectcalico/libcalico-go/lib/api/unversioned"
 	"github.com/projectcalico/libcalico-go/lib/backend/etcd"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s"
@@ -58,5 +60,54 @@ func NewCalicoAPIConfig() *CalicoAPIConfig {
 			Kind:       "calicoApiConfig",
 			APIVersion: unversioned.VersionCurrent,
 		},
+	}
+}
+
+// PriorityMerge will merge the high and low config taking any values from the
+// low when the value is not set in the high, will also merge the Datastore
+// data for the type selected by DatastoreType. The returned config is a new
+// config.
+func PriorityMerge(high CalicoAPIConfig, low CalicoAPIConfig) (CalicoAPIConfig, error) {
+	c := high
+	errorCfg := CalicoAPIConfig{}
+
+	if high.TypeMetadata.APIVersion != low.TypeMetadata.APIVersion {
+		return errorCfg, goerrors.New("Unable to merge config " + high.TypeMetadata.APIVersion + " and " + low.TypeMetadata.APIVersion)
+	}
+
+	if c.Spec.DatastoreType == "" {
+		c.Spec.DatastoreType = low.Spec.DatastoreType
+	}
+
+	switch c.Spec.DatastoreType {
+	case EtcdV2:
+		var err error
+		c.Spec.EtcdConfig, err = etcd.PriorityMerge(high.Spec.EtcdConfig, low.Spec.EtcdConfig)
+		if err != nil {
+			return errorCfg, err
+		}
+	case Kubernetes:
+		var err error
+		c.Spec.KubeConfig, err = k8s.PriorityMerge(high.Spec.KubeConfig, low.Spec.KubeConfig)
+		if err != nil {
+			return errorCfg, err
+		}
+	}
+
+	return c, nil
+}
+
+// UpdateWithDefaults will set defaults on the config and set defaults on
+// the set DatastoreType.
+func (c *CalicoAPIConfig) UpdateWithDefaults() {
+	if c.Spec.DatastoreType == "" {
+		c.Spec.DatastoreType = EtcdV2
+	}
+
+	switch c.Spec.DatastoreType {
+	case EtcdV2:
+		c.Spec.EtcdConfig.UpdateWithDefaults()
+	case Kubernetes:
+		c.Spec.KubeConfig.UpdateWithDefaults()
 	}
 }
