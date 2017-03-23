@@ -18,11 +18,11 @@ import (
 	"encoding/hex"
 	goerrors "errors"
 	"fmt"
-	"io/ioutil"
 	"reflect"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/projectcalico/go-json/json"
 	yaml "github.com/projectcalico/go-yaml-wrapper"
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/api/unversioned"
@@ -150,11 +150,12 @@ func LoadClientConfig(filename string) (*api.CalicoAPIConfig, error) {
 	if filename == "" {
 		filename = "/etc/calico/datastore.cfg"
 	}
+	log.Debug("Reading config file ", filename)
 
 	var fileCfg *api.CalicoAPIConfig
-	b, err := ioutil.ReadFile(filename)
+	b, err := Ioutil_ReadFile(filename)
 	if err != nil {
-		log.Info("Failed to read config file ", filename)
+		log.Info("Failed to read config file ", filename, err)
 		fileCfg = api.NewCalicoAPIConfig()
 	} else {
 		fileCfg, err = LoadClientConfigFromBytesWithoutDefaults(b)
@@ -176,6 +177,8 @@ func LoadClientConfig(filename string) (*api.CalicoAPIConfig, error) {
 	}
 
 	c.UpdateWithDefaults()
+	cfg, _ := json.Marshal(c)
+	log.Info("Loaded config: ", string(cfg))
 	return &c, nil
 }
 

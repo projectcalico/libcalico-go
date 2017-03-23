@@ -15,6 +15,7 @@
 package client_test
 
 import (
+	"io/ioutil"
 	"reflect"
 
 	. "github.com/onsi/ginkgo"
@@ -224,7 +225,7 @@ kind: notCalicoApiConfig
 		Entry("valid k8s configuration (preferential naming)", env4, cfg4env, nil),
 	)
 
-	Describe("private LoadClientConfigFromBytesWithoutDefaults has no default data", func() {
+	Describe("LoadClientConfigFromBytesWithoutDefaults has no default data", func() {
 		It("should default no data (necessary for proper merging)", func() {
 			c, err := client.LoadClientConfigFromBytesWithoutDefaults([]byte(`
 apiVersion: v1
@@ -236,6 +237,88 @@ kind: calicoApiConfig
 				f := v.Field(i)
 				Expect(f.Interface()).To(Equal(reflect.Zero(reflect.TypeOf(f.Interface())).Interface()))
 			}
+		})
+	})
+
+	Describe("LoadClientConfig", func() {
+		It("unnamed file should read from default file", func() {
+			fileRead := ""
+			client.Ioutil_ReadFile = func(filename string) (name []byte, err error) {
+				fileRead = filename
+
+				return []byte(`{
+				    "kind": "calicoApiConfig",
+				    "apiVersion": "v1",
+				    "spec": {
+					    "datastoreType": "etcdv2",
+				        "etcdEndpoints": "endpoint_in_file"
+				    }
+				}`), nil
+			}
+			defer func() { client.Ioutil_ReadFile = ioutil.ReadFile }()
+
+			_, err := client.LoadClientConfig("")
+			Expect(err).To(BeNil())
+
+			Expect(fileRead).To(Equal("/etc/calico/datastore.cfg"))
+		})
+
+		It("reads from specified file", func() {
+			fileRead := ""
+			client.Ioutil_ReadFile = func(filename string) (name []byte, err error) {
+				fileRead = filename
+
+				return []byte(`{
+				    "kind": "calicoApiConfig",
+				    "apiVersion": "v1",
+				    "spec": {
+					    "datastoreType": "kubernetes"
+				    }
+				}`), nil
+			}
+			defer func() { client.Ioutil_ReadFile = ioutil.ReadFile }()
+
+			_, err := client.LoadClientConfig("specified_file")
+			Expect(err).To(BeNil())
+
+			Expect(fileRead).To(Equal("specified_file"))
+		})
+
+		It("file values is not overwritten with defaults", func() {
+			client.Ioutil_ReadFile = func(filename string) (name []byte, err error) {
+				return []byte(`{
+				    "kind": "calicoApiConfig",
+				    "apiVersion": "v1",
+				    "spec": {
+					    "datastoreType": "kubernetes"
+				    }
+				}`), nil
+			}
+			defer func() { client.Ioutil_ReadFile = ioutil.ReadFile }()
+
+			os.Unsetenv("DATASTORE_TYPE")
+			c, err := client.LoadClientConfig("specified_file")
+			Expect(err).To(BeNil())
+			Expect(c.Spec.DatastoreType).To(Equal(api.Kubernetes))
+		})
+
+		It("file values are overwritten from Env", func() {
+			client.Ioutil_ReadFile = func(filename string) (name []byte, err error) {
+				return []byte(`{
+				    "kind": "calicoApiConfig",
+				    "apiVersion": "v1",
+				    "spec": {
+					    "datastoreType": "kubernetes"
+				    }
+				}`), nil
+			}
+			defer func() { client.Ioutil_ReadFile = ioutil.ReadFile }()
+
+			os.Setenv("DATASTORE_TYPE", "etcdv2")
+			c, err := client.LoadClientConfig("specified_file")
+			os.Unsetenv("DATASTORE_TYPE")
+			Expect(err).To(BeNil())
+			Expect(c.Spec.DatastoreType).To(Equal(api.EtcdV2))
 		})
 	})
 })
