@@ -44,7 +44,7 @@ type kubeAPI interface {
 	NetworkPolicyList() (extensions.NetworkPolicyList, error)
 	PodList(string, k8sapi.ListOptions) (*k8sapi.PodList, error)
 	GlobalConfigList(model.GlobalConfigListOptions) ([]*model.KVPair, error)
-	List(l model.ListInterface) ([]*model.KVPair, error)
+	IPPoolList(l model.IPPoolListOptions) ([]*model.KVPair, error)
 	NodeList(opts k8sapi.ListOptions) (list *k8sapi.NodeList, err error)
 	getReadyStatus(k model.ReadyFlagKey) (*model.KVPair, error)
 }
@@ -122,7 +122,7 @@ func (k *realKubeAPI) GlobalConfigList(l model.GlobalConfigListOptions) ([]*mode
 	return k.kc.listGlobalConfig(l)
 }
 
-func (k *realKubeAPI) List(l model.ListInterface) ([]*model.KVPair, error) {
+func (k *realKubeAPI) IPPoolList(l model.IPPoolListOptions) ([]*model.KVPair, error) {
 	return k.kc.List(l)
 }
 
@@ -542,7 +542,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 
 		// Sync IP Pools.
 		log.Info("Syncing IP Pools")
-		poolList, err := syn.kubeAPI.List(model.IPPoolListOptions{})
+		poolList, err := syn.kubeAPI.IPPoolList(model.IPPoolListOptions{})
 		if err != nil {
 			log.Warnf("Error querying IP Pools during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
