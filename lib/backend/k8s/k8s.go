@@ -274,7 +274,7 @@ func buildTPRClient(baseConfig *rest.Config) (*rest.RESTClient, error) {
 }
 
 func (c *KubeClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
-	return newSyncer(*c, callbacks)
+	return newSyncer(&realKubeAPI{c}, c.converter, callbacks)
 }
 
 // Create an entry in the datastore.  This errors if the entry already exists.

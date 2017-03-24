@@ -135,10 +135,10 @@ func (k *realKubeAPI) getReadyStatus(key model.ReadyFlagKey) (*model.KVPair, err
 	return k.kc.getReadyStatus(key)
 }
 
-func newSyncer(kc KubeClient, callbacks api.SyncerCallbacks) *kubeSyncer {
+func newSyncer(kubeAPI kubeAPI, converter converter, callbacks api.SyncerCallbacks) *kubeSyncer {
 	syn := &kubeSyncer{
-		kubeAPI:    &realKubeAPI{&kc},
-		converter:  kc.converter,
+		kubeAPI:    kubeAPI,
+		converter:  converter,
 		callbacks:  callbacks,
 		tracker:    map[string]model.Key{},
 		labelCache: map[string]map[string]string{},
