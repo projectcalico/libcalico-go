@@ -67,8 +67,8 @@ var _ = Describe("Etcd Datastore Config tests", func() {
 
 	Describe("PriorityMerge", func() {
 		It("should take values from the lower when no value is in the higher", func() {
-			h := &etcd.EtcdConfig{}
-			l := &etcd.EtcdConfig{EtcdEndpoints: "lower"}
+			h := etcd.EtcdConfig{}
+			l := etcd.EtcdConfig{EtcdEndpoints: "lower"}
 			r, err := etcd.PriorityMerge(h, l)
 			Expect(err).To(BeNil())
 			Expect(r.EtcdEndpoints).To(Equal(l.EtcdEndpoints))
@@ -78,11 +78,11 @@ var _ = Describe("Etcd Datastore Config tests", func() {
 		It("should take high priority Scheme and Authority over lower Endpoints", func() {
 			expected_scheme := "scheme"
 			expected_authority := "authority"
-			h := &etcd.EtcdConfig{
+			h := etcd.EtcdConfig{
 				EtcdScheme:    expected_scheme,
 				EtcdAuthority: expected_authority,
 			}
-			l := &etcd.EtcdConfig{EtcdEndpoints: "lower"}
+			l := etcd.EtcdConfig{EtcdEndpoints: "lower"}
 			r, err := etcd.PriorityMerge(h, l)
 			Expect(err).To(BeNil())
 			Expect(r.EtcdEndpoints).To(Equal(""))
