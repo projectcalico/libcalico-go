@@ -18,6 +18,7 @@ import (
 	"encoding/hex"
 	goerrors "errors"
 	"fmt"
+	"io/ioutil"
 	"reflect"
 
 	log "github.com/Sirupsen/logrus"
@@ -142,6 +143,8 @@ func (c *Client) EnsureInitialized() error {
 	return nil
 }
 
+var ioutil_ReadFile func(string) ([]byte, error) = ioutil.ReadFile
+
 // LoadClientConfig loads the ClientConfig from the specified file (if specified)
 // or from environment variables (if the file is not specified).
 func LoadClientConfig(filename string) (*api.CalicoAPIConfig, error) {
@@ -153,7 +156,7 @@ func LoadClientConfig(filename string) (*api.CalicoAPIConfig, error) {
 	log.Debug("Reading config file ", filename)
 
 	var fileCfg *api.CalicoAPIConfig
-	b, err := Ioutil_ReadFile(filename)
+	b, err := ioutil_ReadFile(filename)
 	if err != nil {
 		log.Info("Failed to read config file ", filename, err)
 		fileCfg = api.NewCalicoAPIConfig()
