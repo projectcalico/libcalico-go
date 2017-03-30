@@ -15,8 +15,6 @@
 package client_test
 
 import (
-	"reflect"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -223,19 +221,4 @@ kind: notCalicoApiConfig
 		Entry("valid etcd configuration with CALICO_ prefix", env3, cfg3env, nil),
 		Entry("valid k8s configuration (preferential naming)", env4, cfg4env, nil),
 	)
-
-	Describe("LoadClientConfigFromBytesWithoutDefaults has no default data", func() {
-		It("should default no data (necessary for proper merging)", func() {
-			c, err := client.LoadClientConfigFromBytesWithoutDefaults([]byte(`
-apiVersion: v1
-kind: calicoApiConfig
-`))
-			Expect(err).To(BeNil())
-			v := reflect.ValueOf(&c.Spec).Elem()
-			for i := 0; i < v.NumField(); i++ {
-				f := v.Field(i)
-				Expect(f.Interface()).To(Equal(reflect.Zero(reflect.TypeOf(f.Interface())).Interface()))
-			}
-		})
-	})
 })

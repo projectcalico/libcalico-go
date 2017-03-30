@@ -16,6 +16,7 @@ package client
 
 import (
 	"io/ioutil"
+	"reflect"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -26,6 +27,21 @@ import (
 )
 
 var _ = Describe("Client internal config tests", func() {
+
+	Describe("loadClientConfigFromBytesWithoutDefaults has no default data", func() {
+		It("should default no data (necessary for proper merging)", func() {
+			c, err := loadClientConfigFromBytesWithoutDefaults([]byte(`
+apiVersion: v1
+kind: calicoApiConfig
+`))
+			Expect(err).To(BeNil())
+			v := reflect.ValueOf(&c.Spec).Elem()
+			for i := 0; i < v.NumField(); i++ {
+				f := v.Field(i)
+				Expect(f.Interface()).To(Equal(reflect.Zero(reflect.TypeOf(f.Interface())).Interface()))
+			}
+		})
+	})
 
 	Describe("LoadClientConfig", func() {
 		It("unnamed file should read from default file", func() {
@@ -47,7 +63,7 @@ var _ = Describe("Client internal config tests", func() {
 			_, err := LoadClientConfig("")
 			Expect(err).To(BeNil())
 
-			Expect(fileRead).To(Equal("/etc/calico/datastore.cfg"))
+			Expect(fileRead).To(Equal(DefaultDatastoreConfigFile))
 		})
 
 		It("reads from specified file", func() {

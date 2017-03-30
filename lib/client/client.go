@@ -145,37 +145,42 @@ func (c *Client) EnsureInitialized() error {
 
 var ioutil_ReadFile func(string) ([]byte, error) = ioutil.ReadFile
 
-// LoadClientConfig loads the ClientConfig from the specified file (if specified)
-// or from environment variables (if the file is not specified).
+var DefaultDatastoreConfigFile string = "/etc/calico/datastore.cfg"
+
+// LoadClientConfig reads the specified file or, if none specified, the default
+// file and then merges the config read with config from environment variables,
+// then return a CalicoAPIConfig instance.
 func LoadClientConfig(filename string) (*api.CalicoAPIConfig, error) {
-
-	// Override / merge with values loaded from the specified file.
+	// If no file specified use the default
 	if filename == "" {
-		filename = "/etc/calico/datastore.cfg"
+		filename = DefaultDatastoreConfigFile
 	}
-	log.Debug("Reading config file ", filename)
 
-	var fileCfg *api.CalicoAPIConfig
-	b, err := ioutil_ReadFile(filename)
-	if err != nil {
-		log.Info("Failed to read config file ", filename, err)
-		fileCfg = api.NewCalicoAPIConfig()
-	} else {
-		fileCfg, err = LoadClientConfigFromBytesWithoutDefaults(b)
+	var fileCfg *api.CalicoAPIConfig = api.NewCalicoAPIConfig()
+	// Default could have been set to empty so check that there is a filename
+	if filename != "" {
+		log.Debug("Reading config file ", filename)
+		b, err := ioutil_ReadFile(filename)
 		if err != nil {
-			log.Info("Failed to parse ", filename)
-			return nil, err
+			log.Info("Failed to read config file ", filename, err)
+		} else {
+			fileCfg, err = loadClientConfigFromBytesWithoutDefaults(b)
+			if err != nil {
+				log.Info("Failed to parse config file ", filename, err)
+				return nil, err
+			}
 		}
 	}
 
-	envCfg, err := LoadClientConfigFromEnvironmentWithoutDefaults()
+	envCfg, err := loadClientConfigFromEnvironmentWithoutDefaults()
 	if err != nil {
-		log.Info("Failed to parse Load config from Environment")
+		log.Info("Failed to load config from Environment")
 		return nil, err
 	}
 
 	c, err := api.PriorityMerge(*envCfg, *fileCfg)
 	if err != nil {
+		log.Info("Failed to merge file and environment config ", err)
 		return nil, err
 	}
 
@@ -187,7 +192,7 @@ func LoadClientConfig(filename string) (*api.CalicoAPIConfig, error) {
 
 // LoadClientConfig loads the ClientConfig from the supplied bytes containing
 // YAML or JSON format data.
-func LoadClientConfigFromBytesWithoutDefaults(b []byte) (*api.CalicoAPIConfig, error) {
+func loadClientConfigFromBytesWithoutDefaults(b []byte) (*api.CalicoAPIConfig, error) {
 	var c api.CalicoAPIConfig
 
 	// Default the backend type to be etcd v2.  This will be overridden if
@@ -217,16 +222,18 @@ func LoadClientConfigFromBytesWithoutDefaults(b []byte) (*api.CalicoAPIConfig, e
 // YAML or JSON format data and makes sure fields that need to be defaulted
 // are set.
 func LoadClientConfigFromBytes(b []byte) (*api.CalicoAPIConfig, error) {
-	c, err := LoadClientConfigFromBytesWithoutDefaults(b)
+	c, err := loadClientConfigFromBytesWithoutDefaults(b)
 	if err != nil {
 		return nil, err
 	}
 	c.UpdateWithDefaults()
+	cfg, _ := json.Marshal(c)
+	log.Info("Loaded config: ", string(cfg))
 	return c, nil
 }
 
 // Loads the ClientConfig from environment variables.
-func LoadClientConfigFromEnvironmentWithoutDefaults() (*api.CalicoAPIConfig, error) {
+func loadClientConfigFromEnvironmentWithoutDefaults() (*api.CalicoAPIConfig, error) {
 	c := api.NewCalicoAPIConfig()
 
 	// Load client config from environment variables.
@@ -241,12 +248,14 @@ func LoadClientConfigFromEnvironmentWithoutDefaults() (*api.CalicoAPIConfig, err
 // Loads the ClientConfig from environment variables and makes sure fields
 // that need to be defaulted are set.
 func LoadClientConfigFromEnvironment() (*api.CalicoAPIConfig, error) {
-	c, err := LoadClientConfigFromEnvironmentWithoutDefaults()
+	c, err := loadClientConfigFromEnvironmentWithoutDefaults()
 	if err != nil {
 		return nil, err
 	}
 
 	c.UpdateWithDefaults()
+	cfg, _ := json.Marshal(c)
+	log.Info("Loaded config: ", string(cfg))
 	return c, nil
 }
 
