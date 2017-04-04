@@ -56,6 +56,10 @@ type EtcdConfig struct {
 
 // Set the minimum defaults necessary.
 func (c *EtcdConfig) UpdateWithDefaults() {
+	if c.EtcdEndpoints != "" {
+		return
+	}
+
 	if c.EtcdScheme == "" {
 		c.EtcdScheme = "http"
 	}
@@ -66,8 +70,8 @@ func (c *EtcdConfig) UpdateWithDefaults() {
 
 // Merge the configs taking all values from high and any from low that are
 // not set on high.  There is a special case that if Scheme and Authority
-// are set on the high that a low Endpoints will not be used since Scheme
-// and Authority take precenence when creating a client.
+// are set on the high that a low Endpoints will not be used since Endpoints
+// takes precenence when creating a client.
 func PriorityMerge(high EtcdConfig, low EtcdConfig) (EtcdConfig, error) {
 	c := high
 

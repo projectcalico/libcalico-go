@@ -63,6 +63,16 @@ var _ = Describe("Etcd Datastore Config tests", func() {
 			c.UpdateWithDefaults()
 			Expect(c.EtcdAuthority).To(Equal(expected_authority))
 		})
+
+		It("should not default scheme and authority with endpoints set", func() {
+			c := etcd.EtcdConfig{}
+			expected_endpoint := "does_not_matter"
+			c.EtcdEndpoints = expected_endpoint
+			c.UpdateWithDefaults()
+			Expect(c.EtcdEndpoints).To(Equal(expected_endpoint))
+			Expect(c.EtcdScheme).To(Equal(""))
+			Expect(c.EtcdAuthority).To(Equal(""))
+		})
 	})
 
 	Describe("PriorityMerge", func() {

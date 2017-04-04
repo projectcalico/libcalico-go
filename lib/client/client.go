@@ -145,7 +145,7 @@ func (c *Client) EnsureInitialized() error {
 
 var ioutil_ReadFile func(string) ([]byte, error) = ioutil.ReadFile
 
-var DefaultDatastoreConfigFile string = "/etc/calico/datastore.cfg"
+var DefaultDatastoreConfigFile string = "/etc/calico/caliconfig"
 
 // LoadClientConfig reads the specified file or, if none specified, the default
 // file and then merges the config read with config from environment variables,

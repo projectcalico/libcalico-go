@@ -46,8 +46,6 @@ spec:
 	cfg1data.Spec = api.CalicoAPIConfigSpec{
 		DatastoreType: api.EtcdV2,
 		EtcdConfig: etcd.EtcdConfig{
-			EtcdScheme:     "http",
-			EtcdAuthority:  "127.0.0.1:2379",
 			EtcdEndpoints:  "https://1.2.3.4:1234,https://10.20.30.40:1234",
 			EtcdUsername:   "bar",
 			EtcdPassword:   "baz",
@@ -108,8 +106,6 @@ kind: notCalicoApiConfig
 	cfg1env.Spec = api.CalicoAPIConfigSpec{
 		DatastoreType: api.EtcdV2,
 		EtcdConfig: etcd.EtcdConfig{
-			EtcdScheme:     "http",
-			EtcdAuthority:  "127.0.0.1:2379",
 			EtcdEndpoints:  "https://1.2.3.4:1234,https://10.20.30.40:1234",
 			EtcdUsername:   "bar",
 			EtcdPassword:   "baz",
