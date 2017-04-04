@@ -274,7 +274,7 @@ func buildTPRClient(baseConfig *rest.Config) (*rest.RESTClient, error) {
 }
 
 func (c *KubeClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
-	return newSyncer(*c, callbacks)
+	return newSyncer(&realKubeAPI{c}, c.converter, callbacks)
 }
 
 // Create an entry in the datastore.  This errors if the entry already exists.
@@ -377,7 +377,7 @@ func (c *KubeClient) Get(k model.Key) (*model.KVPair, error) {
 	}
 }
 
-// List entries in the datastore.  This may return an empty list of there are
+// List entries in the datastore.  This may return an empty list if there are
 // no entries matching the request in the ListInterface.
 func (c *KubeClient) List(l model.ListInterface) ([]*model.KVPair, error) {
 	log.Debugf("Performing 'List' for %+v", l)

@@ -33,9 +33,112 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func newSyncer(kc KubeClient, callbacks api.SyncerCallbacks) *kubeSyncer {
+type kubeAPI interface {
+	NamespaceWatch(k8sapi.ListOptions) (watch.Interface, error)
+	PodWatch(string, k8sapi.ListOptions) (watch.Interface, error)
+	NetworkPolicyWatch(k8sapi.ListOptions) (watch.Interface, error)
+	GlobalConfigWatch(k8sapi.ListOptions) (watch.Interface, error)
+	IPPoolWatch(k8sapi.ListOptions) (watch.Interface, error)
+	NodeWatch(k8sapi.ListOptions) (watch.Interface, error)
+	NamespaceList(k8sapi.ListOptions) (*k8sapi.NamespaceList, error)
+	NetworkPolicyList() (extensions.NetworkPolicyList, error)
+	PodList(string, k8sapi.ListOptions) (*k8sapi.PodList, error)
+	GlobalConfigList(model.GlobalConfigListOptions) ([]*model.KVPair, error)
+	IPPoolList(l model.IPPoolListOptions) ([]*model.KVPair, error)
+	NodeList(opts k8sapi.ListOptions) (list *k8sapi.NodeList, err error)
+	getReadyStatus(k model.ReadyFlagKey) (*model.KVPair, error)
+}
+
+type realKubeAPI struct {
+	kc *KubeClient
+}
+
+func (k *realKubeAPI) NamespaceWatch(opts k8sapi.ListOptions) (watch watch.Interface, err error) {
+	watch, err = k.kc.clientSet.Namespaces().Watch(opts)
+	return
+}
+
+func (k *realKubeAPI) PodWatch(namespace string, opts k8sapi.ListOptions) (watch watch.Interface, err error) {
+	watch, err = k.kc.clientSet.Pods(namespace).Watch(opts)
+	return
+}
+
+func (k *realKubeAPI) NetworkPolicyWatch(opts k8sapi.ListOptions) (watch watch.Interface, err error) {
+	netpolListWatcher := cache.NewListWatchFromClient(
+		k.kc.clientSet.Extensions().RESTClient(),
+		"networkpolicies",
+		"",
+		fields.Everything())
+	watch, err = netpolListWatcher.WatchFunc(opts)
+	return
+}
+
+func (k *realKubeAPI) GlobalConfigWatch(opts k8sapi.ListOptions) (watch watch.Interface, err error) {
+	globalConfigWatcher := cache.NewListWatchFromClient(
+		k.kc.tprClient,
+		"globalconfigs",
+		"kube-system",
+		fields.Everything())
+	watch, err = globalConfigWatcher.WatchFunc(opts)
+	return
+}
+
+func (k *realKubeAPI) IPPoolWatch(opts k8sapi.ListOptions) (watch watch.Interface, err error) {
+	ipPoolWatcher := cache.NewListWatchFromClient(
+		k.kc.tprClient,
+		"ippools",
+		"kube-system",
+		fields.Everything())
+	watch, err = ipPoolWatcher.WatchFunc(opts)
+	return
+}
+
+func (k *realKubeAPI) NodeWatch(opts k8sapi.ListOptions) (watch watch.Interface, err error) {
+	watch, err = k.kc.clientSet.Nodes().Watch(opts)
+	return
+}
+
+func (k *realKubeAPI) NamespaceList(opts k8sapi.ListOptions) (list *k8sapi.NamespaceList, err error) {
+	list, err = k.kc.clientSet.Namespaces().List(opts)
+	return
+}
+
+func (k *realKubeAPI) NetworkPolicyList() (list extensions.NetworkPolicyList, err error) {
+	list = extensions.NetworkPolicyList{}
+	err = k.kc.clientSet.Extensions().RESTClient().
+		Get().
+		Resource("networkpolicies").
+		Timeout(10 * time.Second).
+		Do().Into(&list)
+	return
+}
+
+func (k *realKubeAPI) PodList(namespace string, opts k8sapi.ListOptions) (list *k8sapi.PodList, err error) {
+	list, err = k.kc.clientSet.Pods(namespace).List(opts)
+	return
+}
+
+func (k *realKubeAPI) GlobalConfigList(l model.GlobalConfigListOptions) ([]*model.KVPair, error) {
+	return k.kc.listGlobalConfig(l)
+}
+
+func (k *realKubeAPI) IPPoolList(l model.IPPoolListOptions) ([]*model.KVPair, error) {
+	return k.kc.List(l)
+}
+
+func (k *realKubeAPI) NodeList(opts k8sapi.ListOptions) (list *k8sapi.NodeList, err error) {
+	list, err = k.kc.clientSet.Nodes().List(opts)
+	return
+}
+
+func (k *realKubeAPI) getReadyStatus(key model.ReadyFlagKey) (*model.KVPair, error) {
+	return k.kc.getReadyStatus(key)
+}
+
+func newSyncer(kubeAPI kubeAPI, converter converter, callbacks api.SyncerCallbacks) *kubeSyncer {
 	syn := &kubeSyncer{
-		kc:         kc,
+		kubeAPI:    kubeAPI,
+		converter:  converter,
 		callbacks:  callbacks,
 		tracker:    map[string]model.Key{},
 		labelCache: map[string]map[string]string{},
@@ -44,7 +147,8 @@ func newSyncer(kc KubeClient, callbacks api.SyncerCallbacks) *kubeSyncer {
 }
 
 type kubeSyncer struct {
-	kc         KubeClient
+	kubeAPI    kubeAPI
+	converter  converter
 	callbacks  api.SyncerCallbacks
 	OneShot    bool
 	tracker    map[string]model.Key
@@ -100,17 +204,9 @@ func (syn *kubeSyncer) updateTracker(updates []api.Update) {
 		if upd.UpdateType == api.UpdateTypeKVDeleted {
 			log.Debugf("Delete from tracker: %+v", upd.KVPair.Key)
 			delete(syn.tracker, upd.KVPair.Key.String())
-			switch key := upd.KVPair.Key.(type) {
-			case model.WorkloadEndpointKey:
-				delete(syn.labelCache, key.WorkloadID)
-			}
 		} else {
 			log.Debugf("Update tracker: %+v: %+v", upd.KVPair.Key, upd.KVPair.Revision)
 			syn.tracker[upd.KVPair.Key.String()] = upd.KVPair.Key
-			switch key := upd.KVPair.Key.(type) {
-			case model.WorkloadEndpointKey:
-				syn.labelCache[key.WorkloadID] = upd.KVPair.Value.(*model.WorkloadEndpoint).Labels
-			}
 		}
 	}
 }
@@ -175,28 +271,24 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 
 			// Create the Kubernetes API watchers.
 			opts = k8sapi.ListOptions{ResourceVersion: latestVersions.namespaceVersion}
-			nsWatch, err := syn.kc.clientSet.Namespaces().Watch(opts)
+			nsWatch, err := syn.kubeAPI.NamespaceWatch(opts)
 			if err != nil {
 				log.Warn("Failed to watch Namespaces, retrying: %s", err)
 				time.Sleep(1 * time.Second)
 				continue
 			}
 			opts = k8sapi.ListOptions{ResourceVersion: latestVersions.podVersion}
-			poWatch, err := syn.kc.clientSet.Pods("").Watch(opts)
+			poWatch, err := syn.kubeAPI.PodWatch("", opts)
 			if err != nil {
 				log.Warn("Failed to watch Pods, retrying: %s", err)
 				time.Sleep(1 * time.Second)
 				continue
 			}
+
 			opts = k8sapi.ListOptions{ResourceVersion: latestVersions.networkPolicyVersion}
 
 			// Create watcher for NetworkPolicy objects.
-			netpolListWatcher := cache.NewListWatchFromClient(
-				syn.kc.clientSet.Extensions().RESTClient(),
-				"networkpolicies",
-				"",
-				fields.Everything())
-			npWatch, err := netpolListWatcher.WatchFunc(opts)
+			npWatch, err := syn.kubeAPI.NetworkPolicyWatch(opts)
 			if err != nil {
 				log.Warnf("Failed to watch NetworkPolicies, retrying: %s", err)
 				time.Sleep(1 * time.Second)
@@ -204,12 +296,7 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 			}
 
 			// Create watcher for Calico global config resources.
-			globalConfigWatcher := cache.NewListWatchFromClient(
-				syn.kc.tprClient,
-				"globalconfigs",
-				"kube-system",
-				fields.Everything())
-			globalConfigWatch, err := globalConfigWatcher.WatchFunc(opts)
+			globalConfigWatch, err := syn.kubeAPI.GlobalConfigWatch(opts)
 			if err != nil {
 				log.Warnf("Failed to watch GlobalConfig, retrying: %s", err)
 				time.Sleep(1 * time.Second)
@@ -217,12 +304,7 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 			}
 
 			// Watcher for Calico IP Pool resources.
-			ipPoolWatcher := cache.NewListWatchFromClient(
-				syn.kc.tprClient,
-				"ippools",
-				"kube-system",
-				fields.Everything())
-			ipPoolWatch, err := ipPoolWatcher.WatchFunc(opts)
+			ipPoolWatch, err := syn.kubeAPI.IPPoolWatch(opts)
 			if err != nil {
 				log.Warnf("Failed to watch IPPools, retrying: %s", err)
 				time.Sleep(1 * time.Second)
@@ -231,7 +313,7 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 
 			// Create watcher for Node objects
 			opts := k8sapi.ListOptions{ResourceVersion: latestVersions.nodeVersion}
-			nodeWatch, err := syn.kc.clientSet.Nodes().Watch(opts)
+			nodeWatch, err := syn.kubeAPI.NodeWatch(opts)
 			if err != nil {
 				log.Warnf("Failed to watch Nodes, retrying: %s", err)
 				time.Sleep(1 * time.Second)
@@ -364,7 +446,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 
 		// Get Namespaces (Profiles)
 		log.Info("Syncing Namespaces")
-		nsList, err := syn.kc.clientSet.Namespaces().List(opts)
+		nsList, err := syn.kubeAPI.NamespaceList(opts)
 		if err != nil {
 			log.Warnf("Error syncing Namespaces, retrying: %s", err)
 			time.Sleep(1 * time.Second)
@@ -376,7 +458,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 		for _, ns := range nsList.Items {
 			// The Syncer API expects a profile to be broken into its underlying
 			// components - rules, tags, labels.
-			profile, err := syn.kc.converter.namespaceToProfile(&ns)
+			profile, err := syn.converter.namespaceToProfile(&ns)
 			if err != nil {
 				log.Panicf("%s", err)
 			}
@@ -386,7 +468,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 			labels.Revision = profile.Revision
 
 			// Also create a Policy for this Namespace.
-			policy, err := syn.kc.converter.namespaceToPolicy(&ns)
+			policy, err := syn.converter.namespaceToPolicy(&ns)
 			if err != nil {
 				log.Panicf("%s", err)
 			}
@@ -400,12 +482,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 
 		// Get NetworkPolicies (Policies)
 		log.Info("Syncing NetworkPolicy")
-		npList := extensions.NetworkPolicyList{}
-		err = syn.kc.clientSet.Extensions().RESTClient().
-			Get().
-			Resource("networkpolicies").
-			Timeout(10 * time.Second).
-			Do().Into(&npList)
+		npList, err := syn.kubeAPI.NetworkPolicyList()
 		if err != nil {
 			log.Warnf("Error querying NetworkPolicies during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
@@ -415,14 +492,14 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 
 		versions.networkPolicyVersion = npList.ListMeta.ResourceVersion
 		for _, np := range npList.Items {
-			pol, _ := syn.kc.converter.networkPolicyToPolicy(&np)
+			pol, _ := syn.converter.networkPolicyToPolicy(&np)
 			snap = append(snap, *pol)
 			keys[pol.Key.String()] = true
 		}
 
 		// Get Pods (WorkloadEndpoints)
 		log.Info("Syncing Pods")
-		poList, err := syn.kc.clientSet.Pods("").List(opts)
+		poList, err := syn.kubeAPI.PodList("", opts)
 		if err != nil {
 			log.Warnf("Error querying Pods during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
@@ -433,13 +510,13 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 		versions.podVersion = poList.ListMeta.ResourceVersion
 		for _, po := range poList.Items {
 			// Ignore any updates for pods which are not ready / valid.
-			if !syn.kc.converter.isReadyCalicoPod(&po) {
+			if !syn.converter.isReadyCalicoPod(&po) {
 				log.Debugf("Skipping pod %s/%s", po.ObjectMeta.Namespace, po.ObjectMeta.Name)
 				continue
 			}
 
 			// Convert to a workload endpoint.
-			wep, err := syn.kc.converter.podToWorkloadEndpoint(&po)
+			wep, err := syn.converter.podToWorkloadEndpoint(&po)
 			if err != nil {
 				log.WithError(err).Error("Failed to convert pod to workload endpoint")
 				continue
@@ -450,7 +527,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 
 		// Sync GlobalConfig.
 		log.Info("Syncing GlobalConfig")
-		confList, err := syn.kc.listGlobalConfig(model.GlobalConfigListOptions{})
+		confList, err := syn.kubeAPI.GlobalConfigList(model.GlobalConfigListOptions{})
 		if err != nil {
 			log.Warnf("Error querying GlobalConfig during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
@@ -465,7 +542,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 
 		// Sync IP Pools.
 		log.Info("Syncing IP Pools")
-		poolList, err := syn.kc.List(model.IPPoolListOptions{})
+		poolList, err := syn.kubeAPI.IPPoolList(model.IPPoolListOptions{})
 		if err != nil {
 			log.Warnf("Error querying IP Pools during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
@@ -479,7 +556,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 		}
 
 		log.Info("Syncing Nodes")
-		noList, err := syn.kc.clientSet.Nodes().List(opts)
+		noList, err := syn.kubeAPI.NodeList(opts)
 		if err != nil {
 			log.Warnf("Error syncing Nodes, retrying: %s", err)
 			time.Sleep(1 * time.Second)
@@ -500,7 +577,7 @@ func (syn *kubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool, resou
 		}
 
 		// Include ready state.
-		ready, err := syn.kc.getReadyStatus(model.ReadyFlagKey{})
+		ready, err := syn.kubeAPI.getReadyStatus(model.ReadyFlagKey{})
 		if err != nil {
 			log.Warnf("Error querying ready status during snapshot, retrying: %s", err)
 			time.Sleep(1 * time.Second)
@@ -534,7 +611,7 @@ func (syn *kubeSyncer) parseNamespaceEvent(e watch.Event) []model.KVPair {
 	}
 
 	// Convert the received Namespace into a profile KVPair.
-	profile, err := syn.kc.converter.namespaceToProfile(ns)
+	profile, err := syn.converter.namespaceToProfile(ns)
 	if err != nil {
 		log.Panicf("%s", err)
 	}
@@ -544,7 +621,7 @@ func (syn *kubeSyncer) parseNamespaceEvent(e watch.Event) []model.KVPair {
 	labels.Revision = profile.Revision
 
 	// Convert the Namespace into a policy KVPair.
-	policy, err := syn.kc.converter.namespaceToPolicy(ns)
+	policy, err := syn.converter.namespaceToPolicy(ns)
 	if err != nil {
 		log.Panicf("%s", err)
 	}
@@ -592,7 +669,7 @@ func (syn *kubeSyncer) parsePodEvent(e watch.Event) *model.KVPair {
 	case watch.Deleted:
 		// For deletes, the validity conditions are different.  We only care if the update
 		// is not for a host-networked Pods, but don't care about IP / scheduled state.
-		if syn.kc.converter.isHostNetworked(pod) {
+		if syn.converter.isHostNetworked(pod) {
 			log.WithField("pod", pod.Name).Debug("Pod is host networked.")
 			log.Debugf("Skipping delete for pod %s/%s", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name)
 			return nil
@@ -600,14 +677,14 @@ func (syn *kubeSyncer) parsePodEvent(e watch.Event) *model.KVPair {
 	default:
 		// Ignore add/modify updates for Pods that shouldn't be shown in the Calico API.
 		// e.g host networked Pods, or Pods that don't yet have an IP address.
-		if !syn.kc.converter.isReadyCalicoPod(pod) {
+		if !syn.converter.isReadyCalicoPod(pod) {
 			log.Debugf("Skipping add/modify for pod %s/%s", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name)
 			return nil
 		}
 	}
 
 	// Convert the received Pod into a KVPair.
-	kvp, err := syn.kc.converter.podToWorkloadEndpoint(pod)
+	kvp, err := syn.converter.podToWorkloadEndpoint(pod)
 	if err != nil {
 		// If we fail to parse, then ignore this update and emit a log.
 		log.WithField("error", err).Error("Failed to parse Pod event")
@@ -620,6 +697,10 @@ func (syn *kubeSyncer) parsePodEvent(e watch.Event) *model.KVPair {
 		// For deletes, we need to nil out the Value part of the KVPair.
 		log.Debugf("Delete for pod %s/%s", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name)
 		kvp.Value = nil
+
+		// Remove it from the label cache, if it is there.
+		workload := kvp.Key.(model.WorkloadEndpointKey).WorkloadID
+		delete(syn.labelCache, workload)
 	default:
 		// Only send an update if the labels have changed.
 		workload := kvp.Key.(model.WorkloadEndpointKey).WorkloadID
@@ -629,6 +710,9 @@ func (syn *kubeSyncer) parsePodEvent(e watch.Event) *model.KVPair {
 			log.Debugf("Skipping pod event - labels didn't change: %s/%s", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name)
 			return nil
 		}
+
+		// Labels have changed on a running pod - update the label cache.
+		syn.labelCache[workload] = labels
 	}
 
 	return kvp
@@ -643,7 +727,7 @@ func (syn *kubeSyncer) parseNetworkPolicyEvent(e watch.Event) *model.KVPair {
 	}
 
 	// Convert the received NetworkPolicy into a profile KVPair.
-	kvp, err := syn.kc.converter.networkPolicyToPolicy(np)
+	kvp, err := syn.converter.networkPolicyToPolicy(np)
 	if err != nil {
 		log.Panicf("%s", err)
 	}
@@ -664,7 +748,7 @@ func (syn *kubeSyncer) parseGlobalConfigEvent(e watch.Event) *model.KVPair {
 	}
 
 	// Convert the received GlobalConfig into a KVPair.
-	kvp := syn.kc.converter.tprToGlobalConfig(gc)
+	kvp := syn.converter.tprToGlobalConfig(gc)
 
 	// For deletes, we need to nil out the Value part of the KVPair
 	if e.Type == watch.Deleted {
