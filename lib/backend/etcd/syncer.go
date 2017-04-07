@@ -62,7 +62,19 @@ var (
 	}
 )
 
-func newSyncer(keysAPI etcd.KeysAPI, callbacks api.SyncerCallbacks) *etcdSyncer {
+// etcdKeysAPI is a subset of etcd.KeysAPI for the methods that we use.
+type etcdKeysAPI interface {
+	// Get retrieves a set of Nodes from etcd
+	Get(ctx context.Context, key string, opts *etcd.GetOptions) (*etcd.Response, error)
+
+	// Watcher builds a new Watcher targeted at a specific Node identified
+	// by the given key. The Watcher may be configured at creation time
+	// through a WatcherOptions object. The returned Watcher is designed
+	// to emit events that happen to a Node, and optionally to its children.
+	Watcher(key string, opts *etcd.WatcherOptions) etcd.Watcher
+}
+
+func NewSyncer(keysAPI etcd.KeysAPI, callbacks api.SyncerCallbacks) *etcdSyncer {
 	return &etcdSyncer{
 		keysAPI:   keysAPI,
 		callbacks: callbacks,
@@ -120,7 +132,7 @@ func newSyncer(keysAPI etcd.KeysAPI, callbacks api.SyncerCallbacks) *etcdSyncer 
 // isn't worth it (and would be likely to be buggy due to lack of exercise).
 type etcdSyncer struct {
 	callbacks api.SyncerCallbacks
-	keysAPI   etcd.KeysAPI
+	keysAPI   etcdKeysAPI
 	OneShot   bool
 }
 

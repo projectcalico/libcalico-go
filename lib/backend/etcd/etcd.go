@@ -153,7 +153,7 @@ func (c *EtcdClient) EnsureCalicoNodeInitialized(node string) error {
 }
 
 func (c *EtcdClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
-	return newSyncer(c.etcdKeysAPI, callbacks)
+	return NewSyncer(c.etcdKeysAPI, callbacks)
 }
 
 // Create an entry in the datastore.  This errors if the entry already exists.
