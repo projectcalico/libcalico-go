@@ -176,6 +176,7 @@ var _ = testutils.E2eDatastoreDescribe("WorkloadEndpoint tests", testutils.Datas
 			api.WorkloadEndpointMetadata{
 				Name:         "host1",
 				Workload:     "workload1",
+				ContainerID:  "container-id-badbeef",
 				Orchestrator: "kubernetes",
 				Node:         "node1",
 				Labels: map[string]string{
@@ -185,6 +186,7 @@ var _ = testutils.E2eDatastoreDescribe("WorkloadEndpoint tests", testutils.Datas
 			api.WorkloadEndpointMetadata{
 				Name:         "host2",
 				Workload:     "workload2",
+				ContainerID:  "container-id-badc0ffee",
 				Orchestrator: "mesos",
 				Node:         "node2",
 				Labels: map[string]string{

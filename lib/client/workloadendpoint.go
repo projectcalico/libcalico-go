@@ -155,6 +155,7 @@ func (w *workloadEndpoints) convertAPIToKVPair(a unversioned.Resource) (*model.K
 		Key: k,
 		Value: &model.WorkloadEndpoint{
 			Labels:      ah.Metadata.Labels,
+			ContainerID: ah.Metadata.ContainerID,
 			State:       "active",
 			Name:        ah.Spec.InterfaceName,
 			Mac:         ah.Spec.MAC,
@@ -196,6 +197,7 @@ func (w *workloadEndpoints) convertKVPairToAPI(d *model.KVPair) (unversioned.Res
 	ah.Metadata.Name = bk.EndpointID
 	ah.Metadata.Labels = bh.Labels
 	ah.Spec.InterfaceName = bh.Name
+	ah.Metadata.ContainerID = bh.ContainerID
 	ah.Spec.MAC = bh.Mac
 	ah.Spec.Profiles = bh.ProfileIDs
 	if len(nets) == 0 {
