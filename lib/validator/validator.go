@@ -34,17 +34,18 @@ import (
 var validate *validator.Validate
 
 var (
-	labelRegex         = regexp.MustCompile(`^` + tokenizer.LabelKeyMatcher + `$`)
-	labelValueRegex    = regexp.MustCompile("^[a-zA-Z0-9]?([a-zA-Z0-9_.-]{0,61}[a-zA-Z0-9])?$")
-	nameRegex          = regexp.MustCompile("^[a-zA-Z0-9_.-]{1,128}$")
-	interfaceRegex     = regexp.MustCompile("^[a-zA-Z0-9_-]{1,15}$")
-	actionRegex        = regexp.MustCompile("^(allow|deny|log|pass)$")
-	backendActionRegex = regexp.MustCompile("^(allow|deny|log|next-tier|)$")
-	protocolRegex      = regexp.MustCompile("^(tcp|udp|icmp|icmpv6|sctp|udplite)$")
-	ipipModeRegex      = regexp.MustCompile("^(always|cross-subnet|)$")
-	reasonString       = "Reason: "
-	poolSmallIPv4      = "IP pool size is too small (min /26) for use with Calico IPAM"
-	poolSmallIPv6      = "IP pool size is too small (min /122) for use with Calico IPAM"
+	labelRegex          = regexp.MustCompile(`^` + tokenizer.LabelKeyMatcher + `$`)
+	labelValueRegex     = regexp.MustCompile("^[a-zA-Z0-9]?([a-zA-Z0-9_.-]{0,61}[a-zA-Z0-9])?$")
+	nameRegex           = regexp.MustCompile("^[a-zA-Z0-9_.-]{1,128}$")
+	namespacedNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_./-]{1,128}$`)
+	interfaceRegex      = regexp.MustCompile("^[a-zA-Z0-9_-]{1,15}$")
+	actionRegex         = regexp.MustCompile("^(allow|deny|log|pass)$")
+	backendActionRegex  = regexp.MustCompile("^(allow|deny|log|next-tier|)$")
+	protocolRegex       = regexp.MustCompile("^(tcp|udp|icmp|icmpv6|sctp|udplite)$")
+	ipipModeRegex       = regexp.MustCompile("^(always|cross-subnet|)$")
+	reasonString        = "Reason: "
+	poolSmallIPv4       = "IP pool size is too small (min /26) for use with Calico IPAM"
+	poolSmallIPv6       = "IP pool size is too small (min /122) for use with Calico IPAM"
 )
 
 // Validate is used to validate the supplied structure according to the
@@ -77,6 +78,7 @@ func init() {
 	registerFieldValidator("interface", validateInterface)
 	registerFieldValidator("backendaction", validateBackendAction)
 	registerFieldValidator("name", validateName)
+	registerFieldValidator("namespacedname", validateNamespacedName)
 	registerFieldValidator("selector", validateSelector)
 	registerFieldValidator("tag", validateTag)
 	registerFieldValidator("labels", validateLabels)
@@ -143,6 +145,12 @@ func validateName(v *validator.Validate, topStruct reflect.Value, currentStructO
 	s := field.String()
 	log.Debugf("Validate name: %s", s)
 	return nameRegex.MatchString(s)
+}
+
+func validateNamespacedName(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
+	s := field.String()
+	log.Debugf("Validate namespacedname: %s", s)
+	return namespacedNameRegex.MatchString(s)
 }
 
 func validateIPVersion(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
