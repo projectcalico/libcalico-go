@@ -38,9 +38,9 @@ type WorkloadEndpointMetadata struct {
 	// The name of the workload.
 	Workload string `json:"workload,omitempty" validate:"omitempty,name"`
 
-	// ContainerID contains an identifier for the container networked for
-	// this WorkloadEndpoint. ContainerID is an optional field.
-	ContainerID string `json:containerID,omitempty" validate:"omitempty,name"`
+	// ActiveInstanceID contains an identifier for the container networked for
+	// this WorkloadEndpoint. ActiveInstanceID is an optional field.
+	ActiveInstanceID string `json:activeInstanceID,omitempty" validate:"omitempty,name"`
 
 	// The name of the orchestrator.
 	Orchestrator string `json:"orchestrator,omitempty" validate:"omitempty,name"`
