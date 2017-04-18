@@ -40,6 +40,8 @@ import (
 	"k8s.io/client-go/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"github.com/projectcalico/libcalico-go/lib/net"
+	v1 "k8s.io/client-go/pkg/api/v1"
 )
 
 type KubeClient struct {
@@ -308,9 +310,11 @@ func (c *KubeClient) Update(d *model.KVPair) (*model.KVPair, error) {
 	case model.NodeKey:
 		return c.nodeClient.Update(d)
 	default:
-		// If the resource isn't supported, then this is a no-op.
-		log.Debugf("'Update' for %+v is no-op", d.Key)
-		return d, nil
+		log.Warn("Attempt to 'Update' using kubernetes backend is not supported.")
+		return nil, errors.ErrorOperationNotSupported{
+			Identifier: d.Key,
+			Operation:  "Update",
+		}
 	}
 }
 
@@ -328,8 +332,11 @@ func (c *KubeClient) Apply(d *model.KVPair) (*model.KVPair, error) {
 	case model.NodeKey:
 		return c.nodeClient.Apply(d)
 	default:
-		log.Debugf("'Apply' for %s is no-op", d.Key)
-		return d, nil
+		log.Warn("Attempt to 'Apply' using kubernetes backend is not supported.")
+		return nil, errors.ErrorOperationNotSupported{
+			Identifier: d.Key,
+			Operation:  "Apply",
+		}
 	}
 }
 
@@ -344,8 +351,11 @@ func (c *KubeClient) Delete(d *model.KVPair) error {
 	case model.NodeKey:
 		return c.nodeClient.Delete(d)
 	default:
-		log.Warn("Attempt to 'Delete' using kubernetes datastore driver is not supported.")
-		return nil
+		log.Warn("Attempt to 'Delete' using kubernetes backend is not supported.")
+		return errors.ErrorOperationNotSupported{
+			Identifier: d.Key,
+			Operation:  "Delete",
+		}
 	}
 }
 
@@ -739,9 +749,88 @@ func (c *KubeClient) deleteGlobalConfig(k *model.KVPair) error {
 }
 
 func (c *KubeClient) getHostConfig(k model.HostConfigKey) (*model.KVPair, error) {
+	if k.Name == "IpInIpTunnelAddr" {
+		n, err := c.clientSet.Nodes().Get(k.Hostname, metav1.GetOptions{})
+		if err != nil {
+			return nil, resources.K8sErrorToCalico(err, k)
+		}
+
+		kvp, err := getTunIp(n)
+		if err != nil {
+			return nil, err
+		} else if kvp == nil {
+			return nil, errors.ErrorResourceDoesNotExist{}
+		}
+
+		return kvp, nil
+	}
+
 	return nil, errors.ErrorResourceDoesNotExist{Identifier: k}
 }
 
 func (c *KubeClient) listHostConfig(l model.HostConfigListOptions) ([]*model.KVPair, error) {
-	return []*model.KVPair{}, nil
+	var kvps = []*model.KVPair{}
+
+	// Short circuit if they aren't asking for information we can provide.
+	if l.Name != "" && l.Name != "IpInIpTunnelAddr" {
+		return kvps, nil
+	}
+
+	// First see if we were handed a specific host, if not list all Nodes
+	if l.Hostname == "" {
+		nodes, err := c.clientSet.Nodes().List(v1.ListOptions{})
+		if err != nil {
+			return nil, resources.K8sErrorToCalico(err, l)
+		}
+
+		for _, node := range nodes.Items {
+			kvp, err := getTunIp(&node)
+			if err != nil || kvp == nil {
+				continue
+			}
+
+			kvps = append(kvps, kvp)
+		}
+	} else {
+		node, err := c.clientSet.Nodes().Get(l.Hostname, metav1.GetOptions{})
+		if err != nil {
+			return nil, resources.K8sErrorToCalico(err, l)
+		}
+
+		kvp, err := getTunIp(node)
+		if err != nil || kvp == nil {
+			return []*model.KVPair{}, nil
+		}
+
+		kvps = append(kvps, kvp)
+	}
+
+	return kvps, nil
+}
+
+func getTunIp(n *v1.Node) (*model.KVPair, error) {
+	if n.Spec.PodCIDR == "" {
+		log.Warnf("Node %s does not have podCIDR for HostConfig", n.Name)
+		return nil, nil
+	}
+
+	ip, _, err := net.ParseCIDR(n.Spec.PodCIDR)
+	if err != nil {
+		log.Warnf("Invalid podCIDR for HostConfig: %s, %s", n.Name, n.Spec.PodCIDR)
+		return nil, err
+	}
+	// We need to get the IP for the podCIDR and increment it to the
+	// first IP in the CIDR.
+	tunIp := ip.To4()
+	tunIp[3]++
+
+	kvp := &model.KVPair{
+		Key: model.HostConfigKey{
+			Hostname: n.Name,
+			Name: "IpInIpTunnelAddr",
+		},
+		Value: tunIp.String(),
+	}
+
+	return kvp, nil
 }

@@ -33,17 +33,17 @@ type WorkloadEndpointMetadata struct {
 
 	// The name of the endpoint.  This may be omitted on a create, in which case an endpoint
 	// ID will be automatically created, and the endpoint ID will be included in the response.
-	Name string `json:"name,omitempty" validate:"omitempty,name"`
+	Name string `json:"name,omitempty" validate:"omitempty,namespacedname"`
 
 	// The name of the workload.
-	Workload string `json:"workload,omitempty" validate:"omitempty,name"`
-
-	// ActiveInstanceID contains an identifier for the container networked for
+	Workload string `json:"workload,omitempty" valid:"omitempty,namespacedname"`
+  
+  // ActiveInstanceID contains an identifier for the container networked for
 	// this WorkloadEndpoint. ActiveInstanceID is an optional field.
 	ActiveInstanceID string `json:activeInstanceID,omitempty" validate:"omitempty,name"`
 
 	// The name of the orchestrator.
-	Orchestrator string `json:"orchestrator,omitempty" validate:"omitempty,name"`
+	Orchestrator string `json:"orchestrator,omitempty" valid:"omitempty,namespacedname"`
 
 	// The node name identifying the Calico node instance.
 	Node string `json:"node,omitempty" validate:"omitempty,name"`
@@ -78,7 +78,7 @@ type WorkloadEndpointSpec struct {
 	// A list of security Profile resources that apply to this endpoint. Each profile is
 	// applied in the order that they appear in this list.  Profile rules are applied
 	// after the selector-based security policy.
-	Profiles []string `json:"profiles,omitempty" validate:"omitempty,dive,name"`
+	Profiles []string `json:"profiles,omitempty" validate:"omitempty,dive,namespacedname"`
 
 	// InterfaceName the name of the Linux interface on the host: for example, tap80.
 	InterfaceName string `json:"interfaceName,omitempty" validate:"interface"`
