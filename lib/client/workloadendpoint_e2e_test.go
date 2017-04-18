@@ -175,19 +175,21 @@ var _ = testutils.E2eDatastoreDescribe("WorkloadEndpoint tests", testutils.Datas
 		// This also tests two endpoints in the same workload.
 		Entry("Two fully populated WorkloadEndpointSpecs",
 			api.WorkloadEndpointMetadata{
-				Name:         "ep1",
-				Workload:     "workload1",
-				Orchestrator: "kubernetes",
-				Node:         "node1",
+				Name:             "ep1",
+				Workload:         "workload1",
+				ActiveInstanceID: "container-id-badbeef",
+				Orchestrator:     "kubernetes",
+				Node:             "node1",
 				Labels: map[string]string{
 					"app":  "app-abc",
 					"prod": "no",
 				}},
 			api.WorkloadEndpointMetadata{
-				Name:         "ep1/with_foo",
-				Workload:     "workload1",
-				Orchestrator: "mesos",
-				Node:         "node2",
+				Name:             "ep1/with_foo",
+				Workload:         "workload2",
+				ActiveInstanceID: "container-id-badc0ffee",
+				Orchestrator:     "mesos",
+				Node:             "node2",
 				Labels: map[string]string{
 					"app":  "app-xyz",
 					"prod": "yes",
