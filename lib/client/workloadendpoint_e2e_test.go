@@ -86,7 +86,6 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 			storedWorkloadEndpoint1 := outWorkloadEndpoint
 			Expect(storedWorkloadEndpoint1.Metadata.Revision).NotTo(BeNil())
 
-
 			// Get workloadEndpoint2  This should not error, spec should match spec1.
 			By("Getting workloadEndpoint2 and comparing with spec2")
 			outWorkloadEndpoint, err = c.WorkloadEndpoints().Get(meta2)
@@ -164,19 +163,21 @@ var _ = Describe("WorkloadEndpoint tests", func() {
 		// Test 1: Pass two fully populated WorkloadEndpointSpecs and expect the series of operations to succeed.
 		Entry("Two fully populated WorkloadEndpointSpecs",
 			api.WorkloadEndpointMetadata{
-				Name:         "ep1",
-				Workload:     "workload1",
-				Orchestrator: "kubernetes",
-				Node:         "node1",
+				Name:             "ep1",
+				Workload:         "workload1",
+				ActiveInstanceID: "container-id-badbeef",
+				Orchestrator:     "kubernetes",
+				Node:             "node1",
 				Labels: map[string]string{
 					"app":  "app-abc",
 					"prod": "no",
 				}},
 			api.WorkloadEndpointMetadata{
-				Name:         "ep1/with_foo",
-				Workload:     "workload1",
-				Orchestrator: "kubernetes",
-				Node:         "node1",
+				Name:             "ep1/with_foo",
+				Workload:         "workload2",
+				ActiveInstanceID: "container-id-badc0ffee",
+				Orchestrator:     "mesos",
+				Node:             "node2",
 				Labels: map[string]string{
 					"app":  "app-xyz",
 					"prod": "yes",
