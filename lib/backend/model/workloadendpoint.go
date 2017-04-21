@@ -51,7 +51,7 @@ func (key WorkloadEndpointKey) defaultPath() (string, error) {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
 	}
 	return fmt.Sprintf("/calico/v1/host/%s/workload/%s/%s/endpoint/%s",
-		key.Hostname, key.OrchestratorID, key.WorkloadID, key.EndpointID), nil
+		key.Hostname, escapeName(key.OrchestratorID), escapeName(key.WorkloadID), escapeName(key.EndpointID)), nil
 }
 
 func (key WorkloadEndpointKey) defaultDeletePath() (string, error) {
@@ -69,7 +69,7 @@ func (key WorkloadEndpointKey) defaultDeleteParentPaths() ([]string, error) {
 		return nil, errors.ErrorInsufficientIdentifiers{Name: "workload"}
 	}
 	workload := fmt.Sprintf("/calico/v1/host/%s/workload/%s/%s",
-		key.Hostname, key.OrchestratorID, key.WorkloadID)
+		key.Hostname, escapeName(key.OrchestratorID), escapeName(key.WorkloadID))
 	endpoints := workload + "/endpoint"
 	return []string{endpoints, workload}, nil
 }
@@ -99,15 +99,15 @@ func (options WorkloadEndpointListOptions) defaultPathRoot() string {
 	if options.OrchestratorID == "" {
 		return k
 	}
-	k = k + fmt.Sprintf("/%s", options.OrchestratorID)
+	k = k + fmt.Sprintf("/%s", escapeName(options.OrchestratorID))
 	if options.WorkloadID == "" {
 		return k
 	}
-	k = k + fmt.Sprintf("/%s/endpoint", options.WorkloadID)
+	k = k + fmt.Sprintf("/%s/endpoint", escapeName(options.WorkloadID))
 	if options.EndpointID == "" {
 		return k
 	}
-	k = k + fmt.Sprintf("/%s", options.EndpointID)
+	k = k + fmt.Sprintf("/%s", escapeName(options.EndpointID))
 	return k
 }
 
@@ -119,9 +119,9 @@ func (options WorkloadEndpointListOptions) KeyFromDefaultPath(path string) Key {
 		return nil
 	}
 	hostname := r[0][1]
-	orch := r[0][2]
-	workload := r[0][3]
-	endpointID := r[0][4]
+	orch := unescapeName(r[0][2])
+	workload := unescapeName(r[0][3])
+	endpointID := unescapeName(r[0][4])
 	if options.Hostname != "" && hostname != options.Hostname {
 		log.Debugf("Didn't match hostname %s != %s", options.Hostname, hostname)
 		return nil
@@ -148,17 +148,18 @@ func (options WorkloadEndpointListOptions) KeyFromDefaultPath(path string) Key {
 
 type WorkloadEndpoint struct {
 	// TODO: Validation for workload endpoint.
-	State       string            `json:"state"`
-	Name        string            `json:"name"`
-	Mac         *net.MAC          `json:"mac"`
-	ProfileIDs  []string          `json:"profile_ids"`
-	IPv4Nets    []net.IPNet       `json:"ipv4_nets"`
-	IPv6Nets    []net.IPNet       `json:"ipv6_nets"`
-	IPv4NAT     []IPNAT           `json:"ipv4_nat,omitempty"`
-	IPv6NAT     []IPNAT           `json:"ipv6_nat,omitempty"`
-	Labels      map[string]string `json:"labels,omitempty"`
-	IPv4Gateway *net.IP           `json:"ipv4_gateway,omitempty" validate:"omitempty,ipv4"`
-	IPv6Gateway *net.IP           `json:"ipv6_gateway,omitempty" validate:"omitempty,ipv6"`
+	State            string            `json:"state"`
+	Name             string            `json:"name"`
+	ActiveInstanceID string            `json:"active_instance_id"`
+	Mac              *net.MAC          `json:"mac"`
+	ProfileIDs       []string          `json:"profile_ids"`
+	IPv4Nets         []net.IPNet       `json:"ipv4_nets"`
+	IPv6Nets         []net.IPNet       `json:"ipv6_nets"`
+	IPv4NAT          []IPNAT           `json:"ipv4_nat,omitempty"`
+	IPv6NAT          []IPNAT           `json:"ipv6_nat,omitempty"`
+	Labels           map[string]string `json:"labels,omitempty"`
+	IPv4Gateway      *net.IP           `json:"ipv4_gateway,omitempty" validate:"omitempty,ipv4"`
+	IPv6Gateway      *net.IP           `json:"ipv6_gateway,omitempty" validate:"omitempty,ipv6"`
 }
 
 // IPNat contains a single NAT mapping for a WorkloadEndpoint resource.

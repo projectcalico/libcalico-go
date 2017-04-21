@@ -190,7 +190,7 @@ var _ = Describe("Profile tests", func() {
 				Tags: tags1,
 			},
 			api.ProfileMetadata{
-				Name: "profile2",
+				Name: "profile1/with_foo",
 				Labels: map[string]string{
 					"app":  "app-xyz",
 					"prod": "no",
@@ -212,7 +212,7 @@ var _ = Describe("Profile tests", func() {
 				Tags: tags2,
 			},
 			api.ProfileMetadata{
-				Name: "profile2",
+				Name: "profile1/with_foo",
 				Labels: map[string]string{
 					"app":  "app-xyz",
 					"prod": "no",
@@ -232,7 +232,7 @@ var _ = Describe("Profile tests", func() {
 				},
 			},
 			api.ProfileMetadata{
-				Name: "profile2",
+				Name: "profile1/with.foo",
 				Labels: map[string]string{
 					"app":  "app-xyz",
 					"prod": "no",

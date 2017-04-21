@@ -80,7 +80,7 @@ var _ = Describe("Policy tests", func() {
 			_, outError := c.Policies().Update(&api.Policy{Metadata: meta1, Spec: spec1})
 
 			// Should return an error.
-			Expect(outError.Error()).To(Equal(errors.New("resource does not exist: Policy(name=policy1)").Error()))
+			Expect(outError.Error()).To(Equal(errors.New("resource does not exist: Policy(name=policy-1/with.foo)").Error()))
 
 			By("Create, Apply, Get and compare")
 
@@ -161,7 +161,7 @@ var _ = Describe("Policy tests", func() {
 			_, outError = c.Policies().Get(meta1)
 
 			// Expect an error since the policy was deleted.
-			Expect(outError.Error()).To(Equal(errors.New("resource does not exist: Policy(name=policy1)").Error()))
+			Expect(outError.Error()).To(Equal(errors.New("resource does not exist: Policy(name=policy-1/with.foo)").Error()))
 
 			// Delete the second policy with meta2.
 			outError1 = c.Policies().Delete(meta2)
@@ -187,26 +187,26 @@ var _ = Describe("Policy tests", func() {
 
 		// Test 1: Pass two fully populated PolicySpecs and expect the series of operations to succeed.
 		Entry("Two fully populated PolicySpecs",
-			api.PolicyMetadata{Name: "policy1"},
-			api.PolicyMetadata{Name: "policy2"},
+			api.PolicyMetadata{Name: "policy-1/with.foo"},
+			api.PolicyMetadata{Name: "policy.1"},
 			policySpec1,
 			policySpec2,
 		),
 
 		// Test 2: Pass one fully populated PolicySpec and another empty PolicySpec and expect the series of operations to succeed.
 		Entry("One fully populated PolicySpec and another empty PolicySpec",
-			api.PolicyMetadata{Name: "policy1"},
-			api.PolicyMetadata{Name: "policy2"},
+			api.PolicyMetadata{Name: "policy-1/with.foo"},
+			api.PolicyMetadata{Name: "policy.1"},
 			policySpec1,
 			api.PolicySpec{},
 		),
 
 		// Test 3: Pass one partially populated PolicySpec and another fully populated PolicySpec and expect the series of operations to succeed.
 		Entry("One partially populated PolicySpec and another fully populated PolicySpec",
-			api.PolicyMetadata{Name: "policy1"},
-			api.PolicyMetadata{Name: "policy2"},
+			api.PolicyMetadata{Name: "policy-1/with.foo"},
+			api.PolicyMetadata{Name: "policy_1/with.foo/with_bar"},
 			api.PolicySpec{
-				Selector: "has(myLabel888)",
+				Selector: "has(myLabel-8.9/88-._9)",
 			},
 			policySpec2,
 		),
