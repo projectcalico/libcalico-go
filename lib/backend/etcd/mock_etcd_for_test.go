@@ -9,9 +9,7 @@ import (
 
 func newMockEtcd() *mockEtcd {
 	return &mockEtcd{
-		cond: sync.Cond{
-			L: &sync.Mutex{},
-		},
+		cond: sync.NewCond(&sync.Mutex{}),
 		states: []*client.Node{
 			{
 				Key: "/",
