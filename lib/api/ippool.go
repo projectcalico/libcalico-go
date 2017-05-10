@@ -37,6 +37,7 @@ type IPPool struct {
 type IPPoolMetadata struct {
 	unversioned.ObjectMetadata
 	CIDR net.IPNet `json:"cidr"`
+	Labels map[string]string `json:"labels,omitempty" validate:"omitempty,labels"`
 }
 
 // IPPoolSpec contains the specification for an IP pool resource.
