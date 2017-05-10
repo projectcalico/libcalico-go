@@ -328,7 +328,8 @@ func (c *KubeClient) Apply(d *model.KVPair) (*model.KVPair, error) {
 	log.Debugf("Performing 'Apply' for %+v", d)
 	switch d.Key.(type) {
 	case model.WorkloadEndpointKey:
-		return c.applyWorkloadEndpoint(d)
+		log.Info("Skipping Apply for WorkloadEndpoint when using KDD")
+		return d, nil
 	case model.GlobalConfigKey:
 		return c.applyGlobalConfig(d)
 	case model.IPPoolKey:
@@ -465,30 +466,6 @@ func (c *KubeClient) getProfile(k model.ProfileKey) (*model.KVPair, error) {
 	}
 
 	return c.converter.namespaceToProfile(namespace)
-}
-
-// applyWorkloadEndpoint patches the existing Pod to include an IP address, if
-// one has been set on the workload endpoint.
-// TODO: This is only required as a workaround for an upstream k8s issue.  Once fixed,
-// this should be a no-op. See https://github.com/kubernetes/kubernetes/issues/39113
-func (c *KubeClient) applyWorkloadEndpoint(k *model.KVPair) (*model.KVPair, error) {
-	ips := k.Value.(*model.WorkloadEndpoint).IPv4Nets
-	if len(ips) > 0 {
-		log.Debugf("Applying workload with IPs: %+v", ips)
-		ns, name := c.converter.parseWorkloadID(k.Key.(model.WorkloadEndpointKey).WorkloadID)
-		pod, err := c.clientSet.Pods(ns).Get(name, metav1.GetOptions{})
-		if err != nil {
-			return nil, resources.K8sErrorToCalico(err, k.Key)
-		}
-		pod.Status.PodIP = ips[0].IP.String()
-		pod, err = c.clientSet.Pods(ns).UpdateStatus(pod)
-		if err != nil {
-			return nil, resources.K8sErrorToCalico(err, k.Key)
-		}
-		log.Debugf("Successfully applied pod: %+v", pod)
-		return c.converter.podToWorkloadEndpoint(pod)
-	}
-	return k, nil
 }
 
 // listWorkloadEndpoints lists WorkloadEndpoints from the k8s API based on existing Pods.
