@@ -7,34 +7,44 @@ test: ut
 K8S_VERSION=1.4.5
 CALICO_BUILD?=calico/go-build
 PACKAGE_NAME?=projectcalico/libcalico-go
-LOCAL_USER_ID?=$(shell id -u $$USER)
+MY_UID?=$(shell id -u)
 
-## Use this to populate the vendor directory after checking out the repository.
-vendor: glide.yaml
-	# To update upstream dependencies, delete the glide.lock file first.
-	# To build without Docker just run "glide install -strip-vendor"
-	docker run --rm \
-    -v $(CURDIR):/go/src/github.com/$(PACKAGE_NAME):rw \
-    -v $(HOME)/.glide:/home/user/.glide:rw \
-    -e LOCAL_USER_ID=$(LOCAL_USER_ID) \
-    $(CALICO_BUILD) /bin/sh -c ' \
-		  cd /go/src/github.com/$(PACKAGE_NAME) && \
-      glide install -strip-vendor'
+DOCKER_CALICO_BUILD := mkdir -p .go-pkg-cache && \
+                   docker run --rm \
+                              --net=host \
+                              $(EXTRA_DOCKER_ARGS) \
+                              -e LOCAL_USER_ID=$(MY_UID) \
+                              -v $${PWD}:/go/src/github.com/projectcalico/libcalico-go:rw \
+                              -v $${PWD}/.go-pkg-cache:/go/pkg:rw \
+                              -w /go/src/github.com/projectcalico/libcalico-go \
+                              $(CALICO_BUILD)
+
+# Update the vendored dependencies with the latest upstream versions matching
+# our glide.yaml.  If there area any changes, this updates glide.lock
+# as a side effect.  Unless you're adding/updating a dependency, you probably
+# want to use the vendor target to install the versions from glide.lock.
+.PHONY: update-vendor
+update-vendor glide.lock:
+	mkdir -p $$HOME/.glide
+	$(DOCKER_CALICO_BUILD) `glide cc && glide up --strip-vendor`
+	touch vendor/.up-to-date
+
+# vendor is a shortcut for force rebuilding the go vendor directory.
+.PHONY: vendor
+vendor vendor/.up-to-date: glide.lock
+	mkdir -p $$HOME/.glide
+	$(DOCKER_CALICO_BUILD) glide install --strip-vendor
+	touch vendor/.up-to-date
 
 .PHONY: ut
 ## Run the UTs locally.  This requires a local etcd and local kubernetes master to be running.
-ut: vendor
+ut: vendor/.up-to-date
 	./run-uts
 
 .PHONY: test-containerized
 ## Run the tests in a container. Useful for CI, Mac dev.
-test-containerized: vendor run-etcd run-kubernetes-master
-	-mkdir -p .go-pkg-cache
-	docker run --rm --privileged --net=host \
-    -e LOCAL_USER_ID=$(LOCAL_USER_ID) \
-    -v $(CURDIR)/.go-pkg-cache:/go/pkg/:rw \
-    -v $(CURDIR):/go/src/github.com/$(PACKAGE_NAME):rw \
-    $(CALICO_BUILD) sh -c 'cd /go/src/github.com/$(PACKAGE_NAME) && make WHAT=$(WHAT) SKIP=$(SKIP) ut'
+test-containerized: vendor/.up-to-date run-etcd run-kubernetes-master
+	$(DOCKER_CALICO_BUILD) make WHAT=$(WHAT) SKIP=$(SKIP) ut
 
 ## Run etcd as a container (calico-etcd)
 run-etcd: stop-etcd
