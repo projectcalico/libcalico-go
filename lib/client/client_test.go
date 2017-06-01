@@ -61,6 +61,7 @@ apiVersion: v1
 kind: calicoApiConfig
 metadata:
 spec:
+  datastoreType: kubernetes
   kubeconfig: filename
   k8sAPIEndpoint: bar
   k8sCertFile: baz
@@ -70,7 +71,8 @@ spec:
 `
 	cfg2data := api.NewCalicoAPIConfig()
 	cfg2data.Spec = api.CalicoAPIConfigSpec{
-		DatastoreType: api.EtcdV2,
+		DatastoreType: api.Kubernetes,
+		EtcdConfig:    etcd.EtcdConfig{},
 		KubeConfig: k8s.KubeConfig{
 			Kubeconfig:     "filename",
 			K8sAPIEndpoint: "bar",
@@ -104,8 +106,6 @@ kind: notCalicoApiConfig
 	cfg1env.Spec = api.CalicoAPIConfigSpec{
 		DatastoreType: api.EtcdV2,
 		EtcdConfig: etcd.EtcdConfig{
-			EtcdScheme:     "http",
-			EtcdAuthority:  "127.0.0.1:2379",
 			EtcdEndpoints:  "https://1.2.3.4:1234,https://10.20.30.40:1234",
 			EtcdUsername:   "bar",
 			EtcdPassword:   "baz",
@@ -128,10 +128,6 @@ kind: notCalicoApiConfig
 	cfg2env := api.NewCalicoAPIConfig()
 	cfg2env.Spec = api.CalicoAPIConfigSpec{
 		DatastoreType: api.Kubernetes,
-		EtcdConfig: etcd.EtcdConfig{
-			EtcdScheme:    "http",
-			EtcdAuthority: "127.0.0.1:2379",
-		},
 		KubeConfig: k8s.KubeConfig{
 			Kubeconfig:     "filename",
 			K8sAPIEndpoint: "bar1",
@@ -168,10 +164,6 @@ kind: notCalicoApiConfig
 	cfg4env := api.NewCalicoAPIConfig()
 	cfg4env.Spec = api.CalicoAPIConfigSpec{
 		DatastoreType: api.Kubernetes,
-		EtcdConfig: etcd.EtcdConfig{
-			EtcdScheme:    "http",
-			EtcdAuthority: "127.0.0.1:2379",
-		},
 		KubeConfig: k8s.KubeConfig{
 			Kubeconfig: "filename-preferred",
 		},

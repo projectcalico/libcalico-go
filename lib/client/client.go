@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/projectcalico/go-json/json"
 	yaml "github.com/projectcalico/go-yaml-wrapper"
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/api/unversioned"
@@ -142,34 +143,63 @@ func (c *Client) EnsureInitialized() error {
 	return nil
 }
 
-// LoadClientConfig loads the ClientConfig from the specified file (if specified)
-// or from environment variables (if the file is not specified).
-func LoadClientConfig(filename string) (*api.CalicoAPIConfig, error) {
+var ioutil_ReadFile func(string) ([]byte, error) = ioutil.ReadFile
 
-	// Override / merge with values loaded from the specified file.
-	if filename != "" {
-		b, err := ioutil.ReadFile(filename)
-		if err != nil {
-			return nil, err
-		}
-		return LoadClientConfigFromBytes(b)
-	} else {
-		return LoadClientConfigFromEnvironment()
+var DefaultDatastoreConfigFile string = "/etc/calico/caliconfig"
+
+// LoadClientConfig reads the specified file or, if none specified, the default
+// file and then merges the config read with config from environment variables,
+// then return a CalicoAPIConfig instance.
+func LoadClientConfig(filename string) (*api.CalicoAPIConfig, error) {
+	// If no file specified use the default
+	if filename == "" {
+		filename = DefaultDatastoreConfigFile
 	}
+
+	var fileCfg *api.CalicoAPIConfig = api.NewCalicoAPIConfig()
+	// Default could have been set to empty so check that there is a filename
+	if filename != "" {
+		log.Debug("Reading config file ", filename)
+		b, err := ioutil_ReadFile(filename)
+		if err != nil {
+			log.Info("Failed to read config file ", filename, err)
+		} else {
+			fileCfg, err = loadClientConfigFromBytesWithoutDefaults(b)
+			if err != nil {
+				log.Info("Failed to parse config file ", filename, err)
+				return nil, err
+			}
+		}
+	}
+
+	envCfg, err := loadClientConfigFromEnvironmentWithoutDefaults()
+	if err != nil {
+		log.Info("Failed to load config from Environment")
+		return nil, err
+	}
+
+	c, err := api.PriorityMerge(*envCfg, *fileCfg)
+	if err != nil {
+		log.Info("Failed to merge file and environment config ", err)
+		return nil, err
+	}
+
+	c.UpdateWithDefaults()
+	cfg, _ := json.Marshal(c)
+	log.Info("Loaded config: ", string(cfg))
+	return &c, nil
 }
 
 // LoadClientConfig loads the ClientConfig from the supplied bytes containing
 // YAML or JSON format data.
-func LoadClientConfigFromBytes(b []byte) (*api.CalicoAPIConfig, error) {
+func loadClientConfigFromBytesWithoutDefaults(b []byte) (*api.CalicoAPIConfig, error) {
 	var c api.CalicoAPIConfig
 
 	// Default the backend type to be etcd v2.  This will be overridden if
 	// explicitly specified in the file.
 	log.Info("Loading config from JSON or YAML data")
 	c = api.CalicoAPIConfig{
-		Spec: api.CalicoAPIConfigSpec{
-			DatastoreType: api.EtcdV2,
-		},
+		Spec: api.CalicoAPIConfigSpec{},
 	}
 
 	if err := yaml.UnmarshalStrict(b, &c); err != nil {
@@ -188,9 +218,22 @@ func LoadClientConfigFromBytes(b []byte) (*api.CalicoAPIConfig, error) {
 	return &c, nil
 }
 
-// LoadClientConfig loads the ClientConfig from the specified file (if specified)
-// or from environment variables (if the file is not specified).
-func LoadClientConfigFromEnvironment() (*api.CalicoAPIConfig, error) {
+// LoadClientConfig loads the ClientConfig from the supplied bytes containing
+// YAML or JSON format data and makes sure fields that need to be defaulted
+// are set.
+func LoadClientConfigFromBytes(b []byte) (*api.CalicoAPIConfig, error) {
+	c, err := loadClientConfigFromBytesWithoutDefaults(b)
+	if err != nil {
+		return nil, err
+	}
+	c.UpdateWithDefaults()
+	cfg, _ := json.Marshal(c)
+	log.Info("Loaded config: ", string(cfg))
+	return c, nil
+}
+
+// Loads the ClientConfig from environment variables.
+func loadClientConfigFromEnvironmentWithoutDefaults() (*api.CalicoAPIConfig, error) {
 	c := api.NewCalicoAPIConfig()
 
 	// Load client config from environment variables.
@@ -199,6 +242,20 @@ func LoadClientConfigFromEnvironment() (*api.CalicoAPIConfig, error) {
 		return nil, err
 	}
 
+	return c, nil
+}
+
+// Loads the ClientConfig from environment variables and makes sure fields
+// that need to be defaulted are set.
+func LoadClientConfigFromEnvironment() (*api.CalicoAPIConfig, error) {
+	c, err := loadClientConfigFromEnvironmentWithoutDefaults()
+	if err != nil {
+		return nil, err
+	}
+
+	c.UpdateWithDefaults()
+	cfg, _ := json.Marshal(c)
+	log.Info("Loaded config: ", string(cfg))
 	return c, nil
 }
 

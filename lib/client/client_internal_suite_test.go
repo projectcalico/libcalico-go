@@ -1,4 +1,4 @@
-package client_test
+package client
 
 import (
 	. "github.com/onsi/ginkgo"

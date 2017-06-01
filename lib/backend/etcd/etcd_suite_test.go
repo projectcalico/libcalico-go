@@ -1,4 +1,4 @@
-package client_test
+package etcd_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestClient(t *testing.T) {
+func TestBackendEtcd(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Client Suite")
+	RunSpecs(t, "Backend Etcd Test Suite")
 }

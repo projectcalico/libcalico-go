@@ -21,6 +21,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/imdario/mergo"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
@@ -71,6 +72,22 @@ type KubeConfig struct {
 	K8sAPIToken              string `json:"k8sAPIToken" envconfig:"K8S_API_TOKEN" default:""`
 	K8sInsecureSkipTLSVerify bool   `json:"k8sInsecureSkipTLSVerify" envconfig:"K8S_INSECURE_SKIP_TLS_VERIFY" default:""`
 	K8sDisableNodePoll       bool   `json:"k8sDisableNodePoll" envconfig:"K8S_DISABLE_NODE_POLL" default""`
+}
+
+// Sets minimum defaults. (Empty function that matches EtcdConfig)
+func (c *KubeConfig) UpdateWithDefaults() {
+}
+
+// Merges configs taking all values from high and on any values not set on
+// high the low value is used.  A new config object is returned.
+func PriorityMerge(high KubeConfig, low KubeConfig) (KubeConfig, error) {
+	c := high
+
+	if err := mergo.Merge(&c, low); err != nil {
+		return KubeConfig{}, err
+	}
+
+	return c, nil
 }
 
 func NewKubeClient(kc *KubeConfig) (*KubeClient, error) {
