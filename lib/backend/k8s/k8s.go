@@ -29,17 +29,17 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/errors"
 
 	"github.com/projectcalico/libcalico-go/lib/net"
-	"k8s.io/client-go/kubernetes"
-	clientapi "k8s.io/client-go/pkg/api"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/pkg/api/v1"
-	kapiv1 "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	clientapi "k8s.io/client-go/pkg/api"
+	"k8s.io/client-go/pkg/api/v1"
+	kapiv1 "k8s.io/client-go/pkg/api/v1"
+	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -593,19 +593,6 @@ func (c *KubeClient) listPolicies(l model.PolicyListOptions) ([]*model.KVPair, e
 		ret = append(ret, kvp)
 	}
 
-	// List all Namespaces and turn them into Policies as well.
-	namespaces, err := c.clientSet.Namespaces().List(metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, ns := range namespaces.Items {
-		kvp, err := c.converter.namespaceToPolicy(&ns)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, kvp)
-	}
-
 	return ret, nil
 }
 
@@ -636,18 +623,6 @@ func (c *KubeClient) getPolicy(k model.PolicyKey) (*model.KVPair, error) {
 			return nil, resources.K8sErrorToCalico(err, k)
 		}
 		return c.converter.networkPolicyToPolicy(&networkPolicy)
-	} else if strings.HasPrefix(k.Name, "ns.projectcalico.org/") {
-		// This is backed by a Namespace.
-		namespace, err := c.converter.parsePolicyNameNamespace(k.Name)
-		if err != nil {
-			return nil, errors.ErrorResourceDoesNotExist{Err: err, Identifier: k}
-		}
-
-		ns, err := c.clientSet.Namespaces().Get(namespace, metav1.GetOptions{})
-		if err != nil {
-			return nil, resources.K8sErrorToCalico(err, k)
-		}
-		return c.converter.namespaceToPolicy(ns)
 	} else {
 		// Received a Get() for a Policy that doesn't exist.
 		return nil, errors.ErrorResourceDoesNotExist{Identifier: k}

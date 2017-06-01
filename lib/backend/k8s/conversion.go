@@ -24,10 +24,10 @@ import (
 	"encoding/json"
 
 	log "github.com/Sirupsen/logrus"
-	kapiv1 "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	kapiv1 "k8s.io/client-go/pkg/api/v1"
+	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/thirdparty"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
@@ -153,8 +153,8 @@ func (c converter) namespaceToProfile(ns *kapiv1.Namespace) (*model.KVPair, erro
 		Value: &model.Profile{
 			Labels: labels,
 			Rules: model.ProfileRules{
-				InboundRules:  []model.Rule{},
-				OutboundRules: []model.Rule{},
+				InboundRules:  []model.Rule{model.Rule{Action: "allow"}},
+				OutboundRules: []model.Rule{model.Rule{Action: "allow"}},
 			},
 		},
 		Revision: ns.ObjectMeta.ResourceVersion,
@@ -290,7 +290,7 @@ func (c converter) networkPolicyToPolicy(np *extensions.NetworkPolicy) (*model.K
 			Order:         &order,
 			Selector:      c.k8sSelectorToCalico(&np.Spec.PodSelector, &np.ObjectMeta.Namespace),
 			InboundRules:  inboundRules,
-			OutboundRules: []model.Rule{},
+			OutboundRules: []model.Rule{model.Rule{Action: "allow"}},
 		},
 		Revision: np.ObjectMeta.ResourceVersion,
 	}, nil
