@@ -21,7 +21,6 @@ import (
 
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/json"
 
 	log "github.com/Sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,12 +38,6 @@ var (
 	policyAnnotation = "net.beta.kubernetes.io/network-policy"
 	protoTCP         = kapiv1.ProtocolTCP
 )
-
-type namespacePolicy struct {
-	Ingress struct {
-		Isolation string `json:"isolation"`
-	} `json:"ingress"`
-}
 
 type converter struct {
 }
@@ -74,7 +67,6 @@ func (c converter) parsePolicyNameNamespace(name string) (string, error) {
 	}
 
 	return strings.TrimPrefix(name, "ns.projectcalico.org/"), nil
-
 }
 
 // parsePolicyNameNetworkPolicy extracts the Kubernetes Namespace and NetworkPolicy that backs the given Policy.
@@ -102,43 +94,9 @@ func (c converter) parseProfileName(profileName string) (string, error) {
 	return splits[1], nil
 }
 
-// namespaceToPolicy converts a Namespace to a Policy.  We create a Policy per-Namespace
-// to implement per-Namespace ingress behavior (e.g DefaultDeny).  It also ensures that
-// every k8s Pod is selected by at least one Policy that allows egress traffic.
-func (c converter) namespaceToPolicy(ns *kapiv1.Namespace) (*model.KVPair, error) {
-	// Determine the ingress action based off the DefaultDeny annotation.
-	ingressAction := "allow"
-	for k, v := range ns.ObjectMeta.Annotations {
-		if k == policyAnnotation {
-			np := namespacePolicy{}
-			if err := json.Unmarshal([]byte(v), &np); err != nil {
-				// We want to handle this case gracefully since this can
-				// occur due to user error.
-				log.Warnf("Failed to parse annotation on Namespace '%s'.", ns.Name)
-			}
-			if np.Ingress.Isolation == "DefaultDeny" {
-				ingressAction = "deny"
-			}
-		}
-	}
-
-	name := fmt.Sprintf("ns.projectcalico.org/%s", ns.ObjectMeta.Name)
-	kvp := model.KVPair{
-		Key: model.PolicyKey{Name: name},
-		Value: &model.Policy{
-			Selector:      fmt.Sprintf("calico/k8s_ns == '%s'", ns.Name),
-			InboundRules:  []model.Rule{model.Rule{Action: ingressAction}},
-			OutboundRules: []model.Rule{model.Rule{Action: "allow"}},
-		},
-		Revision: ns.ObjectMeta.ResourceVersion,
-	}
-	return &kvp, nil
-}
-
 // namespaceToProfile converts a Namespace to a Calico Profile.  The Profile stores
 // labels from the Namespace which are inherited by the WorkloadEndpoints within
-// the Profile, however no rules are populated.  Per-Namespace network
-// policy rules are implemented in namespaceToPolicy.
+// the Profile. This Profile also has the default ingress and egress rules, which are both 'allow'.
 func (c converter) namespaceToProfile(ns *kapiv1.Namespace) (*model.KVPair, error) {
 	// Generate the labels to apply to the profile, using a special prefix
 	// to indicate that these are the labels from the parent Kubernetes Namespace.
@@ -273,6 +231,9 @@ func (c converter) podToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 func (c converter) networkPolicyToPolicy(np *extensions.NetworkPolicy) (*model.KVPair, error) {
 	// Pull out important fields.
 	policyName := fmt.Sprintf("np.projectcalico.org/%s.%s", np.ObjectMeta.Namespace, np.ObjectMeta.Name)
+
+	// We insert all the NetworkPolicy Policies at order 1000.0 after conversion.
+	// This order might change in future.
 	order := float64(1000.0)
 
 	// Generate the inbound rules list.
