@@ -190,12 +190,13 @@ func (c *snpClient) EnsureInitialized() error {
 			Namespace: "kube-system",
 		},
 		Description: "Calico System Network Policies",
-		Versions:    []extensions.APIVersion{{Name: "v1"}},
+		Versions:    []extensions.APIVersion{{Name: "v1alpha1"}},
 	}
 	_, err := c.clientSet.Extensions().ThirdPartyResources().Create(&tpr)
 	if err != nil {
 		// Don't care if it already exists.
 		if !kerrors.IsAlreadyExists(err) {
+			log.WithError(err).Info("Unable to register SystemNetworkPolicy resource type")
 			return K8sErrorToCalico(err, tpr)
 		}
 	}

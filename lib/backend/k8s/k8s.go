@@ -39,7 +39,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientapi "k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/pkg/api/v1"
-	kapiv1 "k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -49,8 +48,9 @@ type KubeClient struct {
 	// Main Kubernetes clients.
 	clientSet *kubernetes.Clientset
 
-	// Client for interacting with ThirdPartyResources.
-	tprClient *rest.RESTClient
+	// Clients for interacting with ThirdPartyResources.
+	tprClientV1       *rest.RESTClient
+	tprClientV1alpha1 *rest.RESTClient
 
 	disableNodePoll bool
 
@@ -112,20 +112,25 @@ func NewKubeClient(kc *capi.KubeConfig) (*KubeClient, error) {
 	}
 	log.Debugf("Created k8s clientSet: %+v", cs)
 
-	tprClient, err := buildTPRClient(config)
+	tprClientV1, err := buildTPRClientV1(config)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to build TPR client: %s", err)
+		return nil, fmt.Errorf("Failed to build v1 TPR client: %s", err)
+	}
+	tprClientV1alpha1, err := buildTPRClientV1alpha1(config)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to build v1alpha1 TPR client: %s", err)
 	}
 	kubeClient := &KubeClient{
-		clientSet:       cs,
-		tprClient:       tprClient,
-		disableNodePoll: kc.K8sDisableNodePoll,
+		clientSet:         cs,
+		tprClientV1:       tprClientV1,
+		tprClientV1alpha1: tprClientV1alpha1,
+		disableNodePoll:   kc.K8sDisableNodePoll,
 	}
 
 	// Create the Calico sub-clients.
-	kubeClient.ipPoolClient = resources.NewIPPools(cs, tprClient)
-	kubeClient.nodeClient = resources.NewNodeClient(cs, tprClient)
-	kubeClient.snpClient = resources.NewSystemNetworkPolicies(cs, tprClient)
+	kubeClient.ipPoolClient = resources.NewIPPools(cs, tprClientV1)
+	kubeClient.nodeClient = resources.NewNodeClient(cs, tprClientV1)
+	kubeClient.snpClient = resources.NewSystemNetworkPolicies(cs, tprClientV1alpha1)
 
 	return kubeClient, nil
 }
@@ -242,8 +247,8 @@ func (c *KubeClient) ensureClusterType() (bool, error) {
 	return true, nil
 }
 
-// buildTPRClient builds a RESTClient configured to interact with Calico ThirdPartyResources
-func buildTPRClient(baseConfig *rest.Config) (*rest.RESTClient, error) {
+// buildTPRClientV1 builds a v1 RESTClient configured to interact with Calico ThirdPartyResources
+func buildTPRClientV1(baseConfig *rest.Config) (*rest.RESTClient, error) {
 	// Generate config using the base config.
 	cfg := baseConfig
 	cfg.GroupVersion = &schema.GroupVersion{
@@ -268,10 +273,43 @@ func buildTPRClient(baseConfig *rest.Config) (*rest.RESTClient, error) {
 				&thirdparty.GlobalConfigList{},
 				&thirdparty.IpPool{},
 				&thirdparty.IpPoolList{},
+				&metav1.ListOptions{},
+				&metav1.DeleteOptions{},
+			)
+			return nil
+		})
+	schemeBuilder.AddToScheme(clientapi.Scheme)
+
+	return cli, nil
+}
+
+// buildTPRClientV1alpha1 builds a v1alpha1 RESTClient configured to interact
+// with Calico ThirdPartyResources
+func buildTPRClientV1alpha1(baseConfig *rest.Config) (*rest.RESTClient, error) {
+	// Generate config using the base config.
+	cfg := baseConfig
+	cfg.GroupVersion = &schema.GroupVersion{
+		Group:   "projectcalico.org",
+		Version: "v1alpha1",
+	}
+	cfg.APIPath = "/apis"
+	cfg.ContentType = runtime.ContentTypeJSON
+	cfg.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: clientapi.Codecs}
+
+	cli, err := rest.RESTClientFor(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	// We also need to register resources.
+	schemeBuilder := runtime.NewSchemeBuilder(
+		func(scheme *runtime.Scheme) error {
+			scheme.AddKnownTypes(
+				*cfg.GroupVersion,
 				&thirdparty.SystemNetworkPolicy{},
 				&thirdparty.SystemNetworkPolicyList{},
-				&kapiv1.ListOptions{},
-				&kapiv1.DeleteOptions{},
+				&metav1.ListOptions{},
+				&metav1.DeleteOptions{},
 			)
 			return nil
 		})
@@ -693,7 +731,7 @@ func (c *KubeClient) applyGlobalConfig(kvp *model.KVPair) (*model.KVPair, error)
 func (c *KubeClient) updateGlobalConfig(kvp *model.KVPair) (*model.KVPair, error) {
 	gcfg := c.converter.globalConfigToTPR(kvp)
 	res := thirdparty.GlobalConfig{}
-	req := c.tprClient.Put().
+	req := c.tprClientV1.Put().
 		Resource("globalconfigs").
 		Namespace("kube-system").
 		Body(&gcfg).
@@ -711,7 +749,7 @@ func (c *KubeClient) updateGlobalConfig(kvp *model.KVPair) (*model.KVPair, error
 func (c *KubeClient) createGlobalConfig(kvp *model.KVPair) (*model.KVPair, error) {
 	gcfg := c.converter.globalConfigToTPR(kvp)
 	res := thirdparty.GlobalConfig{}
-	req := c.tprClient.Post().
+	req := c.tprClientV1.Post().
 		Resource("globalconfigs").
 		Namespace("kube-system").
 		Body(&gcfg)
@@ -726,7 +764,7 @@ func (c *KubeClient) createGlobalConfig(kvp *model.KVPair) (*model.KVPair, error
 // getGlobalConfig gets a global config and returns an error if it doesn't exist.
 func (c *KubeClient) getGlobalConfig(k model.GlobalConfigKey) (*model.KVPair, error) {
 	cfg := thirdparty.GlobalConfig{}
-	err := c.tprClient.Get().
+	err := c.tprClientV1.Get().
 		Resource("globalconfigs").
 		Namespace("kube-system").
 		Name(strings.ToLower(k.Name)).
@@ -744,7 +782,7 @@ func (c *KubeClient) listGlobalConfig(l model.GlobalConfigListOptions) ([]*model
 	gcfg := thirdparty.GlobalConfigList{}
 
 	// Build the request.
-	req := c.tprClient.Get().Resource("globalconfigs").Namespace("kube-system")
+	req := c.tprClientV1.Get().Resource("globalconfigs").Namespace("kube-system")
 	if l.Name != "" {
 		req.Name(strings.ToLower(l.Name))
 	}
@@ -770,7 +808,7 @@ func (c *KubeClient) listGlobalConfig(l model.GlobalConfigListOptions) ([]*model
 
 // deleteGlobalConfig deletes the given global config.
 func (c *KubeClient) deleteGlobalConfig(k *model.KVPair) error {
-	result := c.tprClient.Delete().
+	result := c.tprClientV1.Delete().
 		Resource("globalconfigs").
 		Namespace("kube-system").
 		Name(strings.ToLower(k.Key.(model.GlobalConfigKey).Name)).
