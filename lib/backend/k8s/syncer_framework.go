@@ -39,7 +39,7 @@ func newGenericSyncer(callbacks api.SyncerCallbacks, syncFuncs GenericSyncFuncs)
 type GenericSyncFuncs interface {
 	// ListFunc lists existing KVPairs for this resource as well as the latest
 	// resourceVesion, or an error.
-	ListFunc(opts metav1.ListOptions) ([]model.KVPair, string, error)
+	ListFunc(opts metav1.ListOptions) ([]model.KVPair, string, map[string]bool, error)
 
 	// WatchFunc returns a watch.Interface to watch a particular resource
 	// in the Kubernetes API.
@@ -47,7 +47,7 @@ type GenericSyncFuncs interface {
 
 	// ParseFunc takes an incoming event for the watcher and parses it into
 	// zero or more KVPair objects to be sent over the syncer.
-	ParseFunc(watch.Event) []model.KVPair
+	ParseFunc(e watch.Event) []model.KVPair
 }
 
 type genericKubeSyncer struct {
@@ -237,27 +237,16 @@ func (syn *genericKubeSyncer) performSnapshot() ([]model.KVPair, map[string]bool
 
 	// Loop until we successfully are able to accesss the API.
 	for {
-		// Initialize the values to return.
-		snap = []model.KVPair{}
-		keys = map[string]bool{}
-
 		// Get the full list of KVPs for this resource and add them
 		// to the snapshot.
 		log.Info("Syncing TODO RESOURCE HERE")
-		kvps, resourceVersion, err := syn.funcs.ListFunc(opts)
+		snap, resourceVersion, keys, err := syn.funcs.ListFunc(opts)
 		if err != nil {
 			log.Warnf("Error syncing TODO RESOURCE HERE, retrying: %s", err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
 		log.Info("Received TODO RESOURCE HERE List() response")
-		snap = append(snap, kvps...)
-
-		// Ensure that the keys map is populated with each returned
-		// key.
-		for _, kvp := range kvps {
-			keys[kvp.Key.String()] = true
-		}
 
 		// Successfully generated snapshot
 		return snap, keys, resourceVersion
