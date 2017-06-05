@@ -29,17 +29,17 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/errors"
 
 	"github.com/projectcalico/libcalico-go/lib/net"
-	"k8s.io/client-go/kubernetes"
-	clientapi "k8s.io/client-go/pkg/api"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/pkg/api/v1"
-	kapiv1 "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	clientapi "k8s.io/client-go/pkg/api"
+	"k8s.io/client-go/pkg/api/v1"
+	kapiv1 "k8s.io/client-go/pkg/api/v1"
+	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -280,7 +280,7 @@ func buildTPRClient(baseConfig *rest.Config) (*rest.RESTClient, error) {
 }
 
 func (c *KubeClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
-	return newSyncer(&realKubeAPI{c}, c.converter, callbacks, c.disableNodePoll)
+	return newSyncer(callbacks, c, c.disableNodePoll)
 }
 
 // Create an entry in the datastore.  This errors if the entry already exists.
