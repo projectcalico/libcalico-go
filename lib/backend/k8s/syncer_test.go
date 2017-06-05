@@ -21,11 +21,12 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/thirdparty"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	k8sapi "k8s.io/client-go/pkg/api/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/watch"
+	k8sapi "k8s.io/client-go/pkg/api/v1"
+	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 type testWatch struct {
@@ -54,6 +55,8 @@ type testClient struct {
 	podC         chan watch.Event
 	state        map[model.Key]interface{}
 	stateMutex   sync.Mutex
+	listCalls    int
+	watchCalls   int
 }
 
 func (tc *testClient) OnStatusUpdated(status api.SyncStatus) {
@@ -83,6 +86,7 @@ func (tc *testClient) newWatch(name string, c chan watch.Event) *testWatch {
 		c:    c,
 	}
 	tc.openWatchers = append(tc.openWatchers, w)
+	tc.watchCalls++
 	return w
 }
 
@@ -122,40 +126,61 @@ func (tc *testClient) NodeWatch(opts metav1.ListOptions) (w watch.Interface, err
 	return
 }
 
+func (tc *testClient) countList() {
+	tc.stateMutex.Lock()
+	defer tc.stateMutex.Unlock()
+	tc.listCalls++
+}
+
 func (tc *testClient) NamespaceList(opts metav1.ListOptions) (list *k8sapi.NamespaceList, err error) {
+	tc.countList()
 	list = &k8sapi.NamespaceList{}
 	err = nil
 	return
 }
 
 func (tc *testClient) NetworkPolicyList() (list extensions.NetworkPolicyList, err error) {
+	tc.countList()
 	list = extensions.NetworkPolicyList{}
 	err = nil
 	return
 }
 
 func (tc *testClient) PodList(namespace string, opts metav1.ListOptions) (list *k8sapi.PodList, err error) {
+	tc.countList()
 	list = &k8sapi.PodList{}
 	err = nil
 	return
 }
 
 func (tc *testClient) GlobalConfigList(l model.GlobalConfigListOptions) ([]*model.KVPair, error) {
+	tc.countList()
 	return []*model.KVPair{}, nil
 }
 
 func (tc *testClient) HostConfigList(l model.HostConfigListOptions) ([]*model.KVPair, error) {
+	tc.countList()
 	return []*model.KVPair{}, nil
 }
 
 func (tc *testClient) IPPoolList(l model.IPPoolListOptions) ([]*model.KVPair, error) {
+	tc.countList()
 	return []*model.KVPair{}, nil
 }
 
 func (tc *testClient) NodeList(opts metav1.ListOptions) (list *k8sapi.NodeList, err error) {
+	tc.countList()
 	list = &k8sapi.NodeList{}
 	err = nil
 	return
+}
+func (tc *testClient) SystemNetworkPolicyWatch(opts metav1.ListOptions) (watch.Interface, error) {
+	return tc.newWatch("system network policy", make(chan watch.Event)), nil
+}
+
+func (tc *testClient) SystemNetworkPolicyList() (*thirdparty.SystemNetworkPolicyList, error) {
+	tc.countList()
+	return &thirdparty.SystemNetworkPolicyList{}, nil
 }
 
 func (tc *testClient) getReadyStatus(key model.ReadyFlagKey) (*model.KVPair, error) {
@@ -188,6 +213,34 @@ var _ = Describe("Test Syncer", func() {
 
 		AfterEach(func() {
 			syn.Stop()
+		})
+
+		It("should not resync when one watch times out", func() {
+			getNumListCalls := func() interface{} {
+				tc.stateMutex.Lock()
+				defer tc.stateMutex.Unlock()
+				log.WithField("listCalls", tc.listCalls).Info("")
+				return tc.listCalls
+			}
+			getNumWatchCalls := func() interface{} {
+				tc.stateMutex.Lock()
+				defer tc.stateMutex.Unlock()
+				log.WithField("watchCalls", tc.watchCalls).Info("")
+				return tc.watchCalls
+			}
+			// Initial resync makes 8 list calls and 7 watch calls.
+			const (
+				LIST_CALLS  = 8
+				WATCH_CALLS = 7
+			)
+			Eventually(getNumListCalls).Should(BeNumerically("==", LIST_CALLS))
+			Eventually(getNumWatchCalls).Should(BeNumerically("==", WATCH_CALLS))
+			// Simulate timeout of the pod watch.
+			tc.podC <- watch.Event{Object: nil}
+			// Expect a new watch call.
+			Eventually(getNumWatchCalls).Should(BeNumerically("==", WATCH_CALLS+1))
+			// But no new list calls.
+			Expect(getNumListCalls()).To(BeNumerically("==", LIST_CALLS))
 		})
 
 		It("should correctly handle pod being deleted in resync", func() {
@@ -234,9 +287,9 @@ var _ = Describe("Test Syncer", func() {
 			// Check that, after the resync, the old watchers are stopped.
 			tc.stateMutex.Lock()
 			defer tc.stateMutex.Unlock()
-			// We expect 6 old watchers and 6 new. If that changes, we'll assert here
+			// We expect 7 old watchers and 7 new. If that changes, we'll assert here
 			// so the maintainer can re-check the test still matches the logic.
-			Expect(tc.openWatchers).To(HaveLen(12))
+			Expect(tc.openWatchers).To(HaveLen(14))
 			for _, w := range tc.openWatchers[:len(tc.openWatchers)/2] {
 				w.stopMutex.Lock()
 				stopped := w.stopped

@@ -15,12 +15,11 @@
 package k8s
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	goerrors "errors"
 	"fmt"
 	"strings"
-
-	"crypto/sha1"
-	"encoding/hex"
 
 	log "github.com/Sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
