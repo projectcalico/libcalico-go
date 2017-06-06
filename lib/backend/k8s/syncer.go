@@ -118,7 +118,7 @@ func (k *realKubeAPI) NetworkPolicyList() (list extensions.NetworkPolicyList, er
 
 func (k *realKubeAPI) SystemNetworkPolicyWatch(opts metav1.ListOptions) (watch.Interface, error) {
 	watcher := cache.NewListWatchFromClient(
-		k.kc.tprClientV1alpha1,
+		k.kc.tprClientV1alpha,
 		resources.SystemNetworkPolicyResourceName,
 		"kube-system",
 		fields.Everything())
@@ -128,7 +128,7 @@ func (k *realKubeAPI) SystemNetworkPolicyWatch(opts metav1.ListOptions) (watch.I
 func (k *realKubeAPI) SystemNetworkPolicyList() (*thirdparty.SystemNetworkPolicyList, error) {
 	// Perform the request.
 	tprs := &thirdparty.SystemNetworkPolicyList{}
-	err := k.kc.tprClientV1alpha1.Get().
+	err := k.kc.tprClientV1alpha.Get().
 		Resource(resources.SystemNetworkPolicyResourceName).
 		Namespace("kube-system").
 		Do().Into(tprs)

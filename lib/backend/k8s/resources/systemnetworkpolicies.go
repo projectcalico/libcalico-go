@@ -30,8 +30,9 @@ import (
 )
 
 const (
-	SystemNetworkPolicyResourceName = "SystemNetworkPolicy"
-	SystemNetworkPolicyTPRName      = "system-network-policy.projectcalico.org"
+	SystemNetworkPolicyAPIGroup     = "projectcalico.org"
+	SystemNetworkPolicyResourceName = "systemnetworkpolicy"
+	SystemNetworkPolicyTPRName      = "system-network-policy." + SystemNetworkPolicyAPIGroup
 	SystemNetworkPolicyNamePrefix   = "snp.projectcalico.org/"
 )
 
@@ -190,7 +191,7 @@ func (c *snpClient) EnsureInitialized() error {
 			Namespace: "kube-system",
 		},
 		Description: "Calico System Network Policies",
-		Versions:    []extensions.APIVersion{{Name: "v1alpha1"}},
+		Versions:    []extensions.APIVersion{{Name: "v1"}},
 	}
 	_, err := c.clientSet.Extensions().ThirdPartyResources().Create(&tpr)
 	if err != nil {

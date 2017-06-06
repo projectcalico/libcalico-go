@@ -46,22 +46,22 @@ import (
 
 type KubeClient struct {
 	// Main Kubernetes clients.
-	clientSet *kubernetes.Clientset
+	clientSet        *kubernetes.Clientset
 
 	// Clients for interacting with ThirdPartyResources.
-	tprClientV1       *rest.RESTClient
-	tprClientV1alpha1 *rest.RESTClient
+	tprClientV1      *rest.RESTClient
+	tprClientV1alpha *rest.RESTClient
 
-	disableNodePoll bool
+	disableNodePoll  bool
 
 	// Contains methods for converting Kubernetes resources to
 	// Calico resources.
-	converter converter
+	converter        converter
 
 	// Clients for interacting with Calico resources.
-	ipPoolClient api.Client
-	nodeClient   api.Client
-	snpClient    api.Client
+	ipPoolClient     api.Client
+	nodeClient       api.Client
+	snpClient        api.Client
 }
 
 func NewKubeClient(kc *capi.KubeConfig) (*KubeClient, error) {
@@ -112,25 +112,25 @@ func NewKubeClient(kc *capi.KubeConfig) (*KubeClient, error) {
 	}
 	log.Debugf("Created k8s clientSet: %+v", cs)
 
-	tprClientV1, err := buildTPRClientV1(config)
+	tprClientV1, err := buildTPRClientV1(*config)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to build v1 TPR client: %s", err)
 	}
-	tprClientV1alpha1, err := buildTPRClientV1alpha1(config)
+	tprClientV1alpha, err := buildTPRClientV1alpha(*config)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to build v1alpha1 TPR client: %s", err)
 	}
 	kubeClient := &KubeClient{
 		clientSet:         cs,
 		tprClientV1:       tprClientV1,
-		tprClientV1alpha1: tprClientV1alpha1,
+		tprClientV1alpha: tprClientV1alpha,
 		disableNodePoll:   kc.K8sDisableNodePoll,
 	}
 
 	// Create the Calico sub-clients.
 	kubeClient.ipPoolClient = resources.NewIPPools(cs, tprClientV1)
 	kubeClient.nodeClient = resources.NewNodeClient(cs, tprClientV1)
-	kubeClient.snpClient = resources.NewSystemNetworkPolicies(cs, tprClientV1alpha1)
+	kubeClient.snpClient = resources.NewSystemNetworkPolicies(cs, tprClientV1alpha)
 
 	return kubeClient, nil
 }
@@ -248,9 +248,8 @@ func (c *KubeClient) ensureClusterType() (bool, error) {
 }
 
 // buildTPRClientV1 builds a v1 RESTClient configured to interact with Calico ThirdPartyResources
-func buildTPRClientV1(baseConfig *rest.Config) (*rest.RESTClient, error) {
-	// Generate config using the base config.
-	cfg := baseConfig
+func buildTPRClientV1(cfg rest.Config) (*rest.RESTClient, error) {
+	// Generate config using the base config supplied.
 	cfg.GroupVersion = &schema.GroupVersion{
 		Group:   "projectcalico.org",
 		Version: "v1",
@@ -259,7 +258,8 @@ func buildTPRClientV1(baseConfig *rest.Config) (*rest.RESTClient, error) {
 	cfg.ContentType = runtime.ContentTypeJSON
 	cfg.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: clientapi.Codecs}
 
-	cli, err := rest.RESTClientFor(cfg)
+	log.WithField("Config", &cfg).Debug("Creating v1 REST client")
+	cli, err := rest.RESTClientFor(&cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -285,18 +285,18 @@ func buildTPRClientV1(baseConfig *rest.Config) (*rest.RESTClient, error) {
 
 // buildTPRClientV1alpha1 builds a v1alpha1 RESTClient configured to interact
 // with Calico ThirdPartyResources
-func buildTPRClientV1alpha1(baseConfig *rest.Config) (*rest.RESTClient, error) {
-	// Generate config using the base config.
-	cfg := baseConfig
+func buildTPRClientV1alpha(cfg rest.Config) (*rest.RESTClient, error) {
+	// Generate config using the base config supplied.
 	cfg.GroupVersion = &schema.GroupVersion{
-		Group:   "projectcalico.org",
-		Version: "v1alpha1",
+		Group:   resources.SystemNetworkPolicyAPIGroup,
+		Version: "v1",
 	}
 	cfg.APIPath = "/apis"
 	cfg.ContentType = runtime.ContentTypeJSON
 	cfg.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: clientapi.Codecs}
 
-	cli, err := rest.RESTClientFor(cfg)
+	log.WithField("Config", &cfg).Debug("Creating v1alpha REST client")
+	cli, err := rest.RESTClientFor(&cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -308,8 +308,8 @@ func buildTPRClientV1alpha1(baseConfig *rest.Config) (*rest.RESTClient, error) {
 				*cfg.GroupVersion,
 				&thirdparty.SystemNetworkPolicy{},
 				&thirdparty.SystemNetworkPolicyList{},
-				&metav1.ListOptions{},
-				&metav1.DeleteOptions{},
+				//&metav1.ListOptions{},
+				//&metav1.DeleteOptions{},
 			)
 			return nil
 		})
