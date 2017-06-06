@@ -283,7 +283,7 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		go cb.ProcessUpdates()
 	})
 
-	It("should handle a Namespace with DefaultDeny", func() {
+	It("should handle a Namespace with DefaultDeny (v1beta annotation for namespace isolation)", func() {
 		ns := k8sapi.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-syncer-namespace-default-deny",
@@ -319,10 +319,15 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		By("Performing a Get on the Policy and ensure no error in the Calico API", func() {
-			_, err := c.Get(model.PolicyKey{Name: fmt.Sprintf("ns.projectcalico.org/%s", ns.ObjectMeta.Name)})
-			Expect(err).NotTo(HaveOccurred())
-		})
+		// Expect corresponding Profile updates over the syncer for this Namespace.
+		expectedName := "ns.projectcalico.org/test-syncer-namespace-default-deny"
+		expectedKeys := []model.KVPair{
+			{Key: model.ProfileRulesKey{model.ProfileKey{Name: expectedName}}},
+			{Key: model.ProfileTagsKey{model.ProfileKey{Name: expectedName}}},
+			{Key: model.ProfileLabelsKey{model.ProfileKey{Name: expectedName}}},
+		}
+		time.Sleep(1 * time.Second)
+		cb.ExpectExists(expectedKeys)
 
 		By("Checking the correct entries are in our cache", func() {
 			expectedName := "ns.projectcalico.org/test-syncer-namespace-default-deny"
@@ -344,13 +349,11 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		})
 	})
 
-	It("should handle a Namespace without DefaultDeny", func() {
+	It("should handle a Namespace without any annotations", func() {
 		ns := k8sapi.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-syncer-namespace-no-default-deny",
-				Annotations: map[string]string{
-					"net.beta.kubernetes.io/network-policy": "{\"ingress\": {\"isolation\": \"\"}}",
-				},
+				Name:        "test-syncer-namespace-no-default-deny",
+				Annotations: map[string]string{},
 			},
 		}
 
@@ -380,11 +383,6 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		// Perform a Get and ensure no error in the Calico API.
 		By("getting a Profile", func() {
 			_, err := c.Get(model.ProfileKey{Name: fmt.Sprintf("default.%s", ns.ObjectMeta.Name)})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		By("getting a Policy", func() {
-			_, err := c.Get(model.PolicyKey{Name: fmt.Sprintf("ns.projectcalico.org/%s", ns.ObjectMeta.Name)})
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -617,11 +615,9 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		})
 
 		By("Listing all policies (including a System Network Policy)", func() {
-			// We expect namespace entries for kube-system, kube-public
-			// and default.
 			kvps, err := c.List(model.PolicyListOptions{})
 			Expect(err).ToNot(HaveOccurred())
-			Expect(kvps).To(HaveLen(4))
+			Expect(kvps).To(HaveLen(1))
 			Expect(kvps[len(kvps)-1].Key.(model.PolicyKey).Name).To(Equal("snp.projectcalico.org/my-test-snp"))
 			Expect(kvps[len(kvps)-1].Value.(*model.Policy)).To(Equal(kvp1_2.Value))
 		})
