@@ -136,12 +136,13 @@ func (k *realKubeAPI) SystemNetworkPolicyList() (*thirdparty.SystemNetworkPolicy
 		// Don't return errors for "not found".  This just
 		// means there are no SystemNetworkPolicies, and we should return
 		// an empty list.
+		log.WithError(err).Info("Error listing System Network Policies")
 		if !kerrors.IsNotFound(err) {
 			return nil, err
 		}
 	}
 
-	return tprs, err
+	return tprs, nil
 }
 
 func (k *realKubeAPI) PodList(namespace string, opts metav1.ListOptions) (list *k8sapi.PodList, err error) {
