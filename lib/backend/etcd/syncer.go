@@ -62,7 +62,19 @@ var (
 	}
 )
 
-func newSyncer(keysAPI etcd.KeysAPI, callbacks api.SyncerCallbacks) *etcdSyncer {
+// etcdKeysAPI is a subset of etcd.KeysAPI for the methods that we use.
+type etcdKeysAPI interface {
+	// Get retrieves a set of Nodes from etcd
+	Get(ctx context.Context, key string, opts *etcd.GetOptions) (*etcd.Response, error)
+
+	// Watcher builds a new Watcher targeted at a specific Node identified
+	// by the given key. The Watcher may be configured at creation time
+	// through a WatcherOptions object. The returned Watcher is designed
+	// to emit events that happen to a Node, and optionally to its children.
+	Watcher(key string, opts *etcd.WatcherOptions) etcd.Watcher
+}
+
+func NewSyncer(keysAPI etcd.KeysAPI, callbacks api.SyncerCallbacks) *etcdSyncer {
 	return &etcdSyncer{
 		keysAPI:   keysAPI,
 		callbacks: callbacks,
@@ -120,7 +132,7 @@ func newSyncer(keysAPI etcd.KeysAPI, callbacks api.SyncerCallbacks) *etcdSyncer 
 // isn't worth it (and would be likely to be buggy due to lack of exercise).
 type etcdSyncer struct {
 	callbacks api.SyncerCallbacks
-	keysAPI   etcd.KeysAPI
+	keysAPI   etcdKeysAPI
 	OneShot   bool
 }
 
@@ -274,6 +286,11 @@ func (syn *etcdSyncer) watchEtcd(watcherUpdateC chan<- interface{}) {
 			Recursive:  true,
 		}
 		watcher := syn.keysAPI.Watcher("/calico/v1", &watcherOpts)
+		// Count the number of errors that occur with a shorter-than expected timeout; if
+		// it gets too high without a good response, we'll assume our connection is bad and
+		// defensively reconnect to etcd.  We don't count all errors because we expect
+		// (long) timeouts from etcd when our long poll returns no results.
+		numShortTimeouts := 0
 	watchLoop: // We'll stay in this poll loop unless we drop out of sync.
 		for {
 			// Wait for the next event from the watcher.
@@ -282,9 +299,14 @@ func (syn *etcdSyncer) watchEtcd(watcherUpdateC chan<- interface{}) {
 				// Prevent a tight loop if etcd is repeatedly failing.
 				if time.Since(timeOfLastError) < 1*time.Second {
 					log.Warning("May be tight looping, throttling retries.")
+					numShortTimeouts++
 					time.Sleep(1 * time.Second)
 				}
 				timeOfLastError = time.Now()
+				if numShortTimeouts > 10 {
+					log.WithError(err).Warning("Several errors in succession, reconnecting to etcd.")
+					break watchLoop
+				}
 
 				if !retryableWatcherError(err) {
 					// Break out of the loop to trigger a new resync.
@@ -295,6 +317,8 @@ func (syn *etcdSyncer) watchEtcd(watcherUpdateC chan<- interface{}) {
 				log.WithError(err).Debug("Retryable error from etcd")
 				continue watchLoop
 			}
+			// After a successful read, reset the tight-loop detection count.
+			numShortTimeouts = 0
 
 			// Successful read, interpret the event.
 			actionType := etcdActionToSyncerAction[resp.Action]
