@@ -30,8 +30,9 @@ import (
 )
 
 const (
-	SystemNetworkPolicyResourceName = "systemnetworkpolicies"
-	SystemNetworkPolicyTPRName      = "system-network-policy.projectcalico.org"
+	SystemNetworkPolicyAPIGroup     = "projectcalico.org"
+	SystemNetworkPolicyResourceName = "systemnetworkpolicy"
+	SystemNetworkPolicyTPRName      = "system-network-policy." + SystemNetworkPolicyAPIGroup
 	SystemNetworkPolicyNamePrefix   = "snp.projectcalico.org/"
 )
 
@@ -196,6 +197,7 @@ func (c *snpClient) EnsureInitialized() error {
 	if err != nil {
 		// Don't care if it already exists.
 		if !kerrors.IsAlreadyExists(err) {
+			log.WithError(err).Info("Unable to register SystemNetworkPolicy resource type")
 			return K8sErrorToCalico(err, tpr)
 		}
 	}

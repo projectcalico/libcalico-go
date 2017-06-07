@@ -486,7 +486,7 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		})
 	}()
 
-	It("should handle a CRUD of System Network Policy", func() {
+	FIt("should handle a CRUD of System Network Policy", func() {
 		// In the backend, the Policy name is prepended to indicate where
 		// the policy is derived from in KDD.  The System Network Policy
 		// is a TPR and in the backend the name is prepended with
