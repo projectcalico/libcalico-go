@@ -912,8 +912,13 @@ func (syn *kubeSyncer) parseNodeEvent(e watch.Event) (*model.KVPair, *model.KVPa
 
 	kvpHostIp := &model.KVPair{
 		Key:      model.HostIPKey{Hostname: node.Name},
-		Value:    kvp.Value.(*model.Node).BGPIPv4Addr,
 		Revision: kvp.Revision,
+	}
+	caliNode := kvp.Value.(*model.Node)
+	if caliNode.BGPIPv4Addr != nil {
+		// Only set the value if it's non nil.  We want to avoid setting Value to
+		// an interface containing a nil value instead of a nil interface.
+		kvpHostIp.Value = caliNode.BGPIPv4Addr
 	}
 
 	kvpIPIPAddr, err := getTunIp(node)
