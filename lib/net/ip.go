@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2017 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,4 +74,11 @@ func (i *IP) Network() *IPNet {
 		n.Mask = net.CIDRMask(net.IPv6len*8, net.IPv6len*8)
 	}
 	return n
+}
+
+func (i *IP) String() string {
+	if i == nil {
+		return "<nil>"
+	}
+	return i.IP.String()
 }
