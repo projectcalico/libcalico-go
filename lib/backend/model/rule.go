@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2017 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 
+	"encoding/json"
+	"errors"
 	"github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
@@ -37,24 +39,60 @@ type Rule struct {
 	NotICMPCode *int `json:"!icmp_code,omitempty" validate:"omitempty,gte=1,lte=255"`
 
 	SrcTag      string             `json:"src_tag,omitempty" validate:"omitempty,tag"`
-	SrcNet      *net.IPNet         `json:"src_net,omitempty" validate:"omitempty"`
+	SrcNet      IPNets             `json:"src_net,omitempty" validate:"omitempty"`
 	SrcSelector string             `json:"src_selector,omitempty" validate:"omitempty,selector"`
 	SrcPorts    []numorstring.Port `json:"src_ports,omitempty" validate:"omitempty"`
 	DstTag      string             `json:"dst_tag,omitempty" validate:"omitempty,tag"`
 	DstSelector string             `json:"dst_selector,omitempty" validate:"omitempty,selector"`
-	DstNet      *net.IPNet         `json:"dst_net,omitempty" validate:"omitempty"`
+	DstNet      IPNets             `json:"dst_net,omitempty" validate:"omitempty"`
 	DstPorts    []numorstring.Port `json:"dst_ports,omitempty" validate:"omitempty"`
 
 	NotSrcTag      string             `json:"!src_tag,omitempty" validate:"omitempty,tag"`
-	NotSrcNet      *net.IPNet         `json:"!src_net,omitempty" validate:"omitempty"`
+	NotSrcNet      IPNets             `json:"!src_net,omitempty" validate:"omitempty"`
 	NotSrcSelector string             `json:"!src_selector,omitempty" validate:"omitempty,selector"`
 	NotSrcPorts    []numorstring.Port `json:"!src_ports,omitempty" validate:"omitempty"`
 	NotDstTag      string             `json:"!dst_tag,omitempty" validate:"omitempty"`
 	NotDstSelector string             `json:"!dst_selector,omitempty" validate:"omitempty,selector"`
-	NotDstNet      *net.IPNet         `json:"!dst_net,omitempty" validate:"omitempty"`
+	NotDstNet      IPNets             `json:"!dst_net,omitempty" validate:"omitempty"`
 	NotDstPorts    []numorstring.Port `json:"!dst_ports,omitempty" validate:"omitempty"`
 
 	LogPrefix string `json:"log_prefix,omitempty" validate:"omitempty"`
+}
+
+type IPNets []*net.IPNet
+
+var ErrIPNetsTooShort = errors.New("JSON input too short to be a list of IPs")
+
+func (ns *IPNets) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 {
+		return ErrIPNetsTooShort
+	}
+	if b[0] != '[' {
+		var singleIP net.IPNet
+		err := json.Unmarshal(b, &singleIP)
+		if err != nil {
+			return err
+		}
+		*ns = append(*ns, &singleIP)
+		return nil
+	}
+	nsAsSlice := (*[]*net.IPNet)(ns)
+	return json.Unmarshal(b, &nsAsSlice)
+}
+
+func (ns IPNets) MarshalJSON() ([]byte, error) {
+	if len(ns) == 1 {
+		return ns[0].MarshalJSON()
+	}
+	return json.Marshal(([]*net.IPNet)(ns))
+}
+
+func (ns IPNets) String() string {
+	parts := make([]string, len(ns))
+	for i, ip := range ns {
+		parts[i] = ip.String()
+	}
+	return strings.Join(parts, ",")
 }
 
 func (r Rule) String() string {

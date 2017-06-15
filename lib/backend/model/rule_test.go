@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2017 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import (
 
 	"fmt"
 
+	"encoding/json"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/projectcalico/libcalico-go/lib/net"
@@ -44,6 +45,7 @@ var ports2 = []numorstring.Port{
 	numorstring.SinglePort(4567),
 }
 var _, cidr, _ = net.ParseCIDR("10.0.0.0/16")
+var _, cidr2, _ = net.ParseCIDR("10.1.0.0/16")
 
 var ruleStringTests = []ruleTest{
 	// Empty
@@ -70,28 +72,29 @@ var ruleStringTests = []ruleTest{
 	{model.Rule{SrcPorts: ports}, "allow from ports 1234,10:20"},
 	{model.Rule{SrcTag: "foo"}, "allow from tag foo"},
 	{model.Rule{SrcSelector: "bar"}, "allow from selector \"bar\""},
-	{model.Rule{SrcNet: cidr}, "allow from cidr 10.0.0.0/16"},
+	{model.Rule{SrcNet: model.IPNets{cidr}}, "allow from cidr 10.0.0.0/16"},
+	{model.Rule{SrcNet: model.IPNets{cidr, cidr2}}, "allow from cidr 10.0.0.0/16,10.1.0.0/16"},
 	{model.Rule{NotSrcPorts: ports}, "allow from !ports 1234,10:20"},
 	{model.Rule{NotSrcTag: "foo"}, "allow from !tag foo"},
 	{model.Rule{NotSrcSelector: "bar"}, "allow from !selector \"bar\""},
-	{model.Rule{NotSrcNet: cidr}, "allow from !cidr 10.0.0.0/16"},
+	{model.Rule{NotSrcNet: model.IPNets{cidr}}, "allow from !cidr 10.0.0.0/16"},
 
 	// To rules.
 	{model.Rule{DstPorts: ports}, "allow to ports 1234,10:20"},
 	{model.Rule{DstTag: "foo"}, "allow to tag foo"},
 	{model.Rule{DstSelector: "bar"}, "allow to selector \"bar\""},
-	{model.Rule{DstNet: cidr}, "allow to cidr 10.0.0.0/16"},
+	{model.Rule{DstNet: model.IPNets{cidr}}, "allow to cidr 10.0.0.0/16"},
 	{model.Rule{NotDstPorts: ports}, "allow to !ports 1234,10:20"},
 	{model.Rule{NotDstTag: "foo"}, "allow to !tag foo"},
 	{model.Rule{NotDstSelector: "bar"}, "allow to !selector \"bar\""},
-	{model.Rule{NotDstNet: cidr}, "allow to !cidr 10.0.0.0/16"},
+	{model.Rule{NotDstNet: model.IPNets{cidr}}, "allow to !cidr 10.0.0.0/16"},
 
 	// Complex rule.
 	{model.Rule{Protocol: &tcpProto,
 		SrcPorts:       ports,
 		SrcTag:         "srcTag",
 		DstTag:         "dstTag",
-		DstNet:         cidr,
+		DstNet:         model.IPNets{cidr},
 		NotDstPorts:    ports2,
 		NotSrcTag:      "notSrc",
 		NotSrcSelector: "foo",
@@ -107,6 +110,14 @@ var _ = Describe("Rule", func() {
 		Describe(fmt.Sprintf("%#v", test.rule), func() {
 			It("should stringify as "+test.expectedOutput, func() {
 				Expect(fmt.Sprintf("%s", test.rule)).To(Equal(test.expectedOutput))
+			})
+			It("should round-trip through JSON", func() {
+				b, err := json.Marshal(test.rule)
+				Expect(err).NotTo(HaveOccurred())
+				var r model.Rule
+				err = json.Unmarshal(b, &r)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(r).To(Equal(test.rule))
 			})
 		})
 	}

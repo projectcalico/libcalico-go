@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2017 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 package api
 
 import (
-	"github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
 
@@ -84,7 +84,7 @@ type EntityRule struct {
 
 	// Net is an optional field that restricts the rule to only apply to traffic that
 	// originates from (or terminates at) IP addresses in the given subnet.
-	Net *net.IPNet `json:"net,omitempty" validate:"omitempty"`
+	Net model.IPNets `json:"net,omitempty" validate:"omitempty"`
 
 	// Selector is an optional field that contains a selector expression (see Policy for
 	// sample syntax).  Only traffic that originates from (terminates at) endpoints matching
@@ -116,7 +116,7 @@ type EntityRule struct {
 	NotTag string `json:"notTag,omitempty" validate:"omitempty,tag"`
 
 	// NotNet is the negated version of the Net field.
-	NotNet *net.IPNet `json:"notNet,omitempty" validate:"omitempty"`
+	NotNet model.IPNets `json:"notNet,omitempty" validate:"omitempty"`
 
 	// NotSelector is the negated version of the Selector field.  See Selector field for
 	// subtleties with negated selectors.

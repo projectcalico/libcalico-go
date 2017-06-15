@@ -17,7 +17,6 @@ package converter
 import (
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/net"
 )
 
 // RulesAPIToBackend converts an API Rule structure slice to a Backend Rule structure slice.
@@ -91,11 +90,15 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 
 // normalizeIPNet converts an IPNet to a network by ensuring the IP address
 // is correctly masked.
-func normalizeIPNet(n *net.IPNet) *net.IPNet {
-	if n == nil {
-		return nil
+func normalizeIPNet(ns model.IPNets) model.IPNets {
+	var normal model.IPNets
+	for _, n := range ns {
+		if n == nil {
+			continue
+		}
+		normal = append(normal, n.Network())
 	}
-	return n.Network()
+	return normal
 }
 
 // ruleBackendToAPI convert a Backend Rule structure to an API Rule structure.
