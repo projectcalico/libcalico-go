@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2017 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -88,6 +88,11 @@ func (c *Client) Profiles() ProfileInterface {
 // HostEndpoints returns an interface for managing host endpoint resources.
 func (c *Client) HostEndpoints() HostEndpointInterface {
 	return newHostEndpoints(c)
+}
+
+// NetworkSets returns an interface for managing host endpoint resources.
+func (c *Client) NetworkSets() NetworkSetInterface {
+	return newNetworkSets(c)
 }
 
 // WorkloadEndpoints returns an interface for managing workload endpoint resources.
