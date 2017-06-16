@@ -128,22 +128,11 @@ func (h *NetworkSets) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair,
 		return nil, err
 	}
 
-	var ipv4Nets []net.IPNet
-	var ipv6Nets []net.IPNet
-	for _, n := range ah.Spec.Nets {
-		if n.IP.To4() == nil {
-			ipv6Nets = append(ipv6Nets, n)
-		} else {
-			ipv4Nets = append(ipv4Nets, n)
-		}
-	}
-
 	d := model.KVPair{
 		Key: k,
 		Value: &model.NetworkSet{
-			Labels:   ah.Metadata.Labels,
-			IPv4Nets: ipv4Nets,
-			IPv6Nets: ipv6Nets,
+			Labels: ah.Metadata.Labels,
+			Nets:   ah.Spec.Nets,
 		},
 	}
 
@@ -154,17 +143,13 @@ func (h *NetworkSets) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair,
 // to an API NetworkSet structure.
 // This is part of the conversionHelper interface.
 func (h *NetworkSets) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
-	bh := d.Value.(*model.NetworkSet)
+	bn := d.Value.(*model.NetworkSet)
 	bk := d.Key.(model.NetworkSetKey)
-
-	nets := make([]net.IPNet, 0, len(bh.IPv4Nets)+len(bh.IPv6Nets))
-	nets = append(nets, bh.IPv4Nets...)
-	nets = append(nets, bh.IPv6Nets...)
 
 	ah := api.NewNetworkSet()
 	ah.Metadata.Name = bk.Name
-	ah.Metadata.Labels = bh.Labels
-	ah.Spec.Nets = nets
+	ah.Metadata.Labels = bn.Labels
+	ah.Spec.Nets = bn.Nets
 
 	return ah, nil
 }
