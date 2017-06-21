@@ -54,7 +54,7 @@ type NetworkSetSpec struct {
 func NewNetworkSet() *NetworkSet {
 	return &NetworkSet{
 		TypeMetadata: unversioned.TypeMetadata{
-			Kind:       "NetworkSet",
+			Kind:       "networkSet",
 			APIVersion: unversioned.VersionCurrent,
 		},
 	}
