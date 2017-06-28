@@ -1,5 +1,5 @@
-hash: a35ac70c3f24336298e49395f16d469f35bc7105e3d9df129c3ba948eb74132f
-updated: 2017-06-04T10:01:10.429693073-07:00
+hash: fb63de3c6d34f2995cbfb0909240023df5b6df7f413554b9818e6ada26e98932
+updated: 2017-06-27T18:12:12.531714121-07:00
 imports:
 - name: github.com/coreos/etcd
   version: 17ae440991da3bdb2df4309936dd2074f66ec394
@@ -62,7 +62,7 @@ imports:
   - jlexer
   - jwriter
 - name: github.com/onsi/ginkgo
-  version: f40a49d81e5c12e90400620b6242fb29a8e7c9d9
+  version: 7f8ab55aaf3b86885aa55b762e803744d1674700
   subpackages:
   - config
   - extensions/table
@@ -72,15 +72,12 @@ imports:
   - internal/leafnodes
   - internal/remote
   - internal/spec
-  - internal/spec_iterator
   - internal/specrunner
   - internal/suite
   - internal/testingtproxy
   - internal/writer
   - reporters
   - reporters/stenographer
-  - reporters/stenographer/support/go-colorable
-  - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/projectcalico/go-json
   version: 6219dc7339ba20ee4c57df0a8baac62317d19cb1
@@ -97,7 +94,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: b061729afc07e77a8aa4fad0a2fd840958f1942a
 - name: github.com/Sirupsen/logrus
-  version: ba1b36c82c5e05c4f912a88eab0dcd91a171688f
+  version: 202f25545ea4cf9b191ff7f846df5d87c9382c2b
 - name: github.com/spf13/pflag
   version: 08b1a584251b5b62f458943640fc8ebd4d50aaa5
 - name: github.com/ugorji/go
@@ -119,7 +116,7 @@ imports:
   - idna
   - lex/httplex
 - name: golang.org/x/sys
-  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
+  version: d75a52659825e75fff6158388dddc6a5b04f9ba5
   subpackages:
   - unix
 - name: golang.org/x/text
@@ -283,7 +280,7 @@ imports:
   - util/integer
 testImports:
 - name: github.com/onsi/gomega
-  version: 9b8c753e8dfb382618ba8fa19b4197b5dcb0434c
+  version: 2152b45fa28a361beba9aab0885972323a444e28
   subpackages:
   - format
   - internal/assertion

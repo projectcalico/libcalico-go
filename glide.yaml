@@ -6,14 +6,13 @@ owners:
   email: rob@tigera.io
 import:
 - package: github.com/Sirupsen/logrus
-  version: ^0.10.0
+  version: ^1.0.0
 - package: github.com/coreos/etcd
   subpackages:
   - client
   - pkg/transport
 - package: github.com/projectcalico/go-yaml-wrapper
 - package: github.com/kelseyhightower/envconfig
-- package: github.com/onsi/ginkgo
 - package: github.com/satori/go.uuid
 - package: golang.org/x/net
   subpackages:
@@ -45,3 +44,4 @@ import:
   - tools/clientcmd
 testImport:
 - package: github.com/onsi/gomega
+- package: github.com/onsi/ginkgo
