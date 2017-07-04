@@ -47,14 +47,15 @@ type CalicoAPIConfigSpec struct {
 }
 
 type EtcdConfig struct {
-	EtcdScheme     string `json:"etcdScheme" envconfig:"ETCD_SCHEME" default:"http"`
-	EtcdAuthority  string `json:"etcdAuthority" envconfig:"ETCD_AUTHORITY" default:"127.0.0.1:2379"`
-	EtcdEndpoints  string `json:"etcdEndpoints" envconfig:"ETCD_ENDPOINTS"`
-	EtcdUsername   string `json:"etcdUsername" envconfig:"ETCD_USERNAME"`
-	EtcdPassword   string `json:"etcdPassword" envconfig:"ETCD_PASSWORD"`
-	EtcdKeyFile    string `json:"etcdKeyFile" envconfig:"ETCD_KEY_FILE"`
-	EtcdCertFile   string `json:"etcdCertFile" envconfig:"ETCD_CERT_FILE"`
-	EtcdCACertFile string `json:"etcdCACertFile" envconfig:"ETCD_CA_CERT_FILE"`
+	EtcdScheme       string `json:"etcdScheme" envconfig:"ETCD_SCHEME" default:"http"`
+	EtcdAuthority    string `json:"etcdAuthority" envconfig:"ETCD_AUTHORITY" default:"127.0.0.1:2379"`
+	EtcdEndpoints    string `json:"etcdEndpoints" envconfig:"ETCD_ENDPOINTS"`
+	EtcdDiscoverySrv string `json:"etcdDiscoverySrv" envconfig:"ETCD_DISCOVERY_SRV"`
+	EtcdUsername     string `json:"etcdUsername" envconfig:"ETCD_USERNAME"`
+	EtcdPassword     string `json:"etcdPassword" envconfig:"ETCD_PASSWORD"`
+	EtcdKeyFile      string `json:"etcdKeyFile" envconfig:"ETCD_KEY_FILE"`
+	EtcdCertFile     string `json:"etcdCertFile" envconfig:"ETCD_CERT_FILE"`
+	EtcdCACertFile   string `json:"etcdCACertFile" envconfig:"ETCD_CA_CERT_FILE"`
 }
 
 type KubeConfig struct {
