@@ -407,24 +407,44 @@ func validateRule(v *validator.Validate, structLevel *validator.StructLevel) {
 	}
 
 	// Check for mismatch in IP versions
-	if rule.Source.Net != nil && rule.IPVersion != nil {
-		if rule.Source.Net.Version() != *(rule.IPVersion) {
-			structLevel.ReportError(reflect.ValueOf(rule.Source.Net), "Source.Net",
-				"", reason("rule contains an IP version that does not match src CIDR version"))
+	ipVersion := 0
+	seenV4 := false
+	seenV6 := false
+	if rule.IPVersion != nil {
+		ipVersion = *(rule.IPVersion)
+	}
+	for _, n := range rule.Source.Net {
+		if n != nil {
+			if ipVersion != 0 && n.Version() != ipVersion {
+				structLevel.ReportError(reflect.ValueOf(rule.Source.Net), "Source.Net",
+					"", reason("rule contains an IP version that does not match src CIDR version"))
+			}
+			if n.Version() == 4 {
+				seenV4 = true
+			} else if n.Version() == 6 {
+				seenV6 = true
+			}
 		}
 	}
-	if rule.Destination.Net != nil && rule.IPVersion != nil {
-		if rule.Destination.Net.Version() != *(rule.IPVersion) {
-			structLevel.ReportError(reflect.ValueOf(rule.Destination.Net), "Destination.Net",
-				"", reason("rule contains an IP version that does not match dst CIDR version"))
+	for _, n := range rule.Destination.Net {
+		if n != nil {
+			if ipVersion != 0 && n.Version() != ipVersion {
+				structLevel.ReportError(reflect.ValueOf(rule.Destination.Net), "Destination.Net",
+					"", reason("rule contains an IP version that does not match src CIDR version"))
+			}
+			if n.Version() == 4 {
+				seenV4 = true
+			} else if n.Version() == 6 {
+				seenV6 = true
+			}
 		}
 	}
-	if rule.Source.Net != nil && rule.Destination.Net != nil {
-		if rule.Source.Net.Version() != rule.Destination.Net.Version() {
-			structLevel.ReportError(reflect.ValueOf(rule.Destination.Net), "Destination.Net",
-				"", reason("rule does not support mixing of IPv4/v6 CIDRs"))
-		}
+
+	if seenV4 && seenV6 {
+		structLevel.ReportError(reflect.ValueOf(rule.Destination.Net), "Destination.Net",
+			"", reason("rule does not support mixing of IPv4/v6 CIDRs"))
 	}
+
 }
 
 func validateBackendRule(v *validator.Validate, structLevel *validator.StructLevel) {

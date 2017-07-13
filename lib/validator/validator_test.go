@@ -482,10 +482,10 @@ func init() {
 				Action:   "allow",
 				Protocol: protocolFromString("tcp"),
 				Source: api.EntityRule{
-					Net: &netv4_3,
+					Net: model.IPNets{&netv4_3},
 				},
 				Destination: api.EntityRule{
-					Net: &netv6_3,
+					Net: model.IPNets{&netv6_3},
 				},
 			}, false),
 		Entry("should reject rule mixed IPv6 (src) and IPv4 (dest)",
@@ -493,10 +493,10 @@ func init() {
 				Action:   "allow",
 				Protocol: protocolFromString("tcp"),
 				Source: api.EntityRule{
-					Net: &netv6_2,
+					Net: model.IPNets{&netv6_2},
 				},
 				Destination: api.EntityRule{
-					Net: &netv4_2,
+					Net: model.IPNets{&netv4_2},
 				},
 			}, false),
 		Entry("should reject rule mixed IPv6 version and IPv4 Net",
@@ -505,10 +505,10 @@ func init() {
 				Protocol:  protocolFromString("tcp"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
-					Net: &netv4_4,
+					Net: model.IPNets{&netv4_4},
 				},
 				Destination: api.EntityRule{
-					Net: &netv4_2,
+					Net: model.IPNets{&netv4_2},
 				},
 			}, false),
 		Entry("should reject rule mixed IPVersion and Source Net IP version",
@@ -517,7 +517,7 @@ func init() {
 				Protocol:  protocolFromString("tcp"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
-					Net: &netv4_1,
+					Net: model.IPNets{&netv4_1},
 				},
 			}, false),
 		Entry("should reject rule mixed IPVersion and Dest Net IP version",
@@ -526,7 +526,7 @@ func init() {
 				Protocol:  protocolFromString("tcp"),
 				IPVersion: &V4,
 				Destination: api.EntityRule{
-					Net: &netv6_1,
+					Net: model.IPNets{&netv6_1},
 				},
 			}, false),
 

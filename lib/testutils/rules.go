@@ -17,6 +17,7 @@ package testutils
 import (
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
 
@@ -46,7 +47,7 @@ var InRule1 = api.Rule{
 	ICMP:      &icmp1,
 	Source: api.EntityRule{
 		Tag:      "tag1",
-		Net:      &cidr1,
+		Net:      model.IPNets{&cidr1},
 		Selector: "label1 == 'value1'",
 	},
 }
@@ -58,7 +59,7 @@ var InRule2 = api.Rule{
 	ICMP:      &icmp1,
 	Source: api.EntityRule{
 		Tag:      "tag2",
-		Net:      &cidrv61,
+		Net:      model.IPNets{&cidrv61},
 		Selector: "has(label2)",
 	},
 }
@@ -70,7 +71,7 @@ var EgressRule1 = api.Rule{
 	ICMP:      &icmp1,
 	Source: api.EntityRule{
 		Tag:      "tag3",
-		Net:      &cidr2,
+		Net:      model.IPNets{&cidr2},
 		Selector: "all()",
 	},
 }
@@ -82,7 +83,7 @@ var EgressRule2 = api.Rule{
 	ICMP:      &icmp1,
 	Source: api.EntityRule{
 		Tag:      "tag4",
-		Net:      &cidrv62,
+		Net:      model.IPNets{&cidrv62},
 		Selector: "label2 == '1234'",
 	},
 }
