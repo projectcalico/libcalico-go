@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	GlobalBgpConfigResourceName = "GlobalBgpConfigs"
+	GlobalBgpConfigResourceName = "globalbgpconfigs"
 	GlobalBgpConfigTPRName      = "global-bgp-config.projectcalico.org"
 )
 
