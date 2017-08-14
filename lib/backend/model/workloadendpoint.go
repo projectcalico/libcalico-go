@@ -71,7 +71,9 @@ func (key WorkloadEndpointKey) defaultDeleteParentPaths() ([]string, error) {
 	workload := fmt.Sprintf("/calico/v1/host/%s/workload/%s/%s",
 		key.Hostname, escapeName(key.OrchestratorID), escapeName(key.WorkloadID))
 	endpoints := workload + "/endpoint"
-	return []string{endpoints, workload}, nil
+	orchestrator := fmt.Sprintf("/calico/v1/host/%s/workload/%s",
+		key.Hostname, escapeName(key.OrchestratorID))
+	return []string{endpoints, workload, orchestrator}, nil
 }
 
 func (key WorkloadEndpointKey) valueType() reflect.Type {

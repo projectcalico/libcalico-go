@@ -40,6 +40,8 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
+	"os/exec"
+	"fmt"
 )
 
 var _ = testutils.E2eDatastoreDescribe("Node tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
@@ -140,6 +142,15 @@ var _ = testutils.E2eDatastoreDescribe("Node tests", testutils.DatastoreEtcdV2, 
 			By("Getting node1 and checking for error")
 			_, err = c.Nodes().Get(meta1)
 			Expect(err.Error()).To(Equal(errors.New("resource does not exist: Node(name=node1)").Error()))
+
+			// Node1 directory in etcd should be removed.
+			out, _ := exec.Command("curl", "http://127.0.0.1:2379/v2/keys/calico/v1/host/node1").Output()
+			Expect(string(out)).To(ContainSubstring("Key not found"))
+
+			// Node1 should not exist in etcd anymore.
+			dump, _ := exec.Command("curl", "http://127.0.0.1:2379/v2/keys/calico/?recursive=true").Output()
+			fmt.Println(string(dump))
+			Expect(string(dump)).NotTo(ContainSubstring("node1"))
 
 			// Delete node2 should not error.
 			By("Deleting node2")
