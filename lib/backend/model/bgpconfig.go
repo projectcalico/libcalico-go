@@ -112,7 +112,7 @@ func (key NodeBGPConfigKey) defaultDeletePath() (string, error) {
 }
 
 func (key NodeBGPConfigKey) defaultDeleteParentPaths() ([]string, error) {
-	return nil, nil
+	return []string{fmt.Sprintf("/calico/bgp/v1/host/%s", key.Nodename)}, nil
 }
 
 func (key NodeBGPConfigKey) valueType() reflect.Type {

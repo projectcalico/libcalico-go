@@ -25,6 +25,8 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/api"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
+	"os/exec"
+	"fmt"
 )
 
 var _ = testutils.E2eDatastoreDescribe("WorkloadEndpoint tests", testutils.DatastoreEtcdV2, func(apiConfig api.CalicoAPIConfig) {
@@ -132,6 +134,12 @@ var _ = testutils.E2eDatastoreDescribe("WorkloadEndpoint tests", testutils.Datas
 			err = c.WorkloadEndpoints().Delete(meta1)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Deletion should not leave behind any directories in etcd.
+			key := fmt.Sprintf("/calico/v1/host/%s/workload/%s/%s/",
+				meta1.Node, meta1.Orchestrator, meta1.Workload)
+			out, _ := exec.Command("curl", "http://127.0.0.1:2379/v2/keys"+key).Output()
+			Expect(string(out)).To(ContainSubstring("Key not found"))
+
 			// Get a workloadEndpoint with meta1.
 			By("Getting workloadEndpoint1 and checking for error")
 			_, err = c.WorkloadEndpoints().Get(meta1)
@@ -148,6 +156,15 @@ var _ = testutils.E2eDatastoreDescribe("WorkloadEndpoint tests", testutils.Datas
 			workloadEndpointList, err = c.WorkloadEndpoints().List(api.WorkloadEndpointMetadata{})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(workloadEndpointList.Items)).To(Equal(0))
+
+			// Now that all workloads have been removed there should no longer be any
+			// directories under '/calico/v1/host/$node/workload/'.
+			key = fmt.Sprintf("/calico/v1/host/%s/workload/", meta1.Node)
+			out, _ = exec.Command("curl", "http://127.0.0.1:2379/v2/keys"+key+"?recursive=true").Output()
+			Expect(string(out)).NotTo(ContainSubstring(meta1.Orchestrator))
+			key = fmt.Sprintf("/calico/v1/host/%s/workload/", meta2.Node)
+			out, _ = exec.Command("curl", "http://127.0.0.1:2379/v2/keys"+key+"?recursive=true").Output()
+			Expect(string(out)).NotTo(ContainSubstring(meta2.Orchestrator))
 		},
 
 		// Test 1: Pass two fully populated WorkloadEndpointSpecs and expect the series of operations to succeed.
