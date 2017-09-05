@@ -47,6 +47,13 @@ func K8sNodeToCalico(node *kapiv1.Node) (*model.KVPair, error) {
 		calicoNode.BGPIPv4Net = cidr
 	}
 
+	reflector, ok := node.Labels[NodeBgpReflectorLabel]
+	if ok {
+		calicoNode.BGPReflector = reflector
+	} else {
+		calicoNode.BGPReflector = ""
+	}
+
 	asnString, ok := annotations[nodeBgpAsnAnnotation]
 	if ok {
 		asn, err := numorstring.ASNumberFromString(asnString)
@@ -71,14 +78,26 @@ func mergeCalicoK8sNode(calicoNode *model.Node, k8sNode *kapiv1.Node) (*kapiv1.N
 		k8sNode.Annotations = map[string]string{}
 	}
 
+	if k8sNode.Labels == nil {
+		k8sNode.Labels = map[string]string{}
+	}
+
 	// In order to make sure we always end up with a CIDR that has the IP and not just network
 	// we assemble the CIDR from BGPIPv4Addr and BGPIPv4Net.
 	if calicoNode.BGPIPv4Net != nil {
 		subnet, _ := calicoNode.BGPIPv4Net.Mask.Size()
 		ipCidr := fmt.Sprintf("%s/%d", calicoNode.BGPIPv4Addr.String(), subnet)
 		k8sNode.Annotations[nodeBgpIpv4CidrAnnotation] = ipCidr
+		k8sNode.Labels[NodeBgpIpv4NetworkLabel] = fmt.Sprintf("%s-%d", calicoNode.BGPIPv4Net.IP.String(), subnet)
 	} else {
 		delete(k8sNode.Annotations, nodeBgpIpv4CidrAnnotation)
+		delete(k8sNode.Labels, NodeBgpIpv4NetworkLabel)
+	}
+
+	if calicoNode.BGPReflector != "" {
+		k8sNode.Labels[NodeBgpReflectorLabel] = calicoNode.BGPReflector
+	} else {
+		delete(k8sNode.Labels, NodeBgpReflectorLabel)
 	}
 
 	// Don't set the ASNumber if it is nil, and ensure it does not exist in k8s.
