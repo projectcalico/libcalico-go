@@ -83,10 +83,10 @@ func (c Converter) parseProfileName(profileName string) (string, error) {
 	return strings.TrimPrefix(profileName, "k8s_ns."), nil
 }
 
-// NamespaceToProfile converts a Namespace to a Calico Profile.  The Profile stores
+// namespaceToProfile converts a Namespace to a Calico Profile.  The Profile stores
 // labels from the Namespace which are inherited by the WorkloadEndpoints within
 // the Profile. This Profile also has the default ingress and egress rules, which are both 'allow'.
-func (c Converter) NamespaceToProfile(ns *kapiv1.Namespace) (*model.KVPair, error) {
+func (c Converter) namespaceToProfile(ns *kapiv1.Namespace) (*model.KVPair, error) {
 	// Generate the labels to apply to the profile, using a special prefix
 	// to indicate that these are the labels from the parent Kubernetes Namespace.
 	labels := map[string]string{}
@@ -228,7 +228,7 @@ func (c Converter) NetworkPolicyToPolicy(np *extensions.NetworkPolicy) (*model.K
 	order := float64(1000.0)
 
 	// Generate the inbound rules list.
-	var inboundRules []model.Rule
+	inboundRules := []model.Rule{}
 	for _, r := range np.Spec.Ingress {
 		inboundRules = append(inboundRules, c.k8sIngressRuleToCalico(r, np.ObjectMeta.Namespace)...)
 	}
@@ -353,7 +353,7 @@ func (c Converter) k8sIngressRuleToCalico(r extensions.NetworkPolicyIngressRule,
 
 func (c Converter) buildRule(port *extensions.NetworkPolicyPort, peer *extensions.NetworkPolicyPeer, ns string) model.Rule {
 	var protocol *numorstring.Protocol
-	var dstPorts []numorstring.Port
+	dstPorts := []numorstring.Port{}
 	srcSelector := ""
 	if port != nil {
 		// Port information available.
@@ -397,15 +397,14 @@ func (c Converter) k8sPeerToCalicoSelector(peer extensions.NetworkPolicyPeer, ns
 }
 
 func (c Converter) k8sPortToCalico(port extensions.NetworkPolicyPort) []numorstring.Port {
-	var portList []numorstring.Port
 	if port.Port != nil {
 		p, err := numorstring.PortFromString(port.Port.String())
 		if err != nil {
 			log.Panic("Invalid port %+v: %s", port.Port, err)
 		}
-		return append(portList, p)
+		return []numorstring.Port{p}
 	}
 
 	// No ports - return empty list.
-	return portList
+	return []numorstring.Port{}
 }
