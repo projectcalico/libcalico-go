@@ -47,7 +47,6 @@ type IPPoolSpec struct {
 	Disabled bool `json:"disabled,omitempty"`
 }
 
-//TODO Remove this struct and consolidate into a Mode field.
 type IPIPConfiguration struct {
 	// The IPIP mode.  This can be one of "off", "always" or "cross-subnet".  A mode
 	// of "always" will also use IPIP tunneling for routing to destination IP
