@@ -19,8 +19,10 @@ import "github.com/projectcalico/libcalico-go/lib/ipam"
 type Interface interface {
 	// Nodes returns an interface for managing node resources.
 	Nodes() NodeInterface
-	// Policies returns an interface for managing policy resources.
-	Policies() PolicyInterface
+	// GlobalNetworkPolicies returns an interface for managing global network policy resources.
+	GlobalNetworkPolicies() GlobalNetworkPolicyInterface
+	// NetworkPolicies returns an interface for managing namespaced network policy resources.
+	NetworkPolicies() NetworkPolicyInterface
 	// IPPools returns an interface for managing IP pool resources.
 	IPPools() IPPoolInterface
 	// Profiles returns an interface for managing profile resources.
@@ -39,5 +41,5 @@ type Interface interface {
 	// Most Calico deployment scenarios will automatically implicitly invoke this
 	// method and so a general consumer of this API can assume that the datastore
 	// is already initialized.
-	EnsureInitialized()
+	EnsureInitialized() error
 }

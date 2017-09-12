@@ -21,7 +21,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
 
-// WorkloadEndpointInterface has methods to work with BgpPeer resources.
+// WorkloadEndpointInterface has methods to work with WorkloadEndpoint resources.
 type WorkloadEndpointInterface interface {
 	Create(peer *apiv2.WorkloadEndpoint, opts options.SetOptions) (*apiv2.WorkloadEndpoint, error)
 	Update(peer *apiv2.WorkloadEndpoint, opts options.SetOptions) (*apiv2.WorkloadEndpoint, error)
@@ -33,7 +33,7 @@ type WorkloadEndpointInterface interface {
 
 // workloadEndpoints implements WorkloadEndpointInterface
 type workloadEndpoints struct {
-	client *client
+	client client
 }
 
 // Create takes the representation of a WorkloadEndpoint and creates it.  Returns the stored

@@ -21,7 +21,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
 
-// IPPoolInterface has methods to work with BgpPeer resources.
+// IPPoolInterface has methods to work with IPPool resources.
 type IPPoolInterface interface {
 	Create(peer *apiv2.IPPool, opts options.SetOptions) (*apiv2.IPPool, error)
 	Update(peer *apiv2.IPPool, opts options.SetOptions) (*apiv2.IPPool, error)
@@ -33,7 +33,7 @@ type IPPoolInterface interface {
 
 // ipPools implements IPPoolInterface
 type ipPools struct {
-	client *client
+	client client
 }
 
 // Create takes the representation of a IPPool and creates it.  Returns the stored

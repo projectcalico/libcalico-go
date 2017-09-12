@@ -21,7 +21,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
 
-// NodeInterface has methods to work with BgpPeer resources.
+// NodeInterface has methods to work with Node resources.
 type NodeInterface interface {
 	Create(peer *apiv2.Node, opts options.SetOptions) (*apiv2.Node, error)
 	Update(peer *apiv2.Node, opts options.SetOptions) (*apiv2.Node, error)
@@ -33,7 +33,7 @@ type NodeInterface interface {
 
 // nodes implements NodeInterface
 type nodes struct {
-	client *client
+	client client
 }
 
 // Create takes the representation of a Node and creates it.  Returns the stored

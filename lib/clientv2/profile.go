@@ -21,7 +21,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
 
-// ProfileInterface has methods to work with BgpPeer resources.
+// ProfileInterface has methods to work with Profile resources.
 type ProfileInterface interface {
 	Create(peer *apiv2.Profile, opts options.SetOptions) (*apiv2.Profile, error)
 	Update(peer *apiv2.Profile, opts options.SetOptions) (*apiv2.Profile, error)
@@ -33,7 +33,7 @@ type ProfileInterface interface {
 
 // profiles implements ProfileInterface
 type profiles struct {
-	client *client
+	client client
 }
 
 // Create takes the representation of a Profile and creates it.  Returns the stored

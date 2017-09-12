@@ -47,7 +47,7 @@ func New(config apiconfig.CalicoAPIConfig) (Interface, error) {
 	if cc.Backend, err = backend.NewClient(config); err != nil {
 		return nil, err
 	}
-	return &cc, err
+	return cc, err
 }
 
 // NewFromEnv loads the config from ENV variables and returns a connected client.
@@ -62,42 +62,47 @@ func NewFromEnv() (Interface, error) {
 }
 
 // Nodes returns an interface for managing node resources.
-func (c *client) Nodes() NodeInterface {
+func (c client) Nodes() NodeInterface {
 	return nodes{client: c}
 }
 
 // Policies returns an interface for managing policy resources.
-func (c *client) Policies() PolicyInterface {
-	return policies{client: c}
+func (c client) NetworkPolicies() NetworkPolicyInterface {
+	return networkpolicies{client: c}
+}
+
+// Policies returns an interface for managing policy resources.
+func (c client) GlobalNetworkPolicies() GlobalNetworkPolicyInterface {
+	return globalnetworkpolicies{client: c}
 }
 
 // IPPools returns an interface for managing IP pool resources.
-func (c *client) IPPools() IPPoolInterface {
+func (c client) IPPools() IPPoolInterface {
 	return ipPools{client: c}
 }
 
 // Profiles returns an interface for managing profile resources.
-func (c *client) Profiles() ProfileInterface {
+func (c client) Profiles() ProfileInterface {
 	return profiles{client: c}
 }
 
 // HostEndpoints returns an interface for managing host endpoint resources.
-func (c *client) HostEndpoints() HostEndpointInterface {
+func (c client) HostEndpoints() HostEndpointInterface {
 	return hostEndpoints{client: c}
 }
 
 // WorkloadEndpoints returns an interface for managing workload endpoint resources.
-func (c *client) WorkloadEndpoints() WorkloadEndpointInterface {
+func (c client) WorkloadEndpoints() WorkloadEndpointInterface {
 	return workloadEndpoints{client: c}
 }
 
 // BGPPeers returns an interface for managing BGP peer resources.
-func (c *client) BGPPeers() BGPPeerInterface {
+func (c client) BGPPeers() BGPPeerInterface {
 	return bgpPeers{client: c}
 }
 
 // IPAM returns an interface for managing IP address assignment and releasing.
-func (c *client) IPAM() ipam.Interface {
+func (c client) IPAM() ipam.Interface {
 	return ipam.NewIPAM(c.Backend, poolAccessor{})
 }
 
@@ -128,7 +133,7 @@ func (p poolAccessor) GetEnabledPools(ipVersion int) ([]net.IPNet, error) {
 // Most Calico deployment scenarios will automatically implicitly invoke this
 // method and so a general consumer of this API can assume that the datastore
 // is already initialized.
-func (c *client) EnsureInitialized() error {
+func (c client) EnsureInitialized() error {
 	// Perform datastore specific initialization first.
 	if err := c.Backend.EnsureInitialized(); err != nil {
 		return err

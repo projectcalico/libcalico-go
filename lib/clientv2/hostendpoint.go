@@ -21,7 +21,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
 
-// HostEndpointInterface has methods to work with BgpPeer resources.
+// HostEndpointInterface has methods to work with HostEndpoint resources.
 type HostEndpointInterface interface {
 	Create(peer *apiv2.HostEndpoint, opts options.SetOptions) (*apiv2.HostEndpoint, error)
 	Update(peer *apiv2.HostEndpoint, opts options.SetOptions) (*apiv2.HostEndpoint, error)
@@ -33,7 +33,7 @@ type HostEndpointInterface interface {
 
 // hostEndpoints implements HostEndpointInterface
 type hostEndpoints struct {
-	client *client
+	client client
 }
 
 // Create takes the representation of a HostEndpoint and creates it.  Returns the stored

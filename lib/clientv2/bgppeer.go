@@ -21,7 +21,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
 
-// BGPPeerInterface has methods to work with BgpPeer resources.
+// BGPPeerInterface has methods to work with BGPPeer resources.
 type BGPPeerInterface interface {
 	Create(peer *apiv2.BGPPeer, opts options.SetOptions) (*apiv2.BGPPeer, error)
 	Update(peer *apiv2.BGPPeer, opts options.SetOptions) (*apiv2.BGPPeer, error)
@@ -33,7 +33,7 @@ type BGPPeerInterface interface {
 
 // bgpPeers implements BGPPeerInterface
 type bgpPeers struct {
-	client *client
+	client client
 }
 
 // Create takes the representation of a BGPPeer and creates it.  Returns the stored
