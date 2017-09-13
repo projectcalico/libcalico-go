@@ -15,17 +15,14 @@
 package custom
 
 import (
-	// "encoding/json"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	// "k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type GlobalBGPConfig struct {
-	metav1.TypeMeta     `json:",inline"`
-	metav1.ObjectMeta   `json:"metadata"`
-	Spec            GlobalBGPConfigSpec `json:"spec"`
+	metav1.TypeMeta          `json:",inline"`
+	metav1.ObjectMeta        `json:"metadata"`
+	Spec GlobalBGPConfigSpec `json:"spec"`
 }
 
 type GlobalBGPConfigSpec struct {
@@ -38,7 +35,7 @@ type GlobalBGPConfigSpec struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type GlobalBGPConfigList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata"`
-	Items           []GlobalBGPConfig `json:"items"`
+	metav1.TypeMeta         `json:",inline"`
+	metav1.ListMeta         `json:"metadata"`
+	Items []GlobalBGPConfig `json:"items"`
 }
