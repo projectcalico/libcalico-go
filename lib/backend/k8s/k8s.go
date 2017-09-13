@@ -164,6 +164,30 @@ func (c *KubeClient) EnsureCalicoNodeInitialized(node string) error {
 	return nil
 }
 
+func (c *KubeClient) Clean() error {
+	log.Info("Cleaing KDD datastore")
+
+	types := []model.ListInterface{
+		model.GlobalBGPConfigListOptions{},
+		model.NodeBGPConfigListOptions{},
+		model.GlobalBGPPeerListOptions{},
+		model.NodeBGPPeerListOptions{},
+		model.GlobalConfigListOptions{},
+		model.IPPoolListOptions{},
+	}
+	for _, t := range types {
+		rs, _ := c.List(t)
+		for _, r := range rs {
+			log.WithField("Key", r.Key).Info("Deleting from KDD")
+			if err := c.Delete(r); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // waitForClusterType polls until GlobalFelixConfig is ready, or until 30 seconds have passed.
 func (c *KubeClient) waitForClusterType() error {
 	return wait.PollImmediate(1*time.Second, 30*time.Second, func() (bool, error) {
@@ -195,7 +219,7 @@ func (c *KubeClient) ensureClusterType() (bool, error) {
 			existingValue = fmt.Sprintf("%s,KDD", existingValue)
 		}
 		value = existingValue
-		rv = ct.Revision.(string)
+		rv = ct.Revision
 	}
 	log.WithField("value", value).Debug("Setting ClusterType")
 	_, err = c.Apply(&model.KVPair{
@@ -467,7 +491,7 @@ func (c *KubeClient) listProfiles(l model.ProfileListOptions) ([]*model.KVPair, 
 	// For each Namespace, return a profile.
 	ret := []*model.KVPair{}
 	for _, ns := range namespaces.Items {
-		kvp, err := c.converter.NamespaceToProfile(&ns)
+		kvp, err := c.converter.namespaceToProfile(&ns)
 		if err != nil {
 			return nil, err
 		}
@@ -490,7 +514,7 @@ func (c *KubeClient) getProfile(k model.ProfileKey) (*model.KVPair, error) {
 		return nil, resources.K8sErrorToCalico(err, k)
 	}
 
-	return c.converter.NamespaceToProfile(namespace)
+	return c.converter.namespaceToProfile(namespace)
 }
 
 // applyWorkloadEndpoint patches the existing Pod to include an IP address, if

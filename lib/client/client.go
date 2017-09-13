@@ -24,6 +24,8 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	yaml "github.com/projectcalico/go-yaml-wrapper"
 	"github.com/projectcalico/libcalico-go/lib/api"
+	"github.com/projectcalico/libcalico-go/lib/ipam"
+	"github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/api/unversioned"
 	"github.com/projectcalico/libcalico-go/lib/backend"
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -101,8 +103,28 @@ func (c *Client) BGPPeers() BGPPeerInterface {
 }
 
 // IPAM returns an interface for managing IP address assignment and releasing.
-func (c *Client) IPAM() IPAMInterface {
-	return newIPAM(c)
+func (c *Client) IPAM() ipam.Interface {
+	return ipam.NewIPAM(c.Backend, poolAccessor{})
+}
+
+type poolAccessor struct {
+	client *Client
+}
+
+func (p poolAccessor) GetEnabledPools(ipVersion int) ([]net.IPNet, error) {
+	pools, err := p.client.IPPools().List(api.IPPoolMetadata{})
+	if err != nil {
+		return nil, err
+	}
+	enabled := []net.IPNet{}
+	for _, pool := range pools.Items {
+		if pool.Spec.Disabled {
+			continue
+		} else {
+			enabled = append(enabled, pool.Metadata.CIDR)
+		}
+	}
+	return enabled, nil
 }
 
 // Config returns an interface for managing system configuration..

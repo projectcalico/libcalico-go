@@ -87,12 +87,29 @@ import (
 
 	. "github.com/onsi/ginkgo/extensions/table"
 
-	"github.com/projectcalico/libcalico-go/lib/api"
-	"github.com/projectcalico/libcalico-go/lib/client"
+	"github.com/projectcalico/libcalico-go/lib/apiconfig"
+	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
 )
+
+type ipPoolAccessor map[string]bool
+func (i ipPoolAccessor) GetEnabledPools(ipVersion int) ([]cnet.IPNet, error) {
+	cidrs := []cnet.IPNet{}
+	for p, e := range i {
+		c := cnet.MustParseCIDR(p)
+		if e && c.Version() == ipVersion {
+			cidrs = append(cidrs, c)
+		}
+	}
+	return cidrs, nil
+}
+
+var (
+	ipPools = ipPoolAccessor{}
+)
+
 
 type testArgsClaimAff struct {
 	inNet, host                 string
@@ -103,7 +120,7 @@ type testArgsClaimAff struct {
 	expError                    error
 }
 
-var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, func(config apiconfig.CalicoAPIConfig) {
 
 	// We're assigning one IP which should be from the only ipPool created at the time, second one
 	// should be from the same /26 block since they're both from the same host, then delete
@@ -111,18 +128,20 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 	// assigned IP to be from the new ipPool that was created, this is to make sure the assigned IP
 	// doesn't come from the old affinedBlock even after the ipPool was deleted.
 	Describe("IPAM AutoAssign from the default pool then delete the pool and assign again", func() {
-		c := testutils.CreateCleanClient(config)
-		ic := setupIPAMClient(c, true)
+		
+		bc, _ := backend.NewClient(config)
+		ic := setupIPAMClient(bc, true)
 
 		host := "host-A"
 		pool1 := cnet.MustParseNetwork("10.0.0.0/24")
 		var block cnet.IPNet
 
-		testutils.CreateNewIPPool(*c, "10.0.0.0/24", false, false, true)
+		deleteAllPools()
+		applyPool("10.0.0.0/24", true)
 
 		// Step-1: AutoAssign 1 IP without specifying a pool - expect the assigned IP is from pool1.
 		Context("AutoAssign 1 IP without specifying a pool", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: host,
@@ -147,7 +166,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 		// Step-2: AutoAssign 1 more IP without specifying a pool - expect the assigned IP
 		// is from the same /26 block as the previous IP.
 		Context("AutoAssign 1 IP without specifying a pool", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: host,
@@ -161,24 +180,18 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 			})
 		})
 
-		// Step-3: Delete pool1 - expect it to execute without any error.
+		// Step-3: Delete pool1.
 		Context("Delete pool1", func() {
-			outErr := c.IPPools().Delete(api.IPPoolMetadata{
-				CIDR: pool1,
-			})
-
-			It("should delete the ipPool without any error", func() {
-				Expect(outErr).NotTo(HaveOccurred())
-			})
+			deletePool(pool1.String())
 		})
 
 		// Step-4: Create a new IP Pool.
 		pool2 := cnet.MustParseNetwork("20.0.0.0/24")
-		testutils.CreateNewIPPool(*c, "20.0.0.0/24", false, false, true)
+		applyPool("20.0.0.0/24", true)
 
 		// Step-5: AutoAssign 1 IP without specifying a pool - expect the assigned IP is from pool2.
 		Context("AutoAssign 1 IP without specifying a pool", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: host,
@@ -194,16 +207,16 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 	})
 
 	Describe("IPAM AutoAssign from any pool", func() {
-		c := testutils.CreateCleanClient(config)
-		ic := setupIPAMClient(c, true)
+		bc, _ := backend.NewClient(config)
+		ic := setupIPAMClient(bc, true)
 
-		testutils.CreateNewIPPool(*c, "10.0.0.0/24", false, false, true)
-		testutils.CreateNewIPPool(*c, "20.0.0.0/24", false, false, true)
+		applyPool("10.0.0.0/24", true)
+		applyPool("20.0.0.0/24", true)
 
 		// Assign an IP address, don't pass a pool, make sure we can get an
 		// address.
 		Context("AutoAssign 1 IP from any pool", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: "test-host",
@@ -225,20 +238,20 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 	})
 
 	Describe("IPAM AutoAssign from different pools", func() {
-		c := testutils.CreateCleanClient(config)
-		ic := setupIPAMClient(c, true)
+		bc, _ := backend.NewClient(config)
+		ic := setupIPAMClient(bc, true)
 
 		host := "host-A"
 		pool1 := cnet.MustParseNetwork("10.0.0.0/24")
 		pool2 := cnet.MustParseNetwork("20.0.0.0/24")
 		var block1, block2 cnet.IPNet
 
-		testutils.CreateNewIPPool(*c, "10.0.0.0/24", false, false, true)
-		testutils.CreateNewIPPool(*c, "20.0.0.0/24", false, false, true)
+		applyPool("10.0.0.0/24", true)
+		applyPool("20.0.0.0/24", true)
 
 		// Step-1: AutoAssign 1 IP from pool1 - expect that the IP is from pool1.
 		Context("AutoAssign 1 IP from pool1", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:      1,
 				Num6:      0,
 				Hostname:  host,
@@ -263,7 +276,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 
 		// Step-2: AutoAssign 1 IP from pool2 - expect that the IP is from pool2.
 		Context("AutoAssign 1 IP from pool2", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:      1,
 				Num6:      0,
 				Hostname:  host,
@@ -289,7 +302,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 		// Step-3: AutoAssign 1 IP from pool1 (second time) - expect that the
 		// IP is from from the same block as the first IP from pool1.
 		Context("AutoAssign 1 IP from pool1 (second time)", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:      1,
 				Num6:      0,
 				Hostname:  host,
@@ -307,7 +320,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 		// Step-4: AutoAssign 1 IP from pool2 (second time) - expect that the
 		// IP is from from the same block as the first IP from pool2.
 		Context("AutoAssign 1 IP from pool2 (second time)", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:      1,
 				Num6:      0,
 				Hostname:  host,
@@ -324,8 +337,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 	})
 
 	Describe("IPAM AutoAssign from different pools - multi", func() {
-		c := testutils.CreateCleanClient(config)
-		ic := setupIPAMClient(c, true)
+		bc, _ := backend.NewClient(config)
+		ic := setupIPAMClient(bc, true)
 
 		host := "host-A"
 		pool1 := cnet.MustParseNetwork("10.0.0.0/24")
@@ -334,16 +347,16 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 		pool4_v6 := cnet.MustParseNetwork("fe80::11/120")
 		pool5_doesnot_exist := cnet.MustParseNetwork("40.0.0.0/24")
 
-		testutils.CreateNewIPPool(*c, "10.0.0.0/24", false, false, true)
-		testutils.CreateNewIPPool(*c, "20.0.0.0/24", false, false, true)
-		testutils.CreateNewIPPool(*c, "30.0.0.0/24", false, false, false)
-		testutils.CreateNewIPPool(*c, "fe80::11/120", false, false, true)
+		applyPool("10.0.0.0/24", true)
+		applyPool("20.0.0.0/24", true)
+		applyPool( "30.0.0.0/24", false)
+		applyPool("fe80::11/120", true)
 
 		// Step-1: Try to AutoAssign an IP from 2 pools  passed in IPv4Pools field with
 		// the second IP Pool in the list being an IPv6 IP Pool.
 		// Expect a non-nil error returned.
 		Context("AutoAssign 1 IP from 2 pools with the first IPPool disabled", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:      1,
 				Num6:      0,
 				Hostname:  host,
@@ -361,7 +374,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 		// the second IP Pool in the list being an IPv4 IP Pool.
 		// Expect a non-nil error returned.
 		Context("AutoAssign 1 IP from 2 pools with the first IPPool disabled", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:      0,
 				Num6:      1,
 				Hostname:  host,
@@ -378,7 +391,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 		// Step-3: AutoAssign an IP from 2 pools with the first IP Pool in the list disabled.
 		// Expect the returned IP is from the second IP Pool in the list.
 		Context("AutoAssign 1 IP from 2 pools with the first IPPool disabled", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:      1,
 				Num6:      0,
 				Hostname:  host,
@@ -398,7 +411,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 		// Step-4: AutoAssign 300 IPs from 2 pools
 		// Expect that the IPs are from both pools
 		Context("AutoAssign 300 IPs from 2 pools", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:      300,
 				Num6:      0,
 				Hostname:  host,
@@ -417,7 +430,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 		// Step-5: AutoAssign 300 IPs from both pools again.
 		// This time we should run out of IPs, so we should only get the remaining 209 IPs
 		Context("AutoAssign 300 IPs from both pools - none left this time", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:      300,
 				Num6:      0,
 				Hostname:  host,
@@ -436,7 +449,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 		// Step-6: AutoAssign an IPv4 address. Request the IP from 2 IP Pools one of which doesn't exist.
 		// This should return an error.
 		Context("AutoAssign an IP from two pools - one valid one doesn't exist", func() {
-			args := client.AutoAssignArgs{
+			args := AutoAssignArgs{
 				Num4:      1,
 				Num6:      0,
 				Hostname:  host,
@@ -553,17 +566,15 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 	DescribeTable("ClaimAffinity: claim IPNet vs actual number of blocks claimed",
 		func(args testArgsClaimAff) {
 			inIPNet := cnet.MustParseNetwork(args.inNet)
-			c := testutils.CreateClient(config)
+			bc, _ := backend.NewClient(config)
+			ic := setupIPAMClient(bc, args.cleanEnv)
 
-			// Wipe clean etcd, create a new client, and pools when cleanEnv flag is true.
+			// If we wiped clean, then apply the pools.
 			if args.cleanEnv {
-				testutils.CleanDatastore(config)
 				for _, v := range args.pool {
-					testutils.CreateNewIPPool(*c, v, false, false, true)
+					applyPool(v, true)
 				}
 			}
-
-			ic := setupIPAMClient(c, args.cleanEnv)
 
 			assignIPutil(ic, args.assignIP, "Host-A")
 
@@ -607,20 +618,21 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 
 // testIPAMReleaseIPs takes an IP, slice of string with IP pools to setup, cleanEnv flag means  setup a new environment.
 // assignIP is if you want to assign a single IP before releasing an IP, and AutoAssign is to assign IPs in bulk before releasing any.
-func testIPAMReleaseIPs(inIP net.IP, poolSubnet []string, cleanEnv bool, assignIP net.IP, autoAssignNumIPv4 int, config api.CalicoAPIConfig) ([]cnet.IP, error) {
+func testIPAMReleaseIPs(inIP net.IP, poolSubnet []string, cleanEnv bool, assignIP net.IP, autoAssignNumIPv4 int, config apiconfig.CalicoAPIConfig) ([]cnet.IP, error) {
 
 	inIPs := []cnet.IP{cnet.IP{inIP}}
+	bc, _ := backend.NewClient(config)
+	ic := setupIPAMClient(bc, cleanEnv)
+
+	// If we cleaned the datastore then recreate the pools.
 	if cleanEnv {
-		c := testutils.CreateCleanClient(config)
 		for _, v := range poolSubnet {
-			testutils.CreateNewIPPool(*c, v, false, false, true)
+			applyPool(v, true)
 		}
 	}
-	c := testutils.CreateClient(config)
-	ic := setupIPAMClient(c, cleanEnv)
 
 	if len(assignIP) != 0 {
-		err := ic.AssignIP(client.AssignIPArgs{
+		err := ic.AssignIP(AssignIPArgs{
 			IP: cnet.IP{assignIP},
 		})
 		if err != nil {
@@ -635,7 +647,7 @@ func testIPAMReleaseIPs(inIP net.IP, poolSubnet []string, cleanEnv bool, assignI
 	}
 
 	if autoAssignNumIPv4 != 0 {
-		assignedIPv4, _, _ := ic.AutoAssign(client.AutoAssignArgs{
+		assignedIPv4, _, _ := ic.AutoAssign(AutoAssignArgs{
 			Num4: autoAssignNumIPv4,
 		})
 		inIPs = assignedIPv4
@@ -650,19 +662,20 @@ func testIPAMReleaseIPs(inIP net.IP, poolSubnet []string, cleanEnv bool, assignI
 
 // testIPAMAssignIP takes an IPv4 or IPv6 IP with a hostname and pool name and calls AssignIP.
 // Set cleanEnv to true to wipe clean etcd and reset IPAM config.
-func testIPAMAssignIP(inIP net.IP, host string, poolSubnet []string, cleanEnv bool, config api.CalicoAPIConfig) error {
-	args := client.AssignIPArgs{
+func testIPAMAssignIP(inIP net.IP, host string, poolSubnet []string, cleanEnv bool, config apiconfig.CalicoAPIConfig) error {
+	args := AssignIPArgs{
 		IP:       cnet.IP{inIP},
 		Hostname: host,
 	}
+	bc, _ := backend.NewClient(config)
+	ic := setupIPAMClient(bc, cleanEnv)
+
+	// If we cleaned the datastore then recreate the pools.
 	if cleanEnv {
-		c := testutils.CreateCleanClient(config)
 		for _, v := range poolSubnet {
-			testutils.CreateNewIPPool(*c, v, false, false, true)
+			applyPool(v, true)
 		}
 	}
-	c := testutils.CreateClient(config)
-	ic := setupIPAMClient(c, cleanEnv)
 	outErr := ic.AssignIP(args)
 
 	if outErr != nil {
@@ -673,23 +686,24 @@ func testIPAMAssignIP(inIP net.IP, host string, poolSubnet []string, cleanEnv bo
 
 // testIPAMAutoAssign takes number of requested IPv4 and IPv6, and hostname, and setus up/cleans up client and etcd,
 // then it calls AutoAssign (function under test) and returns the number of returned IPv4 and IPv6 addresses and returned error.
-func testIPAMAutoAssign(inv4, inv6 int, host string, cleanEnv bool, poolSubnet []string, usePool string, config api.CalicoAPIConfig) (int, int, error) {
+func testIPAMAutoAssign(inv4, inv6 int, host string, cleanEnv bool, poolSubnet []string, usePool string, config apiconfig.CalicoAPIConfig) (int, int, error) {
 	fromPool := cnet.MustParseNetwork(usePool)
-	args := client.AutoAssignArgs{
+	args := AutoAssignArgs{
 		Num4:      inv4,
 		Num6:      inv6,
 		Hostname:  host,
 		IPv4Pools: []cnet.IPNet{fromPool},
 	}
 
+	bc, _ := backend.NewClient(config)
+	ic := setupIPAMClient(bc, cleanEnv)
+
+	// If we cleaned the datastore then recreate the pools.
 	if cleanEnv {
-		c := testutils.CreateCleanClient(config)
 		for _, v := range poolSubnet {
-			testutils.CreateNewIPPool(*c, v, false, false, true)
+			applyPool(v, true)
 		}
 	}
-	c := testutils.CreateClient(config)
-	ic := setupIPAMClient(c, cleanEnv)
 	v4, v6, outErr := ic.AutoAssign(args)
 
 	if outErr != nil {
@@ -699,23 +713,26 @@ func testIPAMAutoAssign(inv4, inv6 int, host string, cleanEnv bool, poolSubnet [
 	return len(v4), len(v6), outErr
 }
 
-// setupIPAMClient sets up a client, and returns IPAMInterface.
-// It also resets IPAM config if cleanEnv is true.
-func setupIPAMClient(c *client.Client, cleanEnv bool) client.IPAMInterface {
-	ic := c.IPAM()
+// setupIPAMClient sets up a client (optionally deleting Calico config first), and
+// returns IPAMInterface.
+func setupIPAMClient(bc bapi.Client, cleanEnv bool) Interface {
+	ic := NewIPAM(bc, ipPools)
 	if cleanEnv {
-		ic.SetIPAMConfig(client.IPAMConfig{
-			StrictAffinity:     false,
-			AutoAllocateBlocks: true,
-		})
+		bc.Clean()
 	}
 	return ic
 }
 
+// clean removes all Calico data from the backend, and removes the local IP
+// pool data.
+func clean(bc bapi.Client) {
+	bc.Clean()
+}
+
 // assignIPutil is a utility function to help with assigning a single IP address to a hostname passed in.
-func assignIPutil(ic client.IPAMInterface, assignIP net.IP, host string) {
+func assignIPutil(ic Interface, assignIP net.IP, host string) {
 	if len(assignIP) != 0 {
-		err := ic.AssignIP(client.AssignIPArgs{
+		err := ic.AssignIP(AssignIPArgs{
 			IP:       cnet.IP{assignIP},
 			Hostname: host,
 		})
@@ -729,10 +746,10 @@ func assignIPutil(ic client.IPAMInterface, assignIP net.IP, host string) {
 // getAffineBlocks gets all the blocks affined to the host passed in.
 func getAffineBlocks(host string) []cnet.IPNet {
 	opts := model.BlockAffinityListOptions{Host: host, IPVersion: 4}
-	c, _ := client.LoadClientConfig("")
+	c, _ := apiconfig.LoadClientConfig("")
 	compatClient, err := backend.NewClient(*c)
 
-	datastoreObjs, err := compatClient.List(opts)
+	datastoreObjs, err := compatClient.List(opts, "")
 	if err != nil {
 		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
 			log.Printf("No affined blocks found")
@@ -743,9 +760,21 @@ func getAffineBlocks(host string) []cnet.IPNet {
 
 	// Iterate through and extract the block CIDRs.
 	blocks := []cnet.IPNet{}
-	for _, o := range datastoreObjs {
+	for _, o := range datastoreObjs.KVPairs {
 		k := o.Key.(model.BlockAffinityKey)
 		blocks = append(blocks, k.CIDR)
 	}
 	return blocks
+}
+
+func deleteAllPools() {
+	ipPools = ipPoolAccessor{}
+}
+
+func applyPool(cidr string, enabled bool) {
+	ipPools[cidr] = enabled
+}
+
+func deletePool(cidr string) {
+	delete(ipPools, cidr)
 }
