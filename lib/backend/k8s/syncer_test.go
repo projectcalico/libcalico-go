@@ -25,8 +25,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	k8sapi "k8s.io/client-go/pkg/api/v1"
-	extensions "github.com/projectcalico/libcalico-go/lib/backend/extensions"
+	k8sapi "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 )
 
 type testWatch struct {

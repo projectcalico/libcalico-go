@@ -38,9 +38,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	clientapi "k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/v1"
-	extensions "github.com/projectcalico/libcalico-go/lib/backend/extensions"
+	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
+    "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -230,7 +230,7 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 	}
 	cfg.APIPath = "/apis"
 	cfg.ContentType = runtime.ContentTypeJSON
-	cfg.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: clientapi.Codecs}
+	cfg.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: clientsetscheme.Codecs}
 
 	cli, err := rest.RESTClientFor(&cfg)
 	if err != nil {
@@ -253,7 +253,7 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 			)
 			return nil
 		})
-	schemeBuilder.AddToScheme(clientapi.Scheme)
+	schemeBuilder.AddToScheme(clientsetscheme.Scheme)
 
 	return cli, nil
 }

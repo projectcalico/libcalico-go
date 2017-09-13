@@ -57,8 +57,8 @@ func (el *GlobalFelixConfigList) GetObjectKind() schema.ObjectKind {
 }
 
 // Required to satisfy ListMetaAccessor interface
-func (el *GlobalFelixConfigList) GetListMeta() metav1.List {
-	return &el.Metadata
+func (el *GlobalFelixConfigList) GetListMeta() metav1.ListMeta {
+	return el.Metadata
 }
 
 // The code below is used only to work around a known problem with third-party

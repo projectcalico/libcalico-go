@@ -23,26 +23,19 @@ import:
   subpackages:
   - patricia
 - package: golang.org/x/text
-  version: 19e51611da83d6be54ddafce4a4af510cb3e9ea4
+  version: b19bf474d317b857955b12035d2c5acb57ce8b01
 - package: k8s.io/client-go
-  version: 4a3ab2f5be5177366f8206fd79ce55ca80e417fa
+  version: db8228460e2de17f5d3a9a453f61dde0ba86545a
   subpackages:
-  - kubernetes
-  - pkg/api
-  - pkg/api/errors
-  - pkg/api/meta
-  - pkg/api/unversioned
-  - pkg/api/v1
-  - pkg/apis/extensions/v1beta1
-  - pkg/fields
-  - pkg/runtime
-  - pkg/runtime/schema
-  - pkg/runtime/serializer
-  - pkg/util/wait
-  - pkg/watch
   - rest
   - tools/cache
   - tools/clientcmd
+- package: k8s.io/apimachinery
+  version: 31421d9f8c2d6073628a89b4654fe22aced33167
+- package: k8s.io/api
+  version: f30e293246921de7f4ee46bb65b8762b2f890fc4
+- package: k8s.io/kube-openapi
+  version: 80f07ef71bb4f781233c65aa8d0369e4ecafab87
 - package: github.com/prometheus/client_golang
   version: ^0.8.0
 testImport:

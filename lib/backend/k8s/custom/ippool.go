@@ -58,8 +58,8 @@ func (el *IPPoolList) GetObjectKind() schema.ObjectKind {
 }
 
 // GetListMeta returns the list metadata of this object. Required to satisfy ListMetaAccessor interface
-func (el *IPPoolList) GetListMeta() metav1.List {
-	return &el.Metadata
+func (el *IPPoolList) GetListMeta() metav1.ListMeta {
+	return el.Metadata
 }
 
 // The code below is used only to work around a known problem with third-party

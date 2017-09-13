@@ -15,15 +15,16 @@
 package custom
 
 import (
-	"encoding/json"
+	// "encoding/json"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	// "k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type GlobalBGPConfig struct {
-	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ObjectMeta   `json:"metadata"`
+	metav1.TypeMeta     `json:",inline"`
+	metav1.ObjectMeta   `json:"metadata"`
 	Spec            GlobalBGPConfigSpec `json:"spec"`
 }
 
@@ -35,57 +36,9 @@ type GlobalBGPConfigSpec struct {
 	Value string `json:"value"`
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type GlobalBGPConfigList struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ListMeta   `json:"metadata"`
+	metav1.ListMeta `json:"metadata"`
 	Items           []GlobalBGPConfig `json:"items"`
-}
-
-// Required to satisfy Object interface
-func (e *GlobalBGPConfig) GetObjectKind() schema.ObjectKind {
-	return &e.TypeMeta
-}
-
-// Required to satisfy ObjectMetaAccessor interface
-func (e *GlobalBGPConfig) GetObjectMeta() metav1.Object {
-	return &e.Metadata
-}
-
-// Required to satisfy Object interface
-func (el *GlobalBGPConfigList) GetObjectKind() schema.ObjectKind {
-	return &el.TypeMeta
-}
-
-// Required to satisfy ListMetaAccessor interface
-func (el *GlobalBGPConfigList) GetListMeta() metav1.List {
-	return &el.Metadata
-}
-
-// The code below is used only to work around a known problem with third-party
-// resources and ugorji. If/when these issues are resolved, the code below
-// should no longer be required.
-
-type GlobalBGPConfigListCopy GlobalBGPConfigList
-type GlobalBGPConfigCopy GlobalBGPConfig
-
-func (g *GlobalBGPConfig) UnmarshalJSON(data []byte) error {
-	tmp := GlobalBGPConfigCopy{}
-	err := json.Unmarshal(data, &tmp)
-	if err != nil {
-		return err
-	}
-	tmp2 := GlobalBGPConfig(tmp)
-	*g = tmp2
-	return nil
-}
-
-func (l *GlobalBGPConfigList) UnmarshalJSON(data []byte) error {
-	tmp := GlobalBGPConfigListCopy{}
-	err := json.Unmarshal(data, &tmp)
-	if err != nil {
-		return err
-	}
-	tmp2 := GlobalBGPConfigList(tmp)
-	*l = tmp2
-	return nil
 }
