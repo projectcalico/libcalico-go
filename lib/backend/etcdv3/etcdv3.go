@@ -106,7 +106,7 @@ func (c *EtcdV3Client) Get(k model.Key, revision string) (*model.KVPair, error) 
 	}
 
 	kv := resp.Kvs[0]
-	v, err := model.ParseValue(k, []byte(kv.Value))
+	v, err := model.ParseValue(k, kv.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,8 @@ func (c *EtcdV3Client) Get(k model.Key, revision string) (*model.KVPair, error) 
 	}, nil
 }
 
-// Create an entry in the datastore.  This errors if the entry already exists.
+// Create an entry in the datastore.  If the entry already exists, this will return
+// an ErrorResourceAlreadyExists error and the current entry.
 func (c *EtcdV3Client) Create(d *model.KVPair) (*model.KVPair, error) {
 	logCxt := log.WithFields(log.Fields{"key": d.Key, "value": d.Value, "ttl": d.TTL, "rev": d.Revision})
 	key, value, err := getKeyValueStrings(d)
@@ -133,29 +134,46 @@ func (c *EtcdV3Client) Create(d *model.KVPair) (*model.KVPair, error) {
 		return nil, err
 	}
 
-	// Checking for 0 version of the key, which means it doesn't exists yet
-	cond := etcdv3.Compare(etcdv3.Version(key), "=", 0)
-	req := etcdv3.OpPut(key, value, putOpts...)
-	resp, err := c.etcdClient.Txn(context.Background()).If(cond).Then(req).Commit()
+	// Checking for 0 version of the key, which means it doesn't exists yet,
+	// and if it does, get the current value.
+	txnResp, err := c.etcdClient.Txn(context.Background()).If(
+		etcdv3.Compare(etcdv3.Version(key), "=", 0),
+	).Then(
+		etcdv3.OpPut(key, value, putOpts...),
+	).Else(
+		etcdv3.OpGet(key),
+	).Commit()
 	if err != nil {
 		logCxt.WithError(err).Debug("Create failed")
 		return nil, errors.ErrorDatastoreError{Err: err}
 	}
 
-	if !resp.Succeeded {
-		return nil, errors.ErrorResourceAlreadyExists{
-			Err:        goerrors.New("resource already exists"),
-			Identifier: d.Key,
+	if !txnResp.Succeeded {
+		// The resource must already exist.  Extract the current value and
+		// return that if possible.
+		var existing *model.KVPair
+		getResp := (*etcdv3.GetResponse)(txnResp.Responses[0].GetResponseRange())
+		if len(getResp.Kvs) != 0 {
+			if v, err := model.ParseValue(d.Key, getResp.Kvs[0].Value); err == nil {
+				existing = &model.KVPair{
+					Key:      d.Key,
+					Value:    v,
+					Revision: strconv.FormatInt(getResp.Kvs[0].ModRevision, 10),
+				}
+			}
 		}
+		return existing, errors.ErrorResourceAlreadyExists{Identifier: d.Key}
 	}
 
-	d.Revision = strconv.FormatInt(resp.Header.Revision, 10)
+	d.Revision = strconv.FormatInt(txnResp.Header.Revision, 10)
 
 	return d, nil
 }
 
 //TODO: Maybe return the current value if the revision check fails.
-// Update an entry in the datastore.  This errors if the entry already exists.
+// Update an entry in the datastore.  If the entry does not exist, this will return
+// an ErrorResourceDoesNotExist error.  THe ResourceVersion must be specified, and if
+// incorrect will return a ErrorResourceUpdateConflict error and the current entry.
 func (c *EtcdV3Client) Update(d *model.KVPair) (*model.KVPair, error) {
 	logCxt := log.WithFields(log.Fields{"key": d.Key, "value": d.Value, "ttl": d.TTL, "rev": d.Revision})
 	key, value, err := getKeyValueStrings(d)
@@ -170,23 +188,19 @@ func (c *EtcdV3Client) Update(d *model.KVPair) (*model.KVPair, error) {
 		return nil, err
 	}
 
-	// Checking key existence
-	// TODO: Include the Get as part of the same transaction if possible
-	if _, err := c.Get(d.Key, d.Revision); err != nil {
+	// ResourceVersion must be set for an Update.
+	rev, err := strconv.ParseInt(d.Revision, 10, 64)
+	if err != nil {
 		return nil, err
 	}
+	conds := []etcdv3.Cmp{etcdv3.Compare(etcdv3.ModRevision(key), "=", rev)}
 
-	conds := []etcdv3.Cmp{}
-	if len(d.Revision) != 0 {
-		rev, err := strconv.ParseInt(d.Revision, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		conds = append(conds, etcdv3.Compare(etcdv3.ModRevision(key), "=", rev))
-	}
-
-	txnResp, err := c.etcdClient.Txn(context.Background()).If(conds...).Then(
+	txnResp, err := c.etcdClient.Txn(context.Background()).If(
+		conds...,
+	).Then(
 		etcdv3.OpPut(key, value, opts...),
+	).Else(
+		etcdv3.OpGet(key),
 	).Commit()
 
 	if err != nil {
@@ -194,10 +208,24 @@ func (c *EtcdV3Client) Update(d *model.KVPair) (*model.KVPair, error) {
 		return nil, errors.ErrorDatastoreError{Err: err}
 	}
 
-	// Etcd V3 does not return a error when compare condition fails
-	// we must verify the response Succeeded field instead
+	// Etcd V3 does not return a error when compare condition fails we must verify the
+	// response Succeeded field instead.  If the compare did not succeed then check for
+	// a successful get to return either an UpdateConflict or a ResourceDoesNotExist error.
 	if !txnResp.Succeeded {
-		return nil, errors.ErrorResourceUpdateConflict{Identifier: d.Key}
+		getResp := (*etcdv3.GetResponse)(txnResp.Responses[0].GetResponseRange())
+		if len(getResp.Kvs) == 0 {
+			return nil, errors.ErrorResourceDoesNotExist{Identifier: d.Key}
+		}
+
+		var existing *model.KVPair
+		if v, err := model.ParseValue(d.Key, getResp.Kvs[0].Value); err == nil {
+			existing = &model.KVPair{
+				Key:      d.Key,
+				Value:    v,
+				Revision: strconv.FormatInt(getResp.Kvs[0].ModRevision, 10),
+			}
+		}
+		return existing, errors.ErrorResourceUpdateConflict{Identifier: d.Key}
 	}
 
 	d.Revision = strconv.FormatInt(txnResp.Header.Revision, 10)

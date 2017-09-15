@@ -15,9 +15,12 @@
 package clientv2_test
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/apiv2"
@@ -26,7 +29,6 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Perform CRUD operations on Global and Node-specific BGP Peer Resources.
@@ -43,7 +45,16 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 
 			By("Updating the BGPPeer before it is created")
 			res, outError := c.BGPPeers().Update(&apiv2.BGPPeer{
-				Metadata: metav1.ObjectMeta{Name: name1},
+				Metadata: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234"},
+				Spec:     spec1,
+			}, options.SetOptions{})
+			Expect(outError).To(HaveOccurred())
+			Expect(res).To(BeNil())
+			Expect(outError.Error()).To(Equal("resource does not exist: BGPPeer(" + name1 + ")"))
+
+			By("Attempting to creating a new BGPPeer with name1/spec1 and a non-empty ResourceVersion")
+			res, outError = c.BGPPeers().Create(&apiv2.BGPPeer{
+				Metadata: metav1.ObjectMeta{Name: name1, ResourceVersion: "12345"},
 				Spec:     spec1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
@@ -59,6 +70,17 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 
 			// Track the version of the original data for name1.
 			rv1_1 := res1.Metadata.ResourceVersion
+
+			By("Attempting to create the same BGPPeer with name1 but with spec2")
+			res1, outError = c.BGPPeers().Create(&apiv2.BGPPeer{
+				Metadata: metav1.ObjectMeta{Name: name1},
+				Spec:     spec2,
+			}, options.SetOptions{})
+			Expect(outError).To(HaveOccurred())
+			Expect(outError.Error()).To(Equal("resource already exists: BGPPeer(" + name1 + ")"))
+			// Check return value is actually the previously stored value.
+			assertBGPPeer(res1, name1, spec1)
+			Expect(res1.Metadata.ResourceVersion).To(Equal(rv1_1))
 
 			By("Getting BGPPeer (name1) and comparing the output against spec1")
 			res, outError = c.BGPPeers().Get(name1, options.GetOptions{})
@@ -84,19 +106,11 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 			Expect(outError).NotTo(HaveOccurred())
 			assertBGPPeer(res2, name2, spec2)
 
-			By("Getting BGPPeer (name2) and comparing the output against spec1")
+			By("Getting BGPPeer (name2) and comparing the output against spec2")
 			res, outError = c.BGPPeers().Get(name2, options.GetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertBGPPeer(res, name2, spec2)
 			Expect(res.Metadata.ResourceVersion).To(Equal(res2.Metadata.ResourceVersion))
-
-			By("Attempting to create another BGPPeer with name1")
-			res, outError = c.BGPPeers().Create(&apiv2.BGPPeer{
-				Metadata: metav1.ObjectMeta{Name: name1},
-				Spec:     spec1,
-			}, options.SetOptions{})
-			Expect(outError).To(HaveOccurred())
-			Expect(res).To(BeNil())
 
 			By("Listing all the BGPPeers, expecting a two results with name1/spec1 and name2/spec2")
 			outList, outError = c.BGPPeers().List(options.ListOptions{})
@@ -113,6 +127,14 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 
 			// Track the version of the updated name1 data.
 			rv1_2 := res1.Metadata.ResourceVersion
+
+			By("Updating BGPPeer name1 using the previous resource version")
+			res1.Spec = spec1
+			res1.Metadata.ResourceVersion = rv1_1
+			res1, outError = c.BGPPeers().Update(res1, options.SetOptions{})
+			Expect(outError).To(HaveOccurred())
+			Expect(outError.Error()).To(Equal("update conflict: BGPPeer(" + name1 + ")"))
+			Expect(res1.Metadata.ResourceVersion).To(Equal(rv1_2))
 
 			By("Getting BGPPeer (name1) with the original resource version and comparing the output against spec1")
 			res, outError = c.BGPPeers().Get(name1, options.GetOptions{ResourceVersion: rv1_1})
@@ -147,9 +169,28 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 			outError = c.BGPPeers().Delete(name1, options.DeleteOptions{ResourceVersion: rv1_2})
 			Expect(outError).NotTo(HaveOccurred())
 
-			By("Deleting BGPPeer (name2)")
-			outError = c.BGPPeers().Delete(name2, options.DeleteOptions{})
+			By("Updating BGPPeer name2 with a 2s TTL and waiting for the entry to be deleted")
+			_, outError = c.BGPPeers().Update(res2, options.SetOptions{TTL: 2 * time.Second})
 			Expect(outError).NotTo(HaveOccurred())
+			time.Sleep(1 * time.Second)
+			_, outError = c.BGPPeers().Get(name2, options.GetOptions{})
+			Expect(outError).NotTo(HaveOccurred())
+			time.Sleep(2 * time.Second)
+			_, outError = c.BGPPeers().Get(name2, options.GetOptions{})
+			Expect(outError).To(HaveOccurred())
+
+			By("Creating BGPPeer name2 with a 2s TTL and waiting for the entry to be deleted")
+			_, outError = c.BGPPeers().Create(&apiv2.BGPPeer{
+				Metadata: metav1.ObjectMeta{Name: name2},
+				Spec:     spec2,
+			}, options.SetOptions{TTL: 2 * time.Second})
+			Expect(outError).NotTo(HaveOccurred())
+			time.Sleep(1 * time.Second)
+			_, outError = c.BGPPeers().Get(name2, options.GetOptions{})
+			Expect(outError).NotTo(HaveOccurred())
+			time.Sleep(2 * time.Second)
+			_, outError = c.BGPPeers().Get(name2, options.GetOptions{})
+			Expect(outError).To(HaveOccurred())
 
 			By("Attempting to deleting BGPPeer (name2) again")
 			outError = c.BGPPeers().Delete(name2, options.DeleteOptions{})

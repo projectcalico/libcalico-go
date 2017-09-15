@@ -20,6 +20,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 )
 

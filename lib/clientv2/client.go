@@ -18,6 +18,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/satori/go.uuid"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/backend"
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -26,8 +29,6 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/ipam"
 	"github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/options"
-	"github.com/satori/go.uuid"
-	log "github.com/sirupsen/logrus"
 )
 
 // client contains

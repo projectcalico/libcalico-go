@@ -74,7 +74,11 @@ func (key ResourceKey) valueType() reflect.Type {
 }
 
 func (key ResourceKey) String() string {
-	return fmt.Sprintf("%s(name=%s)", key.Kind, key.Name)
+	if namespace.IsNamespaced(key.Kind) {
+		return fmt.Sprintf("%s(%s/%s)", key.Kind, key.Namespace, key.Name)
+	} else {
+		return fmt.Sprintf("%s(%s)", key.Kind, key.Name)
+	}
 }
 
 type ResourceListOptions struct {

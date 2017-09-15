@@ -15,6 +15,10 @@
 package clientv2
 
 import (
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/projectcalico/libcalico-go/lib/apiv2"
@@ -22,23 +26,21 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// All Calico resources implement the resource interface.
 type resource interface {
 	runtime.Object
 	v1.ObjectMetaAccessor
 }
 
+// All Calico resource lists implement the resourceList interface.
 type resourceList interface {
 	runtime.Object
 	v1.ListMetaAccessor
 }
 
-// untypedInterface has methods to work with BgpPeer resources.
+// untypedInterface has methods to work with resources.
 type untypedInterface interface {
 	Create(opts options.SetOptions, in resource) (resource, error)
 	Update(opts options.SetOptions, in resource) (resource, error)
@@ -55,6 +57,7 @@ type untyped struct {
 
 // Create creates a resource in the backend datastore.
 func (c *untyped) Create(opts options.SetOptions, kind string, in resource) (resource, error) {
+	// A ResourceVersion should never be specified on a Create.
 	if len(in.GetObjectMeta().GetResourceVersion()) != 0 {
 		return nil, errors.ErrorValidation{
 			ErroredFields: []errors.ErroredField{{
@@ -64,17 +67,19 @@ func (c *untyped) Create(opts options.SetOptions, kind string, in resource) (res
 			}},
 		}
 	}
-	kvp := c.resourceToKVPair(opts, kind, in)
-	kvp, err := c.backend.Create(kvp)
-	if err != nil {
-		return nil, err
+
+	// Convert the resource to a KVPair and pass that to the backend datastore, converting
+	// the response (if we get one) back to a resource.
+	kvp, err := c.backend.Create(c.resourceToKVPair(opts, kind, in))
+	if kvp != nil {
+		return c.kvPairToResource(kvp), err
 	}
-	out := c.kvPairToResource(kvp)
-	return out, nil
+	return nil, err
 }
 
 // Update updates a resource in the backend datastore.
 func (c *untyped) Update(opts options.SetOptions, kind string, in resource) (resource, error) {
+	// A ResourceVersion should always be specified on an Update.
 	if len(in.GetObjectMeta().GetResourceVersion()) == 0 {
 		return nil, errors.ErrorValidation{
 			ErroredFields: []errors.ErroredField{{
@@ -84,16 +89,19 @@ func (c *untyped) Update(opts options.SetOptions, kind string, in resource) (res
 			}},
 		}
 	}
+
+	// Convert the resource to a KVPair and pass that to the backend datastore, converting
+	// the response (if we get one) back to a resource.
 	kvp, err := c.backend.Update(c.resourceToKVPair(opts, kind, in))
-	if err != nil {
-		return nil, err
+	if kvp != nil {
+		return c.kvPairToResource(kvp), err
 	}
-	out := c.kvPairToResource(kvp)
-	return out, nil
+	return nil, err
 }
 
 // Delete deletes a resource from the backend datastore.
 func (c *untyped) Delete(opts options.DeleteOptions, kind, namespace, name string) error {
+	// Create a ResourceKey and pass that to the backend datastore.
 	key := model.ResourceKey{
 		Kind:      kind,
 		Name:      name,
@@ -160,6 +168,7 @@ func (c *untyped) Watch(opts options.ListOptions, kind, namespace, name string) 
 
 func (c *untyped) resourceToKVPair(opts options.SetOptions, kind string, in resource) *model.KVPair {
 	// Prepare the resource to remove non-persisted fields.
+	rv := in.GetObjectMeta().GetResourceVersion()
 	in.GetObjectMeta().SetResourceVersion("")
 	in.GetObjectMeta().SetSelfLink("")
 
@@ -180,7 +189,7 @@ func (c *untyped) resourceToKVPair(opts options.SetOptions, kind string, in reso
 			Name:      in.GetObjectMeta().GetName(),
 			Namespace: in.GetObjectMeta().GetNamespace(),
 		},
-		Revision: in.GetObjectMeta().GetResourceVersion(),
+		Revision: rv,
 	}
 }
 
