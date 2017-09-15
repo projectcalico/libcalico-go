@@ -33,7 +33,7 @@ type NetworkPolicyInterface interface {
 
 // networkpolicies implements NetworkPolicyInterface
 type networkpolicies struct {
-	client client
+	client    client
 	namespace string
 }
 

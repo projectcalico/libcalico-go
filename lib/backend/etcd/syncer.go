@@ -21,6 +21,8 @@ import (
 
 	"net"
 
+	"strconv"
+
 	"github.com/coreos/etcd/client"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -28,7 +30,6 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/hwm"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-	"strconv"
 )
 
 // defaultEtcdClusterID is default value that an etcd cluster uses if it

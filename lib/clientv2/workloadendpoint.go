@@ -33,7 +33,7 @@ type WorkloadEndpointInterface interface {
 
 // workloadEndpoints implements WorkloadEndpointInterface
 type workloadEndpoints struct {
-	client client
+	client    client
 	namespace string
 }
 

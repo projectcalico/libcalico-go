@@ -21,12 +21,12 @@ import (
 
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/apiv2"
+	"github.com/projectcalico/libcalico-go/lib/backend"
 	"github.com/projectcalico/libcalico-go/lib/clientv2"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
+	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/projectcalico/libcalico-go/lib/options"
-	"github.com/projectcalico/libcalico-go/lib/backend"
 )
 
 // Perform CRUD operations on Global and Node-specific BGP Peer Resources.
@@ -44,7 +44,7 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 			By("Updating the BGPPeer before it is created")
 			res, outError := c.BGPPeers().Update(&apiv2.BGPPeer{
 				Metadata: metav1.ObjectMeta{Name: name1},
-				Spec: spec1,
+				Spec:     spec1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(res).To(BeNil())
@@ -52,7 +52,7 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 			By("Creating a new BGPPeer with name1/spec1")
 			res1, outError := c.BGPPeers().Create(&apiv2.BGPPeer{
 				Metadata: metav1.ObjectMeta{Name: name1},
-				Spec: spec1,
+				Spec:     spec1,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertBGPPeer(res1, name1, spec1)
@@ -79,7 +79,7 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 			By("Creating a new BGPPeer with name2/spec2")
 			res2, outError := c.BGPPeers().Create(&apiv2.BGPPeer{
 				Metadata: metav1.ObjectMeta{Name: name2},
-				Spec: spec2,
+				Spec:     spec2,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertBGPPeer(res2, name2, spec2)
@@ -93,7 +93,7 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 			By("Attempting to create another BGPPeer with name1")
 			res, outError = c.BGPPeers().Create(&apiv2.BGPPeer{
 				Metadata: metav1.ObjectMeta{Name: name1},
-				Spec: spec1,
+				Spec:     spec1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(res).To(BeNil())
@@ -170,13 +170,13 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 			"bgpnode-1",
 			"bgpnode-2",
 			apiv2.BGPPeerSpec{
-				Node: "node1",
-				PeerIP: "10.0.0.1",
+				Node:     "node1",
+				PeerIP:   "10.0.0.1",
 				ASNumber: numorstring.ASNumber(6512),
 			},
 			apiv2.BGPPeerSpec{
-				Node: "node2",
-				PeerIP: "20.0.0.1",
+				Node:     "node2",
+				PeerIP:   "20.0.0.1",
 				ASNumber: numorstring.ASNumber(6511),
 			}),
 	)

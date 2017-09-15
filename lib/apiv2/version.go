@@ -15,7 +15,7 @@
 package apiv2
 
 const (
-	Group = "projectcalico.org"
-	VersionCurrent = "v2"
+	Group               = "projectcalico.org"
+	VersionCurrent      = "v2"
 	GroupVersionCurrent = Group + "/" + VersionCurrent
 )

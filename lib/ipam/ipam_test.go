@@ -19,20 +19,21 @@ import (
 	"fmt"
 	"net"
 
-	log "github.com/sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/projectcalico/libcalico-go/lib/backend"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	log "github.com/sirupsen/logrus"
 
 	. "github.com/onsi/ginkgo/extensions/table"
+
+	"sort"
 
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
-	"sort"
 )
 
 // Implement an IP pools accessor for the IPAM client.
@@ -44,7 +45,7 @@ func (i *ipPoolAccessor) GetEnabledPools(ipVersion int) ([]cnet.IPNet, error) {
 	sorted := []string{}
 	// Get a sorted list of enabled pool CIDR strings.
 	for p, e := range i.pools {
-		if e  {
+		if e {
 			sorted = append(sorted, p)
 		}
 	}
@@ -323,7 +324,6 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 			Expect(len(v4)).To(Equal(1))
 			Expect(pool1.Contains(v4[0].IP)).To(BeTrue())
 		})
-
 
 		It("should allocate 300 IP addresses from two enabled pools that contain sufficient addresses", func() {
 			args := AutoAssignArgs{

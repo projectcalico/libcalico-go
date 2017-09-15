@@ -17,6 +17,7 @@ package clientv2
 import (
 	"k8s.io/apimachinery/pkg/watch"
 
+	"github.com/projectcalico/libcalico-go/lib/apiv2"
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/errors"
@@ -25,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/projectcalico/libcalico-go/lib/apiv2"
 )
 
 type resource interface {
@@ -144,9 +144,9 @@ func (c *untyped) List(opts options.ListOptions, kind, listKind, namespace, name
 	// Finally, set the resource version and api group version of the list object.
 	listObj.GetListMeta().SetResourceVersion(kvps.Revision)
 	listObj.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-		Group: apiv2.Group,
+		Group:   apiv2.Group,
 		Version: apiv2.VersionCurrent,
-		Kind: listKind,
+		Kind:    listKind,
 	})
 
 	return nil
@@ -165,9 +165,9 @@ func (c *untyped) resourceToKVPair(opts options.SetOptions, kind string, in reso
 
 	// Make sure the kind and version are set before storing.
 	in.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-		Group: apiv2.Group,
+		Group:   apiv2.Group,
 		Version: apiv2.VersionCurrent,
-		Kind: kind,
+		Kind:    kind,
 	})
 
 	// Create a KVPair using the "generic" resource Key, and the actual object as
