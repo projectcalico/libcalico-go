@@ -15,13 +15,9 @@
 package testutils
 
 import (
-	"net"
-
 	etcdclient "github.com/coreos/etcd/client"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/backend"
-	"github.com/projectcalico/libcalico-go/lib/client"
-	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	log "github.com/sirupsen/logrus"
 
 	"errors"

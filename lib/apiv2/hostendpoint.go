@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	KindHostEndpoint = "HostEndpoint"
+	KindHostEndpoint     = "HostEndpoint"
 	KindHostEndpointList = "HostEndpointList"
 )
 
@@ -62,9 +62,8 @@ type HostEndpointSpec struct {
 type HostEndpointList struct {
 	metav1.TypeMeta `json:",inline"`
 	Metadata        metav1.ListMeta `json:"metadata"`
-	Items           []HostEndpoint       `json:"items"`
+	Items           []HostEndpoint  `json:"items"`
 }
-
 
 // NewHostEndpoint creates a new (zeroed) HostEndpoint struct with the TypeMetadata initialised to the current
 // version.
@@ -72,7 +71,7 @@ func NewHostEndpoint() *HostEndpoint {
 	return &HostEndpoint{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindHostEndpoint,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }
@@ -82,7 +81,7 @@ func NewHostEndpoint() *HostEndpoint {
 func NewHostEndpointList() *HostEndpointList {
 	return &HostEndpointList{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       KindHostEndpointList,
+			Kind: KindHostEndpointList,
 		},
 	}
 }

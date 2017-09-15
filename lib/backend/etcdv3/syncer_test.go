@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package etcd_test
+package etcdv3_test
 
+/*
 import (
 	"sort"
 	"time"
 
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
-	. "github.com/projectcalico/libcalico-go/lib/backend/etcd"
+	. "github.com/projectcalico/libcalico-go/lib/backend/etcdv3"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
 
@@ -30,12 +31,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = testutils.E2eDatastoreDescribe("Etcdv2 syncer tests", testutils.DatastoreEtcdV2, func(config apiconfig.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("Etcdv3 syncer tests", testutils.DatastoreEtcdV3, func(config apiconfig.CalicoAPIConfig) {
 	// Cleaning Etcd
 	testutils.CleanDatastore(config)
 
 	// Init Etcd
-	etcdClient, _ := NewEtcdClient(&config.Spec.EtcdConfig)
+	etcdClient, _ := NewEtcdV3Client(config)
 	etcdClient.EnsureInitialized()
 
 	It("creates a stream of updates", func() {
@@ -137,7 +138,8 @@ func (u Updates) Swap(i, j int) {
 	u[i], u[j] = u[j], u[i]
 }
 func (u Updates) Less(i, j int) bool {
-	ui, _ := strconv.ParseUint(u[i].KVPair.Revision, 10, 64)
-	uj, _ := strconv.ParseUint(u[j].KVPair.Revision, 10, 64)
-	return ui < uj
+	ri, _ := strconv.ParseInt(u[i].KVPair.Revision, 10, 64)
+	rj, _ := strconv.ParseInt(u[j].KVPair.Revision, 10, 64)
+	return ri < rj
 }
+*/

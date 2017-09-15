@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	KindBGPPeer = "BGPPeer"
+	KindBGPPeer     = "BGPPeer"
 	KindBGPPeerList = "BGPPeerList"
 )
 
@@ -55,14 +55,13 @@ type BGPPeerList struct {
 	Items           []BGPPeer       `json:"items"`
 }
 
-
 // NewBGPPeer creates a new (zeroed) BGPPeer struct with the TypeMetadata initialised to the current
 // version.
 func NewBGPPeer() *BGPPeer {
 	return &BGPPeer{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindBGPPeer,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }
@@ -73,7 +72,7 @@ func NewBGPPeerList() *BGPPeerList {
 	return &BGPPeerList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindBGPPeerList,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }

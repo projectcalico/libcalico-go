@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2017 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,11 @@ package ipam
 
 import (
 	goerrors "errors"
+	"fmt"
 	"hash/fnv"
 	"math/big"
 	"math/rand"
 	"net"
-	"reflect"
-	"fmt"
 
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
@@ -143,8 +142,10 @@ func isPoolInRequestedPools(pool cnet.IPNet, requestedPools []cnet.IPNet) bool {
 	if len(requestedPools) == 0 {
 		return true
 	}
+	// Compare the requested pools against the actual pool CIDR.  Note that we don't use deep equals
+	// because golang interchangeably seems to use 4-byte and 16-byte representations of IPv4 addresses.
 	for _, cidr := range requestedPools {
-		if reflect.DeepEqual(pool, cidr) {
+		if pool.String() == cidr.String() {
 			return true
 		}
 	}
@@ -182,7 +183,7 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet cnet.IPNet, host string, c
 	if err != nil {
 		if _, ok := err.(errors.ErrorResourceAlreadyExists); ok {
 			// Block already exists, check affinity.
-			log.Warningf("Problem claiming block affinity:", err)
+			log.WithError(err).Warningf("Problem claiming block affinity")
 			obj, err := rw.client.Get(model.BlockKey{subnet}, "")
 			if err != nil {
 				log.Errorf("Error reading block:", err)

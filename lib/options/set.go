@@ -9,4 +9,3 @@ type SetOptions struct {
 	// +optional
 	TTL time.Duration
 }
-

@@ -8,4 +8,3 @@ type DeleteOptions struct {
 	// +optional
 	ResourceVersion string
 }
-

@@ -17,12 +17,15 @@ package clientv2
 import (
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/projectcalico/libcalico-go/lib/options"
-	"k8s.io/apimachinery/pkg/runtime"
+	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/projectcalico/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/options"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"github.com/projectcalico/libcalico-go/lib/apiv2"
 )
 
 type resource interface {
@@ -37,9 +40,9 @@ type resourceList interface {
 
 // untypedInterface has methods to work with BgpPeer resources.
 type untypedInterface interface {
-	Create(opts options.SetOptions, in resource)  (resource, error)
-	Update(opts options.SetOptions, in resource)  (resource, error)
-	Delete(opts options.DeleteOptions, kind, namespace, name string)  error
+	Create(opts options.SetOptions, in resource) (resource, error)
+	Update(opts options.SetOptions, in resource) (resource, error)
+	Delete(opts options.DeleteOptions, kind, namespace, name string) error
 	Get(opts options.GetOptions, kind, namespace, name string) (resource, error)
 	List(opts options.ListOptions, kind, namespace, name string, inout resourceList) error
 	Watch(opts options.ListOptions, kind, namespace, name string) (watch.Interface, error)
@@ -47,22 +50,22 @@ type untypedInterface interface {
 
 // untyped implements UntypedInterface
 type untyped struct {
-	client client
+	backend bapi.Client
 }
 
 // Create creates a resource in the backend datastore.
-func (c *untyped) Create(opts options.SetOptions, in resource) (resource, error) {
+func (c *untyped) Create(opts options.SetOptions, kind string, in resource) (resource, error) {
 	if len(in.GetObjectMeta().GetResourceVersion()) != 0 {
 		return nil, errors.ErrorValidation{
 			ErroredFields: []errors.ErroredField{{
-				Name: "Metadata.ResourceVersion",
+				Name:   "Metadata.ResourceVersion",
 				Reason: "ResourceVersion should not be set for a Create request",
-				Value: in.GetObjectMeta().GetResourceVersion(),
+				Value:  in.GetObjectMeta().GetResourceVersion(),
 			}},
 		}
 	}
-	kvp := c.resourceToKVPair(opts, in)
-	kvp, err := c.client.Backend.Create(kvp)
+	kvp := c.resourceToKVPair(opts, kind, in)
+	kvp, err := c.backend.Create(kvp)
 	if err != nil {
 		return nil, err
 	}
@@ -71,17 +74,17 @@ func (c *untyped) Create(opts options.SetOptions, in resource) (resource, error)
 }
 
 // Update updates a resource in the backend datastore.
-func (c *untyped) Update(opts options.SetOptions, in resource) (resource, error) {
+func (c *untyped) Update(opts options.SetOptions, kind string, in resource) (resource, error) {
 	if len(in.GetObjectMeta().GetResourceVersion()) == 0 {
 		return nil, errors.ErrorValidation{
 			ErroredFields: []errors.ErroredField{{
-				Name: "Metadata.ResourceVersion",
+				Name:   "Metadata.ResourceVersion",
 				Reason: "ResourceVersion must be set for an Update request",
-				Value: in.GetObjectMeta().GetResourceVersion(),
+				Value:  in.GetObjectMeta().GetResourceVersion(),
 			}},
 		}
 	}
-	kvp, err := c.client.Backend.Update(c.resourceToKVPair(opts, in))
+	kvp, err := c.backend.Update(c.resourceToKVPair(opts, kind, in))
 	if err != nil {
 		return nil, err
 	}
@@ -92,21 +95,21 @@ func (c *untyped) Update(opts options.SetOptions, in resource) (resource, error)
 // Delete deletes a resource from the backend datastore.
 func (c *untyped) Delete(opts options.DeleteOptions, kind, namespace, name string) error {
 	key := model.ResourceKey{
-		Kind: kind,
-		Name: name,
+		Kind:      kind,
+		Name:      name,
 		Namespace: namespace,
 	}
-	return c.client.Backend.Delete(key, opts.ResourceVersion)
+	return c.backend.Delete(key, opts.ResourceVersion)
 }
 
 // Get gets a resource from the backend datastore.
 func (c *untyped) Get(opts options.GetOptions, kind, namespace, name string) (resource, error) {
 	key := model.ResourceKey{
-			Kind: kind,
-			Name: name,
-			Namespace: namespace,
-		}
-	kvp, err := c.client.Backend.Get(key, opts.ResourceVersion)
+		Kind:      kind,
+		Name:      name,
+		Namespace: namespace,
+	}
+	kvp, err := c.backend.Get(key, opts.ResourceVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -115,15 +118,15 @@ func (c *untyped) Get(opts options.GetOptions, kind, namespace, name string) (re
 }
 
 // List lists a resource from the backend datastore.
-func (c *untyped) List(opts options.ListOptions, kind, namespace, name string, listObj resourceList) error {
+func (c *untyped) List(opts options.ListOptions, kind, listKind, namespace, name string, listObj resourceList) error {
 	key := model.ResourceListOptions{
-		Kind: kind,
-		Name: name,
+		Kind:      kind,
+		Name:      name,
 		Namespace: namespace,
 	}
 
 	// Query the backend.
-	kvps, err := c.client.Backend.List(key, opts.ResourceVersion)
+	kvps, err := c.backend.List(key, opts.ResourceVersion)
 	if err != nil {
 		return err
 	}
@@ -138,8 +141,13 @@ func (c *untyped) List(opts options.ListOptions, kind, namespace, name string, l
 		return err
 	}
 
-	// Finally, set the resource version of the list object.
+	// Finally, set the resource version and api group version of the list object.
 	listObj.GetListMeta().SetResourceVersion(kvps.Revision)
+	listObj.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
+		Group: apiv2.Group,
+		Version: apiv2.VersionCurrent,
+		Kind: listKind,
+	})
 
 	return nil
 }
@@ -150,19 +158,26 @@ func (c *untyped) Watch(opts options.ListOptions, kind, namespace, name string) 
 	return nil, nil
 }
 
-func (c *untyped) resourceToKVPair(opts options.SetOptions, in resource) *model.KVPair {
+func (c *untyped) resourceToKVPair(opts options.SetOptions, kind string, in resource) *model.KVPair {
 	// Prepare the resource to remove non-persisted fields.
 	in.GetObjectMeta().SetResourceVersion("")
 	in.GetObjectMeta().SetSelfLink("")
 
+	// Make sure the kind and version are set before storing.
+	in.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
+		Group: apiv2.Group,
+		Version: apiv2.VersionCurrent,
+		Kind: kind,
+	})
+
 	// Create a KVPair using the "generic" resource Key, and the actual object as
 	// the value.
 	return &model.KVPair{
-		TTL: opts.TTL,
+		TTL:   opts.TTL,
 		Value: in,
 		Key: model.ResourceKey{
-			Kind: in.GetObjectKind().GroupVersionKind().Kind,
-			Name: in.GetObjectMeta().GetName(),
+			Kind:      kind,
+			Name:      in.GetObjectMeta().GetName(),
 			Namespace: in.GetObjectMeta().GetNamespace(),
 		},
 		Revision: in.GetObjectMeta().GetResourceVersion(),
@@ -181,4 +196,3 @@ func (c *untyped) kvPairToResource(kvp *model.KVPair) resource {
 
 	return out
 }
-

@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2017 Tigera, Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/net"
 	log "github.com/sirupsen/logrus"
@@ -37,7 +37,7 @@ const (
 // Consumers of the Calico API should not create this directly, but should
 // access IPAM through the main client IPAM accessor.
 func NewIPAM(client bapi.Client, pools PoolAccessorInterface) *ipams {
-	return &ipams{client: client, pools: pools, 
+	return &ipams{client: client, pools: pools,
 		blockReaderWriter: blockReaderWriter{client: client, pools: pools}}
 }
 

@@ -34,6 +34,7 @@ type NetworkPolicyInterface interface {
 // networkpolicies implements NetworkPolicyInterface
 type networkpolicies struct {
 	client client
+	namespace string
 }
 
 // Create takes the representation of a NetworkPolicy and creates it.  Returns the stored

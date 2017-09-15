@@ -14,7 +14,7 @@
 
 package ipam
 
-import 	"github.com/projectcalico/libcalico-go/lib/net"
+import "github.com/projectcalico/libcalico-go/lib/net"
 
 // ipam.Interface has methods to perform IP address management.
 type Interface interface {

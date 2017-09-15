@@ -96,7 +96,7 @@ type KVPair struct {
 
 // KVPairList hosts a slice of KVPair structs and a Revision, returned from a Ls
 type KVPairList struct {
-	KVPairs []*KVPair
+	KVPairs  []*KVPair
 	Revision string
 }
 

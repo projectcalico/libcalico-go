@@ -18,14 +18,14 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/projectcalico/libcalico-go/lib/options"
-	"github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
-	"github.com/projectcalico/libcalico-go/lib/ipam"
 	"github.com/projectcalico/libcalico-go/lib/backend"
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/ipam"
+	"github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 )
@@ -37,6 +37,9 @@ type client struct {
 	// measure and users of the client API should not assume that the backend
 	// will be available in the future.
 	Backend bapi.Client
+
+	// The untyped client used internally
+	untyped untyped
 }
 
 // New returns a connected client. The ClientConfig can either be created explicitly,
@@ -47,6 +50,7 @@ func New(config apiconfig.CalicoAPIConfig) (Interface, error) {
 	if cc.Backend, err = backend.NewClient(config); err != nil {
 		return nil, err
 	}
+	cc.untyped = untyped{backend: cc.Backend}
 	return cc, err
 }
 
@@ -67,8 +71,8 @@ func (c client) Nodes() NodeInterface {
 }
 
 // Policies returns an interface for managing policy resources.
-func (c client) NetworkPolicies() NetworkPolicyInterface {
-	return networkpolicies{client: c}
+func (c client) NetworkPolicies(namespace string) NetworkPolicyInterface {
+	return networkpolicies{client: c, namespace: namespace}
 }
 
 // Policies returns an interface for managing policy resources.
@@ -92,8 +96,8 @@ func (c client) HostEndpoints() HostEndpointInterface {
 }
 
 // WorkloadEndpoints returns an interface for managing workload endpoint resources.
-func (c client) WorkloadEndpoints() WorkloadEndpointInterface {
-	return workloadEndpoints{client: c}
+func (c client) WorkloadEndpoints(namespace string) WorkloadEndpointInterface {
+	return workloadEndpoints{client: c, namespace: namespace}
 }
 
 // BGPPeers returns an interface for managing BGP peer resources.

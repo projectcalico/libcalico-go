@@ -24,7 +24,7 @@ var _ = Describe("Test Node conversion", func() {
 				ResourceVersion: "1234",
 				Annotations: map[string]string{
 					nodeBgpIpv4CidrAnnotation: "172.17.17.10/24",
-					nodeBgpAsnAnnotation:    "2546",
+					nodeBgpAsnAnnotation:      "2546",
 				},
 			},
 			Status: k8sapi.NodeStatus{
@@ -90,7 +90,7 @@ var _ = Describe("Test Node conversion", func() {
 				ResourceVersion: "1234",
 				Annotations: map[string]string{
 					nodeBgpIpv4CidrAnnotation: "172.17.17.10/24",
-					nodeBgpAsnAnnotation:    "2546",
+					nodeBgpAsnAnnotation:      "2546",
 				},
 			},
 			Spec: k8sapi.NodeSpec{},
@@ -111,7 +111,7 @@ var _ = Describe("Test Node conversion", func() {
 				Name:            "TestNode",
 				Labels:          l,
 				ResourceVersion: "1234",
-				Annotations: make(map[string]string),
+				Annotations:     make(map[string]string),
 			},
 			Spec: k8sapi.NodeSpec{},
 		}
@@ -120,8 +120,8 @@ var _ = Describe("Test Node conversion", func() {
 		asn, _ := numorstring.ASNumberFromString("2456")
 
 		calicoNode := &model.Node{
-			BGPIPv4Net: cidr,
-			FelixIPv4: ip,
+			BGPIPv4Net:  cidr,
+			FelixIPv4:   ip,
 			BGPIPv4Addr: ip,
 			BGPASNumber: &asn,
 		}
@@ -132,4 +132,3 @@ var _ = Describe("Test Node conversion", func() {
 		Expect(newK8sNode.Annotations).To(HaveKeyWithValue(nodeBgpAsnAnnotation, "2456"))
 	})
 })
-

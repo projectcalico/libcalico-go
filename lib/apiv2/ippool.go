@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	KindIPPool = "IPPool"
+	KindIPPool     = "IPPool"
 	KindIPPoolList = "IPPoolList"
 )
 
@@ -57,6 +57,7 @@ type IPIPConfiguration struct {
 }
 
 type Mode string
+
 const (
 	Off         Mode = "Off"
 	Always           = "Always"
@@ -68,7 +69,7 @@ const DefaultMode = Always
 type IPPoolList struct {
 	metav1.TypeMeta `json:",inline"`
 	Metadata        metav1.ListMeta `json:"metadata"`
-	Items           []IPPool       `json:"items"`
+	Items           []IPPool        `json:"items"`
 }
 
 // NewIPPool creates a new (zeroed) IPPool struct with the TypeMetadata initialised to the current
@@ -77,7 +78,7 @@ func NewIPPool() *IPPool {
 	return &IPPool{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindIPPool,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }
@@ -88,7 +89,7 @@ func NewIPPoolList() *IPPoolList {
 	return &IPPoolList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindIPPoolList,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }

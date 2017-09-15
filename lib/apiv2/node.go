@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	KindNode = "Node"
+	KindNode     = "Node"
 	KindNodeList = "NodeList"
 )
 
@@ -59,7 +59,7 @@ type NodeBGPSpec struct {
 type NodeList struct {
 	metav1.TypeMeta `json:",inline"`
 	Metadata        metav1.ListMeta `json:"metadata"`
-	Items           []Node       `json:"items"`
+	Items           []Node          `json:"items"`
 }
 
 // NewNode creates a new (zeroed) Node struct with the TypeMetadata initialised to the current
@@ -68,7 +68,7 @@ func NewNode() *Node {
 	return &Node{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindNode,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }
@@ -79,7 +79,7 @@ func NewNodeList() *NodeList {
 	return &NodeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindNodeList,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }

@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	KindProfile = "Profile"
+	KindProfile     = "Profile"
 	KindProfileList = "ProfileList"
 )
 
@@ -60,7 +60,7 @@ func NewProfile() *Profile {
 	return &Profile{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindProfile,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }
@@ -71,7 +71,7 @@ func NewProfileList() *ProfileList {
 	return &ProfileList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindProfileList,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }

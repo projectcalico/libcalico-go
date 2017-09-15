@@ -28,7 +28,7 @@ const (
 	DatastoreEtcdV3
 	DatastoreK8s
 
-	DatastoreAll = DatastoreEtcdV2 | DatastoreEtcdV3 | DatastoreK8s
+	DatastoreAll = DatastoreEtcdV3
 )
 
 // E2eDatastoreDescribe is a replacement for ginkgo.Describe which invokes Describe
@@ -46,6 +46,20 @@ func E2eDatastoreDescribe(description string, datastores DatastoreType, body fun
 				body(apiconfig.CalicoAPIConfig{
 					Spec: apiconfig.CalicoAPIConfigSpec{
 						DatastoreType: apiconfig.EtcdV2,
+						EtcdConfig: apiconfig.EtcdConfig{
+							EtcdEndpoints: "http://127.0.0.1:2379",
+						},
+					},
+				})
+			})
+	}
+
+	if datastores&DatastoreEtcdV3 != 0 {
+		Describe(fmt.Sprintf("%s (etcdv3 backend)", description),
+			func() {
+				body(apiconfig.CalicoAPIConfig{
+					Spec: apiconfig.CalicoAPIConfigSpec{
+						DatastoreType: apiconfig.EtcdV3,
 						EtcdConfig: apiconfig.EtcdConfig{
 							EtcdEndpoints: "http://127.0.0.1:2379",
 						},

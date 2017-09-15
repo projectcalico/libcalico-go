@@ -73,8 +73,9 @@ type Client interface {
 	// information filled-in.  Revision information is ignored on an Apply.
 	Apply(object *model.KVPair) (*model.KVPair, error)
 
-	// Delete removes the object specified by the Key.  If a revision is
-	// supplied the delete will only succeed if the revision is still current.
+	// Delete removes the object specified by the KVPair.  If the KVPair
+	// contains revision information, the delete only succeeds if the
+	// revision is still current.
 	//
 	// Some keys are hierarchical, and Delete is a recursive operation.
 	//
@@ -103,8 +104,7 @@ type Client interface {
 	// any ready to be used.
 	EnsureInitialized() error
 
-	// Clean removes all Calico data from the backend datastore.  This is implemented
-	// for the purposes of the test framework.
+	// Clean removes Calico data from the backend datastore.  Used for test purposes.
 	Clean() error
 
 	// Close the client.

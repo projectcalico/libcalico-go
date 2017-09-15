@@ -27,15 +27,15 @@ import (
 )
 
 var (
-	matchGlobalResource = regexp.MustCompile("^/calico/resources/v2/([^/]+)/([^/]+)$")
-	matchNamespacedResource   = regexp.MustCompile("^/calico/resources/v2/([^/]+)/([^/]+)/([^/]+)$")
-	kindToType  = map[string]reflect.Type{
-		strings.ToLower(apiv2.KindBGPPeer): reflect.TypeOf(apiv2.BGPPeer{}),
-		strings.ToLower(apiv2.KindIPPool): reflect.TypeOf(apiv2.IPPool{}),
-		strings.ToLower(apiv2.KindNode): reflect.TypeOf(apiv2.Node{}),
-		strings.ToLower(apiv2.KindHostEndpoint): reflect.TypeOf(apiv2.HostEndpoint{}),
-		strings.ToLower(apiv2.KindNetworkPolicy): reflect.TypeOf(apiv2.NetworkPolicy{}),
-		strings.ToLower(apiv2.KindNetworkPolicy): reflect.TypeOf(apiv2.NetworkPolicy{}),
+	matchGlobalResource     = regexp.MustCompile("^/calico/resources/v2/([^/]+)/([^/]+)$")
+	matchNamespacedResource = regexp.MustCompile("^/calico/resources/v2/([^/]+)/([^/]+)/([^/]+)$")
+	kindToType              = map[string]reflect.Type{
+		strings.ToLower(apiv2.KindBGPPeer):          reflect.TypeOf(apiv2.BGPPeer{}),
+		strings.ToLower(apiv2.KindIPPool):           reflect.TypeOf(apiv2.IPPool{}),
+		strings.ToLower(apiv2.KindNode):             reflect.TypeOf(apiv2.Node{}),
+		strings.ToLower(apiv2.KindHostEndpoint):     reflect.TypeOf(apiv2.HostEndpoint{}),
+		strings.ToLower(apiv2.KindNetworkPolicy):    reflect.TypeOf(apiv2.NetworkPolicy{}),
+		strings.ToLower(apiv2.KindNetworkPolicy):    reflect.TypeOf(apiv2.NetworkPolicy{}),
 		strings.ToLower(apiv2.KindWorkloadEndpoint): reflect.TypeOf(apiv2.WorkloadEndpoint{}),
 	}
 )
@@ -55,9 +55,9 @@ func (key ResourceKey) defaultPath() (string, error) {
 
 func (key ResourceKey) defaultDeletePath() (string, error) {
 	if namespace.IsNamespaced(key.Kind) {
-		return fmt.Sprintf("/calico/resources/v2/%s/%s/%s", key.Kind, key.Namespace, key.Name), nil
+		return fmt.Sprintf("/calico/resources/v2/%s/%s/%s", strings.ToLower(key.Kind), key.Namespace, key.Name), nil
 	} else {
-		return fmt.Sprintf("/calico/resources/v2/%s/%s", key.Kind, key.Name), nil
+		return fmt.Sprintf("/calico/resources/v2/%s/%s", strings.ToLower(key.Kind), key.Name), nil
 	}
 }
 

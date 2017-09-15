@@ -20,9 +20,9 @@ import (
 )
 
 const (
-	KindNetworkPolicy = "NetworkPolicy"
-	KindNetworkPolicyList = "NetworkPolicyList"
-	KindGlobalNetworkPolicy = "GlobalNetworkPolicy"
+	KindNetworkPolicy           = "NetworkPolicy"
+	KindNetworkPolicyList       = "NetworkPolicyList"
+	KindGlobalNetworkPolicy     = "GlobalNetworkPolicy"
 	KindGlobalNetworkPolicyList = "GlobalNetworkPolicyList"
 )
 
@@ -138,8 +138,8 @@ const (
 // GlobalNetworkPolicyList contains a list of GlobalNetworkPolicy resources.
 type GlobalNetworkPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ListMeta `json:"metadata"`
-	Items           []GlobalNetworkPolicy       `json:"items"`
+	Metadata        metav1.ListMeta       `json:"metadata"`
+	Items           []GlobalNetworkPolicy `json:"items"`
 }
 
 // NewGlobalNetworkPolicy creates a new (zeroed) GlobalNetworkPolicy struct with the TypeMetadata initialised to the current
@@ -148,7 +148,7 @@ func NewGlobalNetworkPolicy() *GlobalNetworkPolicy {
 	return &GlobalNetworkPolicy{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindGlobalNetworkPolicy,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }
@@ -159,7 +159,7 @@ func NewGlobalNetworkPolicyList() *GlobalNetworkPolicyList {
 	return &GlobalNetworkPolicyList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindGlobalNetworkPolicyList,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }
@@ -168,7 +168,7 @@ func NewGlobalNetworkPolicyList() *GlobalNetworkPolicyList {
 type NetworkPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	Metadata        metav1.ListMeta `json:"metadata"`
-	Items           []NetworkPolicy       `json:"items"`
+	Items           []NetworkPolicy `json:"items"`
 }
 
 // NewNetworkPolicy creates a new (zeroed) NetworkPolicy struct with the TypeMetadata initialised to the current
@@ -177,7 +177,7 @@ func NewNetworkPolicy() *NetworkPolicy {
 	return &NetworkPolicy{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindNetworkPolicy,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }
@@ -188,7 +188,7 @@ func NewNetworkPolicyList() *NetworkPolicyList {
 	return &NetworkPolicyList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindNetworkPolicyList,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }

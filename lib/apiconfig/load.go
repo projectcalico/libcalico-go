@@ -1,13 +1,13 @@
 package apiconfig
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
-	"errors"
 
+	"github.com/kelseyhightower/envconfig"
 	yaml "github.com/projectcalico/go-yaml-wrapper"
 	"github.com/projectcalico/libcalico-go/lib/apiv2"
-	"github.com/kelseyhightower/envconfig"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -51,7 +51,7 @@ func LoadClientConfigFromBytes(b []byte) (*CalicoAPIConfig, error) {
 	}
 
 	// Validate the version and kind.
-	if c.APIVersion != apiv2.VersionCurrent {
+	if c.APIVersion != apiv2.GroupVersionCurrent {
 		return nil, errors.New("invalid config file: unknown APIVersion '" + c.APIVersion + "'")
 	}
 	if c.Kind != "calicoApiConfig" {

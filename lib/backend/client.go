@@ -20,10 +20,7 @@ import (
 
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
-	//"github.com/projectcalico/libcalico-go/lib/backend/compat"
-	//"github.com/projectcalico/libcalico-go/lib/backend/etcd"
 	"github.com/projectcalico/libcalico-go/lib/backend/etcdv3"
-	//"github.com/projectcalico/libcalico-go/lib/backend/k8s"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -43,8 +40,8 @@ func NewClient(config apiconfig.CalicoAPIConfig) (c api.Client, err error) {
 	//		// uses the composite Profile and Node KV types.
 	//		c = compat.NewAdaptor(c)
 	//	}
-	//case apiconfig.EtcdV3:
-	//	c, err = etcdv3.NewEtcdV3Client(&config.Spec.EtcdConfig)
+	case apiconfig.EtcdV3:
+		c, err = etcdv3.NewEtcdV3Client(&config.Spec.EtcdConfig)
 	//case apiconfig.Kubernetes:
 	//	c, err = k8s.NewKubeClient(&config.Spec.KubeConfig)
 	default:

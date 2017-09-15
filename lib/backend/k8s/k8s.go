@@ -159,15 +159,8 @@ func (c *KubeClient) EnsureInitialized() error {
 	return nil
 }
 
-func (c *KubeClient) EnsureCalicoNodeInitialized(node string) error {
-	log.WithField("Node", node).Info("Ensuring node is initialized")
-	return nil
-}
-
 func (c *KubeClient) Clean() error {
-	log.Info("Cleaing KDD datastore")
-
-	types := []model.ListInterface{
+	/*types := []model.ListInterface{
 		model.GlobalBGPConfigListOptions{},
 		model.NodeBGPConfigListOptions{},
 		model.GlobalBGPPeerListOptions{},
@@ -176,15 +169,13 @@ func (c *KubeClient) Clean() error {
 		model.IPPoolListOptions{},
 	}
 	for _, t := range types {
-		rs, _ := c.List(t)
-		for _, r := range rs {
+		rs, _ := c.List(t, "")
+		for _, r := range rs.KVPairs {
 			log.WithField("Key", r.Key).Info("Deleting from KDD")
-			if err := c.Delete(r); err != nil {
-				return err
-			}
+			backend.Delete(r.Key, r.Revision)
 		}
 	}
-
+	*/
 	return nil
 }
 

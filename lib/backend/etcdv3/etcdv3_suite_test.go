@@ -1,5 +1,5 @@
 // Copyright (c) 2017 Tigera, Inc. All rights reserved.
-
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,12 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package ipam
 
-import "github.com/projectcalico/libcalico-go/lib/net"
+package etcdv3_test
 
-// Interface used to access the enabled IPPools.
-type PoolAccessorInterface interface {
-	// Returns a list of enabled pools sorted in alphanumeric name order.
-	GetEnabledPools(ipVersion int) ([]net.IPNet, error)
+import (
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+
+	"testing"
+)
+
+func TestEtcd(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "EtcdV3 Suite")
 }

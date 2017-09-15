@@ -23,9 +23,9 @@ import (
 
 // BGPPeerInterface has methods to work with BGPPeer resources.
 type BGPPeerInterface interface {
-	Create(peer *apiv2.BGPPeer, opts options.SetOptions) (*apiv2.BGPPeer, error)
-	Update(peer *apiv2.BGPPeer, opts options.SetOptions) (*apiv2.BGPPeer, error)
-	Delete(name string, revision string) error
+	Create(res *apiv2.BGPPeer, opts options.SetOptions) (*apiv2.BGPPeer, error)
+	Update(res *apiv2.BGPPeer, opts options.SetOptions) (*apiv2.BGPPeer, error)
+	Delete(name string, opts options.DeleteOptions) error
 	Get(name string, opts options.GetOptions) (*apiv2.BGPPeer, error)
 	List(opts options.ListOptions) (*apiv2.BGPPeerList, error)
 	Watch(opts options.ListOptions) (watch.Interface, error)
@@ -38,35 +38,47 @@ type bgpPeers struct {
 
 // Create takes the representation of a BGPPeer and creates it.  Returns the stored
 // representation of the BGPPeer, and an error, if there is any.
-func (r bgpPeers) Create(peer *apiv2.BGPPeer, opts options.SetOptions) (*apiv2.BGPPeer, error) {
-	panic("Create not implemented for BGPPeerInterface")
-	return nil, nil
+func (r bgpPeers) Create(res *apiv2.BGPPeer, opts options.SetOptions) (*apiv2.BGPPeer, error) {
+	out, err := r.client.untyped.Create(opts, apiv2.KindBGPPeer, res)
+	if out != nil {
+		return out.(*apiv2.BGPPeer), err
+	}
+	return nil, err
 }
 
 // Update takes the representation of a BGPPeer and updates it. Returns the stored
 // representation of the BGPPeer, and an error, if there is any.
-func (r bgpPeers) Update(peer *apiv2.BGPPeer, opts options.SetOptions) (*apiv2.BGPPeer, error) {
-	panic("Update not implemented for BGPPeerInterface")
-	return nil, nil
+func (r bgpPeers) Update(res *apiv2.BGPPeer, opts options.SetOptions) (*apiv2.BGPPeer, error) {
+	out, err := r.client.untyped.Update(opts, apiv2.KindBGPPeer, res)
+	if out != nil {
+		return out.(*apiv2.BGPPeer), err
+	}
+	return nil, err
 }
 
 // Delete takes name of the BGPPeer and deletes it. Returns an error if one occurs.
-func (r bgpPeers) Delete(name string, revision string) error {
-	panic("Delete not implemented for BGPPeerInterface")
-	return nil
+func (r bgpPeers) Delete(name string, opts options.DeleteOptions) error {
+	err := r.client.untyped.Delete(opts, apiv2.KindBGPPeer, "", name)
+	return err
 }
 
 // Get takes name of the BGPPeer, and returns the corresponding BGPPeer object,
 // and an error if there is any.
 func (r bgpPeers) Get(name string, opts options.GetOptions) (*apiv2.BGPPeer, error) {
-	panic("Get not implemented for BGPPeerInterface")
-	return nil, nil
+	out, err := r.client.untyped.Get(opts, apiv2.KindBGPPeer, "", name)
+	if out != nil {
+		return out.(*apiv2.BGPPeer), err
+	}
+	return nil, err
 }
 
 // List returns the list of BGPPeer objects that match the supplied options.
 func (r bgpPeers) List(opts options.ListOptions) (*apiv2.BGPPeerList, error) {
-	panic("List not implemented for BGPPeerInterface")
-	return nil, nil
+	res := &apiv2.BGPPeerList{}
+	if err := r.client.untyped.List(opts, apiv2.KindBGPPeer, apiv2.KindBGPPeerList, "", "", res); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // Watch returns a watch.Interface that watches the BGPPeers that match the

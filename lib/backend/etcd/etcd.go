@@ -16,8 +16,8 @@ package etcd
 
 import (
 	goerrors "errors"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 
 	etcd "github.com/coreos/etcd/client"

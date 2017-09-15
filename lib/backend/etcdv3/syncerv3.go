@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Tigera, Inc. All rights reserved.
+// Copyright (c) 2017 Tigera, Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package etcd
+package etcdv3
 
 import (
+	"math/rand"
+	"net"
+	"strconv"
 	"time"
 
-	"math/rand"
-
-	"net"
-
 	"github.com/coreos/etcd/client"
-	etcd "github.com/coreos/etcd/client"
+	etcdv3 "github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/hwm"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-	"strconv"
 )
+
+//TODO:  Not convinced this high watermark tracker is required for etcdv3 since it's not
+// a directory based datastore.
 
 // defaultEtcdClusterID is default value that an etcd cluster uses if it
 // hasn't been bootstrapped with an explicit value.  We warn if we detect that
@@ -47,30 +49,14 @@ const (
 	actionDeletion
 )
 
-var (
-	snapshotGetOpts = client.GetOptions{
-		Recursive: true,
-	}
-	etcdActionToSyncerAction = map[string]actionType{
-		"set":            actionSetOrUpdate,
-		"compareAndSwap": actionSetOrUpdate,
-		"update":         actionSetOrUpdate,
-		"create":         actionSetOrUpdate,
-
-		"delete":           actionDeletion,
-		"compareAndDelete": actionDeletion,
-		"expire":           actionDeletion,
-	}
-)
-
-func newSyncer(keysAPI etcd.KeysAPI, callbacks api.SyncerCallbacks) *etcdSyncer {
-	return &etcdSyncer{
-		keysAPI:   keysAPI,
-		callbacks: callbacks,
+func newSyncerV3(etcdClient *etcdv3.Client, callbacks api.SyncerCallbacks) *etcdSyncerV3 {
+	return &etcdSyncerV3{
+		etcdClient: etcdClient,
+		callbacks:  callbacks,
 	}
 }
 
-// etcdSyncer loads snapshots from etcd and merges them with events from a
+// etcdSyncerV3 loads snapshots from etcd and merges them with events from a
 // watch on our directory in etcd. It sends an "eventually consistent" stream of
 // events to its callback.
 //
@@ -119,14 +105,14 @@ func newSyncer(keysAPI etcd.KeysAPI, callbacks api.SyncerCallbacks) *etcdSyncer 
 // kills the process if it changes.  This ensures that we recover if etcd is
 // blown away and rebuilt.  It's such a rare corner case that corrective action
 // isn't worth it (and would be likely to be buggy due to lack of exercise).
-type etcdSyncer struct {
-	callbacks api.SyncerCallbacks
-	keysAPI   etcd.KeysAPI
-	OneShot   bool
+type etcdSyncerV3 struct {
+	callbacks  api.SyncerCallbacks
+	etcdClient *etcdv3.Client
+	OneShot    bool
 }
 
 // Start starts the syncer's background threads.
-func (syn *etcdSyncer) Start() {
+func (syn *etcdSyncerV3) Start() {
 	// Start a background thread to read events from etcd.  It will
 	// queue events onto the etcdEvents channel.  If it drops out of sync,
 	// it will signal on the resyncIndex channel.
@@ -164,14 +150,14 @@ func (syn *etcdSyncer) Start() {
 // includes the required etcd index for the snapshot; in case of a read from a
 // stale replica, the snapshot thread retries until it reads a snapshot that is
 // new enough.
-func (syn *etcdSyncer) readSnapshotsFromEtcd(
+func (syn *etcdSyncerV3) readSnapshotsFromEtcd(
 	snapshotUpdateC chan<- interface{},
 	snapshotRequestC <-chan snapshotRequest,
 ) {
 	log.Info("Syncer snapshot-reading thread started")
 
-	var highestCompletedSnapshotIndex uint64
-	var minRequiredSnapshotIndex uint64
+	var highestCompletedSnapshotIndex int64
+	var minRequiredSnapshotIndex int64
 
 	for {
 		// Wait to be told to get the snapshot
@@ -187,7 +173,7 @@ func (syn *etcdSyncer) readSnapshotsFromEtcd(
 				"requiredIdx": minRequiredSnapshotIndex,
 				"currentIdx":  highestCompletedSnapshotIndex,
 			}).Info("Newest snapshot is too stale, loading a new one")
-			resp, err := syn.keysAPI.Get(context.Background(), "/calico/v1", &snapshotGetOpts)
+			resp, err := syn.etcdClient.Get(context.Background(), "/calico/v1", etcdv3.WithPrefix())
 			if err != nil {
 				if syn.OneShot {
 					// One-shot mode is used to grab a snapshot and then
@@ -198,7 +184,9 @@ func (syn *etcdSyncer) readSnapshotsFromEtcd(
 				time.Sleep(1 * time.Second)
 				continue
 			}
-			if resp.Index < minRequiredSnapshotIndex {
+
+			index := int64(resp.Header.Revision)
+			if index < minRequiredSnapshotIndex {
 				log.Info("Retrieved stale snapshot, rereading...")
 				time.Sleep(100 * time.Millisecond)
 				continue
@@ -207,10 +195,10 @@ func (syn *etcdSyncer) readSnapshotsFromEtcd(
 			// If we get here, we should have a good snapshot.
 			// Send it to the merge thread.
 			snapshotUpdateC <- snapshotStarting{
-				snapshotIndex: resp.Index,
+				snapshotIndex: index,
 			}
-			sendSnapshotNode(resp.Node, snapshotUpdateC, resp)
-			highestCompletedSnapshotIndex = resp.Index
+			sendSnapshotResp(resp, snapshotUpdateC)
+			highestCompletedSnapshotIndex = index
 		}
 		// Defensive: just in case we somehow got called without needing
 		// to execute the loop, send the snapshotFinished from outside
@@ -222,44 +210,40 @@ func (syn *etcdSyncer) readSnapshotsFromEtcd(
 	}
 }
 
-// sendSnapshotNode sends the node and its children over the channel as events.
-func sendSnapshotNode(node *client.Node, snapshotUpdates chan<- interface{}, resp *client.Response) {
-	if !node.Dir {
+// sendSnapshotResp sends the node and its children over the channel as events.
+func sendSnapshotResp(resp *etcdv3.GetResponse, snapshotUpdates chan<- interface{}) {
+	for _, kv := range resp.Kvs {
 		snapshotUpdates <- snapshotUpdate{
-			snapshotIndex: resp.Index,
+			snapshotIndex: int64(resp.Header.Revision),
 			kv: kvPair{
-				key:           node.Key,
-				value:         node.Value,
-				modifiedIndex: node.ModifiedIndex,
+				key:           string(kv.Key),
+				value:         string(kv.Value),
+				modifiedIndex: int64(kv.ModRevision),
 			},
-		}
-	} else {
-		for _, child := range node.Nodes {
-			sendSnapshotNode(child, snapshotUpdates, resp)
 		}
 	}
 }
 
 // watchEtcd is a goroutine that polls etcd for new events.  As described in the
-// comment for the etcdSyncer, the watcher goroutine is free-running; it always
+// comment for the etcdSyncerV3, the watcher goroutine is free-running; it always
 // tries to keep up with etcd but it emits events when it drops out of sync
 // so that the merge goroutine can trigger a new resync via snapshot.
-func (syn *etcdSyncer) watchEtcd(watcherUpdateC chan<- interface{}) {
+func (syn *etcdSyncerV3) watchEtcd(watcherUpdateC chan<- interface{}) {
 	log.Info("etcd watch thread started.")
-	var timeOfLastError time.Time
 	// Each trip around the outer loop establishes the current etcd index
 	// of the cluster, triggers a new snapshot read from that index (via
 	// message to the merge goroutine) and starts watching from that index.
 	for {
 		// Do a non-recursive get on the Ready flag to find out the
 		// current etcd index.  We'll trigger a snapshot/start polling from that.
-		resp, err := syn.keysAPI.Get(context.Background(), "/calico/v1/Ready", &client.GetOptions{})
-		if err != nil {
+		resp, err := syn.etcdClient.Get(context.Background(), "/calico/v1/Ready")
+		if err != nil || resp.Count == 0 {
 			log.WithError(err).Warn("Failed to get Ready key from etcd")
 			time.Sleep(1 * time.Second)
 			continue
 		}
-		initialClusterIndex := resp.Index
+
+		initialClusterIndex := int64(resp.Header.Revision)
 		log.WithField("index", initialClusterIndex).Info("Polled etcd for initial watch index.")
 
 		// We were previously out-of-sync, request a new snapshot at
@@ -269,67 +253,38 @@ func (syn *etcdSyncer) watchEtcd(watcherUpdateC chan<- interface{}) {
 			minSnapshotIndex: initialClusterIndex,
 		}
 
-		// Create the watcher.
-		watcherOpts := client.WatcherOptions{
-			AfterIndex: initialClusterIndex,
-			Recursive:  true,
-		}
-		watcher := syn.keysAPI.Watcher("/calico/v1", &watcherOpts)
 	watchLoop: // We'll stay in this poll loop unless we drop out of sync.
-		for {
-			// Wait for the next event from the watcher.
-			resp, err := watcher.Next(context.Background())
-			if err != nil {
-				// Prevent a tight loop if etcd is repeatedly failing.
-				if time.Since(timeOfLastError) < 1*time.Second {
-					log.Warning("May be tight looping, throttling retries.")
-					time.Sleep(1 * time.Second)
-				}
-				timeOfLastError = time.Now()
-
-				if !retryableWatcherError(err) {
-					// Break out of the loop to trigger a new resync.
-					log.WithError(err).Warning("Lost sync with etcd, restarting watcher.")
-					break watchLoop
-				}
-				// Retryable error, just retry the read.
-				log.WithError(err).Debug("Retryable error from etcd")
-				continue watchLoop
+		watcher := syn.etcdClient.Watch(context.Background(), "/calico/v1", etcdv3.WithPrefix(), etcdv3.WithRev(int64(initialClusterIndex)))
+		for wresp := range watcher {
+			if err := wresp.Err(); err != nil {
+				log.WithError(err).Warn("Unexpected error type from etcd")
+				goto watchLoop
 			}
 
-			// Successful read, interpret the event.
-			actionType := etcdActionToSyncerAction[resp.Action]
-			if actionType == actionTypeUnknown {
-				log.WithField("actionType", resp.Action).Panic("Unknown action type")
-			}
-
-			node := resp.Node
-			if node.Dir && actionType == actionSetOrUpdate {
-				// Creation of a directory, we don't care.
-				log.WithField("dir", node.Key).Debug("Ignoring directory creation")
-				continue
-			}
-
-			if actionType == actionSetOrUpdate {
-				watcherUpdateC <- watcherUpdate{kv: kvPair{
-					modifiedIndex: node.ModifiedIndex,
-					key:           resp.Node.Key,
-					value:         node.Value,
-				}}
-			} else {
-				watcherUpdateC <- watcherDeletion{
-					modifiedIndex: node.ModifiedIndex,
-					key:           resp.Node.Key,
+			for _, ev := range wresp.Events {
+				switch ev.Type {
+				case mvccpb.PUT:
+					watcherUpdateC <- watcherUpdate{kv: kvPair{
+						modifiedIndex: int64(ev.Kv.ModRevision),
+						key:           string(ev.Kv.Key),
+						value:         string(ev.Kv.Value),
+					}}
+				case mvccpb.DELETE:
+					watcherUpdateC <- watcherDeletion{
+						modifiedIndex: int64(ev.Kv.ModRevision),
+						key:           string(ev.Kv.Key),
+					}
+				default:
+					log.WithField("actionType", ev.Type).Panic("Unknown action type")
 				}
 			}
-
 		}
 	}
 }
 
 // retryableWatcherError returns true if the given etcd error is worth
 // retrying in the context of a watch.
-func retryableWatcherError(err error) bool {
+func retryableWatcherV3Error(err error) bool {
 	// Unpack any nested errors.
 	var errs []error
 	if clusterErr, ok := err.(*client.ClusterError); ok {
@@ -363,40 +318,40 @@ func retryableWatcherError(err error) bool {
 
 // pollClusterID polls etcd for its current cluster ID.  If the cluster ID changes
 // it terminates the process.
-func (syn *etcdSyncer) pollClusterID(interval time.Duration) {
+func (syn *etcdSyncerV3) pollClusterID(interval time.Duration) {
 	log.Info("Cluster ID poll thread started")
-	lastSeenClusterID := ""
-	opts := client.GetOptions{}
+	lastSeenClusterID := uint64(0)
 	for {
-		resp, err := syn.keysAPI.Get(context.Background(), "/calico/", &opts)
+		resp, err := syn.etcdClient.Get(context.Background(), "/calico/v1/Ready")
 		if err != nil {
 			log.WithError(err).Warn("Failed to poll etcd server cluster ID")
-		} else {
-			log.WithField("clusterID", resp.ClusterID).Debug(
-				"Polled etcd for cluster ID.")
-			if lastSeenClusterID == "" {
-				log.WithField("clusterID", resp.ClusterID).Info("etcd cluster ID now known")
-				lastSeenClusterID = resp.ClusterID
-				if resp.ClusterID == defaultEtcdClusterID {
-					log.Error("etcd server is using the default cluster ID; " +
-						"will not be able to spot if etcd is replaced with " +
-						"another cluster using the default cluster ID. " +
-						"Pass a unique --initial-cluster-token when creating " +
-						"your etcd cluster to set the cluster ID.")
-				}
-			} else if resp.ClusterID != "" && lastSeenClusterID != resp.ClusterID {
-				// The Syncer doesn't currently support this (hopefully rare)
-				// scenario.  Terminate the process rather than carry on with
-				// possibly out-of-sync etcd index.
-				log.WithFields(log.Fields{
-					"oldID": lastSeenClusterID,
-					"newID": resp.ClusterID,
-				}).Fatal("etcd cluster ID changed; must exit.")
-			}
+			syn.sleepBeforeContinue(interval)
+			continue
 		}
-		// Jitter by 10% of interval.
-		time.Sleep(time.Duration(float64(interval) * (1 + (0.1 * rand.Float64()))))
+
+		clusterID := resp.Header.ClusterId
+		log.WithField("clusterID", clusterID).Debug("Polled etcd for cluster ID.")
+
+		if lastSeenClusterID == 0 {
+			log.WithField("clusterID", clusterID).Info("etcd cluster ID now known")
+			lastSeenClusterID = resp.Header.ClusterId
+		} else if lastSeenClusterID != clusterID {
+			// The Syncer doesn't currently support this (hopefully rare)
+			// scenario.  Terminate the process rather than carry on with
+			// possibly out-of-sync etcd index.
+			log.WithFields(log.Fields{
+				"oldID": lastSeenClusterID,
+				"newID": clusterID,
+			}).Fatal("etcd cluster ID changed; must exit.")
+		}
+
+		syn.sleepBeforeContinue(interval)
 	}
+}
+
+//sleepBeforeContinue Jitter by 10% of interval.
+func (syn *etcdSyncerV3) sleepBeforeContinue(interval time.Duration) {
+	time.Sleep(time.Duration(float64(interval) * (1 + (0.1 * rand.Float64()))))
 }
 
 // mergeUpdates is a goroutine that processes updates from the snapshot and wathcer threads,
@@ -413,13 +368,13 @@ func (syn *etcdSyncer) pollClusterID(interval time.Duration) {
 // reading thread.  Thread safety is ensured by tracking whether a snapshot is in progress
 // and waiting until it finishes (and hence the snapshot thread is no longer sending)
 // before sending it a request for a new snapshot.
-func (syn *etcdSyncer) mergeUpdates(
+func (syn *etcdSyncerV3) mergeUpdates(
 	snapshotUpdateC <-chan interface{},
 	watcherUpdateC <-chan interface{},
 	snapshotRequestC chan<- snapshotRequest,
 ) {
-	var minRequiredSnapshotIndex uint64
-	var highestCompletedSnapshotIndex uint64
+	var minRequiredSnapshotIndex int64
+	var highestCompletedSnapshotIndex int64
 	snapshotInProgress := false
 	hwms := hwm.NewHighWatermarkTracker()
 
@@ -442,8 +397,8 @@ func (syn *etcdSyncer) mergeUpdates(
 				"indexToStore": updatedLastSeenIndex,
 				"kv":           kv,
 			}).Debug("Snapshot/watcher update")
-			oldIdx := hwms.StoreUpdate(kv.key, updatedLastSeenIndex)
-			if oldIdx < kv.modifiedIndex {
+			oldIdx := hwms.StoreUpdate(kv.key, uint64(updatedLastSeenIndex))
+			if int64(oldIdx) < kv.modifiedIndex {
 				// Event is newer than value for that key.
 				// Send the update.
 				var updateType api.UpdateType
@@ -457,7 +412,7 @@ func (syn *etcdSyncer) mergeUpdates(
 				syn.sendUpdate(kv.key, kv.value, kv.modifiedIndex, updateType)
 			}
 		case watcherDeletion:
-			deletedKeys := hwms.StoreDeletion(event.key, event.modifiedIndex)
+			deletedKeys := hwms.StoreDeletion(event.key, uint64(event.modifiedIndex))
 			log.WithFields(log.Fields{
 				"prefix":  event.key,
 				"numKeys": len(deletedKeys),
@@ -483,7 +438,7 @@ func (syn *etcdSyncer) mergeUpdates(
 			logCxt.Info("Finished receiving snapshot, cleaning up old keys.")
 			snapshotInProgress = false
 			hwms.StopTrackingDeletions()
-			deletedKeys := hwms.DeleteOldKeys(event.snapshotIndex)
+			deletedKeys := hwms.DeleteOldKeys(uint64(event.snapshotIndex))
 			logCxt.WithField("numDeletedKeys", len(deletedKeys)).Info(
 				"Deleted old keys that weren't seen in snapshot.")
 			syn.sendDeletions(deletedKeys, event.snapshotIndex)
@@ -521,7 +476,7 @@ func (syn *etcdSyncer) mergeUpdates(
 }
 
 // sendUpdate parses and sends an update to the callback API.
-func (syn *etcdSyncer) sendUpdate(key string, value string, revision uint64, updateType api.UpdateType) {
+func (syn *etcdSyncerV3) sendUpdate(key string, value string, revision int64, updateType api.UpdateType) {
 	log.Debugf("Parsing etcd key %#v", key)
 	parsedKey := model.KeyFromDefaultPath(key)
 	if parsedKey == nil {
@@ -547,7 +502,7 @@ func (syn *etcdSyncer) sendUpdate(key string, value string, revision uint64, upd
 			KVPair: model.KVPair{
 				Key:      parsedKey,
 				Value:    parsedValue,
-				Revision: strconv.FormatUint(revision, 10),
+				Revision: strconv.FormatInt(revision, 10),
 			},
 			UpdateType: updateType,
 		},
@@ -556,7 +511,7 @@ func (syn *etcdSyncer) sendUpdate(key string, value string, revision uint64, upd
 }
 
 // sendDeletions sends a series of deletions on the callback API.
-func (syn *etcdSyncer) sendDeletions(deletedKeys []string, revision uint64) {
+func (syn *etcdSyncerV3) sendDeletions(deletedKeys []string, revision int64) {
 	updates := make([]api.Update, 0, len(deletedKeys))
 	for _, key := range deletedKeys {
 		parsedKey := model.KeyFromDefaultPath(key)
@@ -571,7 +526,7 @@ func (syn *etcdSyncer) sendDeletions(deletedKeys []string, revision uint64) {
 			KVPair: model.KVPair{
 				Key:      parsedKey,
 				Value:    nil,
-				Revision: strconv.FormatUint(revision, 10),
+				Revision: strconv.FormatInt(revision, 10),
 			},
 			UpdateType: api.UpdateTypeKVDeleted,
 		})
@@ -582,17 +537,17 @@ func (syn *etcdSyncer) sendDeletions(deletedKeys []string, revision uint64) {
 // snapshotStarting is the event sent by the snapshot thread to the merge thread when it
 // begins processing a snapshot.
 type snapshotStarting struct {
-	snapshotIndex uint64
+	snapshotIndex int64
 }
 
 // snapshotFinished is the event sent by the snapshot thread to the merge thread when it
 // finishes processing a snapshot.
 type snapshotFinished struct {
-	snapshotIndex uint64
+	snapshotIndex int64
 }
 
 type kvPair struct {
-	modifiedIndex uint64
+	modifiedIndex int64
 	key           string
 	value         string
 }
@@ -601,10 +556,10 @@ type kvPair struct {
 // snapshot.
 type snapshotUpdate struct {
 	kv            kvPair
-	snapshotIndex uint64
+	snapshotIndex int64
 }
 
-func (u snapshotUpdate) lastSeenIndex() uint64 {
+func (u snapshotUpdate) lastSeenIndex() int64 {
 	return u.snapshotIndex
 }
 
@@ -617,7 +572,7 @@ type watcherUpdate struct {
 	kv kvPair
 }
 
-func (u watcherUpdate) lastSeenIndex() uint64 {
+func (u watcherUpdate) lastSeenIndex() int64 {
 	return u.kv.modifiedIndex
 }
 
@@ -626,7 +581,7 @@ func (u watcherUpdate) kvPair() kvPair {
 }
 
 type update interface {
-	lastSeenIndex() uint64
+	lastSeenIndex() int64
 	kvPair() kvPair
 }
 
@@ -635,7 +590,7 @@ var _ update = (*snapshotUpdate)(nil)
 
 // watcherDeletion is sent by the watcher thread to the merge thread when a key is removed.
 type watcherDeletion struct {
-	modifiedIndex uint64
+	modifiedIndex int64
 	key           string
 }
 
@@ -644,11 +599,11 @@ type watcherDeletion struct {
 // snapshot thread is quiesced, I.e. after it receives teh snapshotFinished message from
 // the previous snapshot.
 type snapshotRequest struct {
-	minRequiredSnapshotIndex uint64
+	minRequiredSnapshotIndex int64
 }
 
 // watcherNeedsSnapshot is sent by the watcher thread to the merge thread when it drops
 // out of sync and it needs a new snapshot.
 type watcherNeedsSnapshot struct {
-	minSnapshotIndex uint64
+	minSnapshotIndex int64
 }

@@ -34,6 +34,7 @@ type WorkloadEndpointInterface interface {
 // workloadEndpoints implements WorkloadEndpointInterface
 type workloadEndpoints struct {
 	client client
+	namespace string
 }
 
 // Create takes the representation of a WorkloadEndpoint and creates it.  Returns the stored

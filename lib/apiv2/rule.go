@@ -114,9 +114,10 @@ type EntityRule struct {
 }
 
 type Action string
+
 const (
-	Allow       Mode = "allow"
-	Deny             = "deny"
-	Log              = "log"
-	Pass             = "pass"
+	Allow Mode = "allow"
+	Deny       = "deny"
+	Log        = "log"
+	Pass       = "pass"
 )

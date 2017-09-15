@@ -15,16 +15,12 @@
 package apiv2
 
 import (
-	"github.com/projectcalico/libcalico-go/lib/net"
-)
-
-import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
-	KindWorkloadEndpoint = "WorkloadEndpoint"
+	KindWorkloadEndpoint     = "WorkloadEndpoint"
 	KindWorkloadEndpointList = "WorkloadEndpointList"
 )
 
@@ -86,8 +82,8 @@ type IPNAT struct {
 // WorkloadEndpointList contains a list of WorkloadEndpoint resources.
 type WorkloadEndpointList struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ListMeta `json:"metadata"`
-	Items           []WorkloadEndpoint       `json:"items"`
+	Metadata        metav1.ListMeta    `json:"metadata"`
+	Items           []WorkloadEndpoint `json:"items"`
 }
 
 // NewWorkloadEndpoint creates a new (zeroed) WorkloadEndpoint struct with the TypeMetadata initialised to the current
@@ -96,7 +92,7 @@ func NewWorkloadEndpoint() *WorkloadEndpoint {
 	return &WorkloadEndpoint{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindWorkloadEndpoint,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }
@@ -107,7 +103,7 @@ func NewWorkloadEndpointList() *WorkloadEndpointList {
 	return &WorkloadEndpointList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindWorkloadEndpointList,
-			APIVersion: VersionCurrent,
+			APIVersion: GroupVersionCurrent,
 		},
 	}
 }
