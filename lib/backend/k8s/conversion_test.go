@@ -170,7 +170,7 @@ var _ = Describe("Test Pod conversion", func() {
 		))
 
 		// Assert ResourceVersion is present.
-		Expect(wep.Revision.(string)).To(Equal("1234"))
+		Expect(wep.Revision).To(Equal("1234"))
 	})
 
 	It("should not parse a Pod without an IP to a WorkloadEndpoint", func() {
@@ -685,7 +685,7 @@ var _ = Describe("Test Namespace conversion", func() {
 			Spec: k8sapi.NamespaceSpec{},
 		}
 
-		p, err := c.NamespaceToProfile(&ns)
+		p, err := c.namespaceToProfile(&ns)
 		Expect(err).NotTo(HaveOccurred())
 
 		// Ensure rules are correct for profile.
@@ -713,7 +713,7 @@ var _ = Describe("Test Namespace conversion", func() {
 			Spec: k8sapi.NamespaceSpec{},
 		}
 
-		p, err := c.NamespaceToProfile(&ns)
+		p, err := c.namespaceToProfile(&ns)
 		Expect(err).NotTo(HaveOccurred())
 
 		// Ensure rules are correct.
@@ -743,7 +743,7 @@ var _ = Describe("Test Namespace conversion", func() {
 		}
 
 		// Ensure it generates the correct Profile.
-		p, err := c.NamespaceToProfile(&ns)
+		p, err := c.namespaceToProfile(&ns)
 		Expect(err).NotTo(HaveOccurred())
 		// Ensure rules are correct for profile.
 		inboundRules := p.Value.(*model.Profile).Rules.InboundRules
@@ -769,7 +769,7 @@ var _ = Describe("Test Namespace conversion", func() {
 		}
 
 		By("converting to a Profile", func() {
-			_, err := c.NamespaceToProfile(&ns)
+			_, err := c.namespaceToProfile(&ns)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -786,7 +786,7 @@ var _ = Describe("Test Namespace conversion", func() {
 		}
 
 		By("converting to a Profile", func() {
-			p, err := c.NamespaceToProfile(&ns)
+			p, err := c.namespaceToProfile(&ns)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Ensure rules are correct.
