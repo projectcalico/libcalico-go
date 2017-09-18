@@ -16,7 +16,7 @@ package apiv2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	//"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
@@ -31,7 +31,7 @@ const (
 type BGPPeer struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object's metadata.
-	Metadata metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of the BGPPeer.
 	Spec BGPPeerSpec `json:"spec,omitempty"`
 }
@@ -51,8 +51,8 @@ type BGPPeerSpec struct {
 // BGPPeerList contains a list of BGPPeer resources.
 type BGPPeerList struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ListMeta `json:"metadata"`
-	Items           []BGPPeer       `json:"items"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []BGPPeer `json:"items"`
 }
 
 // NewBGPPeer creates a new (zeroed) BGPPeer struct with the TypeMetadata initialised to the current
@@ -78,6 +78,7 @@ func NewBGPPeerList() *BGPPeerList {
 }
 
 // GetObjectKind returns the kind of this object.  Required to satisfy Object interface
+/*
 func (e *BGPPeer) GetObjectKind() schema.ObjectKind {
 	return &e.TypeMeta
 }
@@ -96,3 +97,4 @@ func (el *BGPPeerList) GetObjectKind() schema.ObjectKind {
 func (el *BGPPeerList) GetListMeta() metav1.List {
 	return &el.Metadata
 }
+*/

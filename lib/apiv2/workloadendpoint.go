@@ -14,10 +14,7 @@
 
 package apiv2
 
-import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-)
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 const (
 	KindWorkloadEndpoint     = "WorkloadEndpoint"
@@ -29,7 +26,7 @@ const (
 type WorkloadEndpoint struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object's metadata.
-	Metadata metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of the WorkloadEndpoint.
 	Spec WorkloadEndpointSpec `json:"spec,omitempty"`
 }
@@ -82,7 +79,7 @@ type IPNAT struct {
 // WorkloadEndpointList contains a list of WorkloadEndpoint resources.
 type WorkloadEndpointList struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ListMeta    `json:"metadata"`
+	metav1.ListMeta `json:"metadata"`
 	Items           []WorkloadEndpoint `json:"items"`
 }
 
@@ -106,24 +103,4 @@ func NewWorkloadEndpointList() *WorkloadEndpointList {
 			APIVersion: GroupVersionCurrent,
 		},
 	}
-}
-
-// GetObjectKind returns the kind of this object.  Required to satisfy Object interface
-func (e *WorkloadEndpoint) GetObjectKind() schema.ObjectKind {
-	return &e.TypeMeta
-}
-
-// GetObjectMeta returns the object metadata of this object. Required to satisfy ObjectMetaAccessor interface
-func (e *WorkloadEndpoint) GetObjectMeta() metav1.Object {
-	return &e.Metadata
-}
-
-// GetObjectKind returns the kind of this object. Required to satisfy Object interface
-func (el *WorkloadEndpointList) GetObjectKind() schema.ObjectKind {
-	return &el.TypeMeta
-}
-
-// GetListMeta returns the list metadata of this object. Required to satisfy ListMetaAccessor interface
-func (el *WorkloadEndpointList) GetListMeta() metav1.List {
-	return &el.Metadata
 }

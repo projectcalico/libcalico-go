@@ -45,8 +45,8 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 
 			By("Updating the BGPPeer before it is created")
 			res, outError := c.BGPPeers().Update(&apiv2.BGPPeer{
-				Metadata: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234"},
-				Spec:     spec1,
+				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234"},
+				Spec:       spec1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(res).To(BeNil())
@@ -54,39 +54,39 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 
 			By("Attempting to creating a new BGPPeer with name1/spec1 and a non-empty ResourceVersion")
 			res, outError = c.BGPPeers().Create(&apiv2.BGPPeer{
-				Metadata: metav1.ObjectMeta{Name: name1, ResourceVersion: "12345"},
-				Spec:     spec1,
+				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "12345"},
+				Spec:       spec1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(res).To(BeNil())
 
 			By("Creating a new BGPPeer with name1/spec1")
 			res1, outError := c.BGPPeers().Create(&apiv2.BGPPeer{
-				Metadata: metav1.ObjectMeta{Name: name1},
-				Spec:     spec1,
+				ObjectMeta: metav1.ObjectMeta{Name: name1},
+				Spec:       spec1,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertBGPPeer(res1, name1, spec1)
 
 			// Track the version of the original data for name1.
-			rv1_1 := res1.Metadata.ResourceVersion
+			rv1_1 := res1.ObjectMeta.ResourceVersion
 
 			By("Attempting to create the same BGPPeer with name1 but with spec2")
 			res1, outError = c.BGPPeers().Create(&apiv2.BGPPeer{
-				Metadata: metav1.ObjectMeta{Name: name1},
-				Spec:     spec2,
+				ObjectMeta: metav1.ObjectMeta{Name: name1},
+				Spec:       spec2,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("resource already exists: BGPPeer(" + name1 + ")"))
 			// Check return value is actually the previously stored value.
 			assertBGPPeer(res1, name1, spec1)
-			Expect(res1.Metadata.ResourceVersion).To(Equal(rv1_1))
+			Expect(res1.ObjectMeta.ResourceVersion).To(Equal(rv1_1))
 
 			By("Getting BGPPeer (name1) and comparing the output against spec1")
 			res, outError = c.BGPPeers().Get(name1, options.GetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertBGPPeer(res, name1, spec1)
-			Expect(res.Metadata.ResourceVersion).To(Equal(res1.Metadata.ResourceVersion))
+			Expect(res.ObjectMeta.ResourceVersion).To(Equal(res1.ObjectMeta.ResourceVersion))
 
 			By("Getting BGPPeer (name2) before it is created")
 			res, outError = c.BGPPeers().Get(name2, options.GetOptions{})
@@ -100,8 +100,8 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 
 			By("Creating a new BGPPeer with name2/spec2")
 			res2, outError := c.BGPPeers().Create(&apiv2.BGPPeer{
-				Metadata: metav1.ObjectMeta{Name: name2},
-				Spec:     spec2,
+				ObjectMeta: metav1.ObjectMeta{Name: name2},
+				Spec:       spec2,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertBGPPeer(res2, name2, spec2)
@@ -110,7 +110,7 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 			res, outError = c.BGPPeers().Get(name2, options.GetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertBGPPeer(res, name2, spec2)
-			Expect(res.Metadata.ResourceVersion).To(Equal(res2.Metadata.ResourceVersion))
+			Expect(res.ObjectMeta.ResourceVersion).To(Equal(res2.ObjectMeta.ResourceVersion))
 
 			By("Listing all the BGPPeers, expecting a two results with name1/spec1 and name2/spec2")
 			outList, outError = c.BGPPeers().List(options.ListOptions{})
@@ -126,27 +126,27 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 			assertBGPPeer(res1, name1, spec2)
 
 			// Track the version of the updated name1 data.
-			rv1_2 := res1.Metadata.ResourceVersion
+			rv1_2 := res1.ObjectMeta.ResourceVersion
 
 			By("Updating BGPPeer name1 using the previous resource version")
 			res1.Spec = spec1
-			res1.Metadata.ResourceVersion = rv1_1
+			res1.ObjectMeta.ResourceVersion = rv1_1
 			res1, outError = c.BGPPeers().Update(res1, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("update conflict: BGPPeer(" + name1 + ")"))
-			Expect(res1.Metadata.ResourceVersion).To(Equal(rv1_2))
+			Expect(res1.ObjectMeta.ResourceVersion).To(Equal(rv1_2))
 
 			By("Getting BGPPeer (name1) with the original resource version and comparing the output against spec1")
 			res, outError = c.BGPPeers().Get(name1, options.GetOptions{ResourceVersion: rv1_1})
 			Expect(outError).NotTo(HaveOccurred())
 			assertBGPPeer(res, name1, spec1)
-			Expect(res.Metadata.ResourceVersion).To(Equal(rv1_1))
+			Expect(res.ObjectMeta.ResourceVersion).To(Equal(rv1_1))
 
 			By("Getting BGPPeer (name1) with the updated resource version and comparing the output against spec2")
 			res, outError = c.BGPPeers().Get(name1, options.GetOptions{ResourceVersion: rv1_2})
 			Expect(outError).NotTo(HaveOccurred())
 			assertBGPPeer(res, name1, spec2)
-			Expect(res.Metadata.ResourceVersion).To(Equal(rv1_2))
+			Expect(res.ObjectMeta.ResourceVersion).To(Equal(rv1_2))
 
 			By("Listing BGPPeers with the original resource version and checking for a single result with name1/spec1")
 			outList, outError = c.BGPPeers().List(options.ListOptions{ResourceVersion: rv1_1})
@@ -181,8 +181,8 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 
 			By("Creating BGPPeer name2 with a 2s TTL and waiting for the entry to be deleted")
 			_, outError = c.BGPPeers().Create(&apiv2.BGPPeer{
-				Metadata: metav1.ObjectMeta{Name: name2},
-				Spec:     spec2,
+				ObjectMeta: metav1.ObjectMeta{Name: name2},
+				Spec:       spec2,
 			}, options.SetOptions{TTL: 2 * time.Second})
 			Expect(outError).NotTo(HaveOccurred())
 			time.Sleep(1 * time.Second)
@@ -224,9 +224,9 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 })
 
 func assertBGPPeer(res *apiv2.BGPPeer, name string, spec apiv2.BGPPeerSpec) {
-	Expect(res.Metadata.Name).To(Equal(name))
+	Expect(res.ObjectMeta.Name).To(Equal(name))
 	Expect(res.Spec).To(Equal(spec))
-	Expect(res.Metadata.ResourceVersion).NotTo(BeEmpty())
+	Expect(res.ObjectMeta.ResourceVersion).NotTo(BeEmpty())
 	Expect(res.TypeMeta.Kind).To(Equal("BGPPeer"))
 	Expect(res.TypeMeta.APIVersion).To(Equal("projectcalico.org/v2"))
 }

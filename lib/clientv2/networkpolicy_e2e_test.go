@@ -75,8 +75,8 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 
 			By("Updating the NetworkPolicy before it is created")
 			res, outError := c.NetworkPolicies(namespace1).Update(&apiv2.NetworkPolicy{
-				Metadata: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234"},
-				Spec:     spec1,
+				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234"},
+				Spec:       spec1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(res).To(BeNil())
@@ -84,39 +84,39 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 
 			By("Attempting to creating a new NetworkPolicy with name1/spec1 and a non-empty ResourceVersion")
 			res, outError = c.NetworkPolicies(namespace1).Create(&apiv2.NetworkPolicy{
-				Metadata: metav1.ObjectMeta{Name: name1, ResourceVersion: "12345"},
-				Spec:     spec1,
+				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "12345"},
+				Spec:       spec1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(res).To(BeNil())
 
 			By("Creating a new NetworkPolicy with namespace1/name1/spec1")
 			res1, outError := c.NetworkPolicies(namespace1).Create(&apiv2.NetworkPolicy{
-				Metadata: metav1.ObjectMeta{Name: name1},
-				Spec:     spec1,
+				ObjectMeta: metav1.ObjectMeta{Name: name1},
+				Spec:       spec1,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertNetworkPolicy(res1, name1, spec1)
 
 			// Track the version of the original data for name1.
-			rv1_1 := res1.Metadata.ResourceVersion
+			rv1_1 := res1.ObjectMeta.ResourceVersion
 
 			By("Attempting to create the same NetworkPolicy with name1 but with spec2")
 			res1, outError = c.NetworkPolicies(namespace1).Create(&apiv2.NetworkPolicy{
-				Metadata: metav1.ObjectMeta{Name: name1},
-				Spec:     spec2,
+				ObjectMeta: metav1.ObjectMeta{Name: name1},
+				Spec:       spec2,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("resource already exists: NetworkPolicy(" + namespace1 + "/" + name1 + ")"))
 			// Check return value is actually the previously stored value.
 			assertNetworkPolicy(res1, name1, spec1)
-			Expect(res1.Metadata.ResourceVersion).To(Equal(rv1_1))
+			Expect(res1.ObjectMeta.ResourceVersion).To(Equal(rv1_1))
 
 			By("Getting NetworkPolicy (name1) and comparing the output against spec1")
 			res, outError = c.NetworkPolicies(namespace1).Get(name1, options.GetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertNetworkPolicy(res, name1, spec1)
-			Expect(res.Metadata.ResourceVersion).To(Equal(res1.Metadata.ResourceVersion))
+			Expect(res.ObjectMeta.ResourceVersion).To(Equal(res1.ObjectMeta.ResourceVersion))
 
 			By("Getting NetworkPolicy (name2) before it is created")
 			res, outError = c.NetworkPolicies(namespace2).Get(name2, options.GetOptions{})
@@ -130,8 +130,8 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 
 			By("Creating a new NetworkPolicy with name2/spec2")
 			res2, outError := c.NetworkPolicies(namespace2).Create(&apiv2.NetworkPolicy{
-				Metadata: metav1.ObjectMeta{Name: name2, Namespace: namespace2},
-				Spec:     spec2,
+				ObjectMeta: metav1.ObjectMeta{Name: name2, Namespace: namespace2},
+				Spec:       spec2,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertNetworkPolicy(res2, name2, spec2)
@@ -140,7 +140,7 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 			res, outError = c.NetworkPolicies(namespace2).Get(name2, options.GetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			assertNetworkPolicy(res, name2, spec2)
-			Expect(res.Metadata.ResourceVersion).To(Equal(res2.Metadata.ResourceVersion))
+			Expect(res.ObjectMeta.ResourceVersion).To(Equal(res2.ObjectMeta.ResourceVersion))
 
 			By("Listing all the NetworkPolicies using an empty namespace (all-namespaces), expecting a two results with name1/spec1 and name2/spec2")
 			outList, outError = c.NetworkPolicies("").List(options.ListOptions{})
@@ -162,27 +162,27 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 			assertNetworkPolicy(res1, name1, spec2)
 
 			// Track the version of the updated name1 data.
-			rv1_2 := res1.Metadata.ResourceVersion
+			rv1_2 := res1.ObjectMeta.ResourceVersion
 
 			By("Updating NetworkPolicy name1 using the previous resource version")
 			res1.Spec = spec1
-			res1.Metadata.ResourceVersion = rv1_1
+			res1.ObjectMeta.ResourceVersion = rv1_1
 			res1, outError = c.NetworkPolicies(namespace1).Update(res1, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("update conflict: NetworkPolicy(" + namespace1 + "/" + name1 + ")"))
-			Expect(res1.Metadata.ResourceVersion).To(Equal(rv1_2))
+			Expect(res1.ObjectMeta.ResourceVersion).To(Equal(rv1_2))
 
 			By("Getting NetworkPolicy (name1) with the original resource version and comparing the output against spec1")
 			res, outError = c.NetworkPolicies(namespace1).Get(name1, options.GetOptions{ResourceVersion: rv1_1})
 			Expect(outError).NotTo(HaveOccurred())
 			assertNetworkPolicy(res, name1, spec1)
-			Expect(res.Metadata.ResourceVersion).To(Equal(rv1_1))
+			Expect(res.ObjectMeta.ResourceVersion).To(Equal(rv1_1))
 
 			By("Getting NetworkPolicy (name1) with the updated resource version and comparing the output against spec2")
 			res, outError = c.NetworkPolicies(namespace1).Get(name1, options.GetOptions{ResourceVersion: rv1_2})
 			Expect(outError).NotTo(HaveOccurred())
 			assertNetworkPolicy(res, name1, spec2)
-			Expect(res.Metadata.ResourceVersion).To(Equal(rv1_2))
+			Expect(res.ObjectMeta.ResourceVersion).To(Equal(rv1_2))
 
 			By("Listing NetworkPolicies with the original resource version and checking for a single result with name1/spec1")
 			outList, outError = c.NetworkPolicies(namespace1).List(options.ListOptions{ResourceVersion: rv1_1})
@@ -217,8 +217,8 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 
 			By("Creating NetworkPolicy name2 with a 2s TTL and waiting for the entry to be deleted")
 			_, outError = c.NetworkPolicies(namespace2).Create(&apiv2.NetworkPolicy{
-				Metadata: metav1.ObjectMeta{Name: name2},
-				Spec:     spec2,
+				ObjectMeta: metav1.ObjectMeta{Name: name2},
+				Spec:       spec2,
 			}, options.SetOptions{TTL: 2 * time.Second})
 			Expect(outError).NotTo(HaveOccurred())
 			time.Sleep(1 * time.Second)
@@ -255,9 +255,9 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 })
 
 func assertNetworkPolicy(res *apiv2.NetworkPolicy, name string, spec apiv2.PolicySpec) {
-	Expect(res.Metadata.Name).To(Equal(name))
+	Expect(res.ObjectMeta.Name).To(Equal(name))
 	Expect(res.Spec).To(Equal(spec))
-	Expect(res.Metadata.ResourceVersion).NotTo(BeEmpty())
+	Expect(res.ObjectMeta.ResourceVersion).NotTo(BeEmpty())
 	Expect(res.TypeMeta.Kind).To(Equal("NetworkPolicy"))
 	Expect(res.TypeMeta.APIVersion).To(Equal("projectcalico.org/v2"))
 }

@@ -14,10 +14,7 @@
 
 package apiv2
 
-import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-)
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 const (
 	KindHostEndpoint     = "HostEndpoint"
@@ -30,7 +27,7 @@ const (
 type HostEndpoint struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object's metadata.
-	Metadata metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of the HostEndpoint.
 	Spec HostEndpointSpec `json:"spec,omitempty"`
 }
@@ -61,8 +58,8 @@ type HostEndpointSpec struct {
 // HostEndpointList contains a list of HostEndpoint resources.
 type HostEndpointList struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ListMeta `json:"metadata"`
-	Items           []HostEndpoint  `json:"items"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []HostEndpoint `json:"items"`
 }
 
 // NewHostEndpoint creates a new (zeroed) HostEndpoint struct with the TypeMetadata initialised to the current
@@ -84,24 +81,4 @@ func NewHostEndpointList() *HostEndpointList {
 			Kind: KindHostEndpointList,
 		},
 	}
-}
-
-// GetObjectKind returns the kind of this object.  Required to satisfy Object interface
-func (e *HostEndpoint) GetObjectKind() schema.ObjectKind {
-	return &e.TypeMeta
-}
-
-// GetObjectMeta returns the object metadata of this object. Required to satisfy ObjectMetaAccessor interface
-func (e *HostEndpoint) GetObjectMeta() metav1.Object {
-	return &e.Metadata
-}
-
-// GetObjectKind returns the kind of this object. Required to satisfy Object interface
-func (el *HostEndpointList) GetObjectKind() schema.ObjectKind {
-	return &el.TypeMeta
-}
-
-// GetListMeta returns the list metadata of this object. Required to satisfy ListMetaAccessor interface
-func (el *HostEndpointList) GetListMeta() metav1.List {
-	return &el.Metadata
 }

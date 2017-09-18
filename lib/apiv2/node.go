@@ -16,7 +16,6 @@ package apiv2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
@@ -30,19 +29,18 @@ const (
 type Node struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object's metadata.
-	Metadata metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of the Node.
 	Spec NodeSpec `json:"spec,omitempty"`
 }
 
 // NodeSpec contains the specification for a Node resource.
 type NodeSpec struct {
-	// BGP configuration for this node.  If this omitted, the Calico node
-	// will be run in policy-only mode.
+	// BGP configuration for this node.
 	BGP *NodeBGPSpec `json:"bgp,omitempty" validate:"omitempty"`
 }
 
-// NodeSpec contains the specification for the Node BGP configuration.
+// NodeBGPSpec contains the specification for the Node BGP configuration.
 type NodeBGPSpec struct {
 	// The AS Number of the node.  If this is not specified, the global
 	// default value will be used.
@@ -58,8 +56,8 @@ type NodeBGPSpec struct {
 // NodeList contains a list of Node resources.
 type NodeList struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ListMeta `json:"metadata"`
-	Items           []Node          `json:"items"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []Node `json:"items"`
 }
 
 // NewNode creates a new (zeroed) Node struct with the TypeMetadata initialised to the current
@@ -82,24 +80,4 @@ func NewNodeList() *NodeList {
 			APIVersion: GroupVersionCurrent,
 		},
 	}
-}
-
-// GetObjectKind returns the kind of this object.  Required to satisfy Object interface
-func (e *Node) GetObjectKind() schema.ObjectKind {
-	return &e.TypeMeta
-}
-
-// GetObjectMeta returns the object metadata of this object. Required to satisfy ObjectMetaAccessor interface
-func (e *Node) GetObjectMeta() metav1.Object {
-	return &e.Metadata
-}
-
-// GetObjectKind returns the kind of this object. Required to satisfy Object interface
-func (el *NodeList) GetObjectKind() schema.ObjectKind {
-	return &el.TypeMeta
-}
-
-// GetListMeta returns the list metadata of this object. Required to satisfy ListMetaAccessor interface
-func (el *NodeList) GetListMeta() metav1.List {
-	return &el.Metadata
 }

@@ -25,14 +25,14 @@ import (
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/errors"
-	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/namespace"
+	"github.com/projectcalico/libcalico-go/lib/options"
 )
 
 const (
-	AllNames = ""
+	AllNames      = ""
 	AllNamespaces = ""
-	NoNamespace = ""
+	NoNamespace   = ""
 )
 
 // All Calico resources implement the resource interface.
@@ -230,7 +230,7 @@ func (c *untyped) kvPairToResource(kvp *model.KVPair) resource {
 // handleNamespace fills in the namespace information in the resource (if required),
 // and validates the namespace depending on whether or not a namespace should be
 // provided based on the resource kind.
-func (c *untyped) handleNamespace(ns, kind string, in resource) error{
+func (c *untyped) handleNamespace(ns, kind string, in resource) error {
 	// If the namespace is not specified in the resource, assign it using the namespace supplied,
 	// otherwise validate that they match.
 	if in.GetObjectMeta().GetNamespace() == "" {
