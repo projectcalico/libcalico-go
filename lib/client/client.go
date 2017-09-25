@@ -21,6 +21,8 @@ import (
 	"io/ioutil"
 	"reflect"
 
+	"context"
+
 	"github.com/kelseyhightower/envconfig"
 	yaml "github.com/projectcalico/go-yaml-wrapper"
 	"github.com/projectcalico/libcalico-go/lib/api"
@@ -35,7 +37,6 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/validator"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
-	"context"
 )
 
 // Client contains
