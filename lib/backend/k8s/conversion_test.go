@@ -118,7 +118,7 @@ var _ = Describe("Test Pod conversion", func() {
 		Expect(wep.Value.(*model.WorkloadEndpoint).Labels).To(Equal(expectedLabels))
 
 		// Assert ResourceVersion is present.
-		Expect(wep.Revision.(string)).To(Equal("1234"))
+		Expect(wep.Revision).To(Equal("1234"))
 	})
 
 	It("should not parse a Pod without an IP to a WorkloadEndpoint", func() {
