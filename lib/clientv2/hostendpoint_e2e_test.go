@@ -185,13 +185,14 @@ var _ = testutils.E2eDatastoreDescribe("HostEndpoint tests", testutils.Datastore
 			testutils.ExpectResource(&outList.Items[1], apiv2.KindHostEndpoint, testutils.ExpectNoNamespace, name2, spec2)
 
 			By("Deleting HostEndpoint (name1) with the old resource version")
-			outError = c.HostEndpoints().Delete(ctx, name1, options.DeleteOptions{ResourceVersion: rv1_1})
+			_, outError = c.HostEndpoints().Delete(ctx, name1, options.DeleteOptions{ResourceVersion: rv1_1})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("update conflict: HostEndpoint(" + name1 + ")"))
 
 			By("Deleting HostEndpoint (name1) with the new resource version")
-			outError = c.HostEndpoints().Delete(ctx, name1, options.DeleteOptions{ResourceVersion: rv1_2})
+			dres, outError := c.HostEndpoints().Delete(ctx, name1, options.DeleteOptions{ResourceVersion: rv1_2})
 			Expect(outError).NotTo(HaveOccurred())
+			testutils.ExpectResource(dres, apiv2.KindHostEndpoint, testutils.ExpectNoNamespace, name1, spec2)
 
 			By("Updating HostEndpoint name2 with a 2s TTL and waiting for the entry to be deleted")
 			_, outError = c.HostEndpoints().Update(ctx, res2, options.SetOptions{TTL: 2 * time.Second})
@@ -219,7 +220,7 @@ var _ = testutils.E2eDatastoreDescribe("HostEndpoint tests", testutils.Datastore
 			Expect(outError.Error()).To(Equal("resource does not exist: HostEndpoint(" + name2 + ")"))
 
 			By("Attempting to deleting HostEndpoint (name2) again")
-			outError = c.HostEndpoints().Delete(ctx, name2, options.DeleteOptions{})
+			_, outError = c.HostEndpoints().Delete(ctx, name2, options.DeleteOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("resource does not exist: HostEndpoint(" + name2 + ")"))
 
@@ -281,7 +282,7 @@ var _ = testutils.E2eDatastoreDescribe("HostEndpoint tests", testutils.Datastore
 			defer testWatcher1.Stop()
 
 			By("Deleting res1")
-			err = c.HostEndpoints().Delete(ctx, name1, options.DeleteOptions{})
+			_, err = c.HostEndpoints().Delete(ctx, name1, options.DeleteOptions{})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Checking for two events, create res2 and delete re1")

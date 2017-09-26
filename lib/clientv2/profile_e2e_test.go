@@ -186,13 +186,14 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreAll, 
 			testutils.ExpectResource(&outList.Items[1], apiv2.KindProfile, testutils.ExpectNoNamespace, name2, spec2)
 
 			By("Deleting Profile (name1) with the old resource version")
-			outError = c.Profiles().Delete(context.Background(), name1, options.DeleteOptions{ResourceVersion: rv1_1})
+			_, outError = c.Profiles().Delete(context.Background(), name1, options.DeleteOptions{ResourceVersion: rv1_1})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("update conflict: Profile(" + name1 + ")"))
 
 			By("Deleting Profile (name1) with the new resource version")
-			outError = c.Profiles().Delete(context.Background(), name1, options.DeleteOptions{ResourceVersion: rv1_2})
+			dres, outError := c.Profiles().Delete(context.Background(), name1, options.DeleteOptions{ResourceVersion: rv1_2})
 			Expect(outError).NotTo(HaveOccurred())
+			testutils.ExpectResource(dres, apiv2.KindProfile, testutils.ExpectNoNamespace, name1, spec2)
 
 			By("Updating Profile name2 with a 2s TTL and waiting for the entry to be deleted")
 			_, outError = c.Profiles().Update(context.Background(), res2, options.SetOptions{TTL: 2 * time.Second})
@@ -220,7 +221,7 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreAll, 
 			Expect(outError.Error()).To(Equal("resource does not exist: Profile(" + name2 + ")"))
 
 			By("Attempting to deleting Profile (name2) again")
-			outError = c.Profiles().Delete(context.Background(), name2, options.DeleteOptions{})
+			_, outError = c.Profiles().Delete(context.Background(), name2, options.DeleteOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("resource does not exist: Profile(" + name2 + ")"))
 
@@ -282,7 +283,7 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreAll, 
 			defer testWatcher1.Stop()
 
 			By("Deleting res1")
-			err = c.Profiles().Delete(context.Background(), name1, options.DeleteOptions{})
+			_, err = c.Profiles().Delete(context.Background(), name1, options.DeleteOptions{})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Checking for two events, create res2 and delete re1")
