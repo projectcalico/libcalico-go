@@ -25,15 +25,15 @@ import:
 - package: golang.org/x/text
   version: b19bf474d317b857955b12035d2c5acb57ce8b01
 - package: k8s.io/client-go
-  version: db8228460e2de17f5d3a9a453f61dde0ba86545a
+  version: 82aa063804cf055e16e8911250f888bc216e8b61
   subpackages:
   - rest
   - tools/cache
   - tools/clientcmd
 - package: k8s.io/apimachinery
-  version: 31421d9f8c2d6073628a89b4654fe22aced33167
+  version: 3b05bbfa0a45413bfa184edbf9af617e277962fb
 - package: k8s.io/api
-  version: f30e293246921de7f4ee46bb65b8762b2f890fc4
+  version: 81aa34336d28aadc3a8e8da7dfd9258c5157e5e4
 - package: k8s.io/kube-openapi
   version: 80f07ef71bb4f781233c65aa8d0369e4ecafab87
 - package: github.com/prometheus/client_golang

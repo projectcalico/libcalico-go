@@ -1,5 +1,5 @@
-hash: f94dbaa1c73b859645a9cc4f1700d1f40975a4d5c932504626eeb468917df041
-updated: 2017-09-28T14:46:28.20576895-07:00
+hash: 400b88a34edc3f644e0c76c4325dbb5bea39bf491e10a681f507d353b5fa5c4b
+updated: 2017-09-29T10:12:29.85981218-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -74,6 +74,8 @@ imports:
   - ptypes/any
   - ptypes/duration
   - ptypes/timestamp
+- name: github.com/google/btree
+  version: 925471ac9e2131377a91e1595defec898166fe49
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/googleapis/gnostic
@@ -83,7 +85,7 @@ imports:
   - compiler
   - extensions
 - name: github.com/gophercloud/gophercloud
-  version: c0406a133c4a74a838baf0ddff3c2fab21155fba
+  version: 2bf16b94fdd9b01557c4d076e567fe5cbbe5a961
   subpackages:
   - openstack
   - openstack/identity/v2/tenants
@@ -91,6 +93,10 @@ imports:
   - openstack/identity/v3/tokens
   - openstack/utils
   - pagination
+- name: github.com/gregjones/httpcache
+  version: 787624de3eb7bd915c329cba748687a3b22666a6
+  subpackages:
+  - diskcache
 - name: github.com/hashicorp/golang-lru
   version: a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
   subpackages:
@@ -99,6 +105,8 @@ imports:
   version: bf9dde6d0d2c004a008c27aaee91170c786f6db8
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
+- name: github.com/json-iterator/go
+  version: 36b14963da70d11297d313183d7e6388c8510e1e
 - name: github.com/juju/ratelimit
   version: 5b9ff866471762aa2ab2dced63c9fb6f53921342
 - name: github.com/kelseyhightower/envconfig
@@ -134,6 +142,8 @@ imports:
   - reporters/stenographer/support/go-colorable
   - reporters/stenographer/support/go-isatty
   - types
+- name: github.com/peterbourgon/diskv
+  version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/projectcalico/go-json
   version: 6219dc7339ba20ee4c57df0a8baac62317d19cb1
   subpackages:
@@ -200,7 +210,7 @@ imports:
   - jws
   - jwt
 - name: golang.org/x/sys
-  version: 7a4fde3fda8ef580a89dbae8138c26041be14299
+  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
   subpackages:
   - unix
 - name: golang.org/x/text
@@ -251,7 +261,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
 - name: k8s.io/api
-  version: f30e293246921de7f4ee46bb65b8762b2f890fc4
+  version: 81aa34336d28aadc3a8e8da7dfd9258c5157e5e4
   subpackages:
   - admissionregistration/v1alpha1
   - apps/v1beta1
@@ -261,7 +271,7 @@ imports:
   - authorization/v1
   - authorization/v1beta1
   - autoscaling/v1
-  - autoscaling/v2alpha1
+  - autoscaling/v2beta1
   - batch/v1
   - batch/v1beta1
   - batch/v2alpha1
@@ -278,12 +288,13 @@ imports:
   - storage/v1
   - storage/v1beta1
 - name: k8s.io/apimachinery
-  version: 31421d9f8c2d6073628a89b4654fe22aced33167
+  version: 3b05bbfa0a45413bfa184edbf9af617e277962fb
   subpackages:
   - pkg/api/equality
   - pkg/api/errors
   - pkg/api/meta
   - pkg/api/resource
+  - pkg/apis/meta/internalversion
   - pkg/apis/meta/v1
   - pkg/apis/meta/v1/unstructured
   - pkg/apis/meta/v1alpha1
@@ -320,7 +331,7 @@ imports:
   - pkg/watch
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
-  version: db8228460e2de17f5d3a9a453f61dde0ba86545a
+  version: 82aa063804cf055e16e8911250f888bc216e8b61
   subpackages:
   - discovery
   - kubernetes
@@ -333,7 +344,7 @@ imports:
   - kubernetes/typed/authorization/v1
   - kubernetes/typed/authorization/v1beta1
   - kubernetes/typed/autoscaling/v1
-  - kubernetes/typed/autoscaling/v2alpha1
+  - kubernetes/typed/autoscaling/v2beta1
   - kubernetes/typed/batch/v1
   - kubernetes/typed/batch/v1beta1
   - kubernetes/typed/batch/v2alpha1
@@ -365,6 +376,7 @@ imports:
   - tools/clientcmd/api/latest
   - tools/clientcmd/api/v1
   - tools/metrics
+  - tools/pager
   - tools/reference
   - transport
   - util/cert
