@@ -153,6 +153,32 @@ var updateTypeStr = map[api.UpdateType]string{
 	api.UpdateTypeKVUpdated: "Updated",
 }
 
+func (c cb) GetSyncerUpdate(key string) *api.Update {
+	update := api.Update{}
+	ok := false
+	found := false
+	wait.PollImmediate(1*time.Second, 60*time.Second, func() (bool, error) {
+		// Get the update.
+		log.Infof("[TEST] Looking for syncer update for: %s", update.Key)
+		c.Lock.Lock()
+		update, ok = c.State[key]
+		c.Lock.Unlock()
+
+		if ok {
+			// We found it - stop polling.
+			log.Infof("[TEST] Found syncer update for: %s", update.Key)
+			found = true
+			return true, nil
+		}
+		return false, nil
+	})
+
+	if found {
+		return &update
+	}
+	return nil
+}
+
 func (c cb) ExpectExists(updates []api.Update) {
 	// For each Key, wait for it to exist.
 	for _, update := range updates {
@@ -464,6 +490,91 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		// Perform a Get and ensure no error in the Calico API.
 		_, err = c.Get(model.PolicyKey{Name: fmt.Sprintf("knp.default.default.%s", np.ObjectMeta.Name)})
 		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("should handle a default-deny egress policy", func() {
+		np := extensions.NetworkPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-syncer-default-deny-egress-policy",
+			},
+			Spec: extensions.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{},
+				PolicyTypes: []extensions.PolicyType{extensions.PolicyTypeEgress},
+			},
+		}
+		res := c.extensionsClientV1Beta1.
+			Post().
+			Resource("networkpolicies").
+			Namespace("default").
+			Body(&np).
+			Do()
+
+		// Make sure we clean up after ourselves.
+		defer func() {
+			res := c.extensionsClientV1Beta1.
+				Delete().
+				Resource("networkpolicies").
+				Namespace("default").
+				Name(np.ObjectMeta.Name).
+				Do()
+			Expect(res.Error()).NotTo(HaveOccurred())
+		}()
+
+		// Check to see if the create succeeded.
+		Expect(res.Error()).NotTo(HaveOccurred())
+
+		By("Getting the NetworkPolicy", func() {
+			newNP := extensions.NetworkPolicy{}
+			c.extensionsClientV1Beta1.Get().
+				Resource("networkpolicies").
+				Namespace("default").
+				Name(np.ObjectMeta.Name).Do().
+				Into(&newNP)
+			Expect(len(newNP.Spec.Egress)).To(Equal(0))
+		})
+
+		By("Listing the Calico API policy", func() {
+			// Perform a List and ensure it shows up in the Calico API.
+			_, err := c.List(model.PolicyListOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Perform a Get and ensure no error in the Calico API.
+			p, err := c.Get(model.PolicyKey{Name: fmt.Sprintf("knp.default.default.%s", np.ObjectMeta.Name)})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(p).NotTo(BeNil())
+			policy := p.Value.(*model.Policy)
+			Expect(len(policy.OutboundRules)).To(Equal(0))
+		})
+
+		By("checking for a syncer update", func() {
+			k := model.PolicyKey{Name: fmt.Sprintf("knp.default.default.%s", np.ObjectMeta.Name)}
+			upd := cb.GetSyncerUpdate(k.String())
+			Expect(upd).NotTo(BeNil())
+
+			// Expect the update to have no egress rules.
+			p := upd.Value.(*model.Policy)
+			Expect(len(p.OutboundRules)).To(Equal(0))
+			Expect(len(p.Types)).To(Equal(1))
+			Expect(p.Types[0]).To(Equal("egress"))
+		})
+
+		By("checking for the policy in a syncer snapshot", func() {
+			cfg := capi.KubeConfig{K8sAPIEndpoint: "http://localhost:8080"}
+			_, snapshotCallbacks, snapshotSyncer := CreateClientAndSyncer(cfg)
+			go snapshotCallbacks.ProcessUpdates()
+			snapshotSyncer.Start()
+
+			k := model.PolicyKey{Name: fmt.Sprintf("knp.default.default.%s", np.ObjectMeta.Name)}
+			upd := snapshotCallbacks.GetSyncerUpdate(k.String())
+			Expect(upd).NotTo(BeNil())
+
+			// Expect the update to have no egress rules.
+			p := upd.Value.(*model.Policy)
+			Expect(len(p.OutboundRules)).To(Equal(0))
+			Expect(len(p.Types)).To(Equal(1))
+			Expect(p.Types[0]).To(Equal("egress"))
+			Expect(fmt.Sprintf("%s", p)).To(Equal(""))
+		})
 	})
 
 	It("should handle a basic NetworkPolicy with egress rules", func() {

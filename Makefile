@@ -35,7 +35,7 @@ test-containerized: vendor run-etcd run-kubernetes-master
     -e LOCAL_USER_ID=$(LOCAL_USER_ID) \
     -v $(CURDIR)/.go-pkg-cache:/go/pkg/:rw \
     -v $(CURDIR):/go/src/github.com/$(PACKAGE_NAME):rw \
-    $(CALICO_BUILD) sh -c 'cd /go/src/github.com/$(PACKAGE_NAME) && make WHAT=$(WHAT) SKIP=$(SKIP) ut'
+    $(CALICO_BUILD) sh -c 'cd /go/src/github.com/$(PACKAGE_NAME) && make WHAT=$(WHAT) SKIP=$(SKIP) FOCUS=$(FOCUS) ut'
 
 ## Run etcd as a container (calico-etcd)
 run-etcd: stop-etcd
