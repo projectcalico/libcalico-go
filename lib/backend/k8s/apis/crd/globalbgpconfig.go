@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package custom
+package crd
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 type GlobalBGPConfig struct {
 	metav1.TypeMeta          `json:",inline"`
 	metav1.ObjectMeta        `json:"metadata"`
@@ -34,6 +36,7 @@ type GlobalBGPConfigSpec struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 type GlobalBGPConfigList struct {
 	metav1.TypeMeta         `json:",inline"`
 	metav1.ListMeta         `json:"metadata"`

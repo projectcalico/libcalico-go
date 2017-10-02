@@ -26,7 +26,7 @@ import (
 
 	capi "github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/apis/crd"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/errors"
@@ -233,14 +233,14 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 		func(scheme *runtime.Scheme) error {
 			scheme.AddKnownTypes(
 				*cfg.GroupVersion,
-				&custom.GlobalFelixConfig{},
-				&custom.GlobalFelixConfigList{},
-				&custom.IPPool{},
-				&custom.IPPoolList{},
-				&custom.BGPPeer{},
-				&custom.BGPPeerList{},
-				&custom.GlobalNetworkPolicy{},
-				&custom.GlobalNetworkPolicyList{},
+				&crd.GlobalFelixConfig{},
+				&crd.GlobalFelixConfigList{},
+				&crd.IPPool{},
+				&crd.IPPoolList{},
+				&crd.BGPPeer{},
+				&crd.BGPPeerList{},
+				&crd.GlobalNetworkPolicy{},
+				&crd.GlobalNetworkPolicyList{},
 			)
 			return nil
 		})

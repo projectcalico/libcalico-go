@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/apis/crd"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,8 +39,8 @@ func NewGlobalFelixConfigClient(c *kubernetes.Clientset, r *rest.RESTClient) K8s
 		name:            GlobalFelixConfigCRDName,
 		resource:        GlobalFelixConfigResourceName,
 		description:     "Calico Global Felix Configuration",
-		k8sResourceType: reflect.TypeOf(custom.GlobalFelixConfig{}),
-		k8sListType:     reflect.TypeOf(custom.GlobalFelixConfigList{}),
+		k8sResourceType: reflect.TypeOf(crd.GlobalFelixConfig{}),
+		k8sListType:     reflect.TypeOf(crd.GlobalFelixConfigList{}),
 		converter:       GlobalFelixConfigConverter{},
 	}
 }
@@ -66,7 +66,7 @@ func (_ GlobalFelixConfigConverter) NameToKey(name string) (model.Key, error) {
 }
 
 func (c GlobalFelixConfigConverter) ToKVPair(r CustomK8sResource) (*model.KVPair, error) {
-	t := r.(*custom.GlobalFelixConfig)
+	t := r.(*crd.GlobalFelixConfig)
 	return &model.KVPair{
 		Key: model.GlobalConfigKey{
 			Name: t.Spec.Name,
@@ -81,11 +81,11 @@ func (c GlobalFelixConfigConverter) FromKVPair(kvp *model.KVPair) (CustomK8sReso
 	if err != nil {
 		return nil, err
 	}
-	crd := custom.GlobalFelixConfig{
+	crd := crd.GlobalFelixConfig{
 		Metadata: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: custom.GlobalFelixConfigSpec{
+		Spec: crd.GlobalFelixConfigSpec{
 			Name:  kvp.Key.(model.GlobalConfigKey).Name,
 			Value: kvp.Value.(string),
 		},

@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/apis/crd"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,8 +39,8 @@ func NewGlobalBGPConfigClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sRe
 		name:            GlobalBGPConfigCRDName,
 		resource:        GlobalBGPConfigResourceName,
 		description:     "Calico Global BGP Configuration",
-		k8sResourceType: reflect.TypeOf(custom.GlobalBGPConfig{}),
-		k8sListType:     reflect.TypeOf(custom.GlobalBGPConfigList{}),
+		k8sResourceType: reflect.TypeOf(crd.GlobalBGPConfig{}),
+		k8sListType:     reflect.TypeOf(crd.GlobalBGPConfigList{}),
 		converter:       GlobalBGPConfigConverter{},
 	}
 }
@@ -65,7 +65,7 @@ func (_ GlobalBGPConfigConverter) NameToKey(name string) (model.Key, error) {
 }
 
 func (c GlobalBGPConfigConverter) ToKVPair(r CustomK8sResource) (*model.KVPair, error) {
-	t := r.(*custom.GlobalBGPConfig)
+	t := r.(*crd.GlobalBGPConfig)
 	return &model.KVPair{
 		Key: model.GlobalBGPConfigKey{
 			Name: t.Spec.Name,
@@ -80,7 +80,7 @@ func (c GlobalBGPConfigConverter) FromKVPair(kvp *model.KVPair) (CustomK8sResour
 	if err != nil {
 		return nil, err
 	}
-	crd := custom.GlobalBGPConfig{
+	crd := crd.GlobalBGPConfig{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "GlobalBGPConfig",
 			APIVersion: "crd.projectcalico.org/v1",
@@ -88,7 +88,7 @@ func (c GlobalBGPConfigConverter) FromKVPair(kvp *model.KVPair) (CustomK8sResour
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: custom.GlobalBGPConfigSpec{
+		Spec: crd.GlobalBGPConfigSpec{
 			Name:  kvp.Key.(model.GlobalBGPConfigKey).Name,
 			Value: kvp.Value.(string),
 		},

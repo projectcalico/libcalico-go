@@ -16,7 +16,7 @@ package resources_test
 
 import (
 	"github.com/projectcalico/libcalico-go/lib/api"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/apis/crd"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/net"
@@ -62,12 +62,12 @@ var _ = Describe("IP Pool conversion methods", func() {
 		},
 		Revision: "rv",
 	}
-	res1 := &custom.IPPool{
+	res1 := &crd.IPPool{
 		Metadata: metav1.ObjectMeta{
 			Name:            name2,
 			ResourceVersion: "rv",
 		},
-		Spec: custom.IPPoolSpec{
+		Spec: crd.IPPoolSpec{
 			IPPoolSpec: api.IPPoolSpec{
 				IPIP: &api.IPIPConfiguration{
 					Enabled: true,
@@ -83,12 +83,12 @@ var _ = Describe("IP Pool conversion methods", func() {
 	// Invalid Kubernetes resource, invalid name
 	nameInvalid := "11-22-fail--23"
 
-	resInvalidName := &custom.IPPool{
+	resInvalidName := &crd.IPPool{
 		Metadata: metav1.ObjectMeta{
 			Name:            nameInvalid,
 			ResourceVersion: "test",
 		},
-		Spec: custom.IPPoolSpec{},
+		Spec: crd.IPPoolSpec{},
 	}
 
 	It("should convert an incomplete ListInterface to no Key", func() {
@@ -122,7 +122,7 @@ var _ = Describe("IP Pool conversion methods", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(r.GetObjectMeta().GetName()).To(Equal(res1.Metadata.Name))
 		Expect(r.GetObjectMeta().GetResourceVersion()).To(Equal(res1.Metadata.ResourceVersion))
-		Expect(r).To(BeAssignableToTypeOf(&custom.IPPool{}))
+		Expect(r).To(BeAssignableToTypeOf(&crd.IPPool{}))
 	})
 
 	It("should convert between a Kuberenetes resource and the equivalent KVPair", func() {

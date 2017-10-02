@@ -18,7 +18,7 @@ import (
 	"reflect"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/apis/crd"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/converter"
 
@@ -39,8 +39,8 @@ func NewGlobalNetworkPolicyClient(c *kubernetes.Clientset, r *rest.RESTClient) K
 		name:            GlobalNetworkPolicyCRDName,
 		resource:        GlobalNetworkPolicyResourceName,
 		description:     "Calico Global Network Policies",
-		k8sResourceType: reflect.TypeOf(custom.GlobalNetworkPolicy{}),
-		k8sListType:     reflect.TypeOf(custom.GlobalNetworkPolicyList{}),
+		k8sResourceType: reflect.TypeOf(crd.GlobalNetworkPolicy{}),
+		k8sListType:     reflect.TypeOf(crd.GlobalNetworkPolicyList{}),
 		converter:       GlobalNetworkPolicyConverter{},
 	}
 }
@@ -73,7 +73,7 @@ func (_ GlobalNetworkPolicyConverter) NameToKey(name string) (model.Key, error) 
 func (c GlobalNetworkPolicyConverter) ToKVPair(r CustomK8sResource) (*model.KVPair, error) {
 	// Since we are using the Calico API Spec definition to store the Calico
 	// Policy, use the client conversion helper to convert between KV and API.
-	t := r.(*custom.GlobalNetworkPolicy)
+	t := r.(*crd.GlobalNetworkPolicy)
 	policy := api.Policy{
 		Metadata: api.PolicyMetadata{
 			Name: t.Metadata.Name,
@@ -97,7 +97,7 @@ func (c GlobalNetworkPolicyConverter) FromKVPair(kvp *model.KVPair) (CustomK8sRe
 		return nil, err
 	}
 
-	crd := custom.GlobalNetworkPolicy{
+	crd := crd.GlobalNetworkPolicy{
 		Metadata: metav1.ObjectMeta{
 			Name: crdName,
 		},
