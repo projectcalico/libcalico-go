@@ -486,6 +486,15 @@ func (c *ModelAdaptor) getNodeSubcomponents(nk model.NodeKey, nv *model.Node) er
 		return err
 	}
 
+	if component, err = c.client.Get(model.NodeBGPConfigKey{Nodename: nk.Hostname, Name: "reflector"}); err == nil {
+		strval = component.Value.(string)
+		if strval != "" {
+			nv.BGPReflector = strval
+		}
+	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+		return err
+	}
+
 	return nil
 }
 
@@ -647,6 +656,14 @@ func toNodeComponents(d *model.KVPair) (primary *model.KVPair, optional []*model
 		})
 	}
 
+	optional = append(optional, &model.KVPair{
+		Key: model.NodeBGPConfigKey{
+			Nodename: nk.Hostname,
+			Name:     "reflector",
+		},
+		Value: n.BGPReflector,
+	})
+
 	return primary, optional
 }
 
@@ -691,6 +708,12 @@ func toNodeDeleteComponents(d *model.KVPair) (primary *model.KVPair, optional []
 			Key: model.NodeBGPConfigKey{
 				Nodename: nk.Hostname,
 				Name:     "network_v6",
+			},
+		},
+		&model.KVPair{
+			Key: model.NodeBGPConfigKey{
+				Nodename: nk.Hostname,
+				Name:     "reflector",
 			},
 		},
 	}

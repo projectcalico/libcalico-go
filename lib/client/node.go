@@ -187,6 +187,7 @@ func (h *nodes) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 			v.BGPIPv6Net = an.Spec.BGP.IPv6Address.Network()
 		}
 		v.BGPASNumber = an.Spec.BGP.ASNumber
+		v.BGPReflector = an.Spec.BGP.Reflector
 	}
 
 	return &model.KVPair{Key: k, Value: &v}, nil
@@ -234,6 +235,10 @@ func (h *nodes) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error
 				apiNode.Spec.BGP.IPv6Address = bv.BGPIPv6Addr.Network()
 			}
 		}
+	}
+
+	if bv.BGPReflector != "" {
+		apiNode.Spec.BGP.Reflector = bv.BGPReflector
 	}
 
 	return apiNode, nil

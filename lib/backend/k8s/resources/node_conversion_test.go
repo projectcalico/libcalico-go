@@ -16,7 +16,11 @@ import (
 var _ = Describe("Test Node conversion", func() {
 
 	It("should parse a k8s Node to a Calico Node", func() {
-		l := map[string]string{"net.beta.kubernetes.io/role": "master"}
+		l := map[string]string{
+			"net.beta.kubernetes.io/role": "master",
+			NodeBgpReflectorLabel:         "subnet",
+		}
+
 		node := k8sapi.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            "TestNode",
@@ -24,7 +28,7 @@ var _ = Describe("Test Node conversion", func() {
 				ResourceVersion: "1234",
 				Annotations: map[string]string{
 					nodeBgpIpv4CidrAnnotation: "172.17.17.10/24",
-					nodeBgpAsnAnnotation:    "2546",
+					nodeBgpAsnAnnotation:      "2546",
 				},
 			},
 			Status: k8sapi.NodeStatus{
@@ -55,6 +59,7 @@ var _ = Describe("Test Node conversion", func() {
 		bgpNet := *n.Value.(*model.Node).BGPIPv4Net
 		labels := n.Value.(*model.Node).Labels
 		asn := n.Value.(*model.Node).BGPASNumber
+		reflector := n.Value.(*model.Node).BGPReflector
 
 		ip, ipNet, _ := net.ParseCIDR("172.17.17.10/24")
 
@@ -63,6 +68,7 @@ var _ = Describe("Test Node conversion", func() {
 		Expect(bgpNet).To(Equal(*ipNet))
 		Expect(labels).To(Equal(l))
 		Expect(asn.String()).To(Equal("2546"))
+		Expect(reflector).To(Equal("subnet"))
 	})
 
 	It("should error on an invalid IP", func() {
@@ -90,7 +96,7 @@ var _ = Describe("Test Node conversion", func() {
 				ResourceVersion: "1234",
 				Annotations: map[string]string{
 					nodeBgpIpv4CidrAnnotation: "172.17.17.10/24",
-					nodeBgpAsnAnnotation:    "2546",
+					nodeBgpAsnAnnotation:      "2546",
 				},
 			},
 			Spec: k8sapi.NodeSpec{},
@@ -111,7 +117,7 @@ var _ = Describe("Test Node conversion", func() {
 				Name:            "TestNode",
 				Labels:          l,
 				ResourceVersion: "1234",
-				Annotations: make(map[string]string),
+				Annotations:     make(map[string]string),
 			},
 			Spec: k8sapi.NodeSpec{},
 		}
@@ -120,16 +126,18 @@ var _ = Describe("Test Node conversion", func() {
 		asn, _ := numorstring.ASNumberFromString("2456")
 
 		calicoNode := &model.Node{
-			BGPIPv4Net: cidr,
-			FelixIPv4: ip,
-			BGPIPv4Addr: ip,
-			BGPASNumber: &asn,
+			BGPIPv4Net:   cidr,
+			FelixIPv4:    ip,
+			BGPIPv4Addr:  ip,
+			BGPASNumber:  &asn,
+			BGPReflector: "subnet",
 		}
 
 		newK8sNode, err := mergeCalicoK8sNode(calicoNode, k8sNode)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(newK8sNode.Annotations).To(HaveKeyWithValue(nodeBgpIpv4CidrAnnotation, "172.17.17.10/24"))
 		Expect(newK8sNode.Annotations).To(HaveKeyWithValue(nodeBgpAsnAnnotation, "2456"))
+		Expect(newK8sNode.Labels).To(HaveKeyWithValue(NodeBgpReflectorLabel, "subnet"))
+		Expect(newK8sNode.Labels).To(HaveKeyWithValue(NodeBgpIpv4NetworkLabel, "172.17.17.0-24"))
 	})
 })
-

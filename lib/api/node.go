@@ -80,6 +80,9 @@ type NodeBGPSpec struct {
 	// IPv6Address is the IPv6 address and network of this node.  At least
 	// one of the IPv4 and IPv6 addresses should be specified.
 	IPv6Address *net.IPNet `json:"ipv6Address,omitempty" validate:"omitempty"`
+
+	// Reflector mode: supported values = ["subnet"]
+	Reflector string `json:"reflector,omitempty" validate:"omitempty"`
 }
 
 // NewNode creates a new (zeroed) NodeList struct with the TypeMetadata initialised to the current
