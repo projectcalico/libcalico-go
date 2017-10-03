@@ -319,12 +319,20 @@ func (c *etcdV3Client) List(ctx context.Context, l model.ListInterface, revision
 	// IDs, and then filter the results.
 	key := model.ListOptionsToDefaultPathRoot(l)
 
-	// If the etcdKey is actually fully qualified, then do not perform a prefix Get.
-	// If the etcdKey is just a prefix, then append a terminating "/" and perform a prefix Get.
-	// The terminating / for a prefix Get ensures for a prefix of "/a" we only return "child entries"
-	// of "/a" such as "/a/x" and not siblings such as "/ab".
+	// -  If the final name segment of the name is itself a prefix, then just perform a prefix Get
+	//    using the constructed key.
+	// -  If the etcdKey is actually fully qualified, then perform an exact Get using the constructed
+	//    key.
+	// -  If the etcdKey is not fully qualified then it is a path prefix but the last segment is complete.
+	//    Append a terminating "/" and perform a prefix Get.  The terminating / for a prefix Get ensures
+	//    for a prefix of "/a" we only return "child entries" of "/a" such as "/a/x" and not siblings
+	//    such as "/ab".
 	ops := []clientv3.OpOption{}
-	if l.KeyFromDefaultPath(key) == nil {
+	if model.ListOptionsLastSegmentIsPrefix(l) {
+		// The last segment is a prefix, perform a prefix Get without adding a segment
+		// delimiter.
+		ops = append(ops, clientv3.WithPrefix())
+	} else if l.KeyFromDefaultPath(key) == nil {
 		// The etcdKey not a fully qualified etcdKey - it must be a prefix.
 		logCxt.Info("Performing a prefix query")
 		if !strings.HasSuffix(key, "/") {

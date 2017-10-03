@@ -30,4 +30,9 @@ type ListOptions struct {
 	// - if set to non zero, then the result is at least as fresh as given rv.
 	// +optional
 	ResourceVersion string
+
+	// Whether the Name specified in a prefix rather than the full name.  This is only supported
+	// for etcdv3, and is supported in a very limited fashion in KDD for WorkloadEndpoints,
+	// GlobalNetworkPolicies and NetworkPolicies.
+	Prefix bool
 }
