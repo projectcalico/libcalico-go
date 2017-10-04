@@ -326,7 +326,7 @@ func (w *watcher) terminate() {
 // convertEvent converts a backend watch event into a client watch event.
 func (w *watcher) convertEvent(backendEvent bapi.WatchEvent) watch.Event {
 	apiEvent := watch.Event{
-		Error: backendEvent.Error,
+		Error:           backendEvent.Error,
 		ResourceVersion: backendEvent.Revision,
 	}
 	switch backendEvent.Type {
