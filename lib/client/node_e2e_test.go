@@ -166,6 +166,12 @@ var _ = testutils.E2eDatastoreDescribe("Node tests", testutils.DatastoreEtcdV2, 
 				BGP: &api.NodeBGPSpec{
 					IPv4Address: &cidrv4,
 				},
+				OrchRefs: []api.OrchRef{
+					{
+						Orchestrator: "k8s",
+						NodeName:     "k8snodename",
+					},
+				},
 			},
 			api.NodeSpec{
 				BGP: &api.NodeBGPSpec{
