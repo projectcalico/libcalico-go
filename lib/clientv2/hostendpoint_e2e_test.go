@@ -363,7 +363,7 @@ var _ = testutils.E2eDatastoreDescribe("HostEndpoint tests", testutils.Datastore
 					Object: outRes3,
 				},
 				{
-					Type:	watch.Synced,
+					Type: watch.Synced,
 				},
 			})
 			testWatcher3.Stop()
@@ -393,7 +393,7 @@ var _ = testutils.E2eDatastoreDescribe("HostEndpoint tests", testutils.Datastore
 					Object: outRes3,
 				},
 				{
-					Type:	watch.Synced,
+					Type: watch.Synced,
 				},
 			})
 

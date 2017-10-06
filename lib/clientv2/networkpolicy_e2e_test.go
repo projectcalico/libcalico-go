@@ -382,7 +382,7 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 					Object: outRes3,
 				},
 				{
-					Type:	watch.Synced,
+					Type: watch.Synced,
 				},
 			})
 			testWatcher3.Stop()
