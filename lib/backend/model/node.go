@@ -34,7 +34,6 @@ var (
 	typeHostIp        = rawIPType
 	matchHostMetadata = regexp.MustCompile(`^/?calico/v1/host/([^/]+)/metadata$`)
 	matchHostIp       = regexp.MustCompile(`^/?calico/v1/host/([^/]+)/bird_ip$`)
-
 )
 
 type Node struct {

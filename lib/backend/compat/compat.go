@@ -657,11 +657,6 @@ func toNodeComponents(d *model.KVPair) (primary *model.KVPair, optional []*model
 		})
 	}
 	if len(n.OrchRefs) > 0 {
-		//v, err := json.Marshal(n.OrchRefs)
-		//fmt.Printf("____%s____", string(v))
-		//if err != nil {
-		//	log.WithError(err).Errorf("Failed to marshal JSON for OrchRefs in Node %s", nk.Hostname)
-		//}
 		optional = append(optional, &model.KVPair{
 			Key:   model.OrchRefKey{Hostname: nk.Hostname},
 			Value: n.OrchRefs,
