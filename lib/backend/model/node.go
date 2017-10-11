@@ -30,10 +30,10 @@ import (
 var (
 	typeNode          = reflect.TypeOf(Node{})
 	typeHostMetadata  = reflect.TypeOf(HostMetadata{})
+	typeOrchRefs      = reflect.TypeOf([]OrchRef{})
 	typeHostIp        = rawIPType
 	matchHostMetadata = regexp.MustCompile(`^/?calico/v1/host/([^/]+)/metadata$`)
 	matchHostIp       = regexp.MustCompile(`^/?calico/v1/host/([^/]+)/bird_ip$`)
-	orchRefMatch      = regexp.MustCompile(`^/?/calico/v1/host/.*/orchestrator/(.*)`)
 
 )
 
@@ -50,12 +50,12 @@ type Node struct {
 	BGPIPv4Net  *net.IPNet
 	BGPIPv6Net  *net.IPNet
 	BGPASNumber *numorstring.ASNumber
-	OrchRefs    []OrchRef
+	OrchRefs    []OrchRef `json:"orchRefs,omitempty"`
 }
 
 type OrchRef struct {
-	Orchestrator string
-	NodeName     string
+	Orchestrator string `json:"orchestrator,omitempty"`
+	NodeName     string `json:"nodeName,omitempty"`
 }
 
 type NodeKey struct {
@@ -185,12 +185,11 @@ func (key HostIPKey) String() string {
 
 type OrchRefKey struct {
 	Hostname string
-	Orchestrator string
 }
 
 func (key OrchRefKey) defaultPath() (string, error) {
-	return fmt.Sprintf("/calico/v1/host/%s/orchestrator/%s",
-		key.Hostname, key.Orchestrator), nil
+	return fmt.Sprintf("/calico/v1/host/%s/orchestrator",
+		key.Hostname), nil
 }
 
 func (key OrchRefKey) defaultDeletePath() (string, error) {
@@ -202,11 +201,11 @@ func (key OrchRefKey) defaultDeleteParentPaths() ([]string, error) {
 }
 
 func (key OrchRefKey) valueType() reflect.Type {
-	return rawStringType
+	return typeOrchRefs
 }
 
 func (key OrchRefKey) String() string {
-	return fmt.Sprintf("OrchRef(orchestrator=%s, nodename=%s)", key.Orchestrator, key.Hostname)
+	return fmt.Sprintf("OrchRef(nodename=%s)", key.Hostname)
 }
 
 type OrchRefListOptions struct {
@@ -214,15 +213,9 @@ type OrchRefListOptions struct {
 }
 
 func (options OrchRefListOptions) defaultPathRoot() string {
-	return fmt.Sprintf("/calico/v1/host/%s/orchestrator/", options.Hostname)
+	return fmt.Sprintf("/calico/v1/host/%s/orchestrator", options.Hostname)
 }
 
 func (options OrchRefListOptions) KeyFromDefaultPath(path string) Key {
-	r := orchRefMatch.FindAllStringSubmatch(path, -1)
-	if len(r) != 1 {
-		log.Debugf("%s didn't match regex", path)
-		return nil
-	}
-	orch := r[0][1]
-	return OrchRefKey{Hostname: options.Hostname, Orchestrator: orch}
+	return OrchRefKey{Hostname: options.Hostname}
 }
