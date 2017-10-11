@@ -33,6 +33,8 @@ var (
 	typeHostIp        = rawIPType
 	matchHostMetadata = regexp.MustCompile(`^/?calico/v1/host/([^/]+)/metadata$`)
 	matchHostIp       = regexp.MustCompile(`^/?calico/v1/host/([^/]+)/bird_ip$`)
+	orchRefMatch      = regexp.MustCompile(`^/?/calico/v1/host/.*/orchestrator/(.*)`)
+
 )
 
 type Node struct {
@@ -179,4 +181,48 @@ func (key HostIPKey) valueType() reflect.Type {
 
 func (key HostIPKey) String() string {
 	return fmt.Sprintf("Node(name=%s)", key.Hostname)
+}
+
+type OrchRefKey struct {
+	Hostname string
+	Orchestrator string
+}
+
+func (key OrchRefKey) defaultPath() (string, error) {
+	return fmt.Sprintf("/calico/v1/host/%s/orchestrator/%s",
+		key.Hostname, key.Orchestrator), nil
+}
+
+func (key OrchRefKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
+}
+
+func (key OrchRefKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
+}
+
+func (key OrchRefKey) valueType() reflect.Type {
+	return rawStringType
+}
+
+func (key OrchRefKey) String() string {
+	return fmt.Sprintf("OrchRef(orchestrator=%s, nodename=%s)", key.Orchestrator, key.Hostname)
+}
+
+type OrchRefListOptions struct {
+	Hostname string
+}
+
+func (options OrchRefListOptions) defaultPathRoot() string {
+	return fmt.Sprintf("/calico/v1/host/%s/orchestrator/", options.Hostname)
+}
+
+func (options OrchRefListOptions) KeyFromDefaultPath(path string) Key {
+	r := orchRefMatch.FindAllStringSubmatch(path, -1)
+	if len(r) != 1 {
+		log.Debugf("%s didn't match regex", path)
+		return nil
+	}
+	orch := r[0][1]
+	return OrchRefKey{Hostname: options.Hostname, Orchestrator: orch}
 }

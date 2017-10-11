@@ -492,6 +492,16 @@ func (c *ModelAdaptor) getNodeSubcomponents(ctx context.Context, nk model.NodeKe
 		return err
 	}
 
+	if components, err := c.client.List(model.OrchRefListOptions{Hostname: nk.Hostname}); err == nil {
+		for _, o := range components {
+			orchRef := model.OrchRef{
+				Orchestrator: o.Key.(model.OrchRefKey).Orchestrator,
+				NodeName:     o.Value.(string),
+			}
+			nv.OrchRefs = append(nv.OrchRefs, orchRef)
+		}
+	}
+
 	return nil
 }
 
@@ -652,6 +662,17 @@ func toNodeComponents(d *model.KVPair) (primary *model.KVPair, optional []*model
 			},
 		})
 	}
+	if len(n.OrchRefs) > 0 {
+		for _, orchref := range n.OrchRefs {
+			optional = append(optional, &model.KVPair{
+				Key: model.OrchRefKey{
+					Hostname:     nk.Hostname,
+					Orchestrator: orchref.Orchestrator,
+				},
+				Value: orchref.NodeName,
+			})
+		}
+	}
 
 	return primary, optional
 }
@@ -695,6 +716,12 @@ func toNodeDeleteComponents(nk model.NodeKey) (primary *model.KVPair, optional [
 			Key: model.NodeBGPConfigKey{
 				Nodename: nk.Hostname,
 				Name:     "network_v6",
+			},
+		},
+		&model.KVPair{
+			Key: model.OrchRefKey{
+				Hostname:     nk.Hostname,
+				Orchestrator: "",
 			},
 		},
 	}
