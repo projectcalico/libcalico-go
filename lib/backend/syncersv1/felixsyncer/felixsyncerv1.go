@@ -59,7 +59,8 @@ func New(client api.Client, callbacks api.SyncerCallbacks) api.Syncer {
 			ListInterface: model.ResourceListOptions{Kind: apiv2.KindProfile},
 		},
 		{
-			ListInterface: model.ResourceListOptions{Kind: apiv2.KindWorkloadEndpoint},
+			ListInterface:   model.ResourceListOptions{Kind: apiv2.KindWorkloadEndpoint},
+			UpdateProcessor: updateprocessors.NewWorkloadEndpointUpdateProcessor(),
 		},
 	}
 
