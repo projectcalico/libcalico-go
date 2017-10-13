@@ -721,6 +721,38 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 		Expect(pol.Value.(*model.Policy).Types[0]).To(Equal("ingress"))
 	})
 
+	It("should parse a default-deny egress NetworkPolicy", func() {
+		np := extensions.NetworkPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testPolicy",
+				Namespace: "default",
+			},
+			Spec: extensions.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{},
+				PolicyTypes: []extensions.PolicyType{extensions.PolicyTypeEgress},
+			},
+		}
+
+		// Parse the policy.
+		pol, err := c.NetworkPolicyToPolicy(&np)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Assert key fields are correct.
+		Expect(pol.Key.(model.PolicyKey).Name).To(Equal("knp.default.default.testPolicy"))
+
+		// Assert value fields are correct.
+		Expect(int(*pol.Value.(*model.Policy).Order)).To(Equal(1000))
+		Expect(pol.Value.(*model.Policy).Selector).To(Equal("calico/k8s_ns == 'default'"))
+		Expect(len(pol.Value.(*model.Policy).OutboundRules)).To(Equal(0))
+
+		// There should be no InboundRules
+		Expect(len(pol.Value.(*model.Policy).InboundRules)).To(Equal(0))
+
+		// Check that Types field exists and has only 'egress'
+		Expect(len(pol.Value.(*model.Policy).Types)).To(Equal(1))
+		Expect(pol.Value.(*model.Policy).Types[0]).To(Equal("egress"))
+	})
+
 	It("should parse a NetworkPolicy with an Egress rule with an IPBlock Peer", func() {
 		np := extensions.NetworkPolicy{
 			ObjectMeta: metav1.ObjectMeta{
