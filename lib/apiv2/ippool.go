@@ -45,7 +45,7 @@ type IPPoolSpec struct {
 }
 
 type IPIPConfiguration struct {
-	// The IPIP mode.  This can be one of "off", "always" or "cross-subnet".  A mode
+	// The IPIP mode.  This can be one of "Never", "Always" or "CrossSubnet".  A mode
 	// of "always" will also use IPIP tunneling for routing to destination IP
 	// addresses within this pool.  A mode of "cross-subnet" will only use IPIP
 	// tunneling when the destination node is on a different subnet to the
@@ -56,7 +56,7 @@ type IPIPConfiguration struct {
 type IPIPMode string
 
 const (
-	IPIPModeOff         IPIPMode = "Off"
+	IPIPModeNever       IPIPMode = "Never"
 	IPIPModeAlways               = "Always"
 	IPIPModeCrossSubnet          = "CrossSubnet"
 )

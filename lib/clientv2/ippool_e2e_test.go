@@ -45,7 +45,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 		},
 	}
 	spec2 := apiv2.IPPoolSpec{
-		CIDR: "aa:bb:cc/120",
+		CIDR: "aa:bb::cc/120",
 		IPIP: &apiv2.IPIPConfiguration{
 			Mode: apiv2.IPIPModeCrossSubnet,
 		},
