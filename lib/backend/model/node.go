@@ -48,6 +48,12 @@ type Node struct {
 	BGPIPv4Net  *net.IPNet
 	BGPIPv6Net  *net.IPNet
 	BGPASNumber *numorstring.ASNumber
+	OrchRefs    []OrchRef
+}
+
+type OrchRef struct {
+	Orchestrator string
+	NodeName     string
 }
 
 type NodeKey struct {
