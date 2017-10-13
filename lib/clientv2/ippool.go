@@ -125,13 +125,13 @@ func (_ ipPools) ValidateIPPool(pool *apiv2.IPPool) error {
 		return cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{{
 				Name:   "IPPool.Spec.CIDR",
-				Reason: "IPPool CIDR must be valid subnet",
+				Reason: "IPPool CIDR must be a valid subnet",
 			}},
 		}
 	}
 
 	// IPIP cannot be enabled for IPv6.
-	if cidr.Version() == 6 && pool.Spec.IPIP != nil && pool.Spec.IPIP.Mode != apiv2.IPIPModeOff {
+	if cidr.Version() == 6 && pool.Spec.IPIP != nil && pool.Spec.IPIP.Mode != apiv2.IPIPModeNever {
 		errFields = append(errFields, cerrors.ErroredField{
 			Name:   "IPPool.Spec.IPIP.Mode",
 			Reason: "IPIP is not supported on an IPv6 IP pool",

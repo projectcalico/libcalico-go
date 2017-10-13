@@ -55,7 +55,7 @@ func (uc IPPoolConverter) ConvertV2ToV1(kvp *model.KVPair) (*model.KVPair, error
 		ipm = v2res.Spec.IPIP.Mode
 	}
 	switch ipm {
-	case apiv2.IPIPModeOff:
+	case apiv2.IPIPModeNever:
 		ipipInterface = ""
 		ipipMode = ipip.Undefined
 	case apiv2.IPIPModeCrossSubnet:
