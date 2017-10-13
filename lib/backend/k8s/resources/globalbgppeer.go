@@ -18,7 +18,7 @@ import (
 	"reflect"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/apis/crd"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/converter"
 	"github.com/projectcalico/libcalico-go/lib/scope"
@@ -40,8 +40,8 @@ func NewGlobalBGPPeerClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sReso
 		name:            BGPPeerCRDName,
 		resource:        BGPPeerResourceName,
 		description:     "Calico BGP Peers",
-		k8sResourceType: reflect.TypeOf(custom.BGPPeer{}),
-		k8sListType:     reflect.TypeOf(custom.BGPPeerList{}),
+		k8sResourceType: reflect.TypeOf(crd.BGPPeer{}),
+		k8sListType:     reflect.TypeOf(crd.BGPPeerList{}),
 		converter:       GlobalBGPPeerConverter{},
 	}
 }
@@ -83,7 +83,7 @@ func (_ GlobalBGPPeerConverter) NameToKey(name string) (model.Key, error) {
 func (c GlobalBGPPeerConverter) ToKVPair(r CustomK8sResource) (*model.KVPair, error) {
 	// Since we are using the Calico API Spec definition to store the Calico
 	// BGP Peer, use the client conversion helper to convert between KV and API.
-	t := r.(*custom.BGPPeer)
+	t := r.(*crd.BGPPeer)
 
 	peer := api.BGPPeer{
 		Metadata: api.BGPPeerMetadata{
@@ -113,11 +113,11 @@ func (c GlobalBGPPeerConverter) FromKVPair(kvp *model.KVPair) (CustomK8sResource
 		return nil, err
 	}
 
-	crd := custom.BGPPeer{
+	crd := crd.BGPPeer{
 		Metadata: metav1.ObjectMeta{
 			Name: crdName,
 		},
-		Spec: custom.BGPPeerSpec{
+		Spec: crd.BGPPeerSpec{
 			BGPPeerSpec: r.(*api.BGPPeer).Spec,
 			Scope:       scope.Global,
 			PeerIP:      r.(*api.BGPPeer).Metadata.PeerIP,

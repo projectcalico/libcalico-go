@@ -18,7 +18,7 @@ import (
 	"reflect"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/apis/crd"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/converter"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,8 +38,8 @@ func NewIPPoolClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceCli
 		name:            IPPoolCRDName,
 		resource:        IPPoolResourceName,
 		description:     "Calico IP Pools",
-		k8sResourceType: reflect.TypeOf(custom.IPPool{}),
-		k8sListType:     reflect.TypeOf(custom.IPPoolList{}),
+		k8sResourceType: reflect.TypeOf(crd.IPPool{}),
+		k8sListType:     reflect.TypeOf(crd.IPPoolList{}),
 		converter:       IPPoolConverter{},
 	}
 }
@@ -74,7 +74,7 @@ func (_ IPPoolConverter) NameToKey(name string) (model.Key, error) {
 func (i IPPoolConverter) ToKVPair(r CustomK8sResource) (*model.KVPair, error) {
 	// Since we are using the Calico API Spec definition to store the Calico
 	// IPPool, use the client conversion helper to convert API to KVP.
-	t := r.(*custom.IPPool)
+	t := r.(*crd.IPPool)
 
 	_, err := ResourceNameToIPNet(t.Metadata.Name)
 	if err != nil {
@@ -110,11 +110,11 @@ func (i IPPoolConverter) FromKVPair(kvp *model.KVPair) (CustomK8sResource, error
 		return nil, err
 	}
 
-	crd := custom.IPPool{
+	crd := crd.IPPool{
 		Metadata: metav1.ObjectMeta{
 			Name: crdName,
 		},
-		Spec: custom.IPPoolSpec{
+		Spec: crd.IPPoolSpec{
 			IPPoolSpec: r.(*api.IPPool).Spec,
 			CIDR:       r.(*api.IPPool).Metadata.CIDR,
 		},

@@ -12,81 +12,76 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package custom
+package crd
 
 import (
 	"encoding/json"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
-	"github.com/projectcalico/libcalico-go/lib/net"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// IPPool is the CustomResourceDefinition definition of an IPPool in the Kubernetes API.
-type IPPool struct {
+// GlobalNetworkPolicy is the CustomResourceDefinition of a Calico Policy resource in
+// the Kubernetes API.
+type GlobalNetworkPolicy struct {
 	metav1.TypeMeta `json:",inline"`
 	Metadata        metav1.ObjectMeta `json:"metadata"`
-	Spec            IPPoolSpec        `json:"spec"`
+	Spec            api.PolicySpec    `json:"spec"`
 }
 
-type IPPoolSpec struct {
-	api.IPPoolSpec
-	CIDR net.IPNet `json:"cidr"`
-}
-
-// IPPoolList is a list of IPPool resources.
-type IPPoolList struct {
+// GlobalNetworkPolicyList is a list of GlobalNetworkPolicy resources.
+type GlobalNetworkPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ListMeta `json:"metadata"`
-	Items           []IPPool        `json:"items"`
+	Metadata        metav1.ListMeta       `json:"metadata"`
+	Items           []GlobalNetworkPolicy `json:"items"`
 }
 
 // GetObjectKind returns the kind of this object.  Required to satisfy Object interface
-func (e *IPPool) GetObjectKind() schema.ObjectKind {
+func (e *GlobalNetworkPolicy) GetObjectKind() schema.ObjectKind {
 	return &e.TypeMeta
 }
 
 // GetOjbectMeta returns the object metadata of this object. Required to satisfy ObjectMetaAccessor interface
-func (e *IPPool) GetObjectMeta() metav1.Object {
+func (e *GlobalNetworkPolicy) GetObjectMeta() metav1.Object {
 	return &e.Metadata
 }
 
 // GetObjectKind returns the kind of this object. Required to satisfy Object interface
-func (el *IPPoolList) GetObjectKind() schema.ObjectKind {
+func (el *GlobalNetworkPolicyList) GetObjectKind() schema.ObjectKind {
 	return &el.TypeMeta
 }
 
 // GetListMeta returns the list metadata of this object. Required to satisfy ListMetaAccessor interface
-func (el *IPPoolList) GetListMeta() metav1.List {
-	return &el.Metadata
+func (el *GlobalNetworkPolicyList) GetListMeta() metav1.ListMeta {
+	return el.Metadata
 }
 
 // The code below is used only to work around a known problem with third-party
 // resources and ugorji. If/when these issues are resolved, the code below
 // should no longer be required.
 
-type IPPoolListCopy IPPoolList
-type IPPoolCopy IPPool
+type GlobalNetworkPolicyListCopy GlobalNetworkPolicyList
+type GlobalNetworkPolicyCopy GlobalNetworkPolicy
 
-func (g *IPPool) UnmarshalJSON(data []byte) error {
-	tmp := IPPoolCopy{}
+func (g *GlobalNetworkPolicy) UnmarshalJSON(data []byte) error {
+	tmp := GlobalNetworkPolicyCopy{}
 	err := json.Unmarshal(data, &tmp)
 	if err != nil {
 		return err
 	}
-	tmp2 := IPPool(tmp)
+	tmp2 := GlobalNetworkPolicy(tmp)
 	*g = tmp2
 	return nil
 }
 
-func (l *IPPoolList) UnmarshalJSON(data []byte) error {
-	tmp := IPPoolListCopy{}
+func (l *GlobalNetworkPolicyList) UnmarshalJSON(data []byte) error {
+	tmp := GlobalNetworkPolicyListCopy{}
 	err := json.Unmarshal(data, &tmp)
 	if err != nil {
 		return err
 	}
-	tmp2 := IPPoolList(tmp)
+	tmp2 := GlobalNetworkPolicyList(tmp)
 	*l = tmp2
 	return nil
 }

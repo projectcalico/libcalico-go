@@ -25,7 +25,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
+	apiv1 "k8s.io/api/core/v1"
+	//nodeapiv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 // Action strings - used for context logging.
@@ -187,7 +188,7 @@ func (c *customK8sNodeResourceClient) Delete(kvp *model.KVPair) error {
 	// Delete the entry from the annotations and update the Node resource.
 	logContext.Debug("Removing value from annotation")
 	delete(node.Annotations, ak)
-	node, err = c.ClientSet.Nodes().Update(node)
+	node, err = c.ClientSet.CoreV1().Nodes().Update(node)
 	if err != nil {
 		// Failed to update the Node.  Just log info and perform a retry.  The retryWrapper will
 		// log Error if this continues to fail.
@@ -256,7 +257,7 @@ func (c *customK8sNodeResourceClient) List(list model.ListInterface) ([]*model.K
 	var rev string
 	if nodeName != "" {
 		newLogContext := logContext.WithField("NodeName", nodeName)
-		node, err := c.ClientSet.Nodes().Get(nodeName, metav1.GetOptions{})
+		node, err := c.ClientSet.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 		if err != nil {
 			err = K8sErrorToCalico(err, nodeName)
 			if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
@@ -269,7 +270,7 @@ func (c *customK8sNodeResourceClient) List(list model.ListInterface) ([]*model.K
 		nodes = append(nodes, *node)
 		rev = node.GetResourceVersion()
 	} else {
-		nodeList, err := c.ClientSet.Nodes().List(metav1.ListOptions{})
+		nodeList, err := c.ClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
 		if err != nil {
 			logContext.WithError(err).Info("Failed to list resources: unable to list Nodes")
 			return nil, "", K8sErrorToCalico(err, nodeName)
@@ -313,7 +314,7 @@ func (c *customK8sNodeResourceClient) getNameAndNodeFromKey(key model.Key) (stri
 	}
 
 	// Get the current node settings.
-	node, err := c.ClientSet.Nodes().Get(nodeName, metav1.GetOptions{})
+	node, err := c.ClientSet.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 	if err != nil {
 		logContext.WithError(err).Info("Error getting Node configuration")
 		return "", nil, K8sErrorToCalico(err, key)
@@ -357,7 +358,7 @@ func (c *customK8sNodeResourceClient) applyResourceToAnnotation(node *apiv1.Node
 	node.Annotations[c.nameToAnnotationKey(resName)] = string(data)
 
 	// Update the Node resource.
-	node, err = c.ClientSet.Nodes().Update(node)
+	node, err = c.ClientSet.CoreV1().Nodes().Update(node)
 	if err != nil {
 		// Failed to update the Node.  Just log info and perform a retry.  The retryWrapper will
 		// log Error if this continues to fail.

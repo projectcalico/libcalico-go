@@ -26,7 +26,7 @@ import (
 
 	capi "github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/apis/crd"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/errors"
@@ -38,9 +38,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	clientapi "k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/v1"
-	extensions "github.com/projectcalico/libcalico-go/lib/backend/extensions"
+	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -51,9 +51,6 @@ type KubeClient struct {
 
 	// Client for interacting with CustomResourceDefinition.
 	crdClientV1 *rest.RESTClient
-
-	// Client for interacting with NetworkingPolicy
-	extensionsClientV1Beta1 *rest.RESTClient
 
 	disableNodePoll bool
 
@@ -126,15 +123,9 @@ func NewKubeClient(kc *capi.KubeConfig) (*KubeClient, error) {
 		return nil, fmt.Errorf("Failed to build V1 CRD client: %s", err)
 	}
 
-	extensionsClientV1, err := BuildExtensionsClientV1(*config)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to build V1 Extensions client: %s", err)
-	}
-
 	kubeClient := &KubeClient{
 		clientSet:               cs,
 		crdClientV1:             crdClientV1,
-		extensionsClientV1Beta1: extensionsClientV1,
 		disableNodePoll:         kc.K8sDisableNodePoll,
 	}
 
@@ -230,7 +221,7 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 	}
 	cfg.APIPath = "/apis"
 	cfg.ContentType = runtime.ContentTypeJSON
-	cfg.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: clientapi.Codecs}
+	cfg.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: clientsetscheme.Codecs}
 
 	cli, err := rest.RESTClientFor(&cfg)
 	if err != nil {
@@ -242,59 +233,18 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 		func(scheme *runtime.Scheme) error {
 			scheme.AddKnownTypes(
 				*cfg.GroupVersion,
-				&custom.GlobalFelixConfig{},
-				&custom.GlobalFelixConfigList{},
-				&custom.IPPool{},
-				&custom.IPPoolList{},
-				&custom.BGPPeer{},
-				&custom.BGPPeerList{},
-				&custom.GlobalNetworkPolicy{},
-				&custom.GlobalNetworkPolicyList{},
+				&crd.GlobalFelixConfig{},
+				&crd.GlobalFelixConfigList{},
+				&crd.IPPool{},
+				&crd.IPPoolList{},
+				&crd.BGPPeer{},
+				&crd.BGPPeerList{},
+				&crd.GlobalNetworkPolicy{},
+				&crd.GlobalNetworkPolicyList{},
 			)
 			return nil
 		})
-	schemeBuilder.AddToScheme(clientapi.Scheme)
-
-	return cli, nil
-}
-
-// BuildExtensionsClientV1 builds a RESTClient configured to interact with
-// K8s.io extensions/NetworkPolicy
-func BuildExtensionsClientV1(cfg rest.Config) (*rest.RESTClient, error) {
-	// Generate config using the base config.
-	cfg.GroupVersion = &schema.GroupVersion{
-		Group:   "extensions",
-		Version: "v1beta1",
-	}
-	cfg.APIPath = "/apis"
-	cfg.ContentType = runtime.ContentTypeJSON
-	cfg.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: clientapi.Codecs}
-
-	cli, err := rest.RESTClientFor(&cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	// Remove the client-go type for NetworkPolicy since we want to
-	// register our own to get new API features.
-	akt := clientapi.Scheme.AllKnownTypes()
-	gvk := schema.GroupVersionKind{
-		Group:   "extensions",
-		Version: "v1beta1",
-		Kind:    "NetworkPolicy",
-	}
-	delete(akt, gvk)
-
-	// Register our resource.
-	schemeBuilder := runtime.NewSchemeBuilder(
-		func(scheme *runtime.Scheme) error {
-			scheme.AddKnownTypes(
-				*cfg.GroupVersion,
-				&extensions.NetworkPolicy{},
-			)
-			return nil
-		})
-	schemeBuilder.AddToScheme(clientapi.Scheme)
+	schemeBuilder.AddToScheme(clientsetscheme.Scheme)
 
 	return cli, nil
 }
@@ -509,7 +459,7 @@ func (c *KubeClient) listProfiles(l model.ProfileListOptions) ([]*model.KVPair, 
 	}
 
 	// Otherwise, enumerate all.
-	namespaces, err := c.clientSet.Namespaces().List(metav1.ListOptions{})
+	namespaces, err := c.clientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, resources.K8sErrorToCalico(err, l)
 	}
@@ -535,7 +485,7 @@ func (c *KubeClient) getProfile(k model.ProfileKey) (*model.KVPair, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse Profile name: %s", err)
 	}
-	namespace, err := c.clientSet.Namespaces().Get(namespaceName, metav1.GetOptions{})
+	namespace, err := c.clientSet.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
 	if err != nil {
 		return nil, resources.K8sErrorToCalico(err, k)
 	}
@@ -552,12 +502,12 @@ func (c *KubeClient) applyWorkloadEndpoint(k *model.KVPair) (*model.KVPair, erro
 	if len(ips) > 0 {
 		log.Debugf("Applying workload with IPs: %+v", ips)
 		ns, name := c.converter.parseWorkloadID(k.Key.(model.WorkloadEndpointKey).WorkloadID)
-		pod, err := c.clientSet.Pods(ns).Get(name, metav1.GetOptions{})
+		pod, err := c.clientSet.CoreV1().Pods(ns).Get(name, metav1.GetOptions{})
 		if err != nil {
 			return nil, resources.K8sErrorToCalico(err, k.Key)
 		}
 		pod.Status.PodIP = ips[0].IP.String()
-		pod, err = c.clientSet.Pods(ns).UpdateStatus(pod)
+		pod, err = c.clientSet.CoreV1().Pods(ns).UpdateStatus(pod)
 		if err != nil {
 			return nil, resources.K8sErrorToCalico(err, k.Key)
 		}
@@ -590,7 +540,7 @@ func (c *KubeClient) listWorkloadEndpoints(l model.WorkloadEndpointListOptions) 
 
 	// Otherwise, enumerate all pods in all namespaces.
 	// We don't yet support hostname, orchestratorID, for the k8s backend.
-	pods, err := c.clientSet.Pods("").List(metav1.ListOptions{})
+	pods, err := c.clientSet.CoreV1().Pods("").List(metav1.ListOptions{})
 	if err != nil {
 		return nil, resources.K8sErrorToCalico(err, l)
 	}
@@ -650,7 +600,7 @@ func (c *KubeClient) listPolicies(l model.PolicyListOptions) ([]*model.KVPair, e
 
 	// Otherwise, list all NetworkPolicy objects in all Namespaces.
 	networkPolicies := extensions.NetworkPolicyList{}
-	err := c.extensionsClientV1Beta1.
+	err := c.clientSet.Extensions().RESTClient().
 		Get().
 		Resource("networkpolicies").
 		Timeout(10 * time.Second).
@@ -695,7 +645,7 @@ func (c *KubeClient) getPolicy(k model.PolicyKey) (*model.KVPair, error) {
 
 		// Get the NetworkPolicy from the API and convert it.
 		networkPolicy := extensions.NetworkPolicy{}
-		err = c.extensionsClientV1Beta1.
+		err = c.clientSet.Extensions().RESTClient().
 			Get().
 			Resource("networkpolicies").
 			Namespace(namespace).
@@ -717,8 +667,8 @@ func (c *KubeClient) getReadyStatus(k model.ReadyFlagKey) (*model.KVPair, error)
 }
 
 func (c *KubeClient) getHostConfig(k model.HostConfigKey) (*model.KVPair, error) {
-	if k.Name == "IpInIpTunnelAddr" {
-		n, err := c.clientSet.Nodes().Get(k.Hostname, metav1.GetOptions{})
+	if k.Name == "IpInIpTunnelAddr"
+		n, err := c.clientSet.CoreV1().Nodes().Get(k.Hostname, metav1.GetOptions{})
 		if err != nil {
 			return nil, resources.K8sErrorToCalico(err, k)
 		}
@@ -746,7 +696,7 @@ func (c *KubeClient) listHostConfig(l model.HostConfigListOptions) ([]*model.KVP
 
 	// First see if we were handed a specific host, if not list all Nodes
 	if l.Hostname == "" {
-		nodes, err := c.clientSet.Nodes().List(metav1.ListOptions{})
+		nodes, err := c.clientSet.CoreV1().Nodes().List(metav1.ListOptions{})
 		if err != nil {
 			return nil, resources.K8sErrorToCalico(err, l)
 		}
@@ -760,7 +710,7 @@ func (c *KubeClient) listHostConfig(l model.HostConfigListOptions) ([]*model.KVP
 			kvps = append(kvps, kvp)
 		}
 	} else {
-		node, err := c.clientSet.Nodes().Get(l.Hostname, metav1.GetOptions{})
+		node, err := c.clientSet.CoreV1().Nodes().Get(l.Hostname, metav1.GetOptions{})
 		if err != nil {
 			return nil, resources.K8sErrorToCalico(err, l)
 		}

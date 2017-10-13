@@ -16,7 +16,7 @@ package resources_test
 
 import (
 	"github.com/projectcalico/libcalico-go/lib/api"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/apis/crd"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/net"
@@ -60,12 +60,12 @@ var _ = Describe("Global BGP conversion methods", func() {
 		},
 		Revision: "rv",
 	}
-	res1 := &custom.BGPPeer{
+	res1 := &crd.BGPPeer{
 		Metadata: metav1.ObjectMeta{
 			Name:            name2,
 			ResourceVersion: "rv",
 		},
-		Spec: custom.BGPPeerSpec{
+		Spec: crd.BGPPeerSpec{
 			BGPPeerSpec: api.BGPPeerSpec{
 				ASNumber: 1212,
 			},
@@ -106,8 +106,8 @@ var _ = Describe("Global BGP conversion methods", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(r.GetObjectMeta().GetName()).To(Equal(res1.Metadata.Name))
 		Expect(r.GetObjectMeta().GetResourceVersion()).To(Equal(res1.Metadata.ResourceVersion))
-		Expect(r).To(BeAssignableToTypeOf(&custom.BGPPeer{}))
-		Expect(r.(*custom.BGPPeer).Spec).To(Equal(res1.Spec))
+		Expect(r).To(BeAssignableToTypeOf(&crd.BGPPeer{}))
+		Expect(r.(*crd.BGPPeer).Spec).To(Equal(res1.Spec))
 	})
 
 	It("should convert between a Kuberenetes resource and the equivalent KVPair", func() {

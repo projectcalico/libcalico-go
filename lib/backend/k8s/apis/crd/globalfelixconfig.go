@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package custom
+package crd
 
 import (
 	"encoding/json"
@@ -21,13 +21,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-type GlobalBGPConfig struct {
+type GlobalFelixConfig struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ObjectMeta   `json:"metadata"`
-	Spec            GlobalBGPConfigSpec `json:"spec"`
+	Metadata        metav1.ObjectMeta     `json:"metadata"`
+	Spec            GlobalFelixConfigSpec `json:"spec"`
 }
 
-type GlobalBGPConfigSpec struct {
+type GlobalFelixConfigSpec struct {
 	// The reason we have Name field in Spec is because k8s metadata
 	// name field requires the string to be lowercase, so Name field
 	// in Spec is to preserve the casing.
@@ -35,57 +35,57 @@ type GlobalBGPConfigSpec struct {
 	Value string `json:"value"`
 }
 
-type GlobalBGPConfigList struct {
+type GlobalFelixConfigList struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ListMeta   `json:"metadata"`
-	Items           []GlobalBGPConfig `json:"items"`
+	Metadata        metav1.ListMeta     `json:"metadata"`
+	Items           []GlobalFelixConfig `json:"items"`
 }
 
 // Required to satisfy Object interface
-func (e *GlobalBGPConfig) GetObjectKind() schema.ObjectKind {
+func (e *GlobalFelixConfig) GetObjectKind() schema.ObjectKind {
 	return &e.TypeMeta
 }
 
 // Required to satisfy ObjectMetaAccessor interface
-func (e *GlobalBGPConfig) GetObjectMeta() metav1.Object {
+func (e *GlobalFelixConfig) GetObjectMeta() metav1.Object {
 	return &e.Metadata
 }
 
 // Required to satisfy Object interface
-func (el *GlobalBGPConfigList) GetObjectKind() schema.ObjectKind {
+func (el *GlobalFelixConfigList) GetObjectKind() schema.ObjectKind {
 	return &el.TypeMeta
 }
 
 // Required to satisfy ListMetaAccessor interface
-func (el *GlobalBGPConfigList) GetListMeta() metav1.List {
-	return &el.Metadata
+func (el *GlobalFelixConfigList) GetListMeta() metav1.ListMeta {
+	return el.Metadata
 }
 
 // The code below is used only to work around a known problem with third-party
 // resources and ugorji. If/when these issues are resolved, the code below
 // should no longer be required.
 
-type GlobalBGPConfigListCopy GlobalBGPConfigList
-type GlobalBGPConfigCopy GlobalBGPConfig
+type GlobalFelixConfigListCopy GlobalFelixConfigList
+type GlobalFelixConfigCopy GlobalFelixConfig
 
-func (g *GlobalBGPConfig) UnmarshalJSON(data []byte) error {
-	tmp := GlobalBGPConfigCopy{}
+func (g *GlobalFelixConfig) UnmarshalJSON(data []byte) error {
+	tmp := GlobalFelixConfigCopy{}
 	err := json.Unmarshal(data, &tmp)
 	if err != nil {
 		return err
 	}
-	tmp2 := GlobalBGPConfig(tmp)
+	tmp2 := GlobalFelixConfig(tmp)
 	*g = tmp2
 	return nil
 }
 
-func (l *GlobalBGPConfigList) UnmarshalJSON(data []byte) error {
-	tmp := GlobalBGPConfigListCopy{}
+func (l *GlobalFelixConfigList) UnmarshalJSON(data []byte) error {
+	tmp := GlobalFelixConfigListCopy{}
 	err := json.Unmarshal(data, &tmp)
 	if err != nil {
 		return err
 	}
-	tmp2 := GlobalBGPConfigList(tmp)
+	tmp2 := GlobalFelixConfigList(tmp)
 	*l = tmp2
 	return nil
 }

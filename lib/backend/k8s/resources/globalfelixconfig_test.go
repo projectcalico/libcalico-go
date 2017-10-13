@@ -15,7 +15,7 @@
 package resources_test
 
 import (
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/apis/crd"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 
@@ -48,12 +48,12 @@ var _ = Describe("Global Felix config conversion methods", func() {
 		Value:    value1,
 		Revision: "rv",
 	}
-	res1 := &custom.GlobalFelixConfig{
+	res1 := &crd.GlobalFelixConfig{
 		Metadata: metav1.ObjectMeta{
 			Name:            name1,
 			ResourceVersion: "rv",
 		},
-		Spec: custom.GlobalFelixConfigSpec{
+		Spec: crd.GlobalFelixConfigSpec{
 			Name:  key1.Name,
 			Value: value1,
 		},
@@ -83,8 +83,8 @@ var _ = Describe("Global Felix config conversion methods", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(r.GetObjectMeta().GetName()).To(Equal(res1.Metadata.Name))
 		Expect(r.GetObjectMeta().GetResourceVersion()).To(Equal(res1.Metadata.ResourceVersion))
-		Expect(r).To(BeAssignableToTypeOf(&custom.GlobalFelixConfig{}))
-		Expect(r.(*custom.GlobalFelixConfig).Spec).To(Equal(res1.Spec))
+		Expect(r).To(BeAssignableToTypeOf(&crd.GlobalFelixConfig{}))
+		Expect(r.(*crd.GlobalFelixConfig).Spec).To(Equal(res1.Spec))
 	})
 
 	It("should convert between a Kuberenetes resource and the equivalent KVPair", func() {

@@ -12,76 +12,85 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package custom
+package crd
 
 import (
 	"encoding/json"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
+	"github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/scope"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// GlobalNetworkPolicy is the CustomResourceDefinition of a Calico Policy resource in
+// BGPPeer is the CustomResourceDefinition of a Calico BGP Peer resource in
 // the Kubernetes API.
-type GlobalNetworkPolicy struct {
+type BGPPeer struct {
 	metav1.TypeMeta `json:",inline"`
 	Metadata        metav1.ObjectMeta `json:"metadata"`
-	Spec            api.PolicySpec    `json:"spec"`
+	Spec            BGPPeerSpec       `json:"spec"`
 }
 
-// GlobalNetworkPolicyList is a list of GlobalNetworkPolicy resources.
-type GlobalNetworkPolicyList struct {
+type BGPPeerSpec struct {
+	api.BGPPeerSpec
+	Scope  scope.Scope `json:"scope"`
+	Node   string      `json:"node,omitempty"`
+	PeerIP net.IP      `json:"peerIP"`
+}
+
+// BGPPeerList is a list of Calico Global BGP Peer resources.
+type BGPPeerList struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ListMeta       `json:"metadata"`
-	Items           []GlobalNetworkPolicy `json:"items"`
+	Metadata        metav1.ListMeta `json:"metadata"`
+	Items           []BGPPeer       `json:"items"`
 }
 
 // GetObjectKind returns the kind of this object.  Required to satisfy Object interface
-func (e *GlobalNetworkPolicy) GetObjectKind() schema.ObjectKind {
+func (e *BGPPeer) GetObjectKind() schema.ObjectKind {
 	return &e.TypeMeta
 }
 
-// GetOjbectMeta returns the object metadata of this object. Required to satisfy ObjectMetaAccessor interface
-func (e *GlobalNetworkPolicy) GetObjectMeta() metav1.Object {
+// GetObjectMeta returns the object metadata of this object. Required to satisfy ObjectMetaAccessor interface
+func (e *BGPPeer) GetObjectMeta() metav1.Object {
 	return &e.Metadata
 }
 
 // GetObjectKind returns the kind of this object. Required to satisfy Object interface
-func (el *GlobalNetworkPolicyList) GetObjectKind() schema.ObjectKind {
+func (el *BGPPeerList) GetObjectKind() schema.ObjectKind {
 	return &el.TypeMeta
 }
 
 // GetListMeta returns the list metadata of this object. Required to satisfy ListMetaAccessor interface
-func (el *GlobalNetworkPolicyList) GetListMeta() metav1.List {
-	return &el.Metadata
+func (el *BGPPeerList) GetListMeta() metav1.ListMeta {
+	return el.Metadata
 }
 
 // The code below is used only to work around a known problem with third-party
 // resources and ugorji. If/when these issues are resolved, the code below
 // should no longer be required.
 
-type GlobalNetworkPolicyListCopy GlobalNetworkPolicyList
-type GlobalNetworkPolicyCopy GlobalNetworkPolicy
+type BGPPeerListCopy BGPPeerList
+type BGPPeerCopy BGPPeer
 
-func (g *GlobalNetworkPolicy) UnmarshalJSON(data []byte) error {
-	tmp := GlobalNetworkPolicyCopy{}
+func (g *BGPPeer) UnmarshalJSON(data []byte) error {
+	tmp := BGPPeerCopy{}
 	err := json.Unmarshal(data, &tmp)
 	if err != nil {
 		return err
 	}
-	tmp2 := GlobalNetworkPolicy(tmp)
+	tmp2 := BGPPeer(tmp)
 	*g = tmp2
 	return nil
 }
 
-func (l *GlobalNetworkPolicyList) UnmarshalJSON(data []byte) error {
-	tmp := GlobalNetworkPolicyListCopy{}
+func (l *BGPPeerList) UnmarshalJSON(data []byte) error {
+	tmp := BGPPeerListCopy{}
 	err := json.Unmarshal(data, &tmp)
 	if err != nil {
 		return err
 	}
-	tmp2 := GlobalNetworkPolicyList(tmp)
+	tmp2 := BGPPeerList(tmp)
 	*l = tmp2
 	return nil
 }
