@@ -187,7 +187,7 @@ type OrchRefKey struct {
 }
 
 func (key OrchRefKey) defaultPath() (string, error) {
-	return fmt.Sprintf("/calico/v1/host/%s/orchestrator",
+	return fmt.Sprintf("/calico/v1/host/%s/orchestrator_refs",
 		key.Hostname), nil
 }
 
@@ -204,7 +204,7 @@ func (key OrchRefKey) valueType() reflect.Type {
 }
 
 func (key OrchRefKey) String() string {
-	return fmt.Sprintf("OrchRef(nodename=%s)", key.Hostname)
+	return fmt.Sprintf("OrchRefs(nodename=%s)", key.Hostname)
 }
 
 type OrchRefListOptions struct {
@@ -212,7 +212,7 @@ type OrchRefListOptions struct {
 }
 
 func (options OrchRefListOptions) defaultPathRoot() string {
-	return fmt.Sprintf("/calico/v1/host/%s/orchestrator", options.Hostname)
+	return fmt.Sprintf("/calico/v1/host/%s/orchestrator_refs", options.Hostname)
 }
 
 func (options OrchRefListOptions) KeyFromDefaultPath(path string) Key {

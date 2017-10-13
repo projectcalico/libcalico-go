@@ -70,7 +70,7 @@ type NodeSpec struct {
 	OrchRefs []OrchRef `json:"orchRefs,omitempty" validate:"omitempty"`
 }
 
-// OrchRef is used to map a node in etcd to nodes in other orchestrators.
+// OrchRef is used to correlate a Calico node to its corresponding representation in a given orchestrator
 type OrchRef struct {
 	// NodeName represents the name for this node according to the orchestrator.
 	NodeName string `json:"nodeName,omitempty" validate:"omitempty"`
