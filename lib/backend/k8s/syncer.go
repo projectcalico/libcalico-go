@@ -1030,7 +1030,7 @@ func (syn *kubeSyncer) parseCustomK8sResourceEvent(
 		"ResourceType": resourceType,
 		"EventType":    e.Type,
 	})
-	crd, ok := e.Object.(resources.CustomK8sResource)
+	crd, ok := e.Object.(resources.K8sResource)
 	if !ok {
 		logContext.Panicf("Invalid custom resource event. Object: %+v", e.Object)
 	}
