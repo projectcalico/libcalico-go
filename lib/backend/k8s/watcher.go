@@ -2,61 +2,45 @@ package k8s
 
 import (
 	"context"
-	"strconv"
-	"sync/atomic"
+	"reflect"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/apiv2"
+	"errors"
 )
 
 const (
 	resultsBufSize = 100
 )
 
-// Watch entries in the datastore matching the resources specified by the ListInterface.
-func (c *KubeClient) Watch(cxt context.Context, l model.ListInterface, revision string) (api.WatchInterface, error) {
-	var rev int64
-	if len(revision) != 0 {
-		var err error
-		rev, err = strconv.ParseInt(revision, 10, 64)
-		if err != nil {
-			return nil, err
-		}
+// List entries in the datastore.  This may return an empty list if there are
+// no entries matching the request in the ListInterface.
+func (c *KubeClient) Watch(ctx context.Context, l model.ListInterface, revision string) (api.WatchInterface, error) {
+	log.Debugf("Performing 'Watch' for %+v %v", l, reflect.TypeOf(l))
+	switch l.(model.ResourceListOptions).Kind {
+	case apiv2.KindProfile:
+		return nil, errors.New("Not supported")
+		//return c.listProfiles(ctx, l.(model.ResourceListOptions), revision)
+	case apiv2.KindWorkloadEndpoint:
+		return nil, errors.New("Not supported")
+		//return c.listWorkloadEndpoints(ctx, l.(model.ResourceListOptions), revision)
+	case apiv2.KindGlobalNetworkPolicy, apiv2.KindNetworkPolicy:
+		return nil, errors.New("Not supported")
+		//return c.listPolicies(ctx, l.(model.ResourceListOptions), revision)
+	case apiv2.KindIPPool:
+		return c.ipPoolClient.Watch(ctx, l, revision)
+	case apiv2.KindBGPPeer:
+		return c.bgpPeerClient.Watch(ctx, l, revision)
+	case apiv2.KindBGPConfiguration:
+		return c.bgpConfigClient.Watch(ctx, l, revision)
+	case apiv2.KindFelixConfiguration:
+		return c.felixConfigClient.Watch(ctx, l, revision)
+	case apiv2.KindClusterInformation:
+		return c.clusterInfoClient.Watch(ctx, l, revision)
+	case apiv2.KindNode:
+		return c.nodeClient.Watch(ctx, l, revision)
+	default:
+		return nil, errors.New("Not supported")
 	}
-
-	wc := &watcher{
-		client:     c,
-		list:       l,
-		initialRev: rev,
-		resultChan: make(chan api.WatchEvent, resultsBufSize),
-	}
-	wc.ctx, wc.cancel = context.WithCancel(cxt)
-	return wc, nil
-}
-
-// watcher implements watch.Interface.
-type watcher struct {
-	client     *KubeClient
-	initialRev int64
-	ctx        context.Context
-	cancel     context.CancelFunc
-	resultChan chan api.WatchEvent
-	list       model.ListInterface
-	terminated uint32
-}
-
-// Stop stops the watcher and releases associated resources.
-// This calls through to the context cancel function.
-func (wc *watcher) Stop() {
-	wc.cancel()
-}
-
-// ResultChan returns a channel used to receive WatchEvents.
-func (wc *watcher) ResultChan() <-chan api.WatchEvent {
-	return wc.resultChan
-}
-
-// HasTerminated returns true when the watcher has completed termination processing.
-func (wc *watcher) HasTerminated() bool {
-	return atomic.LoadUint32(&wc.terminated) != 0
 }

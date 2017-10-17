@@ -17,9 +17,10 @@ package resources
 import (
 	"context"
 
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
-
 	apiv1 "k8s.io/client-go/pkg/api/v1"
+
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/backend/api"
 )
 
 // K8sResourceClient is the interface to the k8s datastore for CRUD operations
@@ -62,6 +63,11 @@ type K8sResourceClient interface {
 	// list should be passed one of the model.<Type>ListOptions structs.
 	// Non-zero fields in the struct are used as filters.
 	List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error)
+
+	// List returns a slice of KVPairs matching the input list options.
+	// list should be passed one of the model.<Type>ListOptions structs.
+	// Non-zero fields in the struct are used as filters.
+	Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error)
 
 	// EnsureInitialized ensures that the backend is initialized
 	// any ready to be used.
