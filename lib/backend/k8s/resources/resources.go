@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	labelsAnnotation      = "projectcalico.org/Labels"
-	annotationsAnnotation = "projectcalico.org/Annotations"
+	labelsAnnotation      = "projectcalico.org/labels"
+	annotationsAnnotation = "projectcalico.org/annotations"
 )
 
 // Interface that all Kubernetes and Calico resources implement.
@@ -41,6 +41,8 @@ type ResourceList interface {
 	metav1.ListMetaAccessor
 }
 
+// Function signature for conversion function to convert a K8s resouce to a
+// KVPair equivalent.
 type ConvertK8sResourceToKVPair func(Resource) (*model.KVPair, error)
 
 // Store Calico Metadata in the k8s resource annotations for non-CRD backed resources.
@@ -52,12 +54,16 @@ func SetK8sAnnotationsFromCalicoMetadata(k8sRes Resource, calicoRes Resource) {
 		a = make(map[string]string)
 	}
 	if labels := calicoRes.GetObjectMeta().GetLabels(); len(labels) > 0 {
-		if lann, err := json.Marshal(labels); err == nil {
+		if lann, err := json.Marshal(labels); err != nil {
+			log.WithError(err).Warning("unable to store labels as an annotation")
+		} else {
 			a[labelsAnnotation] = string(lann)
 		}
 	}
 	if annotations := calicoRes.GetObjectMeta().GetAnnotations(); len(annotations) > 0 {
-		if aann, err := json.Marshal(annotations); err == nil {
+		if aann, err := json.Marshal(annotations); err != nil {
+			log.WithError(err).Warning("unable to store annotations as an annotation")
+		} else {
 			a[annotationsAnnotation] = string(aann)
 		}
 	}
@@ -73,7 +79,7 @@ func SetCalicoMetadataFromK8sAnnotations(calicoRes Resource, k8sRes Resource) {
 	com.SetResourceVersion(kom.GetResourceVersion())
 	com.SetCreationTimestamp(kom.GetCreationTimestamp())
 	a := kom.GetAnnotations()
-	if len(a) == 0 {
+	if a == nil {
 		return
 	}
 

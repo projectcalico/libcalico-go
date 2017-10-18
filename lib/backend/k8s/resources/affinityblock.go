@@ -18,6 +18,7 @@ import (
 	"context"
 
 	log "github.com/sirupsen/logrus"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -83,9 +84,9 @@ func (c *AffinityBlockClient) List(ctx context.Context, list model.ListInterface
 	// If a host is specified, then do an exact lookup (ip version should not be expected in the query)
 	if bl.Host != "" && bl.IPVersion == 0 {
 		// Get the node settings, we use the nodes PodCIDR as the only node affinity block.
-		node, err := c.clientSet.Nodes().Get(bl.Host, metav1.GetOptions{})
+		node, err := c.clientSet.CoreV1().Nodes().Get(bl.Host, metav1.GetOptions{})
 		if err != nil {
-			return nil, K8sErrorToCalico(err, list)
+			err = K8sErrorToCalico(err, list)
 			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
 				return nil, err
 			}

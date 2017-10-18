@@ -112,17 +112,17 @@ func (c Converter) IsReadyCalicoPod(pod *kapiv1.Pod) bool {
 	if c.IsHostNetworked(pod) {
 		log.WithField("pod", pod.Name).Debug("Pod is host networked.")
 		return false
-	} else if !c.hasIPAddress(pod) {
+	} else if !c.HasIPAddress(pod) {
 		log.WithField("pod", pod.Name).Debug("Pod does not have an IP address.")
 		return false
-	} else if !c.isScheduled(pod) {
+	} else if !c.IsScheduled(pod) {
 		log.WithField("pod", pod.Name).Debug("Pod is not scheduled.")
 		return false
 	}
 	return true
 }
 
-func (c Converter) isScheduled(pod *kapiv1.Pod) bool {
+func (c Converter) IsScheduled(pod *kapiv1.Pod) bool {
 	return pod.Spec.NodeName != ""
 }
 
@@ -130,7 +130,7 @@ func (c Converter) IsHostNetworked(pod *kapiv1.Pod) bool {
 	return pod.Spec.HostNetwork
 }
 
-func (c Converter) hasIPAddress(pod *kapiv1.Pod) bool {
+func (c Converter) HasIPAddress(pod *kapiv1.Pod) bool {
 	return pod.Status.PodIP != ""
 }
 
@@ -144,7 +144,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 	// We do, in some circumstances, want to parse Pods without an IP address.  For example,
 	// a DELETE update will not include an IP.
 	ipNets := []string{}
-	if c.hasIPAddress(pod) {
+	if c.HasIPAddress(pod) {
 		_, ipNet, err := cnet.ParseCIDR(fmt.Sprintf("%s/32", pod.Status.PodIP))
 		if err != nil {
 			log.WithFields(log.Fields{"ip": pod.Status.PodIP, "pod": pod.Name}).WithError(err).Error("Failed to parse pod IP")

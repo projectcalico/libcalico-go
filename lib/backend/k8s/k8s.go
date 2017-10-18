@@ -16,7 +16,6 @@ package k8s
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -36,7 +35,6 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/net"
 
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -130,9 +128,12 @@ func NewKubeClient(kc *apiconfig.KubeConfig) (api.Client, error) {
 	}
 
 	kubeClient := &KubeClient{
-		clientSet:       cs,
-		crdClientV1:     crdClientV1,
-		disableNodePoll: kc.K8sDisableNodePoll,
+		clientSet:               cs,
+		crdClientV1:             crdClientV1,
+		disableNodePoll:         kc.K8sDisableNodePoll,
+		clientsByResourceKind: make(map[string]resources.K8sResourceClient),
+		clientsByKeyType: make(map[reflect.Type]resources.K8sResourceClient),
+		clientsByListType: make(map[reflect.Type]resources.K8sResourceClient),
 	}
 
 	// Create the Calico sub-clients and register them.
@@ -207,42 +208,28 @@ func (c *KubeClient) registerResourceClient(keyType, listType reflect.Type, reso
 }
 
 // getResourceClientFromKey returns the appropriate resource client for the v2 resource kind.
-func (c *KubeClient) getResourceClientFromResourceKind(kind string) (resources.K8sResourceClient, error) {
-	client := c.clientsByResourceKind[kind]
-	if client == nil {
-		return nil, fmt.Errorf("Unhandled resource type %v", kind)
-	}
-	return client, nil
+func (c *KubeClient) getResourceClientFromResourceKind(kind string) resources.K8sResourceClient {
+	return c.clientsByResourceKind[kind]
 }
 
 // getResourceClientFromKey returns the appropriate resource client for the key.
-func (c *KubeClient) getResourceClientFromKey(key model.Key) (resources.K8sResourceClient, error) {
-	var client resources.K8sResourceClient
+func (c *KubeClient) getResourceClientFromKey(key model.Key) resources.K8sResourceClient {
 	kt := reflect.TypeOf(key)
 	if kt == resourceKeyType {
-		client = c.clientsByResourceKind[key.(model.ResourceKey).Kind]
+		return c.clientsByResourceKind[key.(model.ResourceKey).Kind]
 	} else {
-		client = c.clientsByKeyType[kt]
+		return c.clientsByKeyType[kt]
 	}
-	if client == nil {
-		return nil, fmt.Errorf("Unhandled resource type %v", kt)
-	}
-	return client, nil
 }
 
 // getResourceClientFromList returns the appropriate resource client for the list.
-func (c *KubeClient) getResourceClientFromList(list model.ListInterface) (resources.K8sResourceClient, error) {
-	var client resources.K8sResourceClient
+func (c *KubeClient) getResourceClientFromList(list model.ListInterface) resources.K8sResourceClient {
 	lt := reflect.TypeOf(list)
 	if lt == resourceListType {
-		client = c.clientsByResourceKind[list.(model.ResourceListOptions).Kind]
+		return c.clientsByResourceKind[list.(model.ResourceListOptions).Kind]
 	} else {
-		client = c.clientsByListType[lt]
+		return c.clientsByListType[lt]
 	}
-	if client == nil {
-		return nil, fmt.Errorf("Unhandled resource type %v", lt)
-	}
-	return client, nil
 }
 
 // EnsureInitialized checks that the necessary custom resource definitions
@@ -263,20 +250,24 @@ func (c *KubeClient) EnsureInitialized() error {
 }
 
 func (c *KubeClient) Clean() error {
-	/*types := []model.ListInterface{
-		model.BGPConfigListOptions{},
-		model.BGPPeerListOptions{},
-		model.GlobalConfigListOptions{},
-		model.IPPoolListOptions{},
+	log.Warning("Cleaning KDD of all Calico-creatable data")
+	kinds := []string{
+		apiv2.KindBGPConfiguration,
+		apiv2.KindBGPPeer,
+		apiv2.KindClusterInformation,
+		apiv2.KindFelixConfiguration,
+		apiv2.KindGlobalNetworkPolicy,
+		apiv2.KindIPPool,
 	}
-	for _, t := range types {
-		rs, _ := c.List(t, "")
+	ctx := context.Background()
+	for _, k := range kinds {
+		lo := model.ResourceListOptions{Kind: k}
+		rs, _ := c.List(ctx, lo, "")
 		for _, r := range rs.KVPairs {
 			log.WithField("Key", r.Key).Info("Deleting from KDD")
-			backend.Delete(r.Key, r.Revision)
+			c.Delete(ctx, r.Key, r.Revision)
 		}
 	}
-	*/
 	return nil
 }
 
@@ -377,9 +368,13 @@ func (c *KubeClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
 // Create an entry in the datastore.  This errors if the entry already exists.
 func (c *KubeClient) Create(ctx context.Context, d *model.KVPair) (*model.KVPair, error) {
 	log.Debugf("Performing 'Create' for %+v", d)
-	client, err := c.getResourceClientFromKey(d.Key)
-	if err != nil {
-		return nil, err
+	client := c.getResourceClientFromKey(d.Key)
+	if client == nil {
+		log.Debug("Attempt to 'Create' using kubernetes backend is not supported.")
+		return nil, cerrors.ErrorOperationNotSupported{
+			Identifier: d.Key,
+			Operation:  "Create",
+		}
 	}
 	return client.Create(ctx, d)
 }
@@ -388,9 +383,13 @@ func (c *KubeClient) Create(ctx context.Context, d *model.KVPair) (*model.KVPair
 // not exist.
 func (c *KubeClient) Update(ctx context.Context, d *model.KVPair) (*model.KVPair, error) {
 	log.Debugf("Performing 'Update' for %+v", d)
-	client, err := c.getResourceClientFromKey(d.Key)
-	if err != nil {
-		return nil, err
+	client := c.getResourceClientFromKey(d.Key)
+	if client == nil {
+		log.Debug("Attempt to 'Update' using kubernetes backend is not supported.")
+		return nil, cerrors.ErrorOperationNotSupported{
+			Identifier: d.Key,
+			Operation:  "Update",
+		}
 	}
 	return client.Update(ctx, d)
 }
@@ -431,9 +430,13 @@ func (c *KubeClient) Apply(kvp *model.KVPair) (*model.KVPair, error) {
 // Delete an entry in the datastore. This is a no-op when using the k8s backend.
 func (c *KubeClient) Delete(ctx context.Context, k model.Key, revision string) (*model.KVPair, error) {
 	log.Debugf("Performing 'Delete' for %+v", k)
-	client, err := c.getResourceClientFromKey(k)
-	if err != nil {
-		return nil, err
+	client := c.getResourceClientFromKey(k)
+	if client == nil {
+		log.Debug("Attempt to 'Delete' using kubernetes backend is not supported.")
+		return nil, cerrors.ErrorOperationNotSupported{
+			Identifier: k,
+			Operation:  "Delete",
+		}
 	}
 	return client.Delete(ctx, k, revision)
 }
@@ -441,9 +444,13 @@ func (c *KubeClient) Delete(ctx context.Context, k model.Key, revision string) (
 // Get an entry from the datastore.  This errors if the entry does not exist.
 func (c *KubeClient) Get(ctx context.Context, k model.Key, revision string) (*model.KVPair, error) {
 	log.Debugf("Performing 'Get' for %+v %v", k, revision)
-	client, err := c.getResourceClientFromKey(k)
-	if err != nil {
-		return nil, err
+	client := c.getResourceClientFromKey(k)
+	if client == nil {
+		log.Debug("Attempt to 'Get' using kubernetes backend is not supported.")
+		return nil, cerrors.ErrorOperationNotSupported{
+			Identifier: k,
+			Operation:  "Get",
+		}
 	}
 	return client.Get(ctx, k, revision)
 }
@@ -452,9 +459,13 @@ func (c *KubeClient) Get(ctx context.Context, k model.Key, revision string) (*mo
 // no entries matching the request in the ListInterface.
 func (c *KubeClient) List(ctx context.Context, l model.ListInterface, revision string) (*model.KVPairList, error) {
 	log.Debugf("Performing 'List' for %+v %v", l, reflect.TypeOf(l))
-	client, err := c.getResourceClientFromList(l)
-	if err != nil {
-		return nil, err
+	client := c.getResourceClientFromList(l)
+	if client == nil {
+		log.Info("Attempt to 'List' using kubernetes backend is not supported.")
+		return nil, cerrors.ErrorOperationNotSupported{
+			Identifier: l,
+			Operation:  "List",
+		}
 	}
 	return client.List(ctx, l, revision)
 }
@@ -463,120 +474,19 @@ func (c *KubeClient) List(ctx context.Context, l model.ListInterface, revision s
 // no entries matching the request in the ListInterface.
 func (c *KubeClient) Watch(ctx context.Context, l model.ListInterface, revision string) (api.WatchInterface, error) {
 	log.Debugf("Performing 'Watch' for %+v %v", l, reflect.TypeOf(l))
-	client, err := c.getResourceClientFromList(l)
-	if err != nil {
-		return nil, err
+	client := c.getResourceClientFromList(l)
+	if client == nil {
+		log.Debug("Attempt to 'Watch' using kubernetes backend is not supported.")
+		return nil, cerrors.ErrorOperationNotSupported{
+			Identifier: l,
+			Operation:  "Watch",
+		}
 	}
 	return client.Watch(ctx, l, revision)
 }
 
-// listPolicies lists the Policies from the k8s API based on NetworkPolicy objects.
-func (c *KubeClient) listPolicies(ctx context.Context, l model.ResourceListOptions, revision string) (*model.KVPairList, error) {
-	if l.Name != "" {
-		// Exact lookup on a NetworkPolicy.
-		kvp, err := c.getPolicy(ctx, model.ResourceKey{Name: l.Name, Kind: l.Kind}, revision)
-		if err != nil {
-			switch err.(type) {
-			// Return empty slice of KVPair if the object doesn't exist, return the error otherwise.
-			case cerrors.ErrorResourceDoesNotExist:
-				return &model.KVPairList{
-					KVPairs:  []*model.KVPair{},
-					Revision: revision,
-				}, nil
-			default:
-				return nil, err
-			}
-		}
-
-		return &model.KVPairList{
-			KVPairs:  []*model.KVPair{kvp},
-			Revision: revision,
-		}, nil
-	}
-
-	// Otherwise, list all NetworkPolicy objects in all Namespaces.
-	networkPolicies := extensions.NetworkPolicyList{}
-
-	// For each policy, turn it into a Policy and generate the list.
-	ret := []*model.KVPair{}
-	for _, p := range networkPolicies.Items {
-		kvp, err := c.converter.NetworkPolicyToPolicy(&p)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, kvp)
-	}
-
-	// List all Global Network Policies.
-	gnpClient, _ := c.getResourceClientFromList(l)
-	gnps, err := gnpClient.List(ctx, l, revision)
-	if err != nil {
-		return nil, err
-	}
-	ret = append(ret, gnps.KVPairs...)
-
-	return &model.KVPairList{
-		KVPairs:  ret,
-		Revision: revision,
-	}, nil
-}
-
-// getPolicy gets the Policy from the k8s API based on NetworkPolicy objects.
-func (c *KubeClient) getPolicy(ctx context.Context, k model.ResourceKey, revision string) (*model.KVPair, error) {
-	if k.Name == "" {
-		return nil, errors.New("Missing policy name")
-	}
-
-	// Check to see if this is backed by a NetworkPolicy.
-	if strings.HasPrefix(k.Name, "knp.default.") {
-		// Backed by a NetworkPolicy. Parse out the namespace / name.
-		namespace, policyName, err := c.converter.ParsePolicyNameNetworkPolicy(k.Name)
-		if err != nil {
-			return nil, cerrors.ErrorResourceDoesNotExist{Err: err, Identifier: k}
-		}
-
-		// Get the NetworkPolicy from the API and convert it.
-		networkPolicy := extensions.NetworkPolicy{}
-		err = c.clientSet.ExtensionsV1beta1().RESTClient().
-			Get().
-			Resource("networkpolicies").
-			Namespace(namespace).
-			Name(policyName).
-			Timeout(10 * time.Second).
-			Do().Into(&networkPolicy)
-		if err != nil {
-			return nil, resources.K8sErrorToCalico(err, k)
-		}
-		return c.converter.NetworkPolicyToPolicy(&networkPolicy)
-	} else {
-		// This is backed by a Global Network Policy CRD.
-		gnpClient, _ := c.getResourceClientFromKey(k)
-		return gnpClient.Get(ctx, k, revision)
-	}
-}
-
 func (c *KubeClient) getReadyStatus(ctx context.Context, k model.ReadyFlagKey, revision string) (*model.KVPair, error) {
 	return &model.KVPair{Key: k, Value: true}, nil
-}
-
-func (c *KubeClient) getHostConfig(ctx context.Context, k model.HostConfigKey, revision string) (*model.KVPair, error) {
-	if k.Name == "IpInIpTunnelAddr" {
-		n, err := c.clientSet.CoreV1().Nodes().Get(k.Hostname, metav1.GetOptions{})
-		if err != nil {
-			return nil, resources.K8sErrorToCalico(err, k)
-		}
-
-		kvp, err := getTunIp(n)
-		if err != nil {
-			return nil, err
-		} else if kvp == nil {
-			return nil, cerrors.ErrorResourceDoesNotExist{}
-		}
-
-		return kvp, nil
-	}
-
-	return nil, cerrors.ErrorResourceDoesNotExist{Identifier: k}
 }
 
 func (c *KubeClient) listHostConfig(ctx context.Context, l model.HostConfigListOptions, revision string) (*model.KVPairList, error) {

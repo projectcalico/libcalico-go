@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	kapiv1 "k8s.io/client-go/pkg/api/v1"
+	kapiv1 "k8s.io/api/core/v1"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
@@ -76,7 +76,7 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse Profile name: %s", err)
 	}
-	namespace, err := c.clientSet.Namespaces().Get(namespaceName, metav1.GetOptions{})
+	namespace, err := c.clientSet.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
 	if err != nil {
 		return nil, K8sErrorToCalico(err, rk)
 	}
@@ -110,7 +110,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	}
 
 	// Otherwise, enumerate all.
-	namespaces, err := c.clientSet.Namespaces().List(metav1.ListOptions{})
+	namespaces, err := c.clientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, K8sErrorToCalico(err, nl)
 	}
@@ -139,9 +139,9 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		return nil, fmt.Errorf("cannot watch specific resource instance: %s", list.(model.ResourceListOptions).Name)
 	}
 
-	k8sWatch, err := c.clientSet.Namespaces().Watch(metav1.ListOptions{ResourceVersion: revision})
+	k8sWatch, err := c.clientSet.CoreV1().Namespaces().Watch(metav1.ListOptions{ResourceVersion: revision})
 	if err != nil {
-		return nil, err
+		return nil, K8sErrorToCalico(err, list)
 	}
 	converter := func(r Resource) (*model.KVPair, error) {
 		k8sNamespace, ok := r.(*kapiv1.Namespace)

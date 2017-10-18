@@ -56,9 +56,8 @@ type K8sResourceClient interface {
 	// Non-zero fields in the struct are used as filters.
 	List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error)
 
-	// List returns a slice of KVPairs matching the input list options.
-	// list should be passed one of the model.<Type>ListOptions structs.
-	// Non-zero fields in the struct are used as filters.
+	// Watch returns a WatchInterface used for watching a resources matching the
+	// input list options.
 	Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error)
 
 	// EnsureInitialized ensures that the backend is initialized

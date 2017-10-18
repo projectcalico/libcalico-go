@@ -93,14 +93,6 @@ func (c *customK8sResourceClient) Create(ctx context.Context, kvp *model.KVPair)
 		Do().Into(resOut)
 	if err != nil {
 		logContext.WithError(err).Info("Error creating resource")
-		// If the resource already exists, return the existing one.
-		if kerrors.IsAlreadyExists(err) {
-			existing, get_err := c.Get(ctx, kvp.Key, kvp.Revision)
-			if get_err != nil {
-				return nil, get_err
-			}
-			return existing, K8sErrorToCalico(err, kvp.Key)
-		}
 		return nil, K8sErrorToCalico(err, kvp.Key)
 	}
 
@@ -138,26 +130,15 @@ func (c *customK8sResourceClient) Update(ctx context.Context, kvp *model.KVPair)
 		Body(resIn).
 		Name(name).
 		Do().Into(resOut)
-	if updateError == nil {
-		// Success.
-		// Update the revision information from the response.
-		kvp.Revision = resOut.GetObjectMeta().GetResourceVersion()
-		return kvp, nil
+	if updateError != nil {
+		// Failed to update the resource.
+		logContext.WithError(updateError).Error("Error updating resource")
+		return nil, K8sErrorToCalico(updateError, kvp.Key)
 	}
 
-	// Failed to update the resource.
-	logContext.WithError(updateError).Error("Error updating resource")
-
-	if kerrors.IsConflict(updateError) {
-		logContext.Error("Getting existing resource")
-		existing, get_err := c.Get(ctx, kvp.Key, kvp.Revision)
-		if get_err != nil {
-			return nil, get_err
-		}
-		return existing, K8sErrorToCalico(updateError, kvp.Key)
-	}
-
-	return nil, K8sErrorToCalico(updateError, kvp.Key)
+	// Success. Update the revision information from the response.
+	kvp.Revision = resOut.GetObjectMeta().GetResourceVersion()
+	return kvp, nil
 }
 
 // Delete deletes an existing Custom K8s Resource instance in the k8s API using the supplied KVPair.
@@ -319,7 +300,7 @@ func (c *customK8sResourceClient) Watch(ctx context.Context, list model.ListInte
 		fields.Everything())
 	k8sWatch, err := k8sWatchClient.WatchFunc(metav1.ListOptions{ResourceVersion: revision})
 	if err != nil {
-		return nil, err
+		return nil, K8sErrorToCalico(err, list)
 	}
 	return newK8sWatcherConverter(ctx, c.converter.ToKVPair, k8sWatch), nil
 }

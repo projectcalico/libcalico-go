@@ -127,7 +127,7 @@ func (k *realKubeAPI) GlobalNetworkPolicyWatch(opts metav1.ListOptions) (watch.I
 }
 
 func (k *realKubeAPI) GlobalNetworkPolicyList() ([]*model.KVPair, string, error) {
-	gnpClient, _ := k.kc.getResourceClientFromResourceKind(apiv2.KindGlobalNetworkPolicy)
+	gnpClient := k.kc.getResourceClientFromResourceKind(apiv2.KindGlobalNetworkPolicy)
 	kvpl, err := gnpClient.List(context.Background(), model.PolicyListOptions{}, "")
 	return kvpl.KVPairs, "", err
 }
@@ -138,7 +138,7 @@ func (k *realKubeAPI) PodList(namespace string, opts metav1.ListOptions) (list *
 }
 
 func (k *realKubeAPI) FelixConfigList(l model.GlobalConfigListOptions) ([]*model.KVPair, string, error) {
-	felixConfigClient, _ := k.kc.getResourceClientFromResourceKind(apiv2.KindFelixConfiguration)
+	felixConfigClient := k.kc.getResourceClientFromResourceKind(apiv2.KindFelixConfiguration)
 	kvpl, err := felixConfigClient.List(context.Background(), l, "")
 	return kvpl.KVPairs, "", err
 }
@@ -149,7 +149,7 @@ func (k *realKubeAPI) HostConfigList(l model.HostConfigListOptions) ([]*model.KV
 }
 
 func (k *realKubeAPI) IPPoolList(l model.IPPoolListOptions) ([]*model.KVPair, string, error) {
-	ipPoolClient, _ := k.kc.getResourceClientFromResourceKind(apiv2.KindIPPool)
+	ipPoolClient := k.kc.getResourceClientFromResourceKind(apiv2.KindIPPool)
 	kvpl, err := ipPoolClient.List(context.Background(), l, "")
 	return kvpl.KVPairs, "", err
 }

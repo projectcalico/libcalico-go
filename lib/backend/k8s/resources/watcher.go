@@ -33,13 +33,15 @@ const (
 
 func newK8sWatcherConverter(ctx context.Context, converter ConvertK8sResourceToKVPair, k8sWatch kwatch.Interface) api.WatchInterface {
 	ctx, cancel := context.WithCancel(ctx)
-	return &k8sWatcherConverter{
+	wc := &k8sWatcherConverter{
 		converter:  converter,
+		k8sWatch:   k8sWatch,
 		context:    ctx,
 		cancel:     cancel,
-		k8sWatch:   k8sWatch,
 		resultChan: make(chan api.WatchEvent, resultsBufSize),
 	}
+	go wc.processK8sEvents()
+	return wc
 }
 
 type k8sWatcherConverter struct {
@@ -48,7 +50,6 @@ type k8sWatcherConverter struct {
 	context    context.Context
 	cancel     context.CancelFunc
 	resultChan chan api.WatchEvent
-	stop       chan struct{}
 	terminated uint32
 }
 
@@ -71,8 +72,9 @@ func (crw *k8sWatcherConverter) HasTerminated() bool {
 // Loop to process the events stream from the underlying k8s Watcher and convert them to
 // backend KVPs.
 func (crw *k8sWatcherConverter) processK8sEvents() {
+	log.Info("Watcher process started")
 	defer func() {
-		log.Debug("Watcher thread terminated")
+		log.Info("Watcher process terminated")
 		atomic.AddUint32(&crw.terminated, 1)
 	}()
 

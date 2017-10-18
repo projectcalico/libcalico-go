@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	kapiv1 "k8s.io/client-go/pkg/api/v1"
+	kapiv1 "k8s.io/api/core/v1"
 
 	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -163,9 +163,9 @@ func (c *nodeClient) Watch(ctx context.Context, list model.ListInterface, revisi
 		return nil, fmt.Errorf("cannot watch specific resource instance: %s", list.(model.ResourceListOptions).Name)
 	}
 
-	k8sWatch, err := c.clientSet.Nodes().Watch(metav1.ListOptions{ResourceVersion: revision})
+	k8sWatch, err := c.clientSet.CoreV1().Nodes().Watch(metav1.ListOptions{ResourceVersion: revision})
 	if err != nil {
-		return nil, err
+		return nil, K8sErrorToCalico(err, list)
 	}
 	converter := func(r Resource) (*model.KVPair, error) {
 		k8sNode, ok := r.(*kapiv1.Node)
@@ -183,22 +183,28 @@ func K8sNodeToCalico(k8sNode *kapiv1.Node) (*model.KVPair, error) {
 	calicoNode := apiv2.NewNode()
 	calicoNode.ObjectMeta.Name = k8sNode.Name
 	SetCalicoMetadataFromK8sAnnotations(calicoNode, k8sNode)
-	calicoNode.Spec = apiv2.NodeSpec{
-		BGP: &apiv2.NodeBGPSpec{},
-	}
+
+	// Extract the BGP configuration stored in the annotations.
+	bgpSpec := &apiv2.NodeBGPSpec{}
 	annotations := k8sNode.ObjectMeta.Annotations
-	calicoNode.Spec.BGP.IPv4Address = annotations[nodeBgpIpv4AddrAnnotation]
-	calicoNode.Spec.BGP.IPv6Address = annotations[nodeBgpIpv6AddrAnnotation]
+	bgpSpec.IPv4Address = annotations[nodeBgpIpv4AddrAnnotation]
+	bgpSpec.IPv6Address = annotations[nodeBgpIpv6AddrAnnotation]
 	asnString, ok := annotations[nodeBgpAsnAnnotation]
 	if ok {
 		asn, err := numorstring.ASNumberFromString(asnString)
 		if err != nil {
 			log.WithError(err).Infof("failed to read node AS number from annotation: %s", nodeBgpAsnAnnotation)
 		} else {
-			calicoNode.Spec.BGP.ASNumber = &asn
+			bgpSpec.ASNumber = &asn
 		}
 	}
-	calicoNode.Spec.BGP.IPv4IPIPTunnelAddr = getTunIp(k8sNode)
+
+	// If any of the BGP configuration is present, then set the BGP struct in the Spec, and
+	// set the IPv4 IPIP tunnel address.
+	if bgpSpec.IPv4Address != "" || bgpSpec.IPv6Address != "" || bgpSpec.ASNumber != nil {
+		bgpSpec.IPv4IPIPTunnelAddr = getTunIp(k8sNode)
+		calicoNode.Spec.BGP = bgpSpec
+	}
 
 	// Create the resource key from the node name.
 	return &model.KVPair{
