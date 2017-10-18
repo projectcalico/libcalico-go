@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/projectcalico/libcalico-go/lib/apiv2"
+	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/backend/syncersv1/updateprocessors"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
@@ -187,7 +187,7 @@ var _ = Describe("Test the (BGP) Node update processor", func() {
 		res.Spec.BGP = &apiv2.NodeBGPSpec{
 			IPv4Address: "1.2.3.4/240",
 			IPv6Address: "aa:bb:cc::ffff/120",
-			ASNumber: &asn,
+			ASNumber:    &asn,
 		}
 		kvps, err := up.Process(&model.KVPair{
 			Key:   v2NodeKey1,

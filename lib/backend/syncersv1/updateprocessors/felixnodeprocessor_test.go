@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/projectcalico/libcalico-go/lib/apiv2"
+	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/backend/syncersv1/updateprocessors"
 	"github.com/projectcalico/libcalico-go/lib/net"
@@ -174,7 +174,7 @@ var _ = Describe("Test the (Felix) Node update processor", func() {
 		res = apiv2.NewNode()
 		res.Name = "mynode"
 		res.Spec.BGP = &apiv2.NodeBGPSpec{
-			IPv4Address: "1.2.3.4/240",
+			IPv4Address:        "1.2.3.4/240",
 			IPv4IPIPTunnelAddr: "192.100.100.100",
 		}
 		kvps, err := up.Process(&model.KVPair{
@@ -197,7 +197,7 @@ var _ = Describe("Test the (Felix) Node update processor", func() {
 		res = apiv2.NewNode()
 		res.Name = "mynode"
 		res.Spec.BGP = &apiv2.NodeBGPSpec{
-			IPv4Address: "1.2.3.4/24",
+			IPv4Address:        "1.2.3.4/24",
 			IPv4IPIPTunnelAddr: "192.100.100.100/24",
 		}
 		kvps, err = up.Process(&model.KVPair{

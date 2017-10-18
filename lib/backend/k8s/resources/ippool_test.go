@@ -15,7 +15,7 @@
 package resources_test
 
 import (
-	"github.com/projectcalico/libcalico-go/lib/apiv2"
+	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/net"
@@ -60,7 +60,7 @@ var _ = Describe("IP Pool conversion methods", func() {
 		CIDR:     cidr2.String(),
 		Disabled: false,
 		IPIP: &apiv2.IPIPConfiguration{
-			Mode:    "cross-subnet",
+			Mode: "cross-subnet",
 		},
 	}
 	kvp1 := &model.KVPair{
@@ -77,7 +77,7 @@ var _ = Describe("IP Pool conversion methods", func() {
 			CIDR:     cidr2.String(),
 			Disabled: false,
 			IPIP: &apiv2.IPIPConfiguration{
-				Mode:    "cross-subnet",
+				Mode: "cross-subnet",
 			},
 		},
 	}
