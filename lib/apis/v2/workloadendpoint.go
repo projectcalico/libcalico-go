@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiv2
+package v2
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -20,6 +20,9 @@ const (
 	KindWorkloadEndpoint     = "WorkloadEndpoint"
 	KindWorkloadEndpointList = "WorkloadEndpointList"
 )
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // WorkloadEndpoint contains information about a WorkloadEndpoint resource that is a peer of a Calico
 // compute node.
@@ -79,6 +82,8 @@ type IPNAT struct {
 	// The external IP address.
 	ExternalIP string `json:"externalIP" validate:"omitempty,ip"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // WorkloadEndpointList contains a list of WorkloadEndpoint resources.
 type WorkloadEndpointList struct {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiv2
+package v2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +24,9 @@ const (
 	KindNode     = "Node"
 	KindNodeList = "NodeList"
 )
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Node contains information about a Node resource.
 type Node struct {
@@ -54,6 +57,8 @@ type NodeBGPSpec struct {
 	// IPv4IPIPTunnelAddr is the IPv4 address of the IP in IP tunnel.
 	IPv4IPIPTunnelAddr string `json:"ipv4IPIPTunnelAddr,omitempty" validate:"omitempty,ipv4"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // NodeList contains a list of Node resources.
 type NodeList struct {

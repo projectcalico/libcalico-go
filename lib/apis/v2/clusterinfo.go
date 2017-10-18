@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiv2
+package v2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +22,9 @@ const (
 	KindClusterInformation     = "ClusterInformation"
 	KindClusterInformationList = "ClusterInformationList"
 )
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ClusterInformation contains the cluster specific information.
 type ClusterInformation struct {
@@ -41,6 +44,8 @@ type ClusterInformationSpec struct {
 	// CalicoVersion is the version of Calico that the cluster is running
 	CalicoVersion string `json:"calicoVersion,omitempty" validate:"omitempty"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ClusterInformationList contains a list of ClusterInformation resources
 // (even though there should only be one).

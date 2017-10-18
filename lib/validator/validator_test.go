@@ -19,7 +19,7 @@ import (
 
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"github.com/projectcalico/libcalico-go/lib/api"
+	api "github.com/projectcalico/libcalico-go/lib/apis/v1"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
@@ -1003,6 +1003,44 @@ func init() {
 				ApplyOnForward: true,
 				IngressRules:   []api.Rule{{Action: "allow"}},
 			}, true),
+
+		// PolicySpec ApplyOnForward field checks.
+		Entry("should accept Policy with ApplyOnForward but not PreDNAT",
+			api.PolicySpec{
+				PreDNAT:        false,
+				ApplyOnForward: true,
+			}, true),
+		Entry("should accept Policy with ApplyOnForward but not DoNotTrack",
+			api.PolicySpec{
+				DoNotTrack:     false,
+				ApplyOnForward: true,
+			}, true),
+		Entry("should accept Policy with ApplyOnForward and PreDNAT",
+			api.PolicySpec{
+				PreDNAT:        true,
+				ApplyOnForward: true,
+			}, true),
+		Entry("should accept Policy with ApplyOnForward and DoNotTrack",
+			api.PolicySpec{
+				DoNotTrack:     true,
+				ApplyOnForward: true,
+			}, true),
+		Entry("should accept Policy with no ApplyOnForward DoNotTrack PreDNAT",
+			api.PolicySpec{
+				PreDNAT:        false,
+				DoNotTrack:     false,
+				ApplyOnForward: false,
+			}, true),
+		Entry("should reject Policy with PreDNAT but not ApplyOnForward",
+			api.PolicySpec{
+				PreDNAT:        true,
+				ApplyOnForward: false,
+			}, false),
+		Entry("should reject Policy with DoNotTrack but not ApplyOnForward",
+			api.PolicySpec{
+				DoNotTrack:     true,
+				ApplyOnForward: false,
+			}, false),
 
 		// PolicySpec ApplyOnForward field checks.
 		Entry("should accept Policy with ApplyOnForward but not PreDNAT",

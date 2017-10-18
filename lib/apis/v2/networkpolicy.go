@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiv2
+package v2
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -20,6 +20,9 @@ const (
 	KindNetworkPolicy     = "NetworkPolicy"
 	KindNetworkPolicyList = "NetworkPolicyList"
 )
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // NetworkPolicy is the Namespaced-equivalent of the GlobalNetworkPolicy.
 type NetworkPolicy struct {
@@ -29,6 +32,8 @@ type NetworkPolicy struct {
 	// Specification of the Policy.
 	Spec PolicySpec `json:"spec,omitempty"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // NetworkPolicyList contains a list of NetworkPolicy resources.
 type NetworkPolicyList struct {

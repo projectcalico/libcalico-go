@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiv2
+package v2
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -20,6 +20,9 @@ const (
 	KindIPPool     = "IPPool"
 	KindIPPoolList = "IPPoolList"
 )
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // IPPool contains information about a IPPool resource.
 type IPPool struct {
@@ -61,6 +64,8 @@ const (
 	IPIPModeCrossSubnet          = "CrossSubnet"
 )
 const DefaultMode = IPIPModeAlways
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // IPPoolList contains a list of IPPool resources.
 type IPPoolList struct {

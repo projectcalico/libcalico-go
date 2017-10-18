@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiv2
+package v2
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -20,6 +20,9 @@ const (
 	KindGlobalNetworkPolicy     = "GlobalNetworkPolicy"
 	KindGlobalNetworkPolicyList = "GlobalNetworkPolicyList"
 )
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // GlobalNetworkPolicy contains information about a security Policy resource.  This contains a set of
 // security rules to apply.  Security policies allow a selector-based security model which can override
@@ -48,6 +51,8 @@ type GlobalNetworkPolicy struct {
 	// Specification of the Policy.
 	Spec PolicySpec `json:"spec,omitempty"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // GlobalNetworkPolicyList contains a list of GlobalNetworkPolicy resources.
 type GlobalNetworkPolicyList struct {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiv2
+package v2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +24,9 @@ const (
 	KindBGPPeer     = "BGPPeer"
 	KindBGPPeerList = "BGPPeerList"
 )
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BGPPeer contains information about a BGPPeer resource that is a peer of a Calico
 // compute node.
@@ -46,6 +49,8 @@ type BGPPeerSpec struct {
 	// The AS Number of the peer.
 	ASNumber numorstring.ASNumber `json:"asNumber"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BGPPeerList contains a list of BGPPeer resources.
 type BGPPeerList struct {

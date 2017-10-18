@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiv2
+package v2
 
 import (
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
@@ -23,6 +23,9 @@ const (
 	KindHostEndpoint     = "HostEndpoint"
 	KindHostEndpointList = "HostEndpointList"
 )
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // HostEndpoint contains information about a HostEndpoint resource that represents a “bare-metal”
 // interface attached to the host that is running Calico’s agent, Felix. By default, Calico doesn’t
@@ -65,6 +68,8 @@ type EndpointPort struct {
 	Protocol numorstring.Protocol `json:"protocol"`
 	Port     uint16               `json:"port" validate:"gt=0"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // HostEndpointList contains a list of HostEndpoint resources.
 type HostEndpointList struct {

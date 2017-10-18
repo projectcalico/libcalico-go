@@ -15,7 +15,7 @@
 package resources_test
 
 import (
-	"github.com/projectcalico/libcalico-go/lib/apiv2"
+	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
@@ -116,19 +116,19 @@ var _ = Describe("Global Network Policies conversion methods", func() {
 		BeforeEach(func() {
 			kvp1.Value.(*apiv2.GlobalNetworkPolicy).Spec.DoNotTrack = false
 			kvp1.Value.(*apiv2.GlobalNetworkPolicy).Spec.PreDNAT = true
+			kvp1.Value.(*apiv2.GlobalNetworkPolicy).Spec.ApplyOnForward = true
 			res1.Spec.DoNotTrack = false
 			res1.Spec.PreDNAT = true
-			//TODO: Add back
-			//res1.Spec.ApplyOnForward = true
+			res1.Spec.ApplyOnForward = true
 		})
 
 		AfterEach(func() {
 			kvp1.Value.(*apiv2.GlobalNetworkPolicy).Spec.DoNotTrack = true
 			kvp1.Value.(*apiv2.GlobalNetworkPolicy).Spec.PreDNAT = false
+			kvp1.Value.(*apiv2.GlobalNetworkPolicy).Spec.ApplyOnForward = true
 			res1.Spec.DoNotTrack = true
 			res1.Spec.PreDNAT = false
-			//TODO: Add back
-			//res1.Spec.ApplyOnForward = true
+			res1.Spec.ApplyOnForward = true
 		})
 
 		It("should convert between a KVPair and the equivalent Kubernetes resource", func() {

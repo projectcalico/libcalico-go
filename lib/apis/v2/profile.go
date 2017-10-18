@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiv2
+package v2
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -20,6 +20,9 @@ const (
 	KindProfile     = "Profile"
 	KindProfileList = "ProfileList"
 )
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Profile contains the details a security profile resource.  A profile is set of security rules
 // to apply on an endpoint.  An endpoint (either a host endpoint or an endpoint on a workload) can
@@ -47,6 +50,8 @@ type ProfileSpec struct {
 	// labels inherited from the profile, the endpoint label values take precedence.
 	LabelsToApply map[string]string `json:"labels,omitempty" protobuf:"bytes,11,rep,name=labels"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ProfileList contains a list of Profile resources.
 type ProfileList struct {

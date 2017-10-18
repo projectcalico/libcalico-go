@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiv2
+package v2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +24,9 @@ const (
 	KindBGPConfiguration     = "BGPConfiguration"
 	KindBGPConfigurationList = "BGPConfigurationList"
 )
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BGPConfiguration contains the configuration for any BGP routing.
 type BGPConfiguration struct {
@@ -44,6 +47,8 @@ type BGPConfigurationSpec struct {
 	// ASNumber is the default AS number used by a node. [Default: 64512]
 	ASNumber *numorstring.ASNumber `json:"asNumber,omitempty" validate:"omitempty" confignamev1:"as_num"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BGPConfigurationList contains a list of BGPConfiguration resources.
 type BGPConfigurationList struct {
