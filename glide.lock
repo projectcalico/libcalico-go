@@ -1,5 +1,5 @@
-hash: 134086884d5f45e58d192d9a0987e300e4c118dd619869d5ca1662d017b45578
-updated: 2017-10-17T21:32:20.770472125-07:00
+hash: 02978987e7614ddc868a83b05d09494940b2ea79debf1ed74082a65ed2e0ee19
+updated: 2017-10-18T23:52:39.003279319Z
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -142,7 +142,7 @@ imports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: dcabb60a477c2b6f456df65037cb6708210fbb02
+  version: 283ed655c6b8238afecd5bea6434bc9b03129f2f
   subpackages:
   - format
   - internal/assertion
@@ -198,7 +198,7 @@ imports:
   subpackages:
   - codec
 - name: golang.org/x/crypto
-  version: 9419663f5a44be8b34ca85f08abc5fe1be11f8a3
+  version: 1351f936d976c60a0a48d728281922cf63eafb8d
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
@@ -226,7 +226,6 @@ imports:
   version: e48874b42435b4347fc52bdee0424a52abc974d7
   subpackages:
   - unix
-  - windows
 - name: golang.org/x/text
   version: b19bf474d317b857955b12035d2c5acb57ce8b01
   subpackages:
@@ -253,7 +252,7 @@ imports:
   - unicode/norm
   - width
 - name: google.golang.org/appengine
-  version: 12d5545dc1cfa6047a286d5e853841b6471f4c19
+  version: a2e0dc829727a4f957a7428b1f322805cfc1f362
   subpackages:
   - internal
   - internal/app_identity

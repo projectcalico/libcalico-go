@@ -35,5 +35,11 @@ import:
   version: release-1.8 
 - package: k8s.io/client-go
   version: 82aa063804cf055e16e8911250f888bc216e8b61
+# Pinning otherwise latest was failing to build when targeting windows
+# in calicoctl
+- package: golang.org/x/crypto
+  version: 1351f936d976c60a0a48d728281922cf63eafb8d
+  subpackages:
+  - ssh/terminal
 testImport:
 - package: github.com/onsi/gomega
