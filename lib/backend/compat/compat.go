@@ -492,7 +492,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(ctx context.Context, nk model.NodeKe
 		return err
 	}
 
-	if component, err := c.client.Get(model.OrchRefKey{Hostname: nk.Hostname}); err == nil {
+	if component, err := c.client.Get(ctx, model.OrchRefKey{Hostname: nk.Hostname}, ""); err == nil {
 		nv.OrchRefs = component.Value.([]model.OrchRef)
 	}
 
