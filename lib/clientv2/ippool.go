@@ -207,3 +207,17 @@ func (_ ipPools) validateAndSetDefaults(pool *apiv2.IPPool) error {
 
 	return nil
 }
+
+// maybeEnableIPIP turns enables globally IPIP if a default setting is not already configured
+// and the pool has IPIP enabled.
+func (_ ipPools) maybeEnableIPIP(pool *apiv2.IPPool) error {
+	logCxt := log.WithField("IPIPMode", pool.Spec.IPIPMode)
+	if pool.Spec.IPIPMode == apiv2.IPIPModeNever {
+		logCxt.Debug("IPIP is not enabled for this pool - no need to check global setting")
+		return nil
+	}
+
+	logCxt.Debug("Checking global IPIP setting")
+
+	for i := 0; i <
+}

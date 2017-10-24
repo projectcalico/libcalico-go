@@ -16,10 +16,12 @@ package clientv2
 
 import (
 	"context"
-	"errors"
+
+	log "github.com/sirupsen/logrus"
 
 	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 )
 
@@ -31,7 +33,13 @@ type FelixConfigurationInterface interface {
 	Get(ctx context.Context, name string, opts options.GetOptions) (*apiv2.FelixConfiguration, error)
 	List(ctx context.Context, opts options.ListOptions) (*apiv2.FelixConfigurationList, error)
 	Watch(ctx context.Context, opts options.ListOptions) (watch.Interface, error)
+	Merge(ctx context.Context, mergeFn FelixConfigurationMergeFn) (watch.Interface, error)
 }
+
+// FelixConfigurationMergeFn is used to update the supplied FelixConfiguration for the
+// Merge operation.  The calling code returns false if the settings were not updated,
+// in which case the Merge makes no updates.
+type FelixConfigurationMergeFn func(inout *apiv2.FelixConfiguration) bool
 
 // felixConfigurations implements FelixConfigurationInterface
 type felixConfigurations struct {
@@ -63,10 +71,6 @@ func (r felixConfigurations) Update(ctx context.Context, res *apiv2.FelixConfigu
 // Delete takes name of the FelixConfiguration and deletes it. Returns an
 // error if one occurs.
 func (r felixConfigurations) Delete(ctx context.Context, name string, opts options.DeleteOptions) (*apiv2.FelixConfiguration, error) {
-	// Check if we are trying to delete "default". Prevent deletion for now.
-	if name == "default" {
-		return nil, errors.New("Cannot delete default Felix Configuration.")
-	}
 	out, err := r.client.resources.Delete(ctx, opts, apiv2.KindFelixConfiguration, noNamespace, name)
 	if out != nil {
 		return out.(*apiv2.FelixConfiguration), err
@@ -97,4 +101,33 @@ func (r felixConfigurations) List(ctx context.Context, opts options.ListOptions)
 // match the supplied options.
 func (r felixConfigurations) Watch(ctx context.Context, opts options.ListOptions) (watch.Interface, error) {
 	return r.client.resources.Watch(ctx, opts, apiv2.KindFelixConfiguration)
+}
+
+// Merge allows a client to update the existing FelixConfiguration settings.
+func (r felixConfigurations) Merge(ctx context.Context, name string, mergeFn FelixConfigurationMergeFn) (*apiv2.FelixConfiguration, error) {
+	var err error
+	var res *apiv2.FelixConfiguration
+	for i := 0; i < maxMergeRetries; i++ {
+		res, err = r.Get(ctx, name, options.GetOptions{})
+		if err != nil {
+			log.WithError(err).Debug("Error getting current FelixConfiguration resource")
+			return nil, err
+		}
+
+		if !mergeFn(res) {
+			log.Debug("Merge function did not update the resource")
+			return res, nil
+		}
+
+		res, err = r.Update(ctx, res, options.SetOptions{})
+		if _, ok := err.(errors.ErrorResourceUpdateConflict); !ok {
+			// Either we hit a non-update conflict error, or we succeeded, in either case
+			// exist the retry loop.
+			log.WithError(err).Debug("Exiting merge retry loop")
+			break
+		}
+	}
+
+	// Return the resource and error from the final Update.
+	return res, err
 }
