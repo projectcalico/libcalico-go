@@ -16,6 +16,7 @@ package etcd
 
 import (
 	goerrors "errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -46,8 +47,12 @@ type EtcdClient struct {
 	etcdKeysAPI etcd.KeysAPI
 }
 
-func NewEtcdClient(config *apiconfig.EtcdConfig) (*EtcdClient, error) {
-	// Determine the location from the authority or the endpoints.  The endpoints
+func getEtcdEndpoints(config *apiconfig.EtcdConfig) ([]string, error) {
+	if (config.EtcdAuthority != "" || config.EtcdEndpoints != "") && config.EtcdDiscoverySrv != "" {
+		return nil, goerrors.New("multiple discovery or bootstrap options specified, use either \"etcdEndpoints\" or \"etcdDiscoverySrv\"")
+	}
+
+	// Determine the location from the authority or the endpoints. The endpoints
 	// takes precedence if both are specified.
 	etcdLocation := []string{}
 	if config.EtcdAuthority != "" {
@@ -57,8 +62,25 @@ func NewEtcdClient(config *apiconfig.EtcdConfig) (*EtcdClient, error) {
 		etcdLocation = strings.Split(config.EtcdEndpoints, ",")
 	}
 
+	if config.EtcdDiscoverySrv != "" {
+		var discoErr error
+		discoverer := etcd.NewSRVDiscover()
+		etcdLocation, discoErr = discoverer.Discover(config.EtcdDiscoverySrv)
+		if discoErr != nil {
+			return nil, fmt.Errorf("failed to discover etcd endpoints through SRV discovery: %v", discoErr)
+		}
+	}
+
 	if len(etcdLocation) == 0 {
 		return nil, goerrors.New("no etcd authority or endpoints specified")
+	}
+	return etcdLocation, nil
+}
+
+func NewEtcdClient(config *apiconfig.EtcdConfig) (*EtcdClient, error) {
+	etcdLocation, err := getEtcdEndpoints(config)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create the etcd client

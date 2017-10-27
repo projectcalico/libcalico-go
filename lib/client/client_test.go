@@ -29,7 +29,7 @@ import (
 var _ = Describe("Client config tests", func() {
 
 	// Data to test ETCD parameters
-	data1 := `
+	etcdStatic := `
 apiVersion: v1
 kind: calicoApiConfig
 spec:
@@ -40,8 +40,8 @@ spec:
   etcdCertFile: foobar
   etcdCACertFile: foobarbaz
 `
-	cfg1data := api.NewCalicoAPIConfig()
-	cfg1data.Spec = api.CalicoAPIConfigSpec{
+	etcdStaticCfg := api.NewCalicoAPIConfig()
+	etcdStaticCfg.Spec = api.CalicoAPIConfigSpec{
 		DatastoreType: api.EtcdV2,
 		EtcdConfig: api.EtcdConfig{
 			EtcdEndpoints:  "https://1.2.3.4:1234,https://10.20.30.40:1234",
@@ -50,6 +50,30 @@ spec:
 			EtcdKeyFile:    "foo",
 			EtcdCertFile:   "foobar",
 			EtcdCACertFile: "foobarbaz",
+		},
+	}
+
+	etcdSrv := `
+apiVersion: v1
+kind: calicoApiConfig
+spec:
+  etcdDiscoverySrv: example.com
+  etcdUsername: bar
+  etcdPassword: baz
+  etcdKeyFile: foo
+  etcdCertFile: foobar
+  etcdCACertFile: foobarbaz
+`
+	etcdSrvConfig := api.NewCalicoAPIConfig()
+	etcdSrvConfig.Spec = api.CalicoAPIConfigSpec{
+		DatastoreType: api.EtcdV2,
+		EtcdConfig: api.EtcdConfig{
+			EtcdDiscoverySrv: "example.com",
+			EtcdUsername:     "bar",
+			EtcdPassword:     "baz",
+			EtcdKeyFile:      "foo",
+			EtcdCertFile:     "foobar",
+			EtcdCACertFile:   "foobarbaz",
 		},
 	}
 
@@ -188,7 +212,8 @@ kind: notCalicoApiConfig
 			}
 		},
 
-		Entry("valid etcd configuration", data1, cfg1data, nil),
+		Entry("valid etcd static endpoint configuration", etcdStatic, etcdStaticCfg, nil),
+		Entry("valid etcd discovery SRV configuration", etcdSrv, etcdSrvConfig, nil),
 		Entry("valid k8s configuration", data2, cfg2data, nil),
 		Entry("invalid version", data3, nil, errors.New("invalid config file: unknown APIVersion 'v2'")),
 		Entry("invalid kind", data4, nil, errors.New("invalid config file: expected kind 'calicoApiConfig', got 'notCalicoApiConfig'")),
