@@ -32,6 +32,11 @@ var (
 	typeBGPPeer        = reflect.TypeOf(BGPPeer{})
 )
 
+func init() {
+	registerType(NodeBGPPeerListOptions{})
+	registerType(GlobalBGPPeerListOptions{})
+}
+
 type NodeBGPPeerKey struct {
 	Nodename string `json:"-" validate:"omitempty"`
 	PeerIP   net.IP `json:"-" validate:"required"`
@@ -110,6 +115,10 @@ func (options NodeBGPPeerListOptions) KeyFromDefaultPath(path string) Key {
 	return NodeBGPPeerKey{PeerIP: peerIP, Nodename: nodename}
 }
 
+func (_ NodeBGPPeerListOptions) String() string {
+	return "NodeBGPPeer"
+}
+
 type GlobalBGPPeerKey struct {
 	PeerIP net.IP `json:"-" validate:"required"`
 }
@@ -172,6 +181,10 @@ func (options GlobalBGPPeerListOptions) KeyFromDefaultPath(path string) Key {
 		return nil
 	}
 	return GlobalBGPPeerKey{PeerIP: peerIP}
+}
+
+func (_ GlobalBGPPeerListOptions) String() string {
+	return "GlobalBGPPeer"
 }
 
 type BGPPeer struct {

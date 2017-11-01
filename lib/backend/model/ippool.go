@@ -32,6 +32,10 @@ var (
 	typeIPPool  = reflect.TypeOf(IPPool{})
 )
 
+func init() {
+	registerType(IPPoolListOptions{})
+}
+
 type IPPoolKey struct {
 	CIDR net.IPNet `json:"-" validate:"required,name"`
 }
@@ -89,6 +93,10 @@ func (options IPPoolListOptions) KeyFromDefaultPath(path string) Key {
 		return nil
 	}
 	return IPPoolKey{CIDR: *cidr}
+}
+
+func (_ IPPoolListOptions) String() string {
+	return "IPPool"
 }
 
 type IPPool struct {

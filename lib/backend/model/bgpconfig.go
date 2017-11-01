@@ -31,6 +31,11 @@ var (
 	typeNodeBGPConfig    = rawStringType
 )
 
+func init() {
+	registerType(GlobalBGPConfigListOptions{})
+	registerType(NodeBGPConfigListOptions{})
+}
+
 type GlobalBGPConfigKey struct {
 	// The name of the global BGP config key.
 	Name string `json:"-" validate:"required,name"`
@@ -86,6 +91,10 @@ func (options GlobalBGPConfigListOptions) KeyFromDefaultPath(path string) Key {
 		return nil
 	}
 	return GlobalBGPConfigKey{Name: name}
+}
+
+func (_ GlobalBGPConfigListOptions) String() string {
+	return "GlobalBGPConfig"
 }
 
 type NodeBGPConfigKey struct {
@@ -159,4 +168,8 @@ func (options NodeBGPConfigListOptions) KeyFromDefaultPath(path string) Key {
 		return nil
 	}
 	return NodeBGPConfigKey{Nodename: nodename, Name: name}
+}
+
+func (_ NodeBGPConfigListOptions) String() string {
+	return "NodeBGPConfig"
 }

@@ -31,6 +31,10 @@ var (
 	typeProfile  = reflect.TypeOf(Profile{})
 )
 
+func init() {
+	registerType(ProfileListOptions{})
+}
+
 // The profile key actually returns the common parent of the three separate entries.
 // It is useful to define this to re-use some of the common machinery, and can be used
 // for delete processing since delete needs to remove the common parent.
@@ -152,6 +156,10 @@ func (options ProfileListOptions) KeyFromDefaultPath(path string) Key {
 		return ProfileRulesKey{ProfileKey: pk}
 	}
 	return pk
+}
+
+func (_ ProfileListOptions) String() string {
+	return "Profile"
 }
 
 // The profile structure is defined to allow the client to define a conversion interface

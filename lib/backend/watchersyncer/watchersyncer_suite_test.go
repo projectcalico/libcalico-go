@@ -19,9 +19,11 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "github.com/projectcalico/libcalico-go/lib/testutils"
 )
 
 func TestClient(t *testing.T) {
+	HookLogrusForGinkgo()
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Backend multi-watcher/syncer test suite")
+	RunSpecs(t, "Backend watchersyncer test suite")
 }

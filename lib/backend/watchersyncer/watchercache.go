@@ -38,8 +38,8 @@ type watcherCache struct {
 	logger       *logrus.Entry
 	client       api.Client
 	watch        api.WatchInterface
-	resources    map[string]cacheEntry
-	oldResources map[string]cacheEntry
+	resources    map[string]string
+	oldResources map[string]string
 	results      chan<- interface{}
 	hasSynced    bool
 	resourceType ResourceType
@@ -50,15 +50,6 @@ var (
 	WatchPollInterval = 5000 * time.Millisecond
 )
 
-// cacheEntry is an entry in our cache.  It groups the a key with the last known
-// revision that we processed.  We store the revision so that we can determine
-// if an entry has been updated (and therefore whether we need to send an update
-// event in the syncer callback).
-type cacheEntry struct {
-	revision string
-	key      model.Key
-}
-
 // Create a new watcherCache.
 func newWatcherCache(client api.Client, resourceType ResourceType, results chan<- interface{}) *watcherCache {
 	return &watcherCache{
@@ -66,7 +57,7 @@ func newWatcherCache(client api.Client, resourceType ResourceType, results chan<
 		client:       client,
 		resourceType: resourceType,
 		results:      results,
-		resources:    make(map[string]cacheEntry, 0),
+		resources:    make(map[string]string, 0),
 	}
 }
 
@@ -145,7 +136,7 @@ func (wc *watcherCache) resyncAndCreateWatcher() {
 
 		// Move the current resources over to the oldResources
 		wc.oldResources = wc.resources
-		wc.resources = make(map[string]cacheEntry, 0)
+		wc.resources = make(map[string]string, 0)
 
 		// Send updates for each of the resources we listed - this will revalidate entries in
 		// the oldResources map.
@@ -201,11 +192,12 @@ func (wc *watcherCache) finishResync() {
 	if numOldResources > 0 {
 		wc.logger.WithField("Num", numOldResources).Debug("Sending resync deletes")
 		updates := make([]api.Update, 0, len(wc.oldResources))
-		for _, r := range wc.oldResources {
+		for p, _ := range wc.oldResources {
+			key := model.KeyFromDefaultPath(p)
 			updates = append(updates, api.Update{
 				UpdateType: api.UpdateTypeKVDeleted,
 				KVPair: model.KVPair{
-					Key: r.key,
+					Key: key,
 				},
 			})
 		}
@@ -250,16 +242,21 @@ func (wc *watcherCache) handleConvertedWatchEvent(kvp *model.KVPair) {
 // an added notification for this resource.
 func (wc *watcherCache) handleAddedOrModifiedUpdate(kvp *model.KVPair) {
 	thisKey := kvp.Key
-	thisKeyString := thisKey.String()
+	thisKeyString, err := model.KeyToDefaultPath(thisKey)
+	if err != nil {
+		wc.logger.WithError(err).Debug("Failed to convert key to string")
+		return
+	}
+
 	thisRevision := kvp.Revision
 	wc.markAsValid(thisKeyString)
 
 	// If the resource is already in our map, then this is a modified event.  Check the
 	// revision to see if we actually need to send an update.
-	if resource, ok := wc.resources[thisKeyString]; ok {
-		if resource.revision == thisRevision {
+	if revision, ok := wc.resources[thisKeyString]; ok {
+		if revision == thisRevision {
 			// No update to revision, so no event to send.
-			wc.logger.WithField("Key", thisKeyString).Debug("Swallowing event update from datastore because entry is same as cached entry")
+			wc.logger.WithField("Key", thisKeyString).Debug("Revision unchanged, swallowing event")
 			return
 		}
 		// Resource is modified, send an update event and store the latest revision.
@@ -268,8 +265,7 @@ func (wc *watcherCache) handleAddedOrModifiedUpdate(kvp *model.KVPair) {
 			UpdateType: api.UpdateTypeKVUpdated,
 			KVPair:     *kvp,
 		}}
-		resource.revision = thisRevision
-		wc.resources[thisKeyString] = resource
+		wc.resources[thisKeyString] = thisRevision
 		return
 	}
 
@@ -280,15 +276,16 @@ func (wc *watcherCache) handleAddedOrModifiedUpdate(kvp *model.KVPair) {
 		UpdateType: api.UpdateTypeKVNew,
 		KVPair:     *kvp,
 	}}
-	wc.resources[thisKeyString] = cacheEntry{
-		revision: thisRevision,
-		key:      thisKey,
-	}
+	wc.resources[thisKeyString] = thisRevision
 }
 
 // handleDeletedWatchEvent sends a deleted event and removes the resource key from our cache.
 func (wc *watcherCache) handleDeletedUpdate(key model.Key) {
-	thisKeyString := key.String()
+	thisKeyString, err := model.KeyToDefaultPath(key)
+	if err != nil {
+		wc.logger.WithError(err).Debug("Failed to convert key to string")
+		return
+	}
 	wc.markAsValid(thisKeyString)
 
 	// If we have seen an added event for this key then send a deleted event and remove

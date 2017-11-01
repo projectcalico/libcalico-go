@@ -17,7 +17,6 @@ package model
 import (
 	"encoding/json"
 	"reflect"
-	"strings"
 
 	"fmt"
 	net2 "net"
@@ -35,6 +34,14 @@ type rawIP net.IP
 var rawStringType = reflect.TypeOf(rawString(""))
 var rawBoolType = reflect.TypeOf(rawBool(true))
 var rawIPType = reflect.TypeOf(rawIP{})
+
+// Each type registers its ListInterface so that we can handle generic parsing of the
+// stringified keys.  Only those types used in the v1 syncers need to be registered.
+var listTypes []ListInterface
+
+func registerType(list ListInterface) {
+	listTypes = append(listTypes, list)
+}
 
 // Key represents a parsed datastore key.
 type Key interface {
@@ -60,8 +67,7 @@ type Key interface {
 	// valueType returns the object type associated with this key.
 	valueType() reflect.Type
 
-	// String returns a unique string representation of this key.  The string
-	// returned by this method must uniquely identify this Key.
+	// String returns a unique string representation of the Key.
 	String() string
 }
 
@@ -185,65 +191,16 @@ func IsListOptionsLastSegmentPrefix(listOptions ListInterface) bool {
 // of our <Type>Key structs.  Returns nil if the string doesn't match one of
 // our key types.
 func KeyFromDefaultPath(path string) Key {
-	if m := matchWorkloadEndpoint.FindStringSubmatch(path); m != nil {
-		log.Debugf("Path is a workload endpoint: %v", path)
-		return WorkloadEndpointKey{
-			Hostname:       m[1],
-			OrchestratorID: unescapeName(m[2]),
-			WorkloadID:     unescapeName(m[3]),
-			EndpointID:     unescapeName(m[4]),
+	log.WithField("path", path).Info("KeyFromDefaultPath")
+	for _, lo := range listTypes {
+		log.WithField("listType", lo).Info("Checking conversion")
+		if key := lo.KeyFromDefaultPath(path); key != nil {
+			return key
 		}
-	} else if m := matchHostEndpoint.FindStringSubmatch(path); m != nil {
-		log.Debugf("Path is a host endpoint: %v", path)
-		return HostEndpointKey{
-			Hostname:   m[1],
-			EndpointID: unescapeName(m[2]),
-		}
-	} else if m := matchPolicy.FindStringSubmatch(path); m != nil {
-		log.Debugf("Path is a policy: %v", path)
-		return PolicyKey{
-			Name: unescapeName(m[2]),
-		}
-	} else if m := matchProfile.FindStringSubmatch(path); m != nil {
-		log.Debugf("Path is a profile: %v (%v)", path, m[2])
-		pk := ProfileKey{unescapeName(m[1])}
-		switch m[2] {
-		case "tags":
-			log.Debugf("Profile tags")
-			return ProfileTagsKey{ProfileKey: pk}
-		case "rules":
-			log.Debugf("Profile rules")
-			return ProfileRulesKey{ProfileKey: pk}
-		case "labels":
-			log.Debugf("Profile labels")
-			return ProfileLabelsKey{ProfileKey: pk}
-		}
-		return nil
-	} else if m := matchHostIp.FindStringSubmatch(path); m != nil {
-		log.Debugf("Path is a host ID: %v", path)
-		return HostIPKey{Hostname: m[1]}
-	} else if m := matchIPPool.FindStringSubmatch(path); m != nil {
-		log.Debugf("Path is a pool: %v", path)
-		mungedCIDR := m[1]
-		cidr := strings.Replace(mungedCIDR, "-", "/", 1)
-		_, c, err := net.ParseCIDR(cidr)
-		if err != nil {
-			panic(err)
-		}
-		return IPPoolKey{CIDR: *c}
-	} else if m := matchGlobalConfig.FindStringSubmatch(path); m != nil {
-		log.Debugf("Path is a global felix config: %v", path)
-		return GlobalConfigKey{Name: m[1]}
-	} else if m := matchHostConfig.FindStringSubmatch(path); m != nil {
-		log.Debugf("Path is a host config: %v", path)
-		return HostConfigKey{Hostname: m[1], Name: m[2]}
-	} else if matchReadyFlag.MatchString(path) {
-		log.Debugf("Path is a ready flag: %v", path)
-		return ReadyFlagKey{}
-	} else {
-		log.Debugf("Path is unknown: %v", path)
 	}
+
 	// Not a key we know about.
+	log.WithField("path", path).Info("Path does not parse to any registered Key type")
 	return nil
 }
 

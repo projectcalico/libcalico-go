@@ -172,5 +172,9 @@ type ErrorParsingDatastoreEntry struct {
 }
 
 func (e ErrorParsingDatastoreEntry) Error() string {
-	return fmt.Sprintf("failed to parse datastore entry key=%s; value=%s: %s", e.RawKey, e.RawValue, e.Err)
+	if e.Err != nil {
+		return fmt.Sprintf("failed to parse datastore entry key=%s; value=%s: %v", e.RawKey, e.RawValue, e.Err)
+	} else {
+		return fmt.Sprintf("failed to parse datastore entry key=%s; value=%s", e.RawKey, e.RawValue)
+	}
 }
