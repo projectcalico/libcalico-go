@@ -187,8 +187,8 @@ type FelixConfigurationSpec struct {
 }
 
 type ProtoPort struct {
-	Protocol string
-	Port     uint16
+	Protocol string `json:"protocol"`
+	Port     uint16 `json:"port"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
