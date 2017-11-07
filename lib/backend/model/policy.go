@@ -31,6 +31,10 @@ var (
 	typePolicy  = reflect.TypeOf(Policy{})
 )
 
+func init() {
+	registerType(PolicyListOptions{})
+}
+
 type PolicyKey struct {
 	Name string `json:"-" validate:"required,name"`
 }
@@ -86,6 +90,10 @@ func (options PolicyListOptions) KeyFromDefaultPath(path string) Key {
 		return nil
 	}
 	return PolicyKey{Name: name}
+}
+
+func (_ PolicyListOptions) String() string {
+	return "Policy"
 }
 
 type Policy struct {

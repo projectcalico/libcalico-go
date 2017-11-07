@@ -31,6 +31,10 @@ var (
 	matchWorkloadEndpoint = regexp.MustCompile("^/?calico/v1/host/([^/]+)/workload/([^/]+)/([^/]+)/endpoint/([^/]+)$")
 )
 
+func init() {
+	registerType(WorkloadEndpointListOptions{})
+}
+
 type WorkloadEndpointKey struct {
 	Hostname       string `json:"-"`
 	OrchestratorID string `json:"-"`
@@ -145,6 +149,10 @@ func (options WorkloadEndpointListOptions) KeyFromDefaultPath(path string) Key {
 		WorkloadID:     workload,
 		EndpointID:     endpointID,
 	}
+}
+
+func (_ WorkloadEndpointListOptions) String() string {
+	return "WorkloadEndpoint"
 }
 
 type WorkloadEndpoint struct {

@@ -74,7 +74,7 @@ var (
 	genError = errors.New("Generic error")
 )
 
-var _ = Describe("Test the backend datstore multi-watch syncer", func() {
+var _ = Describe("Test the backend datstore watchersyncer", func() {
 
 	r1 := watchersyncer.ResourceType{
 		ListInterface: model.ResourceListOptions{Kind: apiv2.KindNetworkPolicy},

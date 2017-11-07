@@ -36,6 +36,10 @@ var (
 	matchHostIp       = regexp.MustCompile(`^/?calico/v1/host/([^/]+)/bird_ip$`)
 )
 
+func init() {
+	registerType(HostIPListOptions{})
+}
+
 type Node struct {
 	// Felix specific configuration
 	FelixIPv4 *net.IP
@@ -180,6 +184,30 @@ func (key HostIPKey) valueType() reflect.Type {
 
 func (key HostIPKey) String() string {
 	return fmt.Sprintf("Node(name=%s)", key.Hostname)
+}
+
+type HostIPListOptions struct {
+	Hostname string
+}
+
+func (options HostIPListOptions) defaultPathRoot() string {
+	if options.Hostname == "" {
+		return "/calico/v1/host"
+	} else {
+		return fmt.Sprintf("/calico/v1/host/%s/bird_ip", options.Hostname)
+	}
+}
+
+func (options HostIPListOptions) KeyFromDefaultPath(path string) Key {
+	if r := matchHostIp.FindAllStringSubmatch(path, -1); len(r) == 1 {
+		return HostIPKey{Hostname: r[0][1]}
+	} else {
+		return nil
+	}
+}
+
+func (_ HostIPListOptions) String() string {
+	return "HostIP"
 }
 
 type OrchRefKey struct {

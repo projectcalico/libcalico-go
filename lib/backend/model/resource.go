@@ -41,15 +41,18 @@ var (
 )
 
 func registerResourceInfo(kind string, plural string, typeOf reflect.Type) {
-	kind = strings.ToLower(kind)
+	kindLower := strings.ToLower(kind)
 	plural = strings.ToLower(plural)
 	ri := resourceInfo{
 		typeOf: typeOf,
 		kind:   kind,
 		plural: plural,
 	}
-	resourceInfoByKind[kind] = ri
+	resourceInfoByKind[kindLower] = ri
 	resourceInfoByPlural[plural] = ri
+
+	// Also register the type for the keys processing.
+	registerType(ResourceListOptions{Kind: kind})
 }
 
 func init() {
@@ -256,5 +259,5 @@ func (options ResourceListOptions) defaultPathRoot() string {
 }
 
 func (options ResourceListOptions) String() string {
-	return options.Kind
+	return "Resource(" + options.Kind + ")"
 }
