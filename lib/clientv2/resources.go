@@ -31,6 +31,7 @@ import (
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/namespace"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/libcalico-go/lib/validator"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 )
 
@@ -69,6 +70,10 @@ type resources struct {
 
 // Create creates a resource in the backend datastore.
 func (c *resources) Create(ctx context.Context, opts options.SetOptions, kind string, in resource) (resource, error) {
+	if err := validator.Validate(in); err != nil {
+		return nil, err
+	}
+
 	// Resource must have a Name.  Currently we do not support GenerateName.
 	if len(in.GetObjectMeta().GetName()) == 0 {
 		var generateNameMessage string
@@ -83,6 +88,7 @@ func (c *resources) Create(ctx context.Context, opts options.SetOptions, kind st
 			}},
 		}
 	}
+
 	// A ResourceVersion should never be specified on a Create.
 	if len(in.GetObjectMeta().GetResourceVersion()) != 0 {
 		logWithResource(in).Info("Rejecting Create request with non-empty resource version")
@@ -118,6 +124,10 @@ func (c *resources) Create(ctx context.Context, opts options.SetOptions, kind st
 
 // Update updates a resource in the backend datastore.
 func (c *resources) Update(ctx context.Context, opts options.SetOptions, kind string, in resource) (resource, error) {
+	if err := validator.Validate(in); err != nil {
+		return nil, err
+	}
+
 	// A ResourceVersion should always be specified on an Update.
 	if len(in.GetObjectMeta().GetResourceVersion()) == 0 {
 		logWithResource(in).Info("Rejecting Update request with empty resource version")
