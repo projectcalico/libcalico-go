@@ -51,6 +51,7 @@ var _ = testutils.E2eDatastoreDescribe("GlobalNetworkPolicy tests", testutils.Da
 		IngressRules: []apiv2.Rule{testutils.InRule1, testutils.InRule2},
 		EgressRules:  []apiv2.Rule{testutils.EgressRule1, testutils.EgressRule2},
 		Selector:     "thing == 'value'",
+		Types:        []apiv2.PolicyType{apiv2.PolicyTypeIngress},
 	}
 	spec2 := apiv2.GlobalNetworkPolicySpec{
 		Order:          &order2,
@@ -59,6 +60,7 @@ var _ = testutils.E2eDatastoreDescribe("GlobalNetworkPolicy tests", testutils.Da
 		Selector:       "thing2 == 'value2'",
 		DoNotTrack:     true,
 		ApplyOnForward: true,
+		Types:          []apiv2.PolicyType{apiv2.PolicyTypeIngress, apiv2.PolicyTypeEgress},
 	}
 	// Specs with only ingress or egress rules, without Types set.
 	ingressSpec1 := spec1
