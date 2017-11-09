@@ -24,8 +24,6 @@ import (
 
 	"context"
 
-	"fmt"
-
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/backend"
@@ -81,7 +79,6 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 				ObjectMeta: metav1.ObjectMeta{Namespace: namespace1, Name: name1, ResourceVersion: "1234", CreationTimestamp: metav1.Now(), UID: "test-fail-networkpolicy"},
 				Spec:       spec1,
 			}, options.SetOptions{})
-			fmt.Printf("*** outError: %v \n\n", outError)
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("resource does not exist: NetworkPolicy(" + namespace1 + "/default." + name1 + ")"))
 

@@ -65,7 +65,7 @@ func init() {
 	// Perform basic validation of different fields and structures to test simple valid/invalid
 	// scenarios.  This does not test precise error strings - but does cover a lot of the validation
 	// code paths.
-	FDescribeTable("Validator",
+	DescribeTable("Validator",
 		func(input interface{}, valid bool) {
 			if valid {
 				Expect(validator.Validate(input)).NotTo(HaveOccurred(),
