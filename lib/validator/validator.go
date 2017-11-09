@@ -289,10 +289,7 @@ func validateScopeGlobalOrNode(v *validator.Validate, topStruct reflect.Value, c
 func validatePolicyType(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	s := field.String()
 	log.Debugf("Validate policy type: %s", s)
-	if s == string(api.PolicyTypeIngress) {
-		return true
-	}
-	if s == string(api.PolicyTypeEgress) {
+	if s == string(api.PolicyTypeIngress) || s == string(api.PolicyTypeEgress) {
 		return true
 	}
 	return false
