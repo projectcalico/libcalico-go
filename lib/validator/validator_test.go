@@ -1003,13 +1003,13 @@ func init() {
 			api.GlobalNetworkPolicySpec{
 				PreDNAT:        true,
 				ApplyOnForward: true,
-				EgressRules:    []api.Rule{{Action: "allow"}},
+				Egress:         []api.Rule{{Action: "allow"}},
 			}, false),
 		Entry("should accept pre-DNAT GlobalNetworkPolicy ingress rules",
 			api.GlobalNetworkPolicySpec{
 				PreDNAT:        true,
 				ApplyOnForward: true,
-				IngressRules:   []api.Rule{{Action: "allow"}},
+				Ingress:        []api.Rule{{Action: "allow"}},
 			}, true),
 
 		// GlobalNetworkPolicySpec ApplyOnForward field checks.
@@ -1076,66 +1076,66 @@ func init() {
 		// For NetworkPolicySpec
 		Entry("allow Types without ingress when Ingress present",
 			api.NetworkPolicySpec{
-				IngressRules: []api.Rule{{Action: "allow"}},
-				Types:        []api.PolicyType{api.PolicyTypeEgress},
+				Ingress: []api.Rule{{Action: "allow"}},
+				Types:   []api.PolicyType{api.PolicyTypeEgress},
 			}, true),
 		Entry("allow Types without egress when Egress present",
 			api.NetworkPolicySpec{
-				EgressRules: []api.Rule{{Action: "allow"}},
-				Types:       []api.PolicyType{api.PolicyTypeIngress},
+				Egress: []api.Rule{{Action: "allow"}},
+				Types:  []api.PolicyType{api.PolicyTypeIngress},
 			}, true),
 
 		Entry("allow Types with ingress when Ingress present",
 			api.NetworkPolicySpec{
-				IngressRules: []api.Rule{{Action: "allow"}},
-				Types:        []api.PolicyType{api.PolicyTypeIngress},
+				Ingress: []api.Rule{{Action: "allow"}},
+				Types:   []api.PolicyType{api.PolicyTypeIngress},
 			}, true),
 		Entry("allow Types with ingress+egress when Ingress present",
 			api.NetworkPolicySpec{
-				IngressRules: []api.Rule{{Action: "allow"}},
-				Types:        []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
+				Ingress: []api.Rule{{Action: "allow"}},
+				Types:   []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
 			}, true),
 		Entry("allow Types with egress when Egress present",
 			api.NetworkPolicySpec{
-				EgressRules: []api.Rule{{Action: "allow"}},
-				Types:       []api.PolicyType{api.PolicyTypeEgress},
+				Egress: []api.Rule{{Action: "allow"}},
+				Types:  []api.PolicyType{api.PolicyTypeEgress},
 			}, true),
 		Entry("allow Types with ingress+egress when Egress present",
 			api.NetworkPolicySpec{
-				EgressRules: []api.Rule{{Action: "allow"}},
-				Types:       []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
+				Egress: []api.Rule{{Action: "allow"}},
+				Types:  []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
 			}, true),
 
 		// For GlobalNetworkPolicySpec
-		Entry("allow Types without ingress when IngressRules present (gnp)",
+		Entry("allow Types without ingress when Ingress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				IngressRules: []api.Rule{{Action: "allow"}},
-				Types:        []api.PolicyType{api.PolicyTypeEgress},
+				Ingress: []api.Rule{{Action: "allow"}},
+				Types:   []api.PolicyType{api.PolicyTypeEgress},
 			}, true),
-		Entry("allow Types without egress when EgressRules present (gnp)",
+		Entry("allow Types without egress when Egress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				EgressRules: []api.Rule{{Action: "allow"}},
-				Types:       []api.PolicyType{api.PolicyTypeIngress},
+				Egress: []api.Rule{{Action: "allow"}},
+				Types:  []api.PolicyType{api.PolicyTypeIngress},
 			}, true),
-		Entry("allow Types with ingress when IngressRules present (gnp)",
+		Entry("allow Types with ingress when Ingress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				IngressRules: []api.Rule{{Action: "allow"}},
-				Types:        []api.PolicyType{api.PolicyTypeIngress},
+				Ingress: []api.Rule{{Action: "allow"}},
+				Types:   []api.PolicyType{api.PolicyTypeIngress},
 			}, true),
-		Entry("allow Types with ingress+egress when IngressRules present (gnp)",
+		Entry("allow Types with ingress+egress when Ingress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				IngressRules: []api.Rule{{Action: "allow"}},
-				Types:        []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
+				Ingress: []api.Rule{{Action: "allow"}},
+				Types:   []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
 			}, true),
-		Entry("allow Types with egress when EgressRules present (gnp)",
+		Entry("allow Types with egress when Egress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				EgressRules: []api.Rule{{Action: "allow"}},
-				Types:       []api.PolicyType{api.PolicyTypeEgress},
+				Egress: []api.Rule{{Action: "allow"}},
+				Types:  []api.PolicyType{api.PolicyTypeEgress},
 			}, true),
-		Entry("allow Types with ingress+egress when EgressRules present (gnp)",
+		Entry("allow Types with ingress+egress when Egress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				EgressRules: []api.Rule{{Action: "allow"}},
-				Types:       []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
+				Egress: []api.Rule{{Action: "allow"}},
+				Types:  []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
 			}, true),
 		Entry("allow ingress Types with pre-DNAT (gnp)",
 			api.GlobalNetworkPolicySpec{

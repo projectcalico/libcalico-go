@@ -682,8 +682,8 @@ func validateGlobalNetworkPolicySpec(v *validator.Validate, structLevel *validat
 			"PolicySpec.PreDNAT", "", reason("PreDNAT and DoNotTrack cannot both be true, for a given PolicySpec"))
 	}
 
-	if m.PreDNAT && len(m.EgressRules) > 0 {
-		structLevel.ReportError(reflect.ValueOf(m.EgressRules),
+	if m.PreDNAT && len(m.Egress) > 0 {
+		structLevel.ReportError(reflect.ValueOf(m.Egress),
 			"PolicySpec.Egress", "", reason("PreDNAT PolicySpec cannot have any Egress"))
 	}
 
