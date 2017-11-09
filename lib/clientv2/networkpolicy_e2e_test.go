@@ -49,14 +49,12 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 		IngressRules: []apiv2.Rule{testutils.InRule1, testutils.InRule2},
 		EgressRules:  []apiv2.Rule{testutils.EgressRule1, testutils.EgressRule2},
 		Selector:     "thing == 'value'",
-		Types:        []apiv2.PolicyType{apiv2.PolicyTypeIngress},
 	}
 	spec2 := apiv2.NetworkPolicySpec{
 		Order:        &order2,
 		IngressRules: []apiv2.Rule{testutils.InRule2, testutils.InRule1},
 		EgressRules:  []apiv2.Rule{testutils.EgressRule2, testutils.EgressRule1},
 		Selector:     "thing2 == 'value2'",
-		Types:        []apiv2.PolicyType{apiv2.PolicyTypeIngress, apiv2.PolicyTypeEgress},
 	}
 	// Specs with only ingress or egress rules, without Types set.
 	ingressSpec1 := spec1
@@ -69,7 +67,7 @@ var _ = testutils.E2eDatastoreDescribe("NetworkPolicy tests", testutils.Datastor
 	egressTypesSpec2 := spec2
 	egressTypesSpec2.Types = egress
 
-	FDescribeTable("NetworkPolicy e2e CRUD tests",
+	DescribeTable("NetworkPolicy e2e CRUD tests",
 		func(namespace1, namespace2, name1, name2 string, spec1, spec2 apiv2.NetworkPolicySpec, types1, types2 []apiv2.PolicyType) {
 			c, err := clientv2.New(config)
 			Expect(err).NotTo(HaveOccurred())
