@@ -103,12 +103,12 @@ func (wc *watcherCache) run() {
 			// watch has closed, and if so we'll need to resync and create a new watcher.
 			wc.results <- event.Error
 			if e, ok := event.Error.(cerrors.ErrorWatchTerminated); ok {
-				wc.logger.Debug("Received watch terminated error - recreate watcher")
+				wc.logger.WithError(e.Err).Warn("Received watch terminated error - recreate watcher")
 				if !e.ClosedByRemote {
 					// If the watcher was not closed by remote, reset the currentWatchRevision.  This will
 					// trigger a full resync rather than simply trying to watch from the last event
 					// revision.
-					wc.logger.Debug("Watch was not closed by remote - full resync required")
+					wc.logger.Warn("Watch was not closed by remote - full resync required")
 					wc.currentWatchRevision = ""
 				}
 				wc.resyncAndCreateWatcher()
@@ -153,7 +153,7 @@ func (wc *watcherCache) resyncAndCreateWatcher() {
 			l, err := wc.client.List(context.Background(), wc.resourceType.ListInterface, "")
 			if err != nil {
 				// Failed to perform the list.  Pause briefly (so we don't tight loop) and retry.
-				wc.logger.WithError(err).Info("Failed to perform list of current data during resync")
+				wc.logger.WithError(err).Warn("Failed to perform list of current data during resync")
 				time.Sleep(ListRetryInterval)
 				continue
 			}
@@ -194,7 +194,7 @@ func (wc *watcherCache) resyncAndCreateWatcher() {
 			// TODO We should be able to improve this by handling specific error cases with another
 			//      watch retry.  This would require some care to ensure the correct errors are captured
 			//      for the different datastore drivers.
-			wc.logger.WithError(err).WithField("performFullResync", performFullResync).Info("Failed to create watcher")
+			wc.logger.WithError(err).WithField("performFullResync", performFullResync).Warn("Failed to create watcher")
 			performFullResync = true
 			continue
 		}
@@ -215,7 +215,7 @@ func (wc *watcherCache) finishResync() {
 	// watcherSyncer code will send a Synced event when it has received synced events from
 	// each cache.
 	if !wc.hasSynced {
-		wc.logger.Info("Sending synced update")
+		wc.logger.Info("Sending in-sync status update")
 		wc.results <- api.InSync
 		wc.hasSynced = true
 	}
