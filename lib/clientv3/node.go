@@ -25,6 +25,8 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
+	cnet "github.com/projectcalico/libcalico-go/lib/net"
+	log "github.com/sirupsen/logrus"
 )
 
 // NodeInterface has methods to work with Node resources.
@@ -95,7 +97,13 @@ func (r nodes) Delete(ctx context.Context, name string, opts options.DeleteOptio
 			continue
 		}
 		for _, ip := range wep.Spec.IPNetworks {
-			ips = append(ips, *net.ParseIP(ip))
+			ipAddr, _, err := cnet.ParseCIDROrIP(ip)
+			if err == nil {
+				ips = append(ips, *ipAddr)
+			} else {
+				// Validation for wep insists upon CIDR, so we should always succeed
+				log.WithError(err).Warnf("Failed to parse IP Address: %s", ip)
+			}
 		}
 	}
 	_, err = r.client.IPAM().ReleaseIPs(context.Background(), ips)
