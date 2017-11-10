@@ -117,9 +117,9 @@ func init() {
 	registerFieldValidator("felixLogLevel", validateFelixLogLevel)
 	registerFieldValidator("dropacceptreturn", validateFelixEtoHAction)
 	registerFieldValidator("acceptreturn", validateAcceptReturn)
-	registerFieldValidator("ipv4", validateIPv4Address)
-	registerFieldValidator("ipv6", validateIPv6Address)
-	registerFieldValidator("ip", validateIPAddress)
+	registerFieldValidator("ipv4", validateIPv4orCIDRAddress)
+	registerFieldValidator("ipv6", validateIPv6orCIDRAddress)
+	registerFieldValidator("ip", validateIPorCIDRAddress)
 
 	// Register struct validators.
 	// Shared types.
@@ -312,7 +312,7 @@ func validateProtocol(v *validator.Validate, structLevel *validator.StructLevel)
 	}
 }
 
-func validateIPv4Address(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
+func validateIPv4orCIDRAddress(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	ipAddr := field.String()
 	log.Debugf("Validate IPv4 address: %s", ipAddr)
 	ipa, _, err := cnet.ParseCIDROrIP(ipAddr)
@@ -323,7 +323,7 @@ func validateIPv4Address(v *validator.Validate, topStruct reflect.Value, current
 	return ipa.Version() == 4
 }
 
-func validateIPv6Address(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
+func validateIPv6orCIDRAddress(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	ipAddr := field.String()
 	log.Debugf("Validate IPv6 address: %s", ipAddr)
 	ipa, _, err := cnet.ParseCIDROrIP(ipAddr)
@@ -334,7 +334,7 @@ func validateIPv6Address(v *validator.Validate, topStruct reflect.Value, current
 	return ipa.Version() == 6
 }
 
-func validateIPAddress(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
+func validateIPorCIDRAddress(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	ipAddr := field.String()
 	log.Debugf("Validate IP address: %s", ipAddr)
 	_, _, err := cnet.ParseCIDROrIP(ipAddr)
