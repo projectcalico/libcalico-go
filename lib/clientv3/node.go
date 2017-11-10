@@ -23,9 +23,9 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/names"
 	"github.com/projectcalico/libcalico-go/lib/net"
+	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
-	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	log "github.com/sirupsen/logrus"
 )
 
