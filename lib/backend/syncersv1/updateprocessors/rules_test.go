@@ -18,8 +18,8 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		intype := 3
 		icode := 4
 		incode := 6
-		iproto := numorstring.ProtocolFromString("tcp")
-		inproto := numorstring.ProtocolFromString("udp")
+		iproto := numorstring.ProtocolFromString("TCP")
+		inproto := numorstring.ProtocolFromString("UDP")
 		port80 := numorstring.SinglePort(uint16(80))
 		port443 := numorstring.SinglePort(uint16(443))
 		irule := apiv3.Rule{
@@ -213,7 +213,7 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 	})
 
 	It("should parse a rule with ports but no selectors", func() {
-		tcp := numorstring.ProtocolFromString("tcp")
+		tcp := numorstring.ProtocolFromString("TCP")
 		port80 := numorstring.SinglePort(uint16(80))
 
 		r := apiv3.Rule{

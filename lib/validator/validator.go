@@ -44,7 +44,7 @@ var (
 	interfaceRegex        = regexp.MustCompile("^[a-zA-Z0-9_-]{1,15}$")
 	actionRegex           = regexp.MustCompile("^(Allow|Deny|Log|Pass)$")
 	backendActionRegex    = regexp.MustCompile("^(Allow|Deny|Log|next-tier|)$")
-	protocolRegex         = regexp.MustCompile("^(tcp|udp|icmp|icmpv6|sctp|udplite)$")
+	protocolRegex         = regexp.MustCompile("^(TCP|UDP|ICMP|ICMPV6|SCTP|UDPLITE)$")
 	ipipModeRegex         = regexp.MustCompile("^(Always|CrossSubnet|Never)$")
 	bgpLogLevel           = regexp.MustCompile("^(Info|Warning|Debug|Error|Fatal|Trace)$")
 	felixLogLevel         = regexp.MustCompile("^(Info|Warning|Debug|Error|Critical)$")
@@ -651,12 +651,12 @@ func validateNodeSpec(v *validator.Validate, structLevel *validator.StructLevel)
 func validateBackendEndpointPort(v *validator.Validate, structLevel *validator.StructLevel) {
 	port := structLevel.CurrentStruct.Interface().(model.EndpointPort)
 
-	if port.Protocol.String() != "tcp" && port.Protocol.String() != "udp" {
+	if port.Protocol.String() != "TCP" && port.Protocol.String() != "UDP" {
 		structLevel.ReportError(
 			reflect.ValueOf(port.Protocol),
 			"EndpointPort.Protocol",
 			"",
-			reason("EndpointPort protocol must be 'tcp' or 'udp'."),
+			reason("EndpointPort protocol must be 'TCP' or 'UDP'."),
 		)
 	}
 }
@@ -664,12 +664,12 @@ func validateBackendEndpointPort(v *validator.Validate, structLevel *validator.S
 func validateEndpointPort(v *validator.Validate, structLevel *validator.StructLevel) {
 	port := structLevel.CurrentStruct.Interface().(api.EndpointPort)
 
-	if port.Protocol.String() != "tcp" && port.Protocol.String() != "udp" {
+	if port.Protocol.String() != "TCP" && port.Protocol.String() != "UDP" {
 		structLevel.ReportError(
 			reflect.ValueOf(port.Protocol),
 			"EndpointPort.Protocol",
 			"",
-			reason("EndpointPort protocol must be 'tcp' or 'udp'."),
+			reason("EndpointPort protocol must be 'TCP' or 'UDP'."),
 		)
 	}
 }

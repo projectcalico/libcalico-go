@@ -30,8 +30,8 @@ type ruleTest struct {
 	expectedOutput string
 }
 
-var tcpProto = numorstring.ProtocolFromString("tcp")
-var icmpProto = numorstring.ProtocolFromString("icmp")
+var tcpProto = numorstring.ProtocolFromString("TCP")
+var icmpProto = numorstring.ProtocolFromString("ICMP")
 var intProto = numorstring.ProtocolFromInt(123)
 var icmpType = 10
 var icmpCode = 6
@@ -53,24 +53,24 @@ var ruleStringTests = []ruleTest{
 
 	// Int/string handling.
 	{model.Rule{Protocol: &intProto}, "Allow 123"},
-	{model.Rule{Protocol: &tcpProto}, "Allow tcp"},
+	{model.Rule{Protocol: &tcpProto}, "Allow TCP"},
 
 	// Explicit actions, packet-wide matches.
-	{model.Rule{Action: "Allow", Protocol: &tcpProto}, "Allow tcp"},
+	{model.Rule{Action: "Allow", Protocol: &tcpProto}, "Allow TCP"},
 	{model.Rule{Action: "Deny", Protocol: &icmpProto, ICMPType: &icmpType},
-		"Deny icmp type 10"},
+		"Deny ICMP type 10"},
 	{model.Rule{Protocol: &icmpProto, ICMPType: &icmpType, ICMPCode: &icmpCode},
-		"Allow icmp type 10 code 6"},
+		"Allow ICMP type 10 code 6"},
 	{model.Rule{Action: "Deny", Protocol: &icmpProto, ICMPType: &icmpTypeZero},
-		"Deny icmp type 0"},
+		"Deny ICMP type 0"},
 	{model.Rule{Protocol: &icmpProto, ICMPType: &icmpTypeZero, ICMPCode: &icmpCodeZero},
-		"Allow icmp type 0 code 0"},
+		"Allow ICMP type 0 code 0"},
 	// And negations of packet-wide matches.
-	{model.Rule{Action: "Allow", NotProtocol: &tcpProto}, "Allow !tcp"},
+	{model.Rule{Action: "Allow", NotProtocol: &tcpProto}, "Allow !TCP"},
 	{model.Rule{Action: "Deny", Protocol: &icmpProto, NotICMPType: &icmpType},
-		"Deny icmp !type 10"},
+		"Deny ICMP !type 10"},
 	{model.Rule{Protocol: &icmpProto, NotICMPType: &icmpType, NotICMPCode: &icmpCode},
-		"Allow icmp !type 10 !code 6"},
+		"Allow ICMP !type 10 !code 6"},
 
 	// From rules.
 	{model.Rule{SrcPorts: ports}, "Allow from ports 1234,10:20"},
@@ -102,7 +102,7 @@ var ruleStringTests = []ruleTest{
 		NotSrcTag:      "notSrc",
 		NotSrcSelector: "foo",
 	},
-		`Allow tcp from ports 1234,10:20 tag srcTag !tag notSrc ` +
+		`Allow TCP from ports 1234,10:20 tag srcTag !tag notSrc ` +
 			`!selector "foo" to tag dstTag cidr 10.0.0.0/16 !ports 4567`,
 	},
 }

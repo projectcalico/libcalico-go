@@ -192,9 +192,9 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 				var modelProto numorstring.Protocol
 				switch containerPort.Protocol {
 				case kapiv1.ProtocolUDP:
-					modelProto = numorstring.ProtocolFromString("udp")
+					modelProto = numorstring.ProtocolFromString("UDP")
 				case kapiv1.ProtocolTCP, kapiv1.Protocol("") /* K8s default is TCP. */ :
-					modelProto = numorstring.ProtocolFromString("tcp")
+					modelProto = numorstring.ProtocolFromString("TCP")
 				default:
 					log.WithFields(log.Fields{
 						"protocol": containerPort.Protocol,
@@ -286,7 +286,7 @@ func (c Converter) K8sNetworkPolicyToCalico(np *extensions.NetworkPolicy) (*mode
 		types = append(types, apiv3.PolicyTypeEgress)
 	} else if len(egressRules) > 0 {
 		// Egress was introduced at the same time as policyTypes.  It shouldn't be possible to
-		// receive a NetworkPolicy with an egress rule but without "egress" specified in its types,
+		// receive a NetworkPolicy with an egress rule but without "Egress" specified in its types,
 		// but we'll warn about it anyway.
 		log.Warn("K8s PolicyTypes don't include 'egress', but NetworkPolicy has egress rules.")
 	}
@@ -399,6 +399,7 @@ func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts
 			protval := kapiv1.Protocol(fmt.Sprintf("%s", *p.Protocol))
 			port.Protocol = &protval
 		}
+
 		ports = append(ports, &port)
 	}
 
@@ -464,7 +465,7 @@ func (c Converter) k8sPortToCalicoFields(port *extensions.NetworkPolicyPort) (pr
 
 func (c Converter) k8sProtocolToCalico(protocol *kapiv1.Protocol) *numorstring.Protocol {
 	if protocol != nil {
-		p := numorstring.ProtocolFromString(strings.ToLower(string(*protocol)))
+		p := numorstring.ProtocolFromString(string(*protocol))
 		return &p
 	}
 	return nil

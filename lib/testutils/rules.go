@@ -32,8 +32,8 @@ func init() {
 
 	ipv4 := 4
 	ipv6 := 6
-	strProtocol1 := numorstring.ProtocolFromString("tcp")
-	strProtocol2 := numorstring.ProtocolFromString("udp")
+	strProtocol1 := numorstring.ProtocolFromString("TCP")
+	strProtocol2 := numorstring.ProtocolFromString("UDP")
 	numProtocol1 := numorstring.ProtocolFromInt(240)
 
 	icmpType1 := 100

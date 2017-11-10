@@ -33,8 +33,8 @@ var _ = Describe("Policy functions", func() {
 			DoNotTrack:     false,
 			PreDNAT:        true,
 			ApplyOnForward: true,
-			Types:          []string{"ingress", "egress"},
+			Types:          []string{"Ingress", "Egress"},
 		}
-		Expect(p.String()).To(Equal("order:10.5,selector:\"apples=='oranges'\",inbound:Deny,outbound:Allow,untracked:false,pre_dnat:true,apply_on_forward:true,types:ingress;egress"))
+		Expect(p.String()).To(Equal("order:10.5,selector:\"apples=='oranges'\",inbound:Deny,outbound:Allow,untracked:false,pre_dnat:true,apply_on_forward:true,types:Ingress;Egress"))
 	})
 })

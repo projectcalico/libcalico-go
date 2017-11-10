@@ -92,8 +92,8 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 		intype := 3
 		icode := 4
 		incode := 6
-		iproto := numorstring.ProtocolFromString("tcp")
-		inproto := numorstring.ProtocolFromString("udp")
+		iproto := numorstring.ProtocolFromString("TCP")
+		inproto := numorstring.ProtocolFromString("UDP")
 		port80 := numorstring.SinglePort(uint16(80))
 		port443 := numorstring.SinglePort(uint16(443))
 		irule := apiv3.Rule{
@@ -192,7 +192,7 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 					OutboundRules:  []model.Rule{v1erule},
 					Selector:       namespacedSelector,
 					ApplyOnForward: true,
-					Types:          []string{"ingress"},
+					Types:          []string{"Ingress"},
 				},
 				Revision: "1234",
 			},
@@ -287,7 +287,7 @@ var np1 = v1beta1.NetworkPolicy{
 }
 
 // expected1 is the expected v1 KVPair representation of np1 from above.
-var tcp = numorstring.ProtocolFromString("tcp")
+var tcp = numorstring.ProtocolFromString("TCP")
 var port80 = numorstring.SinglePort(uint16(80))
 var order float64 = 1000.0
 var expected1 = []*model.KVPair{
@@ -296,7 +296,7 @@ var expected1 = []*model.KVPair{
 		Value: &model.Policy{
 			Order:          &order,
 			Selector:       "(projectcalico.org/orchestrator == 'k8s') && projectcalico.org/namespace == 'default'",
-			Types:          []string{"egress"},
+			Types:          []string{"Egress"},
 			ApplyOnForward: true,
 			OutboundRules: []model.Rule{
 				{

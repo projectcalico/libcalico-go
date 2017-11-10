@@ -217,12 +217,12 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 							Ports: []apiv3.EndpointPort{
 								{
 									Name:     "port1",
-									Protocol: numorstring.ProtocolFromString("tcp"),
+									Protocol: numorstring.ProtocolFromString("TCP"),
 									Port:     1234,
 								},
 								{
 									Name:     "port2",
-									Protocol: numorstring.ProtocolFromString("udp"),
+									Protocol: numorstring.ProtocolFromString("UDP"),
 									Port:     1010,
 								},
 							},
@@ -248,12 +248,12 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 						Ports: []model.EndpointPort{
 							{
 								Name:     "port1",
-								Protocol: numorstring.ProtocolFromString("tcp"),
+								Protocol: numorstring.ProtocolFromString("TCP"),
 								Port:     1234,
 							},
 							{
 								Name:     "port2",
-								Protocol: numorstring.ProtocolFromString("udp"),
+								Protocol: numorstring.ProtocolFromString("UDP"),
 								Port:     1010,
 							},
 						},

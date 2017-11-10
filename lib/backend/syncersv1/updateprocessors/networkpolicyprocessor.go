@@ -17,7 +17,6 @@ package updateprocessors
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
@@ -81,5 +80,5 @@ func policyTypesAPIV2ToBackend(ptypes []apiv3.PolicyType) []string {
 }
 
 func policyTypeAPIV2ToBackend(ptype apiv3.PolicyType) string {
-	return strings.ToLower(string(ptype))
+	return string(ptype)
 }

@@ -50,8 +50,8 @@ func init() {
 	netv6_3 := "aabb:aabb::0000/122"
 	netv6_4 := "aa00:0000::0000/10"
 
-	protoTCP := numorstring.ProtocolFromString("tcp")
-	protoUDP := numorstring.ProtocolFromString("udp")
+	protoTCP := numorstring.ProtocolFromString("TCP")
+	protoUDP := numorstring.ProtocolFromString("UDP")
 	protoNumeric := numorstring.ProtocolFromInt(123)
 
 	// badPorts contains a port that should fail validation because it mixes named and numeric
@@ -476,12 +476,12 @@ func init() {
 		Entry("should accept a valid LogSeveritySys value 'Info'", api.FelixConfigurationSpec{LogSeveritySys: "Info"}, true),
 
 		// (API) Protocol
-		Entry("should accept protocol tcp", protocolFromString("tcp"), true),
-		Entry("should accept protocol udp", protocolFromString("udp"), true),
-		Entry("should accept protocol icmp", protocolFromString("icmp"), true),
-		Entry("should accept protocol icmpv6", protocolFromString("icmpv6"), true),
-		Entry("should accept protocol sctp", protocolFromString("sctp"), true),
-		Entry("should accept protocol udplite", protocolFromString("udplite"), true),
+		Entry("should accept protocol TCP", protocolFromString("TCP"), true),
+		Entry("should accept protocol UDP", protocolFromString("UDP"), true),
+		Entry("should accept protocol ICMP", protocolFromString("ICMP"), true),
+		Entry("should accept protocol ICMPV6", protocolFromString("ICMPV6"), true),
+		Entry("should accept protocol SCTP", protocolFromString("SCTP"), true),
+		Entry("should accept protocol UDPLITE", protocolFromString("UDPLITE"), true),
 		Entry("should accept protocol 1 as int", protocolFromInt(1), true),
 		Entry("should accept protocol 255 as int", protocolFromInt(255), true),
 		Entry("should accept protocol 255 as string", protocolFromString("255"), true),
@@ -491,7 +491,7 @@ func init() {
 		Entry("should reject protocol 0 as string", protocolFromString("0"), false),
 		Entry("should reject protocol tcpfoo", protocolFromString("tcpfoo"), false),
 		Entry("should reject protocol footcp", protocolFromString("footcp"), false),
-		Entry("should reject protocol TCP", protocolFromString("TCP"), false),
+		Entry("should reject protocol tcp", protocolFromString("tcp"), false),
 
 		// (API) IPNAT
 		Entry("should accept valid IPNAT IPv4",
@@ -666,10 +666,10 @@ func init() {
 		Entry("should reject ICMP with code too high", api.ICMPFields{Type: &V128, Code: &V256}, false),
 
 		// (API) Rule
-		Entry("should accept Rule with protocol sctp and no other config",
+		Entry("should accept Rule with protocol SCTP and no other config",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("sctp"),
+				Protocol: protocolFromString("SCTP"),
 			}, true),
 		Entry("should accept Rule with source ports and protocol type 6",
 			api.Rule{
@@ -690,7 +690,7 @@ func init() {
 		Entry("should accept Rule with source named ports and protocol type tcp",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Source: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.NamedPort("foo")},
 				},
@@ -698,7 +698,7 @@ func init() {
 		Entry("should accept Rule with source named ports and protocol type udp",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("udp"),
+				Protocol: protocolFromString("UDP"),
 				Source: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.NamedPort("foo")},
 				},
@@ -730,7 +730,7 @@ func init() {
 		Entry("should accept Rule with dest ports and protocol type tcp",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Destination: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.SinglePort(1)},
 				},
@@ -745,7 +745,7 @@ func init() {
 		Entry("should reject Rule with invalid port (port 0)",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{numorstring.SinglePort(0)},
 				},
@@ -753,7 +753,7 @@ func init() {
 		Entry("should reject Rule with invalid port (name + number)",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{{
 						PortName: "foo",
@@ -770,18 +770,18 @@ func init() {
 					NotPorts: []numorstring.Port{numorstring.NamedPort("foo")},
 				},
 			}, false),
-		Entry("should accept Rule with empty dest ports and protocol type sctp",
+		Entry("should accept Rule with empty dest ports and protocol type SCTP",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("sctp"),
+				Protocol: protocolFromString("SCTP"),
 				Destination: api.EntityRule{
 					Ports: []numorstring.Port{},
 				},
 			}, true),
-		Entry("should accept Rule with empty dest !ports and protocol type icmpv6",
+		Entry("should accept Rule with empty dest !ports and protocol type ICMPV6",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("icmpv6"),
+				Protocol: protocolFromString("ICMPV6"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{},
 				},
@@ -805,7 +805,7 @@ func init() {
 		Entry("should reject Rule with dest ports and protocol type tcp",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("sctp"),
+				Protocol: protocolFromString("SCTP"),
 				Destination: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.SinglePort(1)},
 				},
@@ -821,7 +821,7 @@ func init() {
 		Entry("should reject Rule with invalid source ports and protocol type tcp",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Source: api.EntityRule{
 					Ports: []numorstring.Port{{MinPort: 200, MaxPort: 100}},
 				},
@@ -829,7 +829,7 @@ func init() {
 		Entry("should reject Rule with invalid source !ports and protocol type tcp",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Source: api.EntityRule{
 					NotPorts: []numorstring.Port{{MinPort: 200, MaxPort: 100}},
 				},
@@ -837,7 +837,7 @@ func init() {
 		Entry("should reject Rule with invalid dest ports and protocol type tcp",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Destination: api.EntityRule{
 					Ports: []numorstring.Port{{MinPort: 200, MaxPort: 100}},
 				},
@@ -845,7 +845,7 @@ func init() {
 		Entry("should reject Rule with invalid dest !ports and protocol type tcp",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{{MinPort: 200, MaxPort: 100}},
 				},
@@ -853,7 +853,7 @@ func init() {
 		Entry("should reject Rule with one invalid port in the port range (MinPort 0)",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{{MinPort: 0, MaxPort: 100}},
 				},
@@ -861,7 +861,7 @@ func init() {
 		Entry("should reject rule mixed IPv4 (src) and IPv6 (dest)",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Source: api.EntityRule{
 					Nets: []string{netv4_3},
 				},
@@ -872,7 +872,7 @@ func init() {
 		Entry("should reject rule mixed IPv6 (src) and IPv4 (dest)",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Source: api.EntityRule{
 					Nets: []string{netv6_2},
 				},
@@ -883,7 +883,7 @@ func init() {
 		Entry("should reject rule mixed IPv6 version and IPv4 Net",
 			api.Rule{
 				Action:    "Allow",
-				Protocol:  protocolFromString("tcp"),
+				Protocol:  protocolFromString("TCP"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
 					Nets: []string{netv4_4},
@@ -895,7 +895,7 @@ func init() {
 		Entry("should reject rule mixed IPVersion and Source Net IP version",
 			api.Rule{
 				Action:    "Allow",
-				Protocol:  protocolFromString("tcp"),
+				Protocol:  protocolFromString("TCP"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
 					Nets: []string{netv4_1},
@@ -904,7 +904,7 @@ func init() {
 		Entry("should reject rule mixed IPVersion and Dest Net IP version",
 			api.Rule{
 				Action:    "Allow",
-				Protocol:  protocolFromString("tcp"),
+				Protocol:  protocolFromString("TCP"),
 				IPVersion: &V4,
 				Destination: api.EntityRule{
 					Nets: []string{netv6_1},
@@ -913,7 +913,7 @@ func init() {
 		Entry("net list: should reject rule mixed IPv4 (src) and IPv6 (dest)",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Source: api.EntityRule{
 					Nets: []string{netv4_3},
 				},
@@ -924,7 +924,7 @@ func init() {
 		Entry("net list: should reject rule mixed IPv6 (src) and IPv4 (dest)",
 			api.Rule{
 				Action:   "Allow",
-				Protocol: protocolFromString("tcp"),
+				Protocol: protocolFromString("TCP"),
 				Source: api.EntityRule{
 					Nets: []string{netv6_2},
 				},
@@ -935,7 +935,7 @@ func init() {
 		Entry("net list: should reject rule mixed IPv6 version and IPv4 Net",
 			api.Rule{
 				Action:    "Allow",
-				Protocol:  protocolFromString("tcp"),
+				Protocol:  protocolFromString("TCP"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
 					Nets: []string{netv4_4},
@@ -947,7 +947,7 @@ func init() {
 		Entry("net list: should reject rule mixed IPv6 version and IPv4 Net",
 			api.Rule{
 				Action:    "Allow",
-				Protocol:  protocolFromString("tcp"),
+				Protocol:  protocolFromString("TCP"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
 					Nets: []string{netv4_4},
@@ -959,7 +959,7 @@ func init() {
 		Entry("net list: should reject rule mixed IPVersion and Source Net IP version",
 			api.Rule{
 				Action:    "Allow",
-				Protocol:  protocolFromString("tcp"),
+				Protocol:  protocolFromString("TCP"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
 					Nets: []string{netv4_1},
@@ -968,7 +968,7 @@ func init() {
 		Entry("net list: should reject rule mixed IPVersion and Dest Net IP version",
 			api.Rule{
 				Action:    "Allow",
-				Protocol:  protocolFromString("tcp"),
+				Protocol:  protocolFromString("TCP"),
 				IPVersion: &V4,
 				Destination: api.EntityRule{
 					Nets: []string{netv6_1},
