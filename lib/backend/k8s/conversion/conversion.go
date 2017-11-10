@@ -420,7 +420,7 @@ func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts
 			if ingress {
 				// Build inbound rule and append to list.
 				rules = append(rules, apiv3.Rule{
-					Action:   "allow",
+					Action:   "Allow",
 					Protocol: protocol,
 					Source: apiv3.EntityRule{
 						Selector:          selector,
@@ -435,7 +435,7 @@ func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts
 			} else {
 				// Build outbound rule and append to list.
 				rules = append(rules, apiv3.Rule{
-					Action:   "allow",
+					Action:   "Allow",
 					Protocol: protocol,
 					Destination: apiv3.EntityRule{
 						Ports:             calicoPorts,

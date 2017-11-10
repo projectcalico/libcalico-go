@@ -375,7 +375,7 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 		protoTCP := numorstring.ProtocolFromString("tcp")
 		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress).To(ConsistOf(
 			apiv3.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: &protoTCP, // Defaulted to TCP.
 				Source: apiv3.EntityRule{
 					Selector: "projectcalico.org/orchestrator == 'k8s' && k == 'v' && k2 == 'v2'",
@@ -385,7 +385,7 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 				},
 			},
 			apiv3.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: &protoTCP, // Defaulted to TCP.
 				Source: apiv3.EntityRule{
 					Selector: "projectcalico.org/orchestrator == 'k8s' && k == 'v' && k2 == 'v2'",
@@ -1276,7 +1276,7 @@ var _ = Describe("Test NetworkPolicy conversion (k8s <= 1.7, no policyTypes)", f
 			"projectcalico.org/orchestrator == 'k8s' && label == 'value' && label2 == 'value2'"))
 		protoTCP := numorstring.ProtocolFromString("tcp")
 		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress).To(ConsistOf(apiv3.Rule{
-			Action:   "allow",
+			Action:   "Allow",
 			Protocol: &protoTCP, // Defaulted to TCP.
 			Source: apiv3.EntityRule{
 				Selector: "projectcalico.org/orchestrator == 'k8s' && k == 'v' && k2 == 'v2'",

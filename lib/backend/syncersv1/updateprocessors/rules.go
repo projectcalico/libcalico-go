@@ -16,8 +16,6 @@ package updateprocessors
 
 import (
 	"fmt"
-	"strings"
-
 	log "github.com/sirupsen/logrus"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
@@ -184,7 +182,7 @@ func ruleActionAPIV2ToBackend(action apiv3.Action) string {
 	if action == apiv3.Pass {
 		return "next-tier"
 	}
-	return strings.ToLower(string(action))
+    return string(action)
 }
 
 func convertStringsToNets(strs []string) []*cnet.IPNet {

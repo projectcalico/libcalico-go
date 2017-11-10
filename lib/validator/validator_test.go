@@ -94,16 +94,16 @@ func init() {
 		Entry("should reject not ICMP 128/256 (m)", model.Rule{NotICMPType: &V128, NotICMPCode: &V256}, false),
 
 		// (Backend model) Actions.
-		Entry("should accept allow action (m)", model.Rule{Action: "allow"}, true),
-		Entry("should accept deny action (m)", model.Rule{Action: "deny"}, true),
-		Entry("should accept log action (m)", model.Rule{Action: "log"}, true),
+		Entry("should accept allow action (m)", model.Rule{Action: "Allow"}, true),
+		Entry("should accept deny action (m)", model.Rule{Action: "Deny"}, true),
+		Entry("should accept log action (m)", model.Rule{Action: "Log"}, true),
 		Entry("should reject unknown action (m)", model.Rule{Action: "unknown"}, false),
 		Entry("should reject unknown action (m)", model.Rule{Action: "allowfoo"}, false),
 
 		// (API) Actions.
-		Entry("should accept allow action", api.Rule{Action: "allow"}, true),
-		Entry("should accept deny action", api.Rule{Action: "deny"}, true),
-		Entry("should accept log action", api.Rule{Action: "log"}, true),
+		Entry("should accept allow action", api.Rule{Action: "Allow"}, true),
+		Entry("should accept deny action", api.Rule{Action: "Deny"}, true),
+		Entry("should accept log action", api.Rule{Action: "Log"}, true),
 		Entry("should reject unknown action", api.Rule{Action: "unknown"}, false),
 		Entry("should reject unknown action", api.Rule{Action: "allowfoo"}, false),
 		Entry("should reject rule with no action", api.Rule{}, false),
@@ -416,9 +416,9 @@ func init() {
 		Entry("should reject an invalid BGP logging level: invalidLvl", api.BGPConfigurationSpec{LogSeverityScreen: "invalidLvl"}, false),
 
 		// (API) IP version.
-		Entry("should accept IP version 4", api.Rule{Action: "allow", IPVersion: &V4}, true),
-		Entry("should accept IP version 6", api.Rule{Action: "allow", IPVersion: &V6}, true),
-		Entry("should reject IP version 0", api.Rule{Action: "allow", IPVersion: &V0}, false),
+		Entry("should accept IP version 4", api.Rule{Action: "Allow", IPVersion: &V4}, true),
+		Entry("should accept IP version 6", api.Rule{Action: "Allow", IPVersion: &V6}, true),
+		Entry("should reject IP version 0", api.Rule{Action: "Allow", IPVersion: &V0}, false),
 
 		// (API) Names.
 		//Entry("should accept a valid name", api.Profile{ObjectMeta: v1.ObjectMeta{Name: ".My-valid-Profile_190"}}, true),
@@ -668,12 +668,12 @@ func init() {
 		// (API) Rule
 		Entry("should accept Rule with protocol sctp and no other config",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("sctp"),
 			}, true),
 		Entry("should accept Rule with source ports and protocol type 6",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromInt(6),
 				Source: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.SinglePort(1)},
@@ -681,7 +681,7 @@ func init() {
 			}, true),
 		Entry("should accept Rule with source named ports and protocol type 6",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromInt(6),
 				Source: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.NamedPort("foo")},
@@ -689,7 +689,7 @@ func init() {
 			}, true),
 		Entry("should accept Rule with source named ports and protocol type tcp",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Source: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.NamedPort("foo")},
@@ -697,7 +697,7 @@ func init() {
 			}, true),
 		Entry("should accept Rule with source named ports and protocol type udp",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("udp"),
 				Source: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.NamedPort("foo")},
@@ -705,7 +705,7 @@ func init() {
 			}, true),
 		Entry("should accept Rule with empty source ports and protocol type 7",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromInt(7),
 				Source: api.EntityRule{
 					Ports: []numorstring.Port{},
@@ -713,7 +713,7 @@ func init() {
 			}, true),
 		Entry("should accept Rule with source !ports and protocol type 17",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromInt(17),
 				Source: api.EntityRule{
 					NotPorts: []numorstring.Port{numorstring.SinglePort(1)},
@@ -721,7 +721,7 @@ func init() {
 			}, true),
 		Entry("should accept Rule with empty source !ports and protocol type 100",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromInt(100),
 				Source: api.EntityRule{
 					NotPorts: []numorstring.Port{},
@@ -729,7 +729,7 @@ func init() {
 			}, true),
 		Entry("should accept Rule with dest ports and protocol type tcp",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Destination: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.SinglePort(1)},
@@ -737,14 +737,14 @@ func init() {
 			}, true),
 		Entry("should reject Rule with dest ports and no protocol",
 			api.Rule{
-				Action: "allow",
+				Action: "Allow",
 				Destination: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.SinglePort(1)},
 				},
 			}, false),
 		Entry("should reject Rule with invalid port (port 0)",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{numorstring.SinglePort(0)},
@@ -752,7 +752,7 @@ func init() {
 			}, false),
 		Entry("should reject Rule with invalid port (name + number)",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{{
@@ -764,7 +764,7 @@ func init() {
 			}, false),
 		Entry("should reject named port Rule with invalid protocol",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("unknown"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{numorstring.NamedPort("foo")},
@@ -772,7 +772,7 @@ func init() {
 			}, false),
 		Entry("should accept Rule with empty dest ports and protocol type sctp",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("sctp"),
 				Destination: api.EntityRule{
 					Ports: []numorstring.Port{},
@@ -780,7 +780,7 @@ func init() {
 			}, true),
 		Entry("should accept Rule with empty dest !ports and protocol type icmpv6",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("icmpv6"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{},
@@ -788,7 +788,7 @@ func init() {
 			}, true),
 		Entry("should reject Rule with source ports and protocol type 7",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromInt(7),
 				Source: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.SinglePort(1)},
@@ -796,7 +796,7 @@ func init() {
 			}, false),
 		Entry("should reject Rule with source !ports and protocol type 100",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromInt(100),
 				Source: api.EntityRule{
 					NotPorts: []numorstring.Port{numorstring.SinglePort(1)},
@@ -804,7 +804,7 @@ func init() {
 			}, false),
 		Entry("should reject Rule with dest ports and protocol type tcp",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("sctp"),
 				Destination: api.EntityRule{
 					Ports: []numorstring.Port{numorstring.SinglePort(1)},
@@ -812,7 +812,7 @@ func init() {
 			}, false),
 		Entry("should reject Rule with dest !ports and protocol type udp",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("icmp"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{numorstring.SinglePort(1)},
@@ -820,7 +820,7 @@ func init() {
 			}, false),
 		Entry("should reject Rule with invalid source ports and protocol type tcp",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Source: api.EntityRule{
 					Ports: []numorstring.Port{{MinPort: 200, MaxPort: 100}},
@@ -828,7 +828,7 @@ func init() {
 			}, false),
 		Entry("should reject Rule with invalid source !ports and protocol type tcp",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Source: api.EntityRule{
 					NotPorts: []numorstring.Port{{MinPort: 200, MaxPort: 100}},
@@ -836,7 +836,7 @@ func init() {
 			}, false),
 		Entry("should reject Rule with invalid dest ports and protocol type tcp",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Destination: api.EntityRule{
 					Ports: []numorstring.Port{{MinPort: 200, MaxPort: 100}},
@@ -844,7 +844,7 @@ func init() {
 			}, false),
 		Entry("should reject Rule with invalid dest !ports and protocol type tcp",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{{MinPort: 200, MaxPort: 100}},
@@ -852,7 +852,7 @@ func init() {
 			}, false),
 		Entry("should reject Rule with one invalid port in the port range (MinPort 0)",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Destination: api.EntityRule{
 					NotPorts: []numorstring.Port{{MinPort: 0, MaxPort: 100}},
@@ -860,7 +860,7 @@ func init() {
 			}, false),
 		Entry("should reject rule mixed IPv4 (src) and IPv6 (dest)",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Source: api.EntityRule{
 					Nets: []string{netv4_3},
@@ -871,7 +871,7 @@ func init() {
 			}, false),
 		Entry("should reject rule mixed IPv6 (src) and IPv4 (dest)",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Source: api.EntityRule{
 					Nets: []string{netv6_2},
@@ -882,7 +882,7 @@ func init() {
 			}, false),
 		Entry("should reject rule mixed IPv6 version and IPv4 Net",
 			api.Rule{
-				Action:    "allow",
+				Action:    "Allow",
 				Protocol:  protocolFromString("tcp"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
@@ -894,7 +894,7 @@ func init() {
 			}, false),
 		Entry("should reject rule mixed IPVersion and Source Net IP version",
 			api.Rule{
-				Action:    "allow",
+				Action:    "Allow",
 				Protocol:  protocolFromString("tcp"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
@@ -903,7 +903,7 @@ func init() {
 			}, false),
 		Entry("should reject rule mixed IPVersion and Dest Net IP version",
 			api.Rule{
-				Action:    "allow",
+				Action:    "Allow",
 				Protocol:  protocolFromString("tcp"),
 				IPVersion: &V4,
 				Destination: api.EntityRule{
@@ -912,7 +912,7 @@ func init() {
 			}, false),
 		Entry("net list: should reject rule mixed IPv4 (src) and IPv6 (dest)",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Source: api.EntityRule{
 					Nets: []string{netv4_3},
@@ -923,7 +923,7 @@ func init() {
 			}, false),
 		Entry("net list: should reject rule mixed IPv6 (src) and IPv4 (dest)",
 			api.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: protocolFromString("tcp"),
 				Source: api.EntityRule{
 					Nets: []string{netv6_2},
@@ -934,7 +934,7 @@ func init() {
 			}, false),
 		Entry("net list: should reject rule mixed IPv6 version and IPv4 Net",
 			api.Rule{
-				Action:    "allow",
+				Action:    "Allow",
 				Protocol:  protocolFromString("tcp"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
@@ -946,7 +946,7 @@ func init() {
 			}, false),
 		Entry("net list: should reject rule mixed IPv6 version and IPv4 Net",
 			api.Rule{
-				Action:    "allow",
+				Action:    "Allow",
 				Protocol:  protocolFromString("tcp"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
@@ -958,7 +958,7 @@ func init() {
 			}, false),
 		Entry("net list: should reject rule mixed IPVersion and Source Net IP version",
 			api.Rule{
-				Action:    "allow",
+				Action:    "Allow",
 				Protocol:  protocolFromString("tcp"),
 				IPVersion: &V6,
 				Source: api.EntityRule{
@@ -967,7 +967,7 @@ func init() {
 			}, false),
 		Entry("net list: should reject rule mixed IPVersion and Dest Net IP version",
 			api.Rule{
-				Action:    "allow",
+				Action:    "Allow",
 				Protocol:  protocolFromString("tcp"),
 				IPVersion: &V4,
 				Destination: api.EntityRule{
@@ -1003,13 +1003,13 @@ func init() {
 			api.GlobalNetworkPolicySpec{
 				PreDNAT:        true,
 				ApplyOnForward: true,
-				Egress:         []api.Rule{{Action: "allow"}},
+				Egress:         []api.Rule{{Action: "Allow"}},
 			}, false),
 		Entry("should accept pre-DNAT GlobalNetworkPolicy ingress rules",
 			api.GlobalNetworkPolicySpec{
 				PreDNAT:        true,
 				ApplyOnForward: true,
-				Ingress:        []api.Rule{{Action: "allow"}},
+				Ingress:        []api.Rule{{Action: "Allow"}},
 			}, true),
 
 		// GlobalNetworkPolicySpec ApplyOnForward field checks.
@@ -1076,65 +1076,65 @@ func init() {
 		// For NetworkPolicySpec
 		Entry("allow Types without ingress when Ingress present",
 			api.NetworkPolicySpec{
-				Ingress: []api.Rule{{Action: "allow"}},
+				Ingress: []api.Rule{{Action: "Allow"}},
 				Types:   []api.PolicyType{api.PolicyTypeEgress},
 			}, true),
 		Entry("allow Types without egress when Egress present",
 			api.NetworkPolicySpec{
-				Egress: []api.Rule{{Action: "allow"}},
+				Egress: []api.Rule{{Action: "Allow"}},
 				Types:  []api.PolicyType{api.PolicyTypeIngress},
 			}, true),
 
 		Entry("allow Types with ingress when Ingress present",
 			api.NetworkPolicySpec{
-				Ingress: []api.Rule{{Action: "allow"}},
+				Ingress: []api.Rule{{Action: "Allow"}},
 				Types:   []api.PolicyType{api.PolicyTypeIngress},
 			}, true),
 		Entry("allow Types with ingress+egress when Ingress present",
 			api.NetworkPolicySpec{
-				Ingress: []api.Rule{{Action: "allow"}},
+				Ingress: []api.Rule{{Action: "Allow"}},
 				Types:   []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
 			}, true),
 		Entry("allow Types with egress when Egress present",
 			api.NetworkPolicySpec{
-				Egress: []api.Rule{{Action: "allow"}},
+				Egress: []api.Rule{{Action: "Allow"}},
 				Types:  []api.PolicyType{api.PolicyTypeEgress},
 			}, true),
 		Entry("allow Types with ingress+egress when Egress present",
 			api.NetworkPolicySpec{
-				Egress: []api.Rule{{Action: "allow"}},
+				Egress: []api.Rule{{Action: "Allow"}},
 				Types:  []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
 			}, true),
 
 		// For GlobalNetworkPolicySpec
 		Entry("allow Types without ingress when Ingress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				Ingress: []api.Rule{{Action: "allow"}},
+				Ingress: []api.Rule{{Action: "Allow"}},
 				Types:   []api.PolicyType{api.PolicyTypeEgress},
 			}, true),
 		Entry("allow Types without egress when Egress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				Egress: []api.Rule{{Action: "allow"}},
+				Egress: []api.Rule{{Action: "Allow"}},
 				Types:  []api.PolicyType{api.PolicyTypeIngress},
 			}, true),
 		Entry("allow Types with ingress when Ingress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				Ingress: []api.Rule{{Action: "allow"}},
+				Ingress: []api.Rule{{Action: "Allow"}},
 				Types:   []api.PolicyType{api.PolicyTypeIngress},
 			}, true),
 		Entry("allow Types with ingress+egress when Ingress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				Ingress: []api.Rule{{Action: "allow"}},
+				Ingress: []api.Rule{{Action: "Allow"}},
 				Types:   []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
 			}, true),
 		Entry("allow Types with egress when Egress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				Egress: []api.Rule{{Action: "allow"}},
+				Egress: []api.Rule{{Action: "Allow"}},
 				Types:  []api.PolicyType{api.PolicyTypeEgress},
 			}, true),
 		Entry("allow Types with ingress+egress when Egress present (gnp)",
 			api.GlobalNetworkPolicySpec{
-				Egress: []api.Rule{{Action: "allow"}},
+				Egress: []api.Rule{{Action: "Allow"}},
 				Types:  []api.PolicyType{api.PolicyTypeIngress, api.PolicyTypeEgress},
 			}, true),
 		Entry("allow ingress Types with pre-DNAT (gnp)",

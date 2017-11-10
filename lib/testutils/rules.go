@@ -50,7 +50,7 @@ func init() {
 	}
 
 	InRule1 = apiv3.Rule{
-		Action:    "allow",
+		Action:    "Allow",
 		IPVersion: &ipv4,
 		Protocol:  &strProtocol1,
 		ICMP:      &icmp1,
@@ -66,7 +66,7 @@ func init() {
 	}
 
 	InRule2 = apiv3.Rule{
-		Action:    "deny",
+		Action:    "Deny",
 		IPVersion: &ipv6,
 		Protocol:  &numProtocol1,
 		ICMP:      &icmp1,
@@ -77,7 +77,7 @@ func init() {
 	}
 
 	EgressRule1 = apiv3.Rule{
-		Action:    "pass",
+		Action:    "Pass",
 		IPVersion: &ipv4,
 		Protocol:  &numProtocol1,
 		ICMP:      &icmp1,
@@ -88,7 +88,7 @@ func init() {
 	}
 
 	EgressRule2 = apiv3.Rule{
-		Action:    "allow",
+		Action:    "Allow",
 		IPVersion: &ipv6,
 		Protocol:  &strProtocol2,
 		ICMP:      &icmp1,

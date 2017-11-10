@@ -107,7 +107,7 @@ func (r Rule) String() string {
 	if r.Action != "" {
 		parts = append(parts, r.Action)
 	} else {
-		parts = append(parts, "allow")
+		parts = append(parts, "Allow")
 	}
 
 	// Global packet attributes that don't depend on direction.
