@@ -83,16 +83,22 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 		NotICMPCode: notICMPCode,
 		NotICMPType: notICMPType,
 
-		SrcTag:      ar.Source.Tag,
-		SrcNet:      ar.Source.Net,
-		SrcNets:     ar.Source.Nets,
-		SrcSelector: ar.Source.Selector,
-		SrcPorts:    ar.Source.Ports,
-		DstTag:      ar.Destination.Tag,
-		DstNet:      normalizeIPNet(ar.Destination.Net),
-		DstNets:     normalizeIPNets(ar.Destination.Nets),
-		DstSelector: ar.Destination.Selector,
-		DstPorts:    ar.Destination.Ports,
+		SrcTag:         ar.Source.Tag,
+		SrcNet:         ar.Source.Net,
+		SrcNets:        ar.Source.Nets,
+		SrcSelector:    ar.Source.Selector,
+		SrcPorts:       ar.Source.Ports,
+		SrcSANames:     ar.Source.ServiceAccounts.Names,
+		SrcSANamespace: ar.Source.ServiceAccounts.Namespace,
+		SrcSASelector:  ar.Source.ServiceAccounts.Selector,
+		DstTag:         ar.Destination.Tag,
+		DstNet:         normalizeIPNet(ar.Destination.Net),
+		DstNets:        normalizeIPNets(ar.Destination.Nets),
+		DstSelector:    ar.Destination.Selector,
+		DstPorts:       ar.Destination.Ports,
+		DstSANames:     ar.Destination.ServiceAccounts.Names,
+		DstSANamespace: ar.Destination.ServiceAccounts.Namespace,
+		DstSASelector:  ar.Destination.ServiceAccounts.Selector,
 
 		NotSrcTag:      ar.Source.NotTag,
 		NotSrcNet:      ar.Source.NotNet,
@@ -159,6 +165,11 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 			NotNets:     br.AllNotSrcNets(),
 			NotSelector: br.NotSrcSelector,
 			NotPorts:    br.NotSrcPorts,
+			ServiceAccounts: api.ServiceAccountMatch{
+				Names:     br.SrcSANames,
+				Namespace: br.SrcSANamespace,
+				Selector:  br.SrcSASelector,
+			},
 		},
 
 		Destination: api.EntityRule{
@@ -170,6 +181,11 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 			NotNets:     br.AllNotDstNets(),
 			NotSelector: br.NotDstSelector,
 			NotPorts:    br.NotDstPorts,
+			ServiceAccounts: api.ServiceAccountMatch{
+				Names:     br.DstSANames,
+				Namespace: br.DstSANamespace,
+				Selector:  br.DstSASelector,
+			},
 		},
 	}
 }

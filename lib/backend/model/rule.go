@@ -39,16 +39,22 @@ type Rule struct {
 	NotICMPType *int `json:"!icmp_type,omitempty" validate:"omitempty,gte=0,lt=255"`
 	NotICMPCode *int `json:"!icmp_code,omitempty" validate:"omitempty,gte=0,lte=255"`
 
-	SrcTag      string             `json:"src_tag,omitempty" validate:"omitempty,tag"`
-	SrcNet      *net.IPNet         `json:"src_net,omitempty" validate:"omitempty"`
-	SrcNets     []*net.IPNet       `json:"src_nets,omitempty" validate:"omitempty"`
-	SrcSelector string             `json:"src_selector,omitempty" validate:"omitempty,selector"`
-	SrcPorts    []numorstring.Port `json:"src_ports,omitempty" validate:"omitempty,dive"`
-	DstTag      string             `json:"dst_tag,omitempty" validate:"omitempty,tag"`
-	DstSelector string             `json:"dst_selector,omitempty" validate:"omitempty,selector"`
-	DstNet      *net.IPNet         `json:"dst_net,omitempty" validate:"omitempty"`
-	DstNets     []*net.IPNet       `json:"dst_nets,omitempty" validate:"omitempty"`
-	DstPorts    []numorstring.Port `json:"dst_ports,omitempty" validate:"omitempty,dive"`
+	SrcTag         string             `json:"src_tag,omitempty" validate:"omitempty,tag"`
+	SrcNet         *net.IPNet         `json:"src_net,omitempty" validate:"omitempty"`
+	SrcNets        []*net.IPNet       `json:"src_nets,omitempty" validate:"omitempty"`
+	SrcSelector    string             `json:"src_selector,omitempty" validate:"omitempty,selector"`
+	SrcPorts       []numorstring.Port `json:"src_ports,omitempty" validate:"omitempty,dive"`
+	SrcSANames     []string           `json:"src_sa_name,omitempty" validate:"omitempty"`
+	SrcSASelector  string             `json:"src_sa_selector,omitempty" validate:"omitempty"`
+	SrcSANamespace string             `json:"src_sa_namespace,omitempty" validate:"omitempty"`
+	DstTag         string             `json:"dst_tag,omitempty" validate:"omitempty,tag"`
+	DstSelector    string             `json:"dst_selector,omitempty" validate:"omitempty,selector"`
+	DstNet         *net.IPNet         `json:"dst_net,omitempty" validate:"omitempty"`
+	DstNets        []*net.IPNet       `json:"dst_nets,omitempty" validate:"omitempty"`
+	DstPorts       []numorstring.Port `json:"dst_ports,omitempty" validate:"omitempty,dive"`
+	DstSANames     []string           `json:"dst_sa_name,omitempty" validate:"omitempty"`
+	DstSASelector  string             `json:"dst_sa_selector,omitempty" validate:"omitempty"`
+	DstSANamespace string             `json:"dst_sa_namespace,omitempty" validate:"omitempty"`
 
 	NotSrcTag      string             `json:"!src_tag,omitempty" validate:"omitempty,tag"`
 	NotSrcNet      *net.IPNet         `json:"!src_net,omitempty" validate:"omitempty"`
