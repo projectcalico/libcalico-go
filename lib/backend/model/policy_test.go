@@ -35,6 +35,10 @@ var _ = Describe("Policy functions", func() {
 			ApplyOnForward: true,
 			Types:          []string{"Ingress", "Egress"},
 		}
+<<<<<<< HEAD
 		Expect(p.String()).To(Equal("order:10.5,selector:\"apples=='oranges'\",inbound:Deny,outbound:Allow,untracked:false,pre_dnat:true,apply_on_forward:true,types:Ingress;Egress"))
+=======
+		Expect(p.String()).To(Equal("order:10.5,selector:\"apples=='oranges'\",inbound:Deny,outbound:Allow,untracked:false,pre_dnat:true,apply_on_forward:true,types:ingress;egress"))
+>>>>>>> move to uppercase Action's
 	})
 })
