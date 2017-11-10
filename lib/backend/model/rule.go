@@ -67,7 +67,13 @@ type Rule struct {
 	NotDstNets     []*net.IPNet       `json:"!dst_nets,omitempty" validate:"omitempty"`
 	NotDstPorts    []numorstring.Port `json:"!dst_ports,omitempty" validate:"omitempty,dive"`
 
+	HTTP HTTPRule `json:"http,omitempty" validate:"omitempty"`
+
 	LogPrefix string `json:"log_prefix,omitempty" validate:"omitempty"`
+}
+
+type HTTPRule struct {
+	Methods []string `json:"methods,omitempty" validate:"omitempty"`
 }
 
 func combineNets(n *net.IPNet, nets []*net.IPNet) []*net.IPNet {
