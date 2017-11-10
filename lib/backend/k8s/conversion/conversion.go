@@ -559,3 +559,63 @@ func (c Converter) SplitNetworkPolicyRevision(rev string) (crdNPRev string, k8sN
 	k8sNPRev = revs[1]
 	return
 }
+
+// ServiceAccountToProfile converts a ServiceAccount to a Calico Profile.  The Profile stores
+// labels from the ServiceAccount which are inherited by the WorkloadEndpoints within
+// the Profile. This Profile also has the default ingress and egress rules, which are both 'allow'.
+func (c Converter) ServiceAccountToProfile(sa *kapiv1.ServiceAccount) (*model.KVPair, error) {
+	// Generate the labels to apply to the profile, using a special prefix
+	// to indicate that these are the labels from the parent Kubernetes Namespace.
+	labels := map[string]string{}
+	for k, v := range sa.ObjectMeta.Labels {
+		labels[ServiceAccountLabelPrefix+k] = v
+	}
+
+	// Need to incorporate the namespace into the name of the sa based profile
+	// to make them globally unique
+	namespace := sa.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
+	namespace = namespace + "."
+
+	name := ServiceAccountProfileNamePrefix + namespace + sa.Name
+	profile := apiv2.NewProfile()
+	profile.ObjectMeta = metav1.ObjectMeta{
+		Name:              name,
+		CreationTimestamp: sa.CreationTimestamp,
+		UID:               sa.UID,
+	}
+	profile.Spec = apiv2.ProfileSpec{
+		Ingress:       []apiv2.Rule{{Action: apiv2.Allow}},
+		Egress:        []apiv2.Rule{{Action: apiv2.Allow}},
+		LabelsToApply: labels,
+	}
+
+	// Embed the profile in a KVPair.
+	kvp := model.KVPair{
+		Key: model.ResourceKey{
+			Name: name,
+			Kind: apiv2.KindProfile,
+		},
+		Value:    profile,
+		Revision: sa.ResourceVersion,
+	}
+	return &kvp, nil
+}
+
+// ProfileNameToService extracts the ServiceAccount name from the given Profile name.
+func (c Converter) ProfileNameToServiceAccount(profileName string) (string, error) {
+	// Profile objects backed by Namespaces have form "kns.<ns_name>"
+	if !strings.HasPrefix(profileName, ServiceAccountProfileNamePrefix) {
+		// This is not backed by a Kubernetes Namespace.
+		return "", fmt.Errorf("Profile %s not backed by a ServiceAccount", profileName)
+	}
+
+	names := strings.Split(profileName, ".")
+	if len(names) != 3 {
+		return "", fmt.Errorf("Profile %s is not formatted correctly", profileName)
+	}
+
+	return names[2], nil
+}
