@@ -399,7 +399,6 @@ func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts
 			protval := kapiv1.Protocol(fmt.Sprintf("%s", *p.Protocol))
 			port.Protocol = &protval
 		}
-
 		ports = append(ports, &port)
 	}
 
