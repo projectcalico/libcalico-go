@@ -373,7 +373,7 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Selector).To(Equal(
 			"projectcalico.org/orchestrator == 'k8s' && label == 'value' && label2 == 'value2'"))
 		protoTCP := numorstring.ProtocolFromString("TCP")
-		Expect(pol.Value.(*apiv2.NetworkPolicy).Spec.Ingress).To(ConsistOf(
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress).To(ConsistOf(
 			apiv3.Rule{
 				Action:   "Allow",
 				Protocol: &protoTCP, // Defaulted to TCP.

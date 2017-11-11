@@ -19,7 +19,7 @@ import (
 
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	api "github.com/projectcalico/libcalico-go/lib/apis/v2"
+	api "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"

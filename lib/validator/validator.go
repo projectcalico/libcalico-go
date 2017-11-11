@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"strings"
 
-	api "github.com/projectcalico/libcalico-go/lib/apis/v2"
+	api "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/errors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
