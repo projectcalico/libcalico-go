@@ -26,7 +26,6 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/scope"
 	"github.com/projectcalico/libcalico-go/lib/selector"
-	"github.com/projectcalico/libcalico-go/lib/selector/tokenizer"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
@@ -36,7 +35,7 @@ import (
 var validate *validator.Validate
 
 var (
-	labelRegex            = regexp.MustCompile(`^` + tokenizer.LabelKeyMatcher + `$`)
+	labelRegex            = regexp.MustCompile("^[a-zA-Z0-9_./-]{1,512}$")
 	labelValueRegex       = regexp.MustCompile("^[a-zA-Z0-9]?([a-zA-Z0-9_.-]{0,61}[a-zA-Z0-9])?$")
 	nameRegex             = regexp.MustCompile("^[a-zA-Z0-9_.-]{1,128}$")
 	labelsToApplyValRegex = regexp.MustCompile("^[a-zA-Z0-9_.-]{0,128}$")
