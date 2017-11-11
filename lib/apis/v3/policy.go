@@ -42,12 +42,12 @@ type Rule struct {
 	// a specific IP protocol. Required if any of the EntityRules contain Ports
 	// (because ports only apply to certain protocols).
 	//
-	// Must be one of these string values: "TCP", "UDP", "ICMP", "ICMPV6", "SCtp", "UDPLITE"
+	// Must be one of these string values: "TCP", "UDP", "ICMP", "ICMPv6", "SCTP", "UDPLite"
 	// or an integer in the range 1-255.
 	Protocol *numorstring.Protocol `json:"protocol,omitempty" validate:"omitempty"`
 	// ICMP is an optional field that restricts the rule to apply to a specific type and
 	// code of ICMP traffic.  This should only be specified if the Protocol field is set to
-	// "ICMP" or "ICMPV6".
+	// "ICMP" or "ICMPv6".
 	ICMP *ICMPFields `json:"icmp,omitempty" validate:"omitempty"`
 	// NotProtocol is the negated version of the Protocol field.
 	NotProtocol *numorstring.Protocol `json:"notProtocol,omitempty" validate:"omitempty"`

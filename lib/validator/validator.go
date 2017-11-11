@@ -44,7 +44,7 @@ var (
 	interfaceRegex        = regexp.MustCompile("^[a-zA-Z0-9_-]{1,15}$")
 	actionRegex           = regexp.MustCompile("^(Allow|Deny|Log|Pass)$")
 	backendActionRegex    = regexp.MustCompile("^(Allow|Deny|Log|next-tier|)$")
-	protocolRegex         = regexp.MustCompile("^(TCP|UDP|ICMP|ICMPV6|SCTP|UDPLITE)$")
+	protocolRegex         = regexp.MustCompile("^(TCP|UDP|ICMP|ICMPv6|SCTP|UDPLite)$")
 	ipipModeRegex         = regexp.MustCompile("^(Always|CrossSubnet|Never)$")
 	bgpLogLevel           = regexp.MustCompile("^(Info|Warning|Debug|Error|Fatal|Trace)$")
 	felixLogLevel         = regexp.MustCompile("^(Info|Warning|Debug|Error|Critical)$")
