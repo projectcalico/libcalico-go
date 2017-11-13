@@ -46,7 +46,7 @@ var (
 	protocolRegex         = regexp.MustCompile("^(TCP|UDP|ICMP|ICMPv6|SCTP|UDPLite)$")
 	ipipModeRegex         = regexp.MustCompile("^(Always|CrossSubnet|Never)$")
 	bgpLogLevel           = regexp.MustCompile("^(Info|Warning|Debug|Error|Fatal|Trace)$")
-	felixLogLevel         = regexp.MustCompile("^(Info|Warning|Debug|Error|Critical)$")
+	felixLogLevel         = regexp.MustCompile("^(Info|Warning|Debug|Error|Fatal)$")
 	datastoreType         = regexp.MustCompile("^(etcdv3|kubernetes)$")
 	dropacceptreturnRegex = regexp.MustCompile("^(Drop|Accept|Return)$")
 	acceptreturnRegex     = regexp.MustCompile("^(Accept|Return)$")
