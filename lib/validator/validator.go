@@ -587,9 +587,10 @@ func validateRule(v *validator.Validate, structLevel *validator.StructLevel) {
 			if err != nil {
 				structLevel.ReportError(reflect.ValueOf(n), fieldName,
 					"", reason("invalid CIDR"))
+			} else {
+				v4 = v4 || cidr.Version() == 4
+				v6 = v6 || cidr.Version() == 6
 			}
-			v4 = v4 || cidr.Version() == 4
-			v6 = v6 || cidr.Version() == 6
 		}
 		if rule.IPVersion != nil && ((v4 && *rule.IPVersion != 4) || (v6 && *rule.IPVersion != 6)) {
 			structLevel.ReportError(reflect.ValueOf(rule.Source.Nets), fieldName,

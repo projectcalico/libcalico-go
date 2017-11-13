@@ -24,6 +24,8 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/selector/parser"
+	"github.com/projectcalico/libcalico-go/lib/numorstring"
+	"strings"
 )
 
 func RulesAPIV2ToBackend(ars []apiv3.Rule, ns string) []model.Rule {
@@ -115,10 +117,10 @@ func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 	return model.Rule{
 		Action:      ruleActionAPIV2ToBackend(ar.Action),
 		IPVersion:   ar.IPVersion,
-		Protocol:    ar.Protocol,
+		Protocol:    normalizeProto(ar.Protocol),
 		ICMPCode:    icmpCode,
 		ICMPType:    icmpType,
-		NotProtocol: ar.NotProtocol,
+		NotProtocol: normalizeProto(ar.NotProtocol),
 		NotICMPCode: notICMPCode,
 		NotICMPType: notICMPType,
 
@@ -150,6 +152,14 @@ func parseNamespaceSelector(s string) string {
 	updated := parsedSelector.String()
 	log.WithFields(log.Fields{"original": s, "updated": updated}).Debug("Updated namespace selector")
 	return updated
+}
+
+// normalizeProto converts a v1 protocol string to a v3 protocol string
+func normalizeProto(p *numorstring.Protocol) *numorstring.Protocol {
+	if p != nil && p.Type == numorstring.NumOrStringString {
+		p.StrVal = strings.ToLower(p.String())
+	}
+	return p
 }
 
 // normalizeIPNet converts an IPNet to a network by ensuring the IP address is correctly masked.
