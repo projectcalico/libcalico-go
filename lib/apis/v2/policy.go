@@ -138,6 +138,24 @@ type EntityRule struct {
 	// Since only some protocols have ports, if any ports are specified it requires the
 	// Protocol match in the Rule to be set to "tcp" or "udp".
 	NotPorts []numorstring.Port `json:"notPorts,omitempty" validate:"omitempty,dive"`
+
+	// ServiceAccounts is an optional field that restricts the rule to only apply to traffic that originates from (or
+	// terminates at) a pod running as a matching service account.
+	ServiceAccounts *ServiceAccountMatch `json:"serviceAccounts,omitempty" validate:"omitempty"`
+}
+
+type ServiceAccountMatch struct {
+	// Names is an optional field that restricts the rule to only apply to traffic that originates from (or terminates
+	// at) a pod running as a service account whose name is in the list.
+	Names string `json:"names,omitempty" validate:"omitempty"`
+
+	// Namespace is an optional field that restricts the rule to only apply to traffic that originates from (or
+	// terminates at) a pod running as a service account from the given namespace.
+	Namespace string `json:"namespace,omitempty" validate:"omitempty"`
+
+	// Selector is an optional field that restricts the rule to only apply to traffic that originates from
+	// (or terminates at) a pod running as a service account that matches the given label selector.
+	Selector string `json:"selector,omitempty" validate:"omitempty"`
 }
 
 type Action string

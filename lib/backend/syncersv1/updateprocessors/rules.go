@@ -75,6 +75,21 @@ func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
 		destNSSelector = fmt.Sprintf("%s == '%s'", apiv2.LabelNamespace, ns)
 	}
 
+	// Determine which service account are impacted by this rule.
+	var sourceSASelector string
+	if ar.Source.ServiceAccounts != nil {
+		// A service account selector was given - the rule applies to all serviceaccount
+		// which match this selector.
+		sourceSASelector = parseServiceAccounts(ar.Source.ServiceAccounts, ns)
+	}
+
+	var dstSASelector string
+	if ar.Destination.ServiceAccounts != nil {
+		// A service account selector was given - the rule applies to all serviceaccount
+		// which match this selector.
+		dstSASelector = parseServiceAccounts(ar.Destination.ServiceAccounts, ns)
+	}
+
 	srcSelector := ar.Source.Selector
 	if sourceNSSelector != "" && (ar.Source.Selector != "" || ar.Source.NotSelector != "" || ar.Source.NamespaceSelector != "") {
 		// We need to namespace the rule's selector when converting to a v1 object.
@@ -94,6 +109,23 @@ func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
 		}
 	}
 
+	// Append sourceSASelector
+	if sourceSASelector != "" && (ar.Source.Selector != "" || ar.Source.NotSelector != "" || ar.Source.ServiceAccounts != nil) {
+		logCxt := log.WithFields(log.Fields{
+			"Namespace":         ns,
+			"Selector":          ar.Source.Selector,
+			"NamespaceSelector": ar.Source.NamespaceSelector,
+			"ServiceAccountSelector": ar.Source.ServiceAccounts.Names,
+			"NotSelector":       ar.Source.NotSelector,
+		})
+		logCxt.Debug("Update source Selector to include namespace")
+		if srcSelector != "" {
+			srcSelector = fmt.Sprintf("(%s) && (%s)", sourceSASelector, srcSelector)
+		} else {
+			srcSelector = sourceSASelector
+		}
+	}
+
 	dstSelector := ar.Destination.Selector
 	if destNSSelector != "" && (ar.Destination.Selector != "" || ar.Destination.NotSelector != "" || ar.Destination.NamespaceSelector != "") {
 		// We need to namespace the rule's selector when converting to a v1 object.
@@ -110,6 +142,23 @@ func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
 			dstSelector = fmt.Sprintf("(%s) && (%s)", destNSSelector, ar.Destination.Selector)
 		} else {
 			dstSelector = destNSSelector
+		}
+	}
+
+	// Append dstSASelector
+	if dstSASelector != "" && (ar.Destination.Selector != "" || ar.Destination.NotSelector != "" || ar.Destination.ServiceAccounts != nil) {
+		logCxt := log.WithFields(log.Fields{
+			"Namespace":         ns,
+			"Selector":          ar.Destination.Selector,
+			"NamespaceSelector": ar.Destination.NamespaceSelector,
+			"ServiceAccountSelector": ar.Destination.ServiceAccounts.Names,
+			"NotSelector":       ar.Destination.NotSelector,
+		})
+		logCxt.Debug("Update Destination Selector to include serviceaccounts")
+		if dstSelector != "" {
+			dstSelector = fmt.Sprintf("(%s) && (%s)", dstSASelector, dstSelector)
+		} else {
+			dstSelector = dstSASelector
 		}
 	}
 
@@ -150,6 +199,33 @@ func parseNamespaceSelector(s string) string {
 	parsedSelector.AcceptVisitor(parser.PrefixVisitor{Prefix: conversion.NamespaceLabelPrefix})
 	updated := parsedSelector.String()
 	log.WithFields(log.Fields{"original": s, "updated": updated}).Debug("Updated namespace selector")
+	return updated
+}
+
+// parseServiceAccounts takes a v2 service account selector and returns the appropriate v1 representation
+// by prefixing the keys with the `pcsa.` prefix. For example, `k == 'v'` becomes `pcsa.k == 'v'`.
+func parseServiceAccounts(sam *apiv2.ServiceAccountMatch, ns string) string {
+	namespace := ns
+	if namespace == "" {
+		// not in a namespaced rule; apply to default namespace
+		namespace = "default"
+	}
+
+	// If the rule itself has a namespace then use it
+	if sam.Namespace != "" {
+		namespace = sam.Namespace
+	}
+
+	parsedSelector, err := parser.Parse(sam.Names)
+	if err != nil {
+		log.WithError(err).Errorf("Failed to parse service account selector: %s", sam.Names)
+		return ""
+	}
+
+	prefix := conversion.ServiceAccountLabelPrefix + "." + namespace + "."
+	parsedSelector.AcceptVisitor(parser.PrefixVisitor{Prefix: prefix})
+	updated := parsedSelector.String()
+	log.WithFields(log.Fields{"original": sam.Names, "updated": updated}).Debug("Updated service account selector")
 	return updated
 }
 
