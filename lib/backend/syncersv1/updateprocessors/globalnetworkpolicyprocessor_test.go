@@ -178,7 +178,7 @@ var _ = Describe("Test the GlobalNetworkPolicy update processor", func() {
 					DoNotTrack:     true,
 					PreDNAT:        false,
 					ApplyOnForward: true,
-					Types:          []string{"Ingress"},
+					Types:          []string{"ingress"},
 				},
 				Revision: "1234",
 			},

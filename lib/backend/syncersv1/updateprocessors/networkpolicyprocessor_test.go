@@ -192,7 +192,7 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 					OutboundRules:  []model.Rule{v1erule},
 					Selector:       namespacedSelector,
 					ApplyOnForward: true,
-					Types:          []string{"Ingress"},
+					Types:          []string{"ingress"},
 				},
 				Revision: "1234",
 			},
@@ -296,7 +296,7 @@ var expected1 = []*model.KVPair{
 		Value: &model.Policy{
 			Order:          &order,
 			Selector:       "(projectcalico.org/orchestrator == 'k8s') && projectcalico.org/namespace == 'default'",
-			Types:          []string{"Egress"},
+			Types:          []string{"egress"},
 			ApplyOnForward: true,
 			OutboundRules: []model.Rule{
 				{

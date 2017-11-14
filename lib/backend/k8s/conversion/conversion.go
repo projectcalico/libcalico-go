@@ -192,9 +192,9 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 				var modelProto numorstring.Protocol
 				switch containerPort.Protocol {
 				case kapiv1.ProtocolUDP:
-					modelProto = numorstring.ProtocolFromString("UDP")
+					modelProto = numorstring.ProtocolFromString("udp")
 				case kapiv1.ProtocolTCP, kapiv1.Protocol("") /* K8s default is TCP. */ :
-					modelProto = numorstring.ProtocolFromString("TCP")
+					modelProto = numorstring.ProtocolFromString("tcp")
 				default:
 					log.WithFields(log.Fields{
 						"protocol": containerPort.Protocol,
