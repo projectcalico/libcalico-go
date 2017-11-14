@@ -31,7 +31,7 @@ import (
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/namespace"
 	"github.com/projectcalico/libcalico-go/lib/options"
-	"github.com/projectcalico/libcalico-go/lib/validator"
+	"github.com/projectcalico/libcalico-go/lib/validator/v3"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 )
 
@@ -70,7 +70,7 @@ type resources struct {
 
 // Create creates a resource in the backend datastore.
 func (c *resources) Create(ctx context.Context, opts options.SetOptions, kind string, in resource) (resource, error) {
-	if err := validator.Validate(in); err != nil {
+	if err := v3.Validate(in); err != nil {
 		return nil, err
 	}
 
@@ -124,7 +124,7 @@ func (c *resources) Create(ctx context.Context, opts options.SetOptions, kind st
 
 // Update updates a resource in the backend datastore.
 func (c *resources) Update(ctx context.Context, opts options.SetOptions, kind string, in resource) (resource, error) {
-	if err := validator.Validate(in); err != nil {
+	if err := v3.Validate(in); err != nil {
 		return nil, err
 	}
 

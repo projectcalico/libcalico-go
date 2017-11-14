@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validator_test
+package v3_test
 
 import (
-	"github.com/projectcalico/libcalico-go/lib/validator"
+	"github.com/projectcalico/libcalico-go/lib/validator/v3"
 
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -68,10 +68,10 @@ func init() {
 	DescribeTable("Validator",
 		func(input interface{}, valid bool) {
 			if valid {
-				Expect(validator.Validate(input)).NotTo(HaveOccurred(),
+				Expect(v3.Validate(input)).NotTo(HaveOccurred(),
 					"expected value to be valid")
 			} else {
-				Expect(validator.Validate(input)).To(HaveOccurred(),
+				Expect(v3.Validate(input)).To(HaveOccurred(),
 					"expected value to be invalid")
 			}
 		},

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validator_test
+package v3_test
 
 import (
-	"github.com/projectcalico/libcalico-go/lib/validator"
+	"github.com/projectcalico/libcalico-go/lib/validator/v3"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -33,24 +33,24 @@ var _ = Describe("Test ValidateMetadataIDsAssigned function", func() {
 			bgppeer.Metadata.Scope = scope.Global
 		})
 		It("should fail if missing a Peer IP", func() {
-			err := validator.ValidateMetadataIDsAssigned(bgppeer.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(bgppeer.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should fail if it is Node scope without specifying a node", func() {
 			bgppeer.Metadata.PeerIP = *testIP
 			bgppeer.Metadata.Scope = scope.Node
-			err := validator.ValidateMetadataIDsAssigned(bgppeer.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(bgppeer.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should fail if the scope is Undefined", func() {
 			bgppeer.Metadata.PeerIP = *testIP
 			bgppeer.Metadata.Scope = scope.Undefined
-			err := validator.ValidateMetadataIDsAssigned(bgppeer.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(bgppeer.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should pass if the Global scope is specified, even if a node is not specified", func() {
 			bgppeer.Metadata.PeerIP = *testIP
-			err := validator.ValidateMetadataIDsAssigned(bgppeer.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(bgppeer.Metadata)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -64,16 +64,16 @@ var _ = Describe("Test ValidateMetadataIDsAssigned function", func() {
 		})
 		It("should fail if missing a Name", func() {
 			hep.Metadata.Name = ""
-			err := validator.ValidateMetadataIDsAssigned(hep.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(hep.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should fail if missing a Node name", func() {
 			hep.Metadata.Node = ""
-			err := validator.ValidateMetadataIDsAssigned(hep.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(hep.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should pass with both a Name and Node", func() {
-			err := validator.ValidateMetadataIDsAssigned(hep.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(hep.Metadata)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -85,12 +85,12 @@ var _ = Describe("Test ValidateMetadataIDsAssigned function", func() {
 			ipp = api.NewIPPool()
 		})
 		It("should fail if missing CIDR", func() {
-			err := validator.ValidateMetadataIDsAssigned(ipp.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(ipp.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should pass with a CIDR", func() {
 			ipp.Metadata.CIDR = *testCIDR
-			err := validator.ValidateMetadataIDsAssigned(ipp.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(ipp.Metadata)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -103,11 +103,11 @@ var _ = Describe("Test ValidateMetadataIDsAssigned function", func() {
 		})
 		It("should fail if missing Name", func() {
 			node.Metadata.Name = ""
-			err := validator.ValidateMetadataIDsAssigned(node.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(node.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should pass with a Name specified", func() {
-			err := validator.ValidateMetadataIDsAssigned(node.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(node.Metadata)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -120,11 +120,11 @@ var _ = Describe("Test ValidateMetadataIDsAssigned function", func() {
 		})
 		It("should fail if missing Name", func() {
 			policy.Metadata.Name = ""
-			err := validator.ValidateMetadataIDsAssigned(policy.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(policy.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should pass with a Name specified", func() {
-			err := validator.ValidateMetadataIDsAssigned(policy.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(policy.Metadata)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -137,11 +137,11 @@ var _ = Describe("Test ValidateMetadataIDsAssigned function", func() {
 		})
 		It("should fail if missing Name", func() {
 			profile.Metadata.Name = ""
-			err := validator.ValidateMetadataIDsAssigned(profile.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(profile.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should pass with a Name specified", func() {
-			err := validator.ValidateMetadataIDsAssigned(profile.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(profile.Metadata)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -157,26 +157,26 @@ var _ = Describe("Test ValidateMetadataIDsAssigned function", func() {
 		})
 		It("should fail if missing Node", func() {
 			wep.Metadata.Node = ""
-			err := validator.ValidateMetadataIDsAssigned(wep.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(wep.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should fail if missing Orchestrator", func() {
 			wep.Metadata.Orchestrator = ""
-			err := validator.ValidateMetadataIDsAssigned(wep.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(wep.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should fail if missing Workload", func() {
 			wep.Metadata.Workload = ""
-			err := validator.ValidateMetadataIDsAssigned(wep.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(wep.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should fail if missing Name", func() {
 			wep.Metadata.Name = ""
-			err := validator.ValidateMetadataIDsAssigned(wep.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(wep.Metadata)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should pass with a Node, Orchestrator, Workload, and Name specified", func() {
-			err := validator.ValidateMetadataIDsAssigned(wep.Metadata)
+			err := v3.ValidateMetadataIDsAssigned(wep.Metadata)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
