@@ -169,6 +169,11 @@ var _ = Describe("Test Pod conversion", func() {
 			// Unknown protocol port is ignored.
 		))
 
+		// Assert the interface name is fixed.  The calculation of this name should be consistent
+		// between releases otherwise there will be issues upgrading a node with networked Pods.
+		// If this fails, fix the code not this expect!
+		Expect(wep.Value.(*model.WorkloadEndpoint).Name).To(Equal("cali7f94ce7c295"))
+
 		// Assert ResourceVersion is present.
 		Expect(wep.Revision.(string)).To(Equal("1234"))
 	})
@@ -199,7 +204,7 @@ var _ = Describe("Test Pod conversion", func() {
 	It("should parse a Pod with no labels", func() {
 		pod := k8sapi.Pod{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "podA",
+				Name:      "podB",
 				Namespace: "default",
 			},
 			Spec: k8sapi.PodSpec{
@@ -214,7 +219,7 @@ var _ = Describe("Test Pod conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		// Assert key fields.
-		Expect(wep.Key.(model.WorkloadEndpointKey).WorkloadID).To(Equal("default.podA"))
+		Expect(wep.Key.(model.WorkloadEndpointKey).WorkloadID).To(Equal("default.podB"))
 		Expect(wep.Key.(model.WorkloadEndpointKey).Hostname).To(Equal("nodeA"))
 		Expect(wep.Key.(model.WorkloadEndpointKey).EndpointID).To(Equal("eth0"))
 		Expect(wep.Key.(model.WorkloadEndpointKey).OrchestratorID).To(Equal("k8s"))
@@ -224,6 +229,11 @@ var _ = Describe("Test Pod conversion", func() {
 		Expect(len(wep.Value.(*model.WorkloadEndpoint).IPv4Nets)).To(Equal(1))
 		Expect(wep.Value.(*model.WorkloadEndpoint).State).To(Equal("active"))
 		Expect(wep.Value.(*model.WorkloadEndpoint).Labels).To(Equal(map[string]string{"calico/k8s_ns": "default"}))
+
+		// Assert the interface name is fixed.  The calculation of this name should be consistent
+		// between releases otherwise there will be issues upgrading a node with networked Pods.
+		// If this fails, fix the code not this expect!
+		Expect(wep.Value.(*model.WorkloadEndpoint).Name).To(Equal("cali92cf1f5e9f6"))
 	})
 
 	It("should Parse a Pod with no NodeName", func() {
