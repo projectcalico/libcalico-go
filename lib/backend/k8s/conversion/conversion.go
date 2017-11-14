@@ -146,8 +146,15 @@ func (c Converter) HasIPAddress(pod *kapiv1.Pod) bool {
 // PodToWorkloadEndpoint requires a Pods Name and Node Name to be populated. It will
 // fail to convert from a Pod to WorkloadEndpoint otherwise.
 func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error) {
-	// Pull out the profile and workload ID based on pod name and Namespace.
-	profile := NamespaceProfileNamePrefix + pod.Namespace
+	// Get all the profiles that apply
+	var profiles []string
+	// Pull out the Namespace based profile off the pod name and Namespace.
+	profiles = append(profiles, NamespaceProfileNamePrefix + pod.Namespace)
+	// Pull out the Serviceaccount based profile off the pod SA and namespace
+	if pod.Spec.ServiceAccountName != "" {
+		profiles = append(profiles, serviceAccountNameToProfileName(pod.Spec.ServiceAccountName, pod.Namespace))
+	}
+
 	wepids := names.WorkloadEndpointIdentifiers{
 		Node:         pod.Spec.NodeName,
 		Orchestrator: apiv2.OrchestratorKubernetes,
@@ -228,7 +235,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 		Pod:           pod.Name,
 		Endpoint:      "eth0",
 		InterfaceName: interfaceName,
-		Profiles:      []string{profile},
+		Profiles:      profiles,
 		IPNetworks:    ipNets,
 		Ports:         endpointPorts,
 	}
@@ -560,6 +567,15 @@ func (c Converter) SplitNetworkPolicyRevision(rev string) (crdNPRev string, k8sN
 	return
 }
 
+func serviceAccountNameToProfileName(sa, namespace string) string {
+	// Need to incorporate the namespace into the name of the sa based profile
+	// to make them globally unique
+	if namespace == "" {
+		namespace = "default"
+	}
+	return ServiceAccountProfileNamePrefix + namespace + "." + sa
+}
+
 // ServiceAccountToProfile converts a ServiceAccount to a Calico Profile.  The Profile stores
 // labels from the ServiceAccount which are inherited by the WorkloadEndpoints within
 // the Profile. This Profile also has the default ingress and egress rules, which are both 'allow'.
@@ -571,15 +587,7 @@ func (c Converter) ServiceAccountToProfile(sa *kapiv1.ServiceAccount) (*model.KV
 		labels[ServiceAccountLabelPrefix+k] = v
 	}
 
-	// Need to incorporate the namespace into the name of the sa based profile
-	// to make them globally unique
-	namespace := sa.Namespace
-	if namespace == "" {
-		namespace = "default"
-	}
-	namespace = namespace + "."
-
-	name := ServiceAccountProfileNamePrefix + namespace + sa.Name
+	name := serviceAccountNameToProfileName(sa.Name, sa.Namespace)
 	profile := apiv2.NewProfile()
 	profile.ObjectMeta = metav1.ObjectMeta{
 		Name:              name,
