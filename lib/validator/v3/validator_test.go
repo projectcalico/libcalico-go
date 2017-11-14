@@ -981,6 +981,10 @@ func init() {
 				},
 			}, false),
 
+		// (API) BGPPeerSpec
+		Entry("should accept valid BGPPeerSpec", api.BGPPeerSpec{PeerIP: ipv4_1}, true),
+		Entry("should reject invalid BGPPeerSpec", api.BGPPeerSpec{PeerIP: netv4_5}, false),
+
 		// (API) NodeSpec
 		Entry("should accept node with IPv4 BGP", api.NodeSpec{BGP: &api.NodeBGPSpec{IPv4Address: netv4_1}}, true),
 		Entry("should accept node with IPv6 BGP", api.NodeSpec{BGP: &api.NodeBGPSpec{IPv6Address: netv6_1}}, true),
