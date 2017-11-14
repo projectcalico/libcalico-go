@@ -85,7 +85,7 @@ var _ = DescribeTable("RulesBackendToAPI",
 		output := RulesBackendToAPI([]model.Rule{input})
 		Expect(output).To(ConsistOf(expected))
 	},
-	Entry("empty rule should get explicit action", model.Rule{}, api.Rule{Action: "Allow"}),
+	Entry("empty rule should get explicit action", model.Rule{}, api.Rule{Action: "allow"}),
 	Entry("should convert net to nets fields",
 		model.Rule{
 			SrcNet:    &cidr1,
@@ -94,7 +94,7 @@ var _ = DescribeTable("RulesBackendToAPI",
 			NotDstNet: &cidr4,
 		},
 		api.Rule{
-			Action: "Allow",
+			Action: "allow",
 			Source: api.EntityRule{
 				Nets:    []*net.IPNet{&cidr1},
 				NotNets: []*net.IPNet{&cidr2},
@@ -113,7 +113,7 @@ var _ = DescribeTable("RulesBackendToAPI",
 			NotDstNets: []*net.IPNet{&cidr4},
 		},
 		api.Rule{
-			Action: "Allow",
+			Action: "allow",
 			Source: api.EntityRule{
 				Nets:    []*net.IPNet{&cidr1},
 				NotNets: []*net.IPNet{&cidr2},

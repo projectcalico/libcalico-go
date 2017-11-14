@@ -187,9 +187,9 @@ func ruleActionAPIToBackend(action string) string {
 // value to the equivalent API value.
 func ruleActionBackendToAPI(action string) string {
 	if action == "" {
-		return "Allow"
+		return "allow"
 	} else if action == "next-tier" {
-		return "Pass"
+		return "pass"
 	}
 	return action
 }
