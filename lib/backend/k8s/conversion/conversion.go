@@ -149,7 +149,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 	// Get all the profiles that apply
 	var profiles []string
 	// Pull out the Namespace based profile off the pod name and Namespace.
-	profiles = append(profiles, NamespaceProfileNamePrefix + pod.Namespace)
+	profiles = append(profiles, NamespaceProfileNamePrefix+pod.Namespace)
 	// Pull out the Serviceaccount based profile off the pod SA and namespace
 	if pod.Spec.ServiceAccountName != "" {
 		profiles = append(profiles, serviceAccountNameToProfileName(pod.Spec.ServiceAccountName, pod.Namespace))
@@ -191,6 +191,12 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 	labels[apiv2.LabelNamespace] = pod.Namespace
 	labels[apiv2.LabelOrchestrator] = apiv2.OrchestratorKubernetes
 
+	var saName string
+	if pod.Spec.ServiceAccountName != "" {
+		saName = ServiceAccountWithNamespace(pod.Spec.ServiceAccountName, pod.Namespace)
+		labels[apiv2.LabelServiceAccount] = saName
+	}
+
 	// Map any named ports through.
 	var endpointPorts []apiv2.EndpointPort
 	for _, container := range pod.Spec.Containers {
@@ -230,14 +236,15 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 		Labels:            labels,
 	}
 	wep.Spec = apiv2.WorkloadEndpointSpec{
-		Orchestrator:  "k8s",
-		Node:          pod.Spec.NodeName,
-		Pod:           pod.Name,
-		Endpoint:      "eth0",
-		InterfaceName: interfaceName,
-		Profiles:      profiles,
-		IPNetworks:    ipNets,
-		Ports:         endpointPorts,
+		Orchestrator:   "k8s",
+		Node:           pod.Spec.NodeName,
+		Pod:            pod.Name,
+		Endpoint:       "eth0",
+		InterfaceName:  interfaceName,
+		Profiles:       profiles,
+		IPNetworks:     ipNets,
+		Ports:          endpointPorts,
+		ServiceAccount: saName,
 	}
 
 	// Embed the workload endpoint into a KVPair.
@@ -574,6 +581,15 @@ func serviceAccountNameToProfileName(sa, namespace string) string {
 		namespace = "default"
 	}
 	return ServiceAccountProfileNamePrefix + namespace + "." + sa
+}
+
+func ServiceAccountWithNamespace(sa, namespace string) string {
+	// Need to incorporate the namespace into the name of the sa based profile
+	// to make them globally unique
+	if namespace == "" {
+		namespace = "default"
+	}
+	return namespace + "." + sa
 }
 
 // ServiceAccountToProfile converts a ServiceAccount to a Calico Profile.  The Profile stores

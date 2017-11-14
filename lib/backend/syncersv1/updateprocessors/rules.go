@@ -112,11 +112,11 @@ func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
 	// Append sourceSASelector
 	if sourceSASelector != "" && (ar.Source.Selector != "" || ar.Source.NotSelector != "" || ar.Source.ServiceAccounts != nil) {
 		logCxt := log.WithFields(log.Fields{
-			"Namespace":         ns,
-			"Selector":          ar.Source.Selector,
-			"NamespaceSelector": ar.Source.NamespaceSelector,
+			"Namespace":              ns,
+			"Selector":               ar.Source.Selector,
+			"NamespaceSelector":      ar.Source.NamespaceSelector,
 			"ServiceAccountSelector": ar.Source.ServiceAccounts.Names,
-			"NotSelector":       ar.Source.NotSelector,
+			"NotSelector":            ar.Source.NotSelector,
 		})
 		logCxt.Debug("Update source Selector to include namespace")
 		if srcSelector != "" {
@@ -148,11 +148,11 @@ func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
 	// Append dstSASelector
 	if dstSASelector != "" && (ar.Destination.Selector != "" || ar.Destination.NotSelector != "" || ar.Destination.ServiceAccounts != nil) {
 		logCxt := log.WithFields(log.Fields{
-			"Namespace":         ns,
-			"Selector":          ar.Destination.Selector,
-			"NamespaceSelector": ar.Destination.NamespaceSelector,
+			"Namespace":              ns,
+			"Selector":               ar.Destination.Selector,
+			"NamespaceSelector":      ar.Destination.NamespaceSelector,
 			"ServiceAccountSelector": ar.Destination.ServiceAccounts.Names,
-			"NotSelector":       ar.Destination.NotSelector,
+			"NotSelector":            ar.Destination.NotSelector,
 		})
 		logCxt.Debug("Update Destination Selector to include serviceaccounts")
 		if dstSelector != "" {
@@ -216,7 +216,7 @@ func parseServiceAccounts(sam *apiv2.ServiceAccountMatch, ns string) string {
 		namespace = sam.Namespace
 	}
 
-	parsedSelector, err := parser.Parse(sam.Names)
+	parsedSelector, err := parser.Parse(sam.Selector)
 	if err != nil {
 		log.WithError(err).Errorf("Failed to parse service account selector: %s", sam.Names)
 		return ""
@@ -225,8 +225,33 @@ func parseServiceAccounts(sam *apiv2.ServiceAccountMatch, ns string) string {
 	prefix := conversion.ServiceAccountLabelPrefix + "." + namespace + "."
 	parsedSelector.AcceptVisitor(parser.PrefixVisitor{Prefix: prefix})
 	updated := parsedSelector.String()
-	log.WithFields(log.Fields{"original": sam.Names, "updated": updated}).Debug("Updated service account selector")
-	return updated
+	log.WithFields(log.Fields{"original": sam.Selector, "updated": updated}).Debug("Updated service account selector")
+	if len(sam.Names) == 0 {
+		return updated
+	}
+
+	// Convert the list of ServiceAccounts to selector
+	var namesSelector, comma string
+	namesSelector = fmt.Sprintf("%s in { ", apiv2.LabelServiceAccount)
+	for _, name := range sam.Names {
+		namesSelector = fmt.Sprintf("%s%s '%s'", namesSelector, comma, conversion.ServiceAccountWithNamespace(name, namespace))
+		comma = ", "
+	}
+	namesSelector = " }"
+
+	// A list of Service account names are AND'd with the selectors.
+	// TBD: U sure about that?
+	selectors := updated + "&& " + namesSelector
+	log.Errorf("SA Selector pre-parse is: %s", selectors)
+
+	parsedSelector, err = parser.Parse(selectors)
+	if err != nil {
+		log.WithError(err).Errorf("Failed to parse service account selector: %s", selectors)
+		return ""
+	}
+	log.Errorf("SA Selector post-parse is: %s", parsedSelector.String())
+
+	return parsedSelector.String()
 }
 
 // normalizeIPNet converts an IPNet to a network by ensuring the IP address is correctly masked.

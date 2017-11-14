@@ -147,7 +147,7 @@ type EntityRule struct {
 type ServiceAccountMatch struct {
 	// Names is an optional field that restricts the rule to only apply to traffic that originates from (or terminates
 	// at) a pod running as a service account whose name is in the list.
-	Names string `json:"names,omitempty" validate:"omitempty"`
+	Names []string `json:"names,omitempty" validate:"omitempty"`
 
 	// Namespace is an optional field that restricts the rule to only apply to traffic that originates from (or
 	// terminates at) a pod running as a service account from the given namespace.

@@ -142,4 +142,9 @@ func (r workloadEndpoints) updateLabelsForStorage(res *apiv2.WorkloadEndpoint) {
 	}
 	res.Labels[apiv2.LabelNamespace] = res.Namespace
 	res.Labels[apiv2.LabelOrchestrator] = res.Spec.Orchestrator
+
+	if res.Spec.ServiceAccount == "" {
+		return
+	}
+	res.Labels[apiv2.LabelServiceAccount] = res.Spec.ServiceAccount
 }
