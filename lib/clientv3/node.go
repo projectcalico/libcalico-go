@@ -102,7 +102,7 @@ func (r nodes) Delete(ctx context.Context, name string, opts options.DeleteOptio
 				ips = append(ips, *ipAddr)
 			} else {
 				// Validation for wep insists upon CIDR, so we should always succeed
-				log.WithError(err).Warnf("Failed to parse IP Address: %s", ip)
+				log.WithError(err).Warnf("Failed to parse CIDR: %s", ip)
 			}
 		}
 	}

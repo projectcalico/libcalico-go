@@ -117,10 +117,10 @@ func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 	return model.Rule{
 		Action:      ruleActionAPIV2ToBackend(ar.Action),
 		IPVersion:   ar.IPVersion,
-		Protocol:    normalizeProto(ar.Protocol),
+		Protocol:    convertV3ProtocolToV1(ar.Protocol),
 		ICMPCode:    icmpCode,
 		ICMPType:    icmpType,
-		NotProtocol: normalizeProto(ar.NotProtocol),
+		NotProtocol: convertV3ProtocolToV1(ar.NotProtocol),
 		NotICMPCode: notICMPCode,
 		NotICMPType: notICMPType,
 
@@ -154,8 +154,8 @@ func parseNamespaceSelector(s string) string {
 	return updated
 }
 
-// normalizeProto converts a v1 protocol string to a v3 protocol string
-func normalizeProto(p *numorstring.Protocol) *numorstring.Protocol {
+// convertV3ProtocolToV1 converts a v1 protocol string to a v3 protocol string
+func convertV3ProtocolToV1(p *numorstring.Protocol) *numorstring.Protocol {
 	if p != nil && p.Type == numorstring.NumOrStringString {
 		p.StrVal = strings.ToLower(p.String())
 	}
