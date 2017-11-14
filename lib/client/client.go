@@ -31,7 +31,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/ipam"
 	"github.com/projectcalico/libcalico-go/lib/net"
-	"github.com/projectcalico/libcalico-go/lib/validator/v3"
+	validator "github.com/projectcalico/libcalico-go/lib/validator/v1"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -228,11 +228,11 @@ type conversionHelper interface {
 // the backend object.
 func (c *Client) create(apiObject unversioned.ResourceObject, helper conversionHelper) error {
 	// Validate the supplied data before writing to the datastore.
-	if err := v3.Validate(apiObject); err != nil {
+	if err := validator.Validate(apiObject); err != nil {
 		return err
 	}
 
-	if err := v3.ValidateMetadataIDsAssigned(apiObject.GetResourceMetadata()); err != nil {
+	if err := validator.ValidateMetadataIDsAssigned(apiObject.GetResourceMetadata()); err != nil {
 		return err
 	}
 
@@ -249,11 +249,11 @@ func (c *Client) create(apiObject unversioned.ResourceObject, helper conversionH
 // typed interface.
 func (c *Client) update(apiObject unversioned.ResourceObject, helper conversionHelper) error {
 	// Validate the supplied data before writing to the datastore.
-	if err := v3.Validate(apiObject); err != nil {
+	if err := validator.Validate(apiObject); err != nil {
 		return err
 	}
 
-	if err := v3.ValidateMetadataIDsAssigned(apiObject.GetResourceMetadata()); err != nil {
+	if err := validator.ValidateMetadataIDsAssigned(apiObject.GetResourceMetadata()); err != nil {
 		return err
 	}
 
@@ -270,11 +270,11 @@ func (c *Client) update(apiObject unversioned.ResourceObject, helper conversionH
 // typed interface.
 func (c *Client) apply(apiObject unversioned.ResourceObject, helper conversionHelper) error {
 	// Validate the supplied data before writing to the datastore.
-	if err := v3.Validate(apiObject); err != nil {
+	if err := validator.Validate(apiObject); err != nil {
 		return err
 	}
 
-	if err := v3.ValidateMetadataIDsAssigned(apiObject.GetResourceMetadata()); err != nil {
+	if err := validator.ValidateMetadataIDsAssigned(apiObject.GetResourceMetadata()); err != nil {
 		return err
 	}
 
@@ -291,11 +291,11 @@ func (c *Client) apply(apiObject unversioned.ResourceObject, helper conversionHe
 // interface.
 func (c *Client) delete(metadata unversioned.ResourceMetadata, helper conversionHelper) error {
 	// Validate the supplied Metadata.
-	if err := v3.Validate(metadata); err != nil {
+	if err := validator.Validate(metadata); err != nil {
 		return err
 	}
 
-	if err := v3.ValidateMetadataIDsAssigned(metadata); err != nil {
+	if err := validator.ValidateMetadataIDsAssigned(metadata); err != nil {
 		return err
 	}
 
@@ -315,11 +315,11 @@ func (c *Client) delete(metadata unversioned.ResourceMetadata, helper conversion
 // interface.  The result is
 func (c *Client) get(metadata unversioned.ResourceMetadata, helper conversionHelper) (unversioned.Resource, error) {
 	// Validate the supplied Metadata.
-	if err := v3.Validate(metadata); err != nil {
+	if err := validator.Validate(metadata); err != nil {
 		return nil, err
 	}
 
-	if err := v3.ValidateMetadataIDsAssigned(metadata); err != nil {
+	if err := validator.ValidateMetadataIDsAssigned(metadata); err != nil {
 		return nil, err
 	}
 
@@ -338,7 +338,7 @@ func (c *Client) get(metadata unversioned.ResourceMetadata, helper conversionHel
 // interface.  This updates the Items slice in the supplied List resource object.
 func (c *Client) list(metadata unversioned.ResourceMetadata, helper conversionHelper, listp interface{}) error {
 	// Validate the supplied Metadata.
-	if err := v3.Validate(metadata); err != nil {
+	if err := validator.Validate(metadata); err != nil {
 		return err
 	}
 
