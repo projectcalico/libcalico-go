@@ -411,7 +411,6 @@ func validateICMPFields(v *validator.Validate, structLevel *validator.StructLeve
 func validateRule(v *validator.Validate, structLevel *validator.StructLevel) {
 	rule := structLevel.CurrentStruct.Interface().(api.Rule)
 
-    log.Infof("BCREANE: Inside validateRule: rule=%+v", rule)
 	// If the protocol is neither tcp (6) nor udp (17) check that the port values have not
 	// been specified.
 	if rule.Protocol == nil || !rule.Protocol.SupportsPorts() {
@@ -480,7 +479,6 @@ func validateRule(v *validator.Validate, structLevel *validator.StructLevel) {
 func validateBackendRule(v *validator.Validate, structLevel *validator.StructLevel) {
 	rule := structLevel.CurrentStruct.Interface().(model.Rule)
 
-    log.Infof("BCREANE: Inside validateRule: rule=%+v", rule)
 	// If the protocol is neither tcp (6) nor udp (17) check that the port values have not
 	// been specified.
 	if rule.Protocol == nil || !rule.Protocol.SupportsPorts() {

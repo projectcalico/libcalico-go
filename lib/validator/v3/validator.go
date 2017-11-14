@@ -133,6 +133,7 @@ func init() {
 	registerStructValidator(validateNodeSpec, api.NodeSpec{})
 	registerStructValidator(validateGlobalNetworkPolicySpec, api.GlobalNetworkPolicySpec{})
 	registerStructValidator(validateNetworkPolicySpec, api.NetworkPolicySpec{})
+	registerStructValidator(validateProtoPort, api.ProtoPort{})
 
 	// Backend model types.
 	registerStructValidator(validateBackendRule, model.Rule{})
@@ -716,5 +717,18 @@ func validateNetworkPolicySpec(v *validator.Validate, structLevel *validator.Str
 		} else {
 			mp[t] = true
 		}
+	}
+}
+
+func validateProtoPort(v *validator.Validate, structLevel *validator.StructLevel) {
+	m := structLevel.CurrentStruct.Interface().(api.ProtoPort)
+
+	if m.Protocol != "TCP" && m.Protocol != "UDP" {
+		structLevel.ReportError(
+			reflect.ValueOf(m.Protocol),
+			"ProtoPort.Protocol",
+			"",
+			reason("ProtoPort protocol must be 'TCP' or 'UDP'."),
+		)
 	}
 }

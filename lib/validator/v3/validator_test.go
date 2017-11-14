@@ -420,6 +420,12 @@ func init() {
 		Entry("should accept IP version 6", api.Rule{Action: "Allow", IPVersion: &V6}, true),
 		Entry("should reject IP version 0", api.Rule{Action: "Allow", IPVersion: &V0}, false),
 
+		// (API) ProtoPort.
+		Entry("should accept ProtoPort.Protocol: UDP", api.ProtoPort{Protocol: "UDP", Port: 0}, true),
+		Entry("should accept ProtoPort.Protocol: TCP", api.ProtoPort{Protocol: "TCP", Port: 20}, true),
+		Entry("should reject random ProtoPort.Protocol", api.ProtoPort{Protocol: "jolly-UDP", Port: 0}, false),
+
+
 		// (API) Names.
 		//Entry("should accept a valid name", api.Profile{ObjectMeta: v1.ObjectMeta{Name: ".My-valid-Profile_190"}}, true),
 		//Entry("should reject ! in a name", api.Profile{ObjectMeta: v1.ObjectMeta{Name: "my!nvalid-Profile"}}, false),
