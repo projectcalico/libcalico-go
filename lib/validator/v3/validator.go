@@ -45,8 +45,7 @@ var (
 	backendActionRegex    = regexp.MustCompile("^(Allow|Deny|Log|next-tier|)$")
 	protocolRegex         = regexp.MustCompile("^(TCP|UDP|ICMP|ICMPv6|SCTP|UDPLite)$")
 	ipipModeRegex         = regexp.MustCompile("^(Always|CrossSubnet|Never)$")
-	bgpLogLevel           = regexp.MustCompile("^(Info|Warning|Debug|Error|Fatal|Trace)$")
-	felixLogLevel         = regexp.MustCompile("^(Info|Warning|Debug|Error|Fatal)$")
+	felixLogLevel         = regexp.MustCompile("^(Debug|Info|Warning|Error|Fatal)$")
 	datastoreType         = regexp.MustCompile("^(etcdv3|kubernetes)$")
 	dropacceptreturnRegex = regexp.MustCompile("^(Drop|Accept|Return)$")
 	acceptreturnRegex     = regexp.MustCompile("^(Accept|Return)$")
@@ -217,7 +216,7 @@ func validateIPIPMode(v *validator.Validate, topStruct reflect.Value, currentStr
 func validateBGPLogLevel(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	s := field.String()
 	log.Debugf("Validate BGP log level: %s", s)
-	return bgpLogLevel.MatchString(s)
+	return felixLogLevel.MatchString(s)
 }
 
 func validateFelixLogLevel(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
