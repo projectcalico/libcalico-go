@@ -24,7 +24,7 @@ import (
 )
 
 type Rule struct {
-	Action string `json:"action,omitempty" validate:"backendAction"`
+	Action string `json:"action,omitempty"`
 
 	IPVersion *int `json:"ip_version,omitempty" validate:"omitempty,ipVersion"`
 

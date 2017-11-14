@@ -41,7 +41,6 @@ var (
 	namespacedNameRegex   = regexp.MustCompile(`^[a-zA-Z0-9_./-]{1,128}$`)
 	interfaceRegex        = regexp.MustCompile("^[a-zA-Z0-9_-]{1,15}$")
 	actionRegex           = regexp.MustCompile("^(Allow|Deny|Log|Pass)$")
-	backendActionRegex    = regexp.MustCompile("^(Allow|Deny|Log|next-tier|)$")
 	protocolRegex         = regexp.MustCompile("^(TCP|UDP|ICMP|ICMPv6|SCTP|UDPLite)$")
 	ipipModeRegex         = regexp.MustCompile("^(Always|CrossSubnet|Never)$")
 	felixLogLevel         = regexp.MustCompile("^(Debug|Info|Warning|Error|Fatal)$")
@@ -98,7 +97,6 @@ func init() {
 	registerFieldValidator("action", validateAction)
 	registerFieldValidator("interface", validateInterface)
 	registerFieldValidator("datastoreType", validateDatastoreType)
-	registerFieldValidator("backendAction", validateBackendAction)
 	registerFieldValidator("name", validateName)
 	registerFieldValidator("namespacedName", validateNamespacedName)
 	registerFieldValidator("selector", validateSelector)
@@ -180,12 +178,6 @@ func validateDatastoreType(v *validator.Validate, topStruct reflect.Value, curre
 	s := field.String()
 	log.Debugf("Validate Datastore Type: %s", s)
 	return datastoreType.MatchString(s)
-}
-
-func validateBackendAction(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
-	s := field.String()
-	log.Debugf("Validate action: %s", s)
-	return backendActionRegex.MatchString(s)
 }
 
 func validateName(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
