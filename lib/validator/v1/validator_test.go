@@ -83,8 +83,6 @@ func init() {
 		Entry("should accept allow action (m)", model.Rule{Action: "allow"}, true),
 		Entry("should accept deny action (m)", model.Rule{Action: "deny"}, true),
 		Entry("should accept log action (m)", model.Rule{Action: "log"}, true),
-		//Entry("should reject unknown action (m)", model.Rule{Action: "unknown"}, false),
-		//Entry("should reject unknown action (m)", model.Rule{Action: "allowfoo"}, false),
 
 		// (API) Actions.
 		Entry("should accept allow action", api.Rule{Action: "allow"}, true),
