@@ -39,7 +39,7 @@ type IPPoolSpec struct {
 	CIDR string `json:"cidr" validate:"omitempty,cidr"`
 	// Contains configuration for IPIP tunneling for this pool. If not specified,
 	// then this is defaulted to "Never" (i.e. IPIP tunelling is disabled).
-	IPIPMode IPIPMode `json:"ipipMode,omitempty" validate:"omitempty,ipipmode"`
+	IPIPMode IPIPMode `json:"ipipMode,omitempty" validate:"omitempty,ipIpMode"`
 	// When nat-outgoing is true, packets sent from Calico networked containers in
 	// this pool to destinations outside of this pool will be masqueraded.
 	NATOutgoing bool `json:"natOutgoing,omitempty"`

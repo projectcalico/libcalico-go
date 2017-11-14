@@ -24,7 +24,6 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/errors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
-	"github.com/projectcalico/libcalico-go/lib/scope"
 	"github.com/projectcalico/libcalico-go/lib/selector"
 	log "github.com/sirupsen/logrus"
 
@@ -47,8 +46,8 @@ var (
 	ipipModeRegex         = regexp.MustCompile("^(Always|CrossSubnet|Never)$")
 	felixLogLevel         = regexp.MustCompile("^(Debug|Info|Warning|Error|Fatal)$")
 	datastoreType         = regexp.MustCompile("^(etcdv3|kubernetes)$")
-	dropacceptreturnRegex = regexp.MustCompile("^(Drop|Accept|Return)$")
-	acceptreturnRegex     = regexp.MustCompile("^(Accept|Return)$")
+	dropAcceptReturnRegex = regexp.MustCompile("^(Drop|Accept|Return)$")
+	acceptReturnRegex     = regexp.MustCompile("^(Accept|Return)$")
 	reasonString          = "Reason: "
 	poolSmallIPv4         = "IP pool size is too small (min /26) for use with Calico IPAM"
 	poolSmallIPv6         = "IP pool size is too small (min /122) for use with Calico IPAM"
@@ -99,22 +98,21 @@ func init() {
 	registerFieldValidator("action", validateAction)
 	registerFieldValidator("interface", validateInterface)
 	registerFieldValidator("datastoreType", validateDatastoreType)
-	registerFieldValidator("backendaction", validateBackendAction)
+	registerFieldValidator("backendAction", validateBackendAction)
 	registerFieldValidator("name", validateName)
-	registerFieldValidator("namespacedname", validateNamespacedName)
+	registerFieldValidator("namespacedName", validateNamespacedName)
 	registerFieldValidator("selector", validateSelector)
 	registerFieldValidator("tag", validateTag)
 	registerFieldValidator("labels", validateLabels)
 	registerFieldValidator("labelsToApply", validateLabelsToApply)
 	registerFieldValidator("labelsToApply", validateLabelsToApply)
-	registerFieldValidator("scopeglobalornode", validateScopeGlobalOrNode)
-	registerFieldValidator("ipversion", validateIPVersion)
-	registerFieldValidator("ipipmode", validateIPIPMode)
-	registerFieldValidator("policytype", validatePolicyType)
+	registerFieldValidator("ipVersion", validateIPVersion)
+	registerFieldValidator("ipIpMode", validateIPIPMode)
+	registerFieldValidator("policyType", validatePolicyType)
 	registerFieldValidator("bgpLogLevel", validateBGPLogLevel)
 	registerFieldValidator("felixLogLevel", validateFelixLogLevel)
-	registerFieldValidator("dropacceptreturn", validateFelixEtoHAction)
-	registerFieldValidator("acceptreturn", validateAcceptReturn)
+	registerFieldValidator("dropAcceptReturn", validateFelixEtoHAction)
+	registerFieldValidator("acceptReturn", validateAcceptReturn)
 	registerFieldValidator("ipv4", validateIPv4orCIDRAddress)
 	registerFieldValidator("ipv6", validateIPv6orCIDRAddress)
 	registerFieldValidator("ip", validateIPorCIDRAddress)
@@ -197,7 +195,7 @@ func validateName(v *validator.Validate, topStruct reflect.Value, currentStructO
 
 func validateNamespacedName(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	s := field.String()
-	log.Debugf("Validate namespacedname: %s", s)
+	log.Debugf("Validate namespacedName: %s", s)
 	return namespacedNameRegex.MatchString(s)
 }
 
@@ -228,13 +226,13 @@ func validateFelixLogLevel(v *validator.Validate, topStruct reflect.Value, curre
 func validateFelixEtoHAction(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	s := field.String()
 	log.Debugf("Validate Felix DefaultEndpointToHostAction: %s", s)
-	return dropacceptreturnRegex.MatchString(s)
+	return dropAcceptReturnRegex.MatchString(s)
 }
 
 func validateAcceptReturn(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	s := field.String()
 	log.Debugf("Validate Accept Return Action: %s", s)
-	return acceptreturnRegex.MatchString(s)
+	return acceptReturnRegex.MatchString(s)
 }
 
 func validateSelector(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
@@ -276,12 +274,6 @@ func validateLabelsToApply(v *validator.Validate, topStruct reflect.Value, curre
 		}
 	}
 	return true
-}
-
-func validateScopeGlobalOrNode(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
-	f := field.Interface().(scope.Scope)
-	log.Debugf("Validate scope: %v", f)
-	return f == scope.Global || f == scope.Node
 }
 
 func validatePolicyType(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {

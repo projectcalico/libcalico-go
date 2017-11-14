@@ -92,16 +92,16 @@ func init() {
 	// Register field validators.
 	registerFieldValidator("action", validateAction)
 	registerFieldValidator("interface", validateInterface)
-	registerFieldValidator("backendaction", validateBackendAction)
+	registerFieldValidator("backendAction", validateBackendAction)
 	registerFieldValidator("name", validateName)
-	registerFieldValidator("namespacedname", validateNamespacedName)
+	registerFieldValidator("namespacedName", validateNamespacedName)
 	registerFieldValidator("selector", validateSelector)
 	registerFieldValidator("tag", validateTag)
 	registerFieldValidator("labels", validateLabels)
 	registerFieldValidator("scopeglobalornode", validateScopeGlobalOrNode)
-	registerFieldValidator("ipversion", validateIPVersion)
-	registerFieldValidator("ipipmode", validateIPIPMode)
-	registerFieldValidator("policytype", validatePolicyType)
+	registerFieldValidator("ipVersion", validateIPVersion)
+	registerFieldValidator("ipIpMode", validateIPIPMode)
+	registerFieldValidator("policyType", validatePolicyType)
 
 	// Register struct validators.
 	// Shared types.
@@ -175,7 +175,7 @@ func validateName(v *validator.Validate, topStruct reflect.Value, currentStructO
 
 func validateNamespacedName(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	s := field.String()
-	log.Debugf("Validate namespacedname: %s", s)
+	log.Debugf("Validate namespacedName: %s", s)
 	return namespacedNameRegex.MatchString(s)
 }
 
