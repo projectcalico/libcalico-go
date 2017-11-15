@@ -629,17 +629,21 @@ func (c Converter) ServiceAccountToProfile(sa *kapiv1.ServiceAccount) (*model.KV
 }
 
 // ProfileNameToService extracts the ServiceAccount name from the given Profile name.
-func (c Converter) ProfileNameToServiceAccount(profileName string) (string, error) {
+func (c Converter) ProfileNameToServiceAccount(profileName string) (ns, sa string, err error) {
 	// Profile objects backed by Namespaces have form "kns.<ns_name>"
 	if !strings.HasPrefix(profileName, ServiceAccountProfileNamePrefix) {
 		// This is not backed by a Kubernetes Namespace.
-		return "", fmt.Errorf("Profile %s not backed by a ServiceAccount", profileName)
+		err = fmt.Errorf("Profile %s not backed by a ServiceAccount", profileName)
+		return
 	}
 
 	names := strings.Split(profileName, ".")
 	if len(names) != 3 {
-		return "", fmt.Errorf("Profile %s is not formatted correctly", profileName)
+		err = fmt.Errorf("Profile %s is not formatted correctly", profileName)
+		return
 	}
 
-	return names[2], nil
+	ns = names[1]
+	sa = names[2]
+	return
 }

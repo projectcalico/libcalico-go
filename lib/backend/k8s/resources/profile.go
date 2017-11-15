@@ -78,8 +78,8 @@ func (c *profileClient) getSaKv(sa *kapiv1.ServiceAccount) (*model.KVPair, error
 	return kvPair, nil
 }
 
-func (c *profileClient) getServiceAccount(ctx context.Context, namespace, name, revision string) (*model.KVPair, error) {
-	serviceAccountName, err := c.converter.ProfileNameToServiceAccount(name)
+func (c *profileClient) getServiceAccount(ctx context.Context, name, revision string) (*model.KVPair, error) {
+	namespace, serviceAccountName, err := c.converter.ProfileNameToServiceAccount(name)
 	if err != nil {
 		return nil, err
 	}
@@ -128,16 +128,12 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 		return nil, err
 	}
 
-	if nsRev != "" && saRev != "" {
-		return nil, fmt.Errorf("Invalid revision in get %s", revision)
-	}
-
-	if nsRev != "" {
+	if strings.HasPrefix(rk.Name, conversion.NamespaceProfileNamePrefix) {
 		return c.getNamespace(ctx, rk.Name, nsRev)
 	}
 
-	if saRev != "" {
-		return c.getServiceAccount(ctx, kapiv1.NamespaceAll, rk.Name, saRev)
+	if strings.HasPrefix(rk.Name, conversion.ServiceAccountProfileNamePrefix) {
+		return c.getServiceAccount(ctx, rk.Name, saRev)
 	}
 
 	return nil, fmt.Errorf("Revision %s invalid", revision)
@@ -168,15 +164,9 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		}, nil
 	}
 
-	var nsRev, saRev string
-	var err error
-	// First call to list the revision may be empty
-	// call split only if revision is not null.
-	if revision != "" {
-		nsRev, saRev, err = splitRev(revision)
-		if err != nil {
-			return nil, err
-		}
+	nsRev, saRev, err := splitRev(revision)
+	if err != nil {
+		return nil, err
 	}
 
 	// Otherwise, enumerate all.
@@ -214,7 +204,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	}
 	return &model.KVPairList{
 		KVPairs:  kvps,
-		Revision: namespaces.ResourceVersion + "/" + serviceaccounts.ResourceVersion,
+		Revision: joinRev(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
 	}, nil
 }
 
@@ -337,16 +327,40 @@ func (pw *profileWatcher) processProfileEvents() {
 		atomic.AddUint32(&pw.terminated, 1)
 	}()
 
-	var e api.WatchEvent
-	var isNsEvent bool
-	var value interface{}
 	for {
+		var ok bool
+		var e api.WatchEvent
+		var isNsEvent bool
 		select {
-		case e = <-pw.k8sNSWatch.ResultChan():
+		case e, ok = <-pw.k8sNSWatch.ResultChan():
+			if !ok {
+				// We shouldn't get a closed channel without first getting a terminating error,
+				// so write a warning log and convert to a termination error.
+				log.Warn("Profile, namespace watch channel closed.")
+				e = api.WatchEvent{
+					Type: api.WatchError,
+					Error: cerrors.ErrorWatchTerminated{
+						ClosedByRemote: true,
+						Err: errors.New("Profile namespace watch channel closed."),
+					},
+				}
+			}
 			log.Debug("Processing Namespace event")
 			isNsEvent = true
 
-		case e = <-pw.k8sSAWatch.ResultChan():
+		case e, ok = <-pw.k8sSAWatch.ResultChan():
+			if !ok {
+				// We shouldn't get a closed channel without first getting a terminating error,
+				// so write a warning log and convert to a termination error.
+				log.Warn("Profile, serviceaccount watch channel closed.")
+				e = api.WatchEvent{
+					Type: api.WatchError,
+					Error: cerrors.ErrorWatchTerminated{
+						ClosedByRemote: true,
+						Err: errors.New("Profile serviceaccount watch channel closed."),
+					},
+				}
+			}
 			log.Debug("Processing SeriveAccount event")
 			isNsEvent = false
 
@@ -355,24 +369,42 @@ func (pw *profileWatcher) processProfileEvents() {
 			return
 		}
 
+		// Update the resource version of the Object in the watcher. The version returned on a watch
+		// event needs to be such that the Watch client can resume watching when a watch fails.
+		// The watch client expects a slash separated list of resource versions in the format
+		// <NS Revision/SA Revision>.
+		var value interface{}
 		switch e.Type {
 		case api.WatchModified, api.WatchAdded:
 			value = e.New.Value
 		case api.WatchDeleted:
 			value = e.Old.Value
 		}
-		oma, ok := value.(metav1.ObjectMetaAccessor)
 
-		if !ok {
-			log.Error("Resource returned from watch does not implement ObjectMetaAccessor interface")
-			return
+		if value != nil {
+			oma, ok := value.(metav1.ObjectMetaAccessor)
+
+			if !ok {
+				log.WithField("event", e).Error(
+					"Resource returned from watch does not implement ObjectMetaAccessor interface")
+				e = api.WatchEvent{
+					Type: api.WatchError,
+					Error: cerrors.ErrorWatchTerminated{
+						ClosedByRemote: true,
+						Err: errors.New("Profile value does not implement ObjectMetaAccessor interface."),
+					},
+				}
+			} else {
+				if isNsEvent {
+					pw.k8sNSRev = oma.GetObjectMeta().GetResourceVersion()
+				} else {
+					pw.k8sSARev = oma.GetObjectMeta().GetResourceVersion()
+				}
+				oma.GetObjectMeta().SetResourceVersion(joinRev(pw.k8sNSRev, pw.k8sSARev))
+			}
+		} else if e.Error == nil {
+			log.WithField("event", e).Warning("Event without error or value")
 		}
-		if isNsEvent {
-			pw.k8sNSRev = oma.GetObjectMeta().GetResourceVersion()
-		} else {
-			pw.k8sSARev = oma.GetObjectMeta().GetResourceVersion()
-		}
-		oma.GetObjectMeta().SetResourceVersion(joinRev(pw.k8sNSRev, pw.k8sSARev))
 
 		// Send the processed event.
 		select {
@@ -394,7 +426,7 @@ func (pw *profileWatcher) processProfileEvents() {
 	}
 }
 
-// joinRev combines the revesion of namespace and serviceaccount
+// joinRev combines the revision of namespace and serviceaccount
 func joinRev(nsRev, saRev string) string {
 	return nsRev + "/" + saRev
 }
@@ -402,13 +434,16 @@ func joinRev(nsRev, saRev string) string {
 // splitRev takes a revision string and splits it into the namespace and serviceaccount componenents
 func splitRev(rev string) (nsRev, saRev string, err error) {
 	if rev == "" {
-		return "", "", fmt.Errorf("Invalid nil string to splitRev")
+		return
 	}
 
 	revs := strings.Split(rev, "/")
 	if len(revs) != 2 {
-		return "", "", fmt.Errorf("Invalid rev %s", rev)
+		err = fmt.Errorf("Invalid rev %s", rev)
+		return
 	}
 
-	return revs[0], revs[1], nil
+	nsRev = revs[0]
+	saRev = revs[1]
+	return
 }
