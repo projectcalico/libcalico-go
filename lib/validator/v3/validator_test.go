@@ -1082,6 +1082,15 @@ func init() {
 		Entry("disallow repeated egress Types", api.NetworkPolicySpec{Types: []api.PolicyType{api.PolicyTypeEgress, api.PolicyTypeEgress}}, false),
 		Entry("disallow unexpected value", api.NetworkPolicySpec{Types: []api.PolicyType{"unexpected"}}, false),
 
+		// GlobalNetworkPolicy Object MetaData checks.
+		Entry("allow valid name", &api.GlobalNetworkPolicy{ObjectMeta: v1.ObjectMeta{Name: "thing"}}, true),
+		Entry("disallow name with dot", &api.GlobalNetworkPolicy{ObjectMeta: v1.ObjectMeta{Name: "t.h.i.ng"}}, false),
+
+		// NetworkPolicy Object MetaData checks.
+		Entry("allow valid name", &api.NetworkPolicy{ObjectMeta: v1.ObjectMeta{Name: "thing"}}, true),
+		Entry("allow name with dot", &api.NetworkPolicy{ObjectMeta: v1.ObjectMeta{Name: "t.h.i.ng"}}, true),
+		Entry("disallow name with invalid character", &api.NetworkPolicy{ObjectMeta: v1.ObjectMeta{Name: "t~!s.h.i.ng"}}, false),
+
 		// In the initial implementation, we validated against the following two cases but we found
 		// that prevented us from doing a smooth upgrade from type-less to typed policy since we
 		// couldn't write a policy that would work for back-level Felix instances while also

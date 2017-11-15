@@ -29,6 +29,8 @@ import (
 
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"gopkg.in/go-playground/validator.v8"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 )
 
 var validate *validator.Validate
@@ -47,6 +49,8 @@ var (
 	datastoreType         = regexp.MustCompile("^(etcdv3|kubernetes)$")
 	dropAcceptReturnRegex = regexp.MustCompile("^(Drop|Accept|Return)$")
 	acceptReturnRegex     = regexp.MustCompile("^(Accept|Return)$")
+	nameNoDotsRegex       = regexp.MustCompile("^[a-zA-Z0-9]?([a-zA-Z0-9_-]{0,61}[a-zA-Z0-9])?$")
+	nameDotsRegex         = labelValueRegex
 	reasonString          = "Reason: "
 	poolSmallIPv4         = "IP pool size is too small (min /26) for use with Calico IPAM"
 	poolSmallIPv6         = "IP pool size is too small (min /122) for use with Calico IPAM"
@@ -69,12 +73,17 @@ var (
 // Validate is used to validate the supplied structure according to the
 // registered field and structure validators.
 func Validate(current interface{}) error {
+	oma, ok := current.(v1.ObjectMetaAccessor)
+	if ok {
+		if err := validateObjectMeta(current, oma); err != nil {
+			return err
+		}
+	}
+
 	err := validate.Struct(current)
 	if err == nil {
 		return nil
 	}
-
-	// current.(v1.ObjectMetaAccessor).GetObjectMeta().GetName()
 
 	verr := errors.ErrorValidation{}
 	for _, f := range err.(validator.ValidationErrors) {
@@ -102,7 +111,6 @@ func init() {
 	registerFieldValidator("selector", validateSelector)
 	registerFieldValidator("tag", validateTag)
 	registerFieldValidator("labels", validateLabels)
-	registerFieldValidator("labelsToApply", validateLabelsToApply)
 	registerFieldValidator("labelsToApply", validateLabelsToApply)
 	registerFieldValidator("ipVersion", validateIPVersion)
 	registerFieldValidator("ipIpMode", validateIPIPMode)
@@ -723,4 +731,33 @@ func validateProtoPort(v *validator.Validate, structLevel *validator.StructLevel
 			reason("ProtoPort protocol must be 'TCP' or 'UDP'."),
 		)
 	}
+}
+
+func validateObjectMeta(current interface{}, oma v1.ObjectMetaAccessor) error {
+	if _, ok := current.(*api.GlobalNetworkPolicy); ok {
+		// Must begin and end with a letter or number, dots are disallowed,
+		// underscore and dash are allowed.
+		matched := nameNoDotsRegex.MatchString(oma.GetObjectMeta().GetName())
+		if !matched {
+			return cerrors.ErrorValidation{
+				ErroredFields: []cerrors.ErroredField{{
+					Name:   "ObjectMeta.Name",
+					Reason: "Name must begin and end with a letter or number, dots are not allowed and dots and underscores are allowed.",
+				}},
+			}
+		}
+	} else {
+		// Must begin and end with a letter or number, dot, underscore,
+		// and dash are allowed.
+		matched := nameDotsRegex.MatchString(oma.GetObjectMeta().GetName())
+		if !matched {
+			return cerrors.ErrorValidation{
+				ErroredFields: []cerrors.ErroredField{{
+					Name:   "ObjectMeta.Name",
+					Reason: "Name must begin and end with a letter or number. Dots, dashes and underscores allowed.",
+				}},
+			}
+		}
+	}
+	return nil
 }
