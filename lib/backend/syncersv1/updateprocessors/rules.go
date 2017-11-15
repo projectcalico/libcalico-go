@@ -222,8 +222,7 @@ func parseServiceAccounts(sam *apiv2.ServiceAccountMatch, ns string) string {
 		return ""
 	}
 
-	prefix := conversion.ServiceAccountLabelPrefix + "." + namespace + "."
-	parsedSelector.AcceptVisitor(parser.PrefixVisitor{Prefix: prefix})
+	parsedSelector.AcceptVisitor(parser.PrefixVisitor{Prefix: conversion.ServiceAccountLabelPrefix})
 	updated := parsedSelector.String()
 	log.WithFields(log.Fields{"original": sam.Selector, "updated": updated}).Debug("Updated service account selector")
 	if len(sam.Names) == 0 {
@@ -234,14 +233,14 @@ func parseServiceAccounts(sam *apiv2.ServiceAccountMatch, ns string) string {
 	var namesSelector, comma string
 	namesSelector = fmt.Sprintf("%s in { ", apiv2.LabelServiceAccount)
 	for _, name := range sam.Names {
-		namesSelector = fmt.Sprintf("%s%s '%s'", namesSelector, comma, conversion.ServiceAccountWithNamespace(name, namespace))
+		namesSelector = fmt.Sprintf("%s%s'%s'", namesSelector, comma, conversion.ServiceAccountWithNamespace(name, namespace))
 		comma = ", "
 	}
-	namesSelector = " }"
+	namesSelector = fmt.Sprintf("%s }", namesSelector)
 
 	// A list of Service account names are AND'd with the selectors.
 	// TBD: U sure about that?
-	selectors := updated + "&& " + namesSelector
+	selectors := updated + " && " + namesSelector
 	log.Errorf("SA Selector pre-parse is: %s", selectors)
 
 	parsedSelector, err = parser.Parse(selectors)
