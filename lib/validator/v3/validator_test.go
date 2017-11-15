@@ -50,6 +50,9 @@ func init() {
 	netv6_3 := "aabb:aabb::0000/122"
 	netv6_4 := "aa00:0000::0000/10"
 
+	bad_ipv4_1 := "999.999.999.999"
+	bad_ipv6_1 := "xyz:::"
+
 	protoTCP := numorstring.ProtocolFromString("TCP")
 	protoUDP := numorstring.ProtocolFromString("UDP")
 	protoNumeric := numorstring.ProtocolFromInt(123)
@@ -983,7 +986,8 @@ func init() {
 
 		// (API) BGPPeerSpec
 		Entry("should accept valid BGPPeerSpec", api.BGPPeerSpec{PeerIP: ipv4_1}, true),
-		Entry("should reject invalid BGPPeerSpec", api.BGPPeerSpec{PeerIP: netv4_5}, false),
+		Entry("should reject invalid BGPPeerSpec (IPv4)", api.BGPPeerSpec{PeerIP: bad_ipv4_1}, false),
+		Entry("should reject invalid BGPPeerSpec (IPv6)", api.BGPPeerSpec{PeerIP: bad_ipv6_1}, false),
 
 		// (API) NodeSpec
 		Entry("should accept node with IPv4 BGP", api.NodeSpec{BGP: &api.NodeBGPSpec{IPv4Address: netv4_1}}, true),
