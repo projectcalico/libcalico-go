@@ -132,7 +132,6 @@ func init() {
 	registerStructValidator(validateGlobalNetworkPolicySpec, api.GlobalNetworkPolicySpec{})
 	registerStructValidator(validateNetworkPolicySpec, api.NetworkPolicySpec{})
 	registerStructValidator(validateProtoPort, api.ProtoPort{})
-	registerStructValidator(validateBGPPeerSpec, api.BGPPeerSpec{})
 
 	// Backend model types.
 	registerStructValidator(validateBackendRule, model.Rule{})
@@ -722,21 +721,6 @@ func validateProtoPort(v *validator.Validate, structLevel *validator.StructLevel
 			"ProtoPort.Protocol",
 			"",
 			reason("ProtoPort protocol must be 'TCP' or 'UDP'."),
-		)
-	}
-}
-
-func validateBGPPeerSpec(v *validator.Validate, structLevel *validator.StructLevel) {
-	m := structLevel.CurrentStruct.Interface().(api.BGPPeerSpec)
-
-	ipAddr := cnet.ParseIP(m.PeerIP)
-
-	if ipAddr == nil {
-		structLevel.ReportError(
-			reflect.ValueOf(m.PeerIP),
-			"BGPPeerSpec.PeerIP",
-			"",
-			reason("Invalid PeerIP: '" + m.PeerIP + "'."),
 		)
 	}
 }
