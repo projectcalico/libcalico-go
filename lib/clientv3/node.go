@@ -25,6 +25,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/net"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	validator "github.com/projectcalico/libcalico-go/lib/validator/v3"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	log "github.com/sirupsen/logrus"
 )
@@ -47,6 +48,10 @@ type nodes struct {
 // Create takes the representation of a Node and creates it.  Returns the stored
 // representation of the Node, and an error, if there is any.
 func (r nodes) Create(ctx context.Context, res *apiv3.Node, opts options.SetOptions) (*apiv3.Node, error) {
+	if err := validator.Validate(res); err != nil {
+		return nil, err
+	}
+
 	// For host-protection only clusters, we instruct the user to create a Node as the first
 	// operation.  Piggy-back the datastore initialisation on that to ensure the Ready flag gets
 	// set.  Since we're likely being called from calicoctl, we don't know the Calico version.
@@ -64,6 +69,10 @@ func (r nodes) Create(ctx context.Context, res *apiv3.Node, opts options.SetOpti
 // Update takes the representation of a Node and updates it. Returns the stored
 // representation of the Node, and an error, if there is any.
 func (r nodes) Update(ctx context.Context, res *apiv3.Node, opts options.SetOptions) (*apiv3.Node, error) {
+	if err := validator.Validate(res); err != nil {
+		return nil, err
+	}
+
 	out, err := r.client.resources.Update(ctx, opts, apiv3.KindNode, res)
 	if out != nil {
 		return out.(*apiv3.Node), err

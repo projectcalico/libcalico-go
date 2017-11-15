@@ -50,7 +50,7 @@ var (
 	dropAcceptReturnRegex = regexp.MustCompile("^(Drop|Accept|Return)$")
 	acceptReturnRegex     = regexp.MustCompile("^(Accept|Return)$")
 	nameNoDotsRegex       = regexp.MustCompile("^[a-zA-Z0-9]?([a-zA-Z0-9_-]{0,61}[a-zA-Z0-9])?$")
-	nameDotsRegex         = labelValueRegex
+	nameDotsRegex         = regexp.MustCompile("^[a-zA-Z0-9]?([a-zA-Z0-9_.-]{0,61}[a-zA-Z0-9])?$")
 	reasonString          = "Reason: "
 	poolSmallIPv4         = "IP pool size is too small (min /26) for use with Calico IPAM"
 	poolSmallIPv6         = "IP pool size is too small (min /122) for use with Calico IPAM"
@@ -742,7 +742,8 @@ func validateObjectMeta(current interface{}, oma v1.ObjectMetaAccessor) error {
 			return cerrors.ErrorValidation{
 				ErroredFields: []cerrors.ErroredField{{
 					Name:   "ObjectMeta.Name",
-					Reason: "Name must begin and end with a letter or number, dots are not allowed and dots and underscores are allowed.",
+					Reason: "Name must begin and end with a letter or number, dots are not allowed, dashes and underscores are allowed.",
+					Value:   oma.GetObjectMeta().GetName(),
 				}},
 			}
 		}
@@ -755,6 +756,7 @@ func validateObjectMeta(current interface{}, oma v1.ObjectMetaAccessor) error {
 				ErroredFields: []cerrors.ErroredField{{
 					Name:   "ObjectMeta.Name",
 					Reason: "Name must begin and end with a letter or number. Dots, dashes and underscores allowed.",
+					Value:   oma.GetObjectMeta().GetName(),
 				}},
 			}
 		}
