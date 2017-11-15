@@ -602,10 +602,10 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 		// Check the selector is correct, and that the matches are sorted.
 		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Selector).To(Equal(
 			"projectcalico.org/orchestrator == 'k8s' && label == 'value' && label2 == 'value2'"))
-		protoTCP := numorstring.ProtocolFromString("tcp")
+		protoTCP := numorstring.ProtocolFromString("TCP")
 		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress).To(ConsistOf(
 			apiv3.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: &protoTCP, // Defaulted to TCP.
 				Source: apiv3.EntityRule{
 					Selector: "projectcalico.org/orchestrator == 'k8s' && ! has(toast)",
@@ -615,7 +615,7 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 				},
 			},
 			apiv3.Rule{
-				Action:   "allow",
+				Action:   "Allow",
 				Protocol: &protoTCP, // Defaulted to TCP.
 				Source: apiv3.EntityRule{
 					Selector: "projectcalico.org/orchestrator == 'k8s' && ! has(toast)",
