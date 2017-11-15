@@ -37,9 +37,9 @@ type WorkloadEndpoint struct {
 // WorkloadEndpointMetadata contains the specification for a WorkloadEndpoint resource.
 type WorkloadEndpointSpec struct {
 	// The name of the orchestrator.
-	Orchestrator string `json:"orchestrator,omitempty" validate:"omitempty,namespacedname"`
+	Orchestrator string `json:"orchestrator,omitempty" validate:"omitempty,namespacedName"`
 	// The name of the workload.
-	Workload string `json:"workload,omitempty" validate:"omitempty,namespacedname"`
+	Workload string `json:"workload,omitempty" validate:"omitempty,namespacedName"`
 	// The node name identifying the Calico node instance.
 	Node string `json:"node,omitempty" validate:"omitempty,name"`
 	// The container ID.
@@ -65,7 +65,7 @@ type WorkloadEndpointSpec struct {
 	// A list of security Profile resources that apply to this endpoint. Each profile is
 	// applied in the order that they appear in this list.  Profile rules are applied
 	// after the selector-based security policy.
-	Profiles []string `json:"profiles,omitempty" validate:"omitempty,dive,namespacedname"`
+	Profiles []string `json:"profiles,omitempty" validate:"omitempty,dive,namespacedName"`
 	// InterfaceName the name of the Linux interface on the host: for example, tap80.
 	InterfaceName string `json:"interfaceName,omitempty" validate:"interface"`
 	// MAC is the MAC address of the endpoint interface.

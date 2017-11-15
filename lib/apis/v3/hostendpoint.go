@@ -58,7 +58,7 @@ type HostEndpointSpec struct {
 	// A list of identifiers of security Profile objects that apply to this endpoint. Each
 	// profile is applied in the order that they appear in this list.  Profile rules are applied
 	// after the selector-based security policy.
-	Profiles []string `json:"profiles,omitempty" validate:"omitempty,dive,namespacedname"`
+	Profiles []string `json:"profiles,omitempty" validate:"omitempty,dive,namespacedName"`
 	// Ports contains the endpoint's named ports, which may be referenced in security policy rules.
 	Ports []EndpointPort `json:"ports,omitempty" validate:"dive"`
 }
