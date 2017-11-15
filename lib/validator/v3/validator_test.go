@@ -604,6 +604,21 @@ func init() {
 				InterfaceName: "",
 				ExpectedIPs:   []string{},
 			}, false),
+		Entry("should accept host endpoint with prefixed profile name",
+			api.HostEndpointSpec{
+				InterfaceName: "eth0",
+				Profiles: []string{"knp.default.fun", "knp.default.funner.11234-a"},
+			}, true),
+		Entry("should accept host endpoint without prefixed profile name",
+			api.HostEndpointSpec{
+				InterfaceName: "eth0",
+				Profiles: []string{"fun-funner1234"},
+			}, true),
+		Entry("should reject host endpoint with no prefix and dots in the name",
+			api.HostEndpointSpec{
+				InterfaceName: "eth0",
+				Profiles: []string{"f.un"},
+			}, false),
 
 		// (API) IPPool
 		Entry("should accept IP pool with IPv4 CIDR /26",

@@ -36,11 +36,20 @@ import (
 var validate *validator.Validate
 
 var (
+	nameLabelFmt          = "[a-z0-9]([-a-z0-9]*[a-z0-9])?"
+	nameSubdomainFmt      = nameLabelFmt + "(\\." + nameLabelFmt + ")*"	// Rob's "normal" name
+	knpPolicyPrefix       = "knp\\.default\\."
+
+	// reference a "profile"; standard name regex (nameDotsRegex)
+	policyNameRegex       = regexp.MustCompile("(^"+nameLabelFmt+"$)|(^"+knpPolicyPrefix+nameLabelFmt+"$)")
+	nameNoDotsRegex       = regexp.MustCompile("^"+nameLabelFmt+"$")
+	nameDotsRegex         = regexp.MustCompile("^"+nameSubdomainFmt+"$")	// "validate: name"
+
+	labelValueRegex       = nameDotsRegex
 	labelRegex            = regexp.MustCompile("^[a-zA-Z0-9_./-]{1,512}$")
-	labelValueRegex       = regexp.MustCompile("^[a-zA-Z0-9]?([a-zA-Z0-9_.-]{0,61}[a-zA-Z0-9])?$")
-	nameRegex             = regexp.MustCompile("^[a-zA-Z0-9_.-]{1,128}$")
-	labelsToApplyValRegex = regexp.MustCompile("^[a-zA-Z0-9_.-]{0,128}$")
-	namespacedNameRegex   = regexp.MustCompile(`^[a-zA-Z0-9_./-]{1,128}$`)
+	nameRegex             = regexp.MustCompile("^[a-zA-Z0-9_\\.-]{1,128}$")	// replace this with nameDotsRegex
+	labelsToApplyValRegex = regexp.MustCompile("^[a-zA-Z0-9_\\.-]{0,128}$")
+	namespacedNameRegex   = regexp.MustCompile(`^[a-zA-Z0-9_\\./-]{1,128}$`)
 	interfaceRegex        = regexp.MustCompile("^[a-zA-Z0-9_-]{1,15}$")
 	actionRegex           = regexp.MustCompile("^(Allow|Deny|Log|Pass)$")
 	protocolRegex         = regexp.MustCompile("^(TCP|UDP|ICMP|ICMPv6|SCTP|UDPLite)$")
@@ -49,8 +58,6 @@ var (
 	datastoreType         = regexp.MustCompile("^(etcdv3|kubernetes)$")
 	dropAcceptReturnRegex = regexp.MustCompile("^(Drop|Accept|Return)$")
 	acceptReturnRegex     = regexp.MustCompile("^(Accept|Return)$")
-	nameNoDotsRegex       = regexp.MustCompile("^[a-zA-Z0-9]?([a-zA-Z0-9_-]{0,61}[a-zA-Z0-9])?$")
-	nameDotsRegex         = regexp.MustCompile("^[a-zA-Z0-9]?([a-zA-Z0-9_.-]{0,61}[a-zA-Z0-9])?$")
 	reasonString          = "Reason: "
 	poolSmallIPv4         = "IP pool size is too small (min /26) for use with Calico IPAM"
 	poolSmallIPv6         = "IP pool size is too small (min /122) for use with Calico IPAM"
@@ -122,6 +129,7 @@ func init() {
 	registerFieldValidator("ipv4", validateIPv4orCIDRAddress)
 	registerFieldValidator("ipv6", validateIPv6orCIDRAddress)
 	registerFieldValidator("ip", validateIPorCIDRAddress)
+	registerFieldValidator("prefixName", validatePrefixName)
 
 	// Register struct validators.
 	// Shared types.
@@ -330,6 +338,12 @@ func validateIPorCIDRAddress(v *validator.Validate, topStruct reflect.Value, cur
 	log.Debugf("Validate IP address: %s", ipAddr)
 	_, _, err := cnet.ParseCIDROrIP(ipAddr)
 	return err == nil
+}
+
+func validatePrefixName(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
+	s := field.String()
+	log.Debugf("Validate prefix name: %s", s)
+	return policyNameRegex.MatchString(s)
 }
 
 func validatePort(v *validator.Validate, structLevel *validator.StructLevel) {
