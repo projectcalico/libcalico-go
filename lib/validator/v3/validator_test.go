@@ -131,6 +131,34 @@ func init() {
 			},
 			true,
 		),
+		Entry("should accept WorkloadEndpointSpec with a mixed-case Node (m)",
+			api.WorkloadEndpointSpec{
+				InterfaceName: "eth0",
+				Node:          "abcdABZX123.ABC-123axz",
+			},
+			true,
+		),
+		Entry("should reject WorkloadEndpointSpec with a bad Node (m)",
+			api.WorkloadEndpointSpec{
+				InterfaceName: "eth0",
+				Node:          "]abcdABZX123.ABC-123axz",
+			},
+			false,
+		),
+		Entry("should reject WorkloadEndpointSpec with a bad Node (m)",
+			api.WorkloadEndpointSpec{
+				InterfaceName: "eth0",
+				Node:          "abcdABZX123.",
+			},
+			false,
+		),
+		Entry("should reject WorkloadEndpointSpec with a bad Node (m)",
+			api.WorkloadEndpointSpec{
+				InterfaceName: "eth0",
+				Node:          "abcdABZX123-",
+			},
+			false,
+		),
 		Entry("should reject WorkloadEndpointSpec with an unnamed port (m)",
 			api.WorkloadEndpointSpec{
 				InterfaceName: "eth0",
@@ -232,6 +260,7 @@ func init() {
 
 		// (API) Labels and Annotations.
 		Entry("should accept a valid labelsToApply", api.ProfileSpec{LabelsToApply: map[string]string{"project.calico.org/my-valid-label": value63}}, true),
+		Entry("should accept a valid labelsToApply with mixed case", api.ProfileSpec{LabelsToApply: map[string]string{"project.calico.org/MyValidLabel": value63}}, true),
 		Entry("should reject an excessively long value in labelsToApply", api.ProfileSpec{LabelsToApply: map[string]string{"project.calico.org/my-valid-label": value64}}, false),
 		Entry("should reject . at start of key in a labelsToApply", api.ProfileSpec{LabelsToApply: map[string]string{".mylabel": "value"}}, false),
 		Entry("should reject ! in a labelsToApply", api.ProfileSpec{LabelsToApply: map[string]string{"my!nvalid-label": "value"}}, false),

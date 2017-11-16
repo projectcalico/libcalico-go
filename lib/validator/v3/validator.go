@@ -43,7 +43,7 @@ var validatorMetadata *validator.Validate
 const totalAnnotationSizeLimitB int64 = 256 * (1 << 10) // 256 kB`
 
 var (
-	nameLabelFmt     = "[a-z0-9]([-a-z0-9]*[a-z0-9])?"
+	nameLabelFmt     = "[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?"
 	nameSubdomainFmt = nameLabelFmt + "(\\." + nameLabelFmt + ")*"
 
 	// All resource names must follow the subdomain name format.  Some resources we impose
