@@ -300,7 +300,7 @@ var expected1 = []*model.KVPair{
 			ApplyOnForward: true,
 			OutboundRules: []model.Rule{
 				{
-					Action:      "Allow",
+					Action:      "allow",
 					Protocol:    &tcp,
 					SrcSelector: "",
 					DstSelector: "",

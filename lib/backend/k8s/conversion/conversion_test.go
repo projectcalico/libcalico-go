@@ -212,8 +212,8 @@ var _ = Describe("Test Pod conversion", func() {
 		}
 		Expect(wep.Value.(*apiv3.WorkloadEndpoint).ObjectMeta.Labels).To(Equal(expectedLabels))
 
-		nsProtoTCP := numorstring.ProtocolFromString("tcp")
-		nsProtoUDP := numorstring.ProtocolFromString("udp")
+		nsProtoTCP := numorstring.ProtocolFromString("TCP")
+		nsProtoUDP := numorstring.ProtocolFromString("UDP")
 		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Ports).To(ConsistOf(
 			// No proto defaults to TCP (as defined in k8s API spec)
 			apiv3.EndpointPort{Name: "no-proto", Port: 1234, Protocol: nsProtoTCP},

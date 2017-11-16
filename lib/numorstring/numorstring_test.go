@@ -149,13 +149,23 @@ func init() {
 			Expect(protocol.SupportsPorts()).To(Equal(supportsPorts),
 				"expected protocol port support to match")
 		},
-		// Protocol tests.
 		Entry("protocol 6 supports ports", numorstring.ProtocolFromInt(6), true),
 		Entry("protocol 17 supports ports", numorstring.ProtocolFromInt(17), true),
 		Entry("protocol udp supports ports", numorstring.ProtocolFromString("UDP"), true),
 		Entry("protocol udp supports ports", numorstring.ProtocolFromString("TCP"), true),
 		Entry("protocol foo does not support ports", numorstring.ProtocolFromString("foo"), false),
 		Entry("protocol 2 does not support ports", numorstring.ProtocolFromInt(2), false),
+	)
+
+	// Perform tests of Protocols ToV1 method.
+	DescribeTable("NumOrStringProtocols FromStringV1 is lowercase",
+		func(input, expected numorstring.Protocol) {
+			Expect(input.ToV1()).To(Equal(expected),
+				"expected parsed protocol to match")
+		},
+		// Protocol tests.
+		Entry("protocol 2 -> 2", numorstring.ProtocolFromInt(2), numorstring.ProtocolFromInt(2)),
+		Entry("protocol TCP -> tcp", numorstring.ProtocolFromString("TCP"), numorstring.ProtocolFromString("tcp")),
 	)
 }
 

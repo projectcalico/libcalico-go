@@ -192,9 +192,9 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 				var modelProto numorstring.Protocol
 				switch containerPort.Protocol {
 				case kapiv1.ProtocolUDP:
-					modelProto = numorstring.ProtocolFromString("udp")
+					modelProto = numorstring.ProtocolFromString(numorstring.ProtocolUDP)
 				case kapiv1.ProtocolTCP, kapiv1.Protocol("") /* K8s default is TCP. */ :
-					modelProto = numorstring.ProtocolFromString("tcp")
+					modelProto = numorstring.ProtocolFromString(numorstring.ProtocolTCP)
 				default:
 					log.WithFields(log.Fields{
 						"protocol": containerPort.Protocol,
@@ -464,8 +464,14 @@ func (c Converter) k8sPortToCalicoFields(port *extensions.NetworkPolicyPort) (pr
 
 func (c Converter) k8sProtocolToCalico(protocol *kapiv1.Protocol) *numorstring.Protocol {
 	if protocol != nil {
-		p := numorstring.ProtocolFromString(string(*protocol))
-		return &p
+		switch *protocol {
+		case kapiv1.ProtocolUDP:
+			p := numorstring.ProtocolFromString(numorstring.ProtocolUDP)
+			return &p
+		case kapiv1.ProtocolTCP:
+			p := numorstring.ProtocolFromString(numorstring.ProtocolTCP)
+			return &p
+		}
 	}
 	return nil
 }
