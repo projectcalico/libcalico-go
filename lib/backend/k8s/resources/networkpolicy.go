@@ -88,7 +88,7 @@ func (c *networkPolicyClient) Create(ctx context.Context, kvp *model.KVPair) (*m
 	if kvp != nil {
 		// Convert the revision to the combined CRD/k8s revision - the k8s rev will be empty, but this
 		// format will allow the revision to be passed into List and Watch calls.
-		kvp.Revision = c.JoinNetworkPolicyRevisions(kvp.Revision, "")
+		kvp.Revision = c.JoinRevisions(kvp.Revision, "")
 	}
 	return kvp, err
 }
@@ -107,7 +107,7 @@ func (c *networkPolicyClient) Update(ctx context.Context, kvp *model.KVPair) (*m
 
 	// The revision, if supplied, will be a combination of CRD and k8s-backed revisions.  Extract
 	// the CRD rev and use that for the update.
-	crdRev, _, err := c.SplitNetworkPolicyRevision(kvp.Revision)
+	crdRev, _, err := c.SplitRevision(kvp.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (c *networkPolicyClient) Update(ctx context.Context, kvp *model.KVPair) (*m
 	if kvp != nil {
 		// Convert the revision back to the combined CRD/k8s revision - the k8s rev will be empty, but this
 		// format will allow the revision to be passed into List and Watch calls.
-		kvp.Revision = c.JoinNetworkPolicyRevisions(kvp.Revision, "")
+		kvp.Revision = c.JoinRevisions(kvp.Revision, "")
 	}
 	return kvp, err
 }
@@ -142,7 +142,7 @@ func (c *networkPolicyClient) Delete(ctx context.Context, key model.Key, revisio
 
 	// The revision, if supplied, will be a combination of CRD and k8s-backed revisions.  Extract
 	// the CRD rev and use that for the delete.
-	crdRev, _, err := c.SplitNetworkPolicyRevision(revision)
+	crdRev, _, err := c.SplitRevision(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (c *networkPolicyClient) Delete(ctx context.Context, key model.Key, revisio
 
 	if kvp != nil {
 		// Convert the revision back to the combined CRD/k8s revision - the k8s rev will be empty.
-		kvp.Revision = c.JoinNetworkPolicyRevisions(kvp.Revision, "")
+		kvp.Revision = c.JoinRevisions(kvp.Revision, "")
 	}
 	return kvp, err
 }
@@ -168,7 +168,7 @@ func (c *networkPolicyClient) Get(ctx context.Context, key model.Key, revision s
 	// The revision, if supplied, will be a combination of CRD and k8s-backed revisions.  Extract
 	// the k8s rev and use the correct version depending on whether we are querying the CRD or the
 	// k8s NetworkPolicy.
-	crdRev, k8sRev, err := c.SplitNetworkPolicyRevision(revision)
+	crdRev, k8sRev, err := c.SplitRevision(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (c *networkPolicyClient) Get(ctx context.Context, key model.Key, revision s
 
 		if kvp != nil {
 			// Convert the revision back to the combined CRD/k8s revision - the CRD rev will be empty.
-			kvp.Revision = c.JoinNetworkPolicyRevisions("", kvp.Revision)
+			kvp.Revision = c.JoinRevisions("", kvp.Revision)
 		}
 		return kvp, err
 	} else {
@@ -202,7 +202,7 @@ func (c *networkPolicyClient) Get(ctx context.Context, key model.Key, revision s
 
 		if kvp != nil {
 			// Convert the revision back to the combined CRD/k8s revision - the k8s rev will be empty.
-			kvp.Revision = c.JoinNetworkPolicyRevisions(kvp.Revision, "")
+			kvp.Revision = c.JoinRevisions(kvp.Revision, "")
 		}
 		return kvp, err
 	}
@@ -241,7 +241,7 @@ func (c *networkPolicyClient) List(ctx context.Context, list model.ListInterface
 
 	// Convert the revision to the combined CRD/k8s revision - the k8s rev will be empty.
 	for _, kvp := range npKvps.KVPairs {
-		kvp.Revision = c.JoinNetworkPolicyRevisions(kvp.Revision, "")
+		kvp.Revision = c.JoinRevisions(kvp.Revision, "")
 	}
 
 	// List all of the k8s NetworkPolicy objects in all Namespaces.
@@ -268,13 +268,13 @@ func (c *networkPolicyClient) List(ctx context.Context, list model.ListInterface
 		}
 
 		// Convert the revision to the combined CRD/k8s revision - the CRD rev will be empty.
-		kvp.Revision = c.JoinNetworkPolicyRevisions("", kvp.Revision)
+		kvp.Revision = c.JoinRevisions("", kvp.Revision)
 		npKvps.KVPairs = append(npKvps.KVPairs, kvp)
 	}
 
 	// Combine the two resource versions to a single resource version for the List
 	// that can be decoded by the Watch.
-	npKvps.Revision = c.JoinNetworkPolicyRevisions(npKvps.Revision, networkPolicies.ResourceVersion)
+	npKvps.Revision = c.JoinRevisions(npKvps.Revision, networkPolicies.ResourceVersion)
 
 	log.WithField("KVPs", npKvps).Info("Returning NP KVPs")
 	return npKvps, nil
@@ -292,7 +292,7 @@ func (c *networkPolicyClient) Watch(ctx context.Context, list model.ListInterfac
 
 	// If a revision is specified, see if it contains a "/" and if so split into separate
 	// revisions for the CRD and for the K8s resource.
-	crdNPRev, k8sNPRev, err := c.SplitNetworkPolicyRevision(revision)
+	crdNPRev, k8sNPRev, err := c.SplitRevision(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -436,7 +436,7 @@ func (npw *networkPolicyWatcher) processNPEvents() {
 		} else {
 			npw.k8sNPRev = oma.GetObjectMeta().GetResourceVersion()
 		}
-		oma.GetObjectMeta().SetResourceVersion(npw.JoinNetworkPolicyRevisions(npw.crdNPRev, npw.k8sNPRev))
+		oma.GetObjectMeta().SetResourceVersion(npw.JoinRevisions(npw.crdNPRev, npw.k8sNPRev))
 
 		// Send the processed event.
 		select {

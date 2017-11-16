@@ -41,7 +41,7 @@ func NewProfileClient(c *kubernetes.Clientset) K8sResourceClient {
 // Implements the api.Client interface for Profiles.
 type profileClient struct {
 	clientSet *kubernetes.Clientset
-	converter conversion.Converter
+	conversion.Converter
 }
 
 func (c *profileClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
@@ -69,17 +69,17 @@ func (c *profileClient) Delete(ctx context.Context, key model.Key, revision stri
 }
 
 func (c *profileClient) getSaKv(sa *kapiv1.ServiceAccount) (*model.KVPair, error) {
-	kvPair, err := c.converter.ServiceAccountToProfile(sa)
+	kvPair, err := c.ServiceAccountToProfile(sa)
 	if err != nil {
 		return nil, err
 	}
 
-	kvPair.Revision = joinRev("", kvPair.Revision)
+	kvPair.Revision = c.JoinRevisions("", kvPair.Revision)
 	return kvPair, nil
 }
 
 func (c *profileClient) getServiceAccount(ctx context.Context, name, revision string) (*model.KVPair, error) {
-	namespace, serviceAccountName, err := c.converter.ProfileNameToServiceAccount(name)
+	namespace, serviceAccountName, err := c.ProfileNameToServiceAccount(name)
 	if err != nil {
 		return nil, err
 	}
@@ -93,17 +93,17 @@ func (c *profileClient) getServiceAccount(ctx context.Context, name, revision st
 }
 
 func (c *profileClient) getNsKv(ns *kapiv1.Namespace) (*model.KVPair, error) {
-	kvPair, err := c.converter.NamespaceToProfile(ns)
+	kvPair, err := c.NamespaceToProfile(ns)
 	if err != nil {
 		return nil, err
 	}
 
-	kvPair.Revision = joinRev(kvPair.Revision, "")
+	kvPair.Revision = c.JoinRevisions(kvPair.Revision, "")
 	return kvPair, nil
 }
 
 func (c *profileClient) getNamespace(ctx context.Context, name, revision string) (*model.KVPair, error) {
-	namespaceName, err := c.converter.ProfileNameToNamespace(name)
+	namespaceName, err := c.ProfileNameToNamespace(name)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 		return nil, fmt.Errorf("Profile key missing name: %+v", rk)
 	}
 
-	nsRev, saRev, err := splitRev(revision)
+	nsRev, saRev, err := c.SplitRevision(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		}, nil
 	}
 
-	nsRev, saRev, err := splitRev(revision)
+	nsRev, saRev, err := c.SplitRevision(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	}
 	return &model.KVPairList{
 		KVPairs:  kvps,
-		Revision: joinRev(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
+		Revision: c.JoinRevisions(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
 	}, nil
 }
 
@@ -218,7 +218,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		return nil, fmt.Errorf("cannot watch specific resource instance: %s", list.(model.ResourceListOptions).Name)
 	}
 
-	nsRev, saRev, err := splitRev(revision)
+	nsRev, saRev, err := c.SplitRevision(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +237,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		if !ok {
 			return nil, errors.New("profile conversion with incorrect k8s resource type")
 		}
-		return c.converter.NamespaceToProfile(k8sNamespace)
+		return c.NamespaceToProfile(k8sNamespace)
 	}
 
 	nsWatcher := newK8sWatcherConverter(ctx, "Profile-NS", converter, nsWatch)
@@ -255,7 +255,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 			nsWatch.Stop()
 			return nil, errors.New("Profile converion with incorrect k8s resource type")
 		}
-		return c.converter.ServiceAccountToProfile(k8sServiceAccount)
+		return c.ServiceAccountToProfile(k8sServiceAccount)
 	}
 
 	saWatcher := newK8sWatcherConverter(ctx, "Profile-SA", converterSA, saWatch)
@@ -278,6 +278,7 @@ func newProfileWatcher(ctx context.Context, k8sWatchNS, k8sWatchSA api.WatchInte
 }
 
 type profileWatcher struct {
+	conversion.Converter
 	converter  ConvertK8sResourceToKVPair
 	k8sNSWatch api.WatchInterface
 	k8sSAWatch api.WatchInterface
@@ -341,7 +342,7 @@ func (pw *profileWatcher) processProfileEvents() {
 					Type: api.WatchError,
 					Error: cerrors.ErrorWatchTerminated{
 						ClosedByRemote: true,
-						Err: errors.New("Profile namespace watch channel closed."),
+						Err:            errors.New("Profile namespace watch channel closed."),
 					},
 				}
 			}
@@ -357,7 +358,7 @@ func (pw *profileWatcher) processProfileEvents() {
 					Type: api.WatchError,
 					Error: cerrors.ErrorWatchTerminated{
 						ClosedByRemote: true,
-						Err: errors.New("Profile serviceaccount watch channel closed."),
+						Err:            errors.New("Profile serviceaccount watch channel closed."),
 					},
 				}
 			}
@@ -391,7 +392,7 @@ func (pw *profileWatcher) processProfileEvents() {
 					Type: api.WatchError,
 					Error: cerrors.ErrorWatchTerminated{
 						ClosedByRemote: true,
-						Err: errors.New("Profile value does not implement ObjectMetaAccessor interface."),
+						Err:            errors.New("Profile value does not implement ObjectMetaAccessor interface."),
 					},
 				}
 			} else {
@@ -400,7 +401,7 @@ func (pw *profileWatcher) processProfileEvents() {
 				} else {
 					pw.k8sSARev = oma.GetObjectMeta().GetResourceVersion()
 				}
-				oma.GetObjectMeta().SetResourceVersion(joinRev(pw.k8sNSRev, pw.k8sSARev))
+				oma.GetObjectMeta().SetResourceVersion(pw.JoinRevisions(pw.k8sNSRev, pw.k8sSARev))
 			}
 		} else if e.Error == nil {
 			log.WithField("event", e).Warning("Event without error or value")
@@ -424,26 +425,4 @@ func (pw *profileWatcher) processProfileEvents() {
 			return
 		}
 	}
-}
-
-// joinRev combines the revision of namespace and serviceaccount
-func joinRev(nsRev, saRev string) string {
-	return nsRev + "/" + saRev
-}
-
-// splitRev takes a revision string and splits it into the namespace and serviceaccount componenents
-func splitRev(rev string) (nsRev, saRev string, err error) {
-	if rev == "" {
-		return
-	}
-
-	revs := strings.Split(rev, "/")
-	if len(revs) != 2 {
-		err = fmt.Errorf("Invalid rev %s", rev)
-		return
-	}
-
-	nsRev = revs[0]
-	saRev = revs[1]
-	return
 }
