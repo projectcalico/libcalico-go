@@ -1,10 +1,12 @@
 package updateprocessors_test
 
 import (
+	"fmt"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
 	"github.com/projectcalico/libcalico-go/lib/backend/syncersv1/updateprocessors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
@@ -296,7 +298,60 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		})
 
 		By("generating the correct destination selector", func() {
-			Expect(rulev1.SrcSelector).To(Equal(e))
+			Expect(rulev1.DstSelector).To(Equal(e))
+		})
+	})
+
+	It("should parse a serviceaccount selector", func() {
+		srce := fmt.Sprintf("(%skey == \"value1\" && %s in {\"namespace.%s\", \"namespace.%s\"})", conversion.ServiceAccountLabelPrefix, apiv2.LabelServiceAccount, "sa1", "sa2")
+		dste := fmt.Sprintf("((%skey == \"value2\" && %s in {\"nsvalue1.%s\"})) && (pcns.nskey == \"nsvalue\")", conversion.ServiceAccountLabelPrefix, apiv2.LabelServiceAccount, "sa3")
+
+		r := apiv2.Rule{
+			Action: apiv2.Allow,
+			Source: apiv2.EntityRule{
+//				NamespaceSelector: "nskey == 'nsvalue'",
+				ServiceAccounts: &apiv2.ServiceAccountMatch{	Names: []string{"sa1", "sa2"},
+										Selector: "key == 'value1'",
+									},
+			},
+			Destination: apiv2.EntityRule{
+				NamespaceSelector: "nskey == 'nsvalue'",
+				ServiceAccounts: &apiv2.ServiceAccountMatch{	Names: []string{"sa3"},
+										Namespace: "nsvalue1",
+										Selector: "key == 'value2'",
+									},
+			},
+		}
+
+		// Process the rule and get the corresponding v1 representation.
+		rulev1 := updateprocessors.RuleAPIV2ToBackend(r, "namespace")
+
+		By("generating the correct source selector", func() {
+			Expect(rulev1.SrcSelector).To(Equal(srce))
+		})
+
+		By("generating the correct destination selector", func() {
+			Expect(rulev1.DstSelector).To(Equal(dste))
+		})
+	})
+
+	It("should parse a serviceaccount selector without namespace", func() {
+		srce := fmt.Sprintf("(%skey == \"value1\" && %s in {\"default.%s\", \"default.%s\"})", conversion.ServiceAccountLabelPrefix, apiv2.LabelServiceAccount, "sa1", "sa2")
+
+		r := apiv2.Rule{
+			Action: apiv2.Allow,
+			Source: apiv2.EntityRule{
+				ServiceAccounts: &apiv2.ServiceAccountMatch{	Names: []string{"sa1", "sa2"},
+										Selector: "key == 'value1'",
+									},
+			},
+		}
+
+		// Process the rule and get the corresponding v1 representation.
+		rulev1 := updateprocessors.RuleAPIV2ToBackend(r, "")
+
+		By("generating the correct source selector", func() {
+			Expect(rulev1.SrcSelector).To(Equal(srce))
 		})
 	})
 })
