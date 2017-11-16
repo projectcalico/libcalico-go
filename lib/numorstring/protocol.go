@@ -14,6 +14,35 @@
 
 package numorstring
 
+import "strings"
+
+const (
+	ProtocolUDP     = "UDP"
+	ProtocolTCP     = "TCP"
+	ProtocolICMP    = "ICMP"
+	ProtocolICMPv6  = "ICMPv6"
+	ProtocolSCTP    = "SCTP"
+	ProtocolUDPLite = "UDPLite"
+
+	ProtocolV1UDP     = "udp"
+	ProtocolV1TCP     = "tcp"
+	ProtocolV1ICMP    = "icmp"
+	ProtocolV1ICMPv6  = "icmpv6"
+	ProtocolV1SCTP    = "sctp"
+	ProtocolV1UDPLite = "udplite"
+)
+
+var (
+	allProtocolNames = []string{
+		ProtocolUDP,
+		ProtocolTCP,
+		ProtocolICMP,
+		ProtocolICMPv6,
+		ProtocolSCTP,
+		ProtocolUDPLite,
+	}
+)
+
 type Protocol Uint8OrString
 
 // ProtocolFromInt creates a Protocol struct from an integer value.
@@ -45,6 +74,14 @@ func (p Protocol) String() string {
 	return (Uint8OrString)(p).String()
 }
 
+// ToV1 returns the V1 equivalent Protocol (i.e. lowercase protocol string).
+func (p Protocol) ToV1() Protocol {
+	if p.Type == NumOrStringNum {
+		return p
+	}
+	return ProtocolFromString(strings.ToLower(p.StrVal))
+}
+
 // NumValue returns the NumVal if type Int, or if
 // it is a String, will attempt a conversion to int.
 func (p Protocol) NumValue() (uint8, error) {
@@ -58,6 +95,10 @@ func (p Protocol) SupportsPorts() bool {
 	if err == nil {
 		return num == 6 || num == 17
 	} else {
-		return p.StrVal == "TCP" || p.StrVal == "UDP" || p.StrVal == "tcp" || p.StrVal == "udp"
+		switch p.StrVal {
+		case ProtocolTCP, ProtocolUDP, ProtocolV1TCP, ProtocolV1UDP:
+			return true
+		}
+		return false
 	}
 }
