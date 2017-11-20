@@ -18,6 +18,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
@@ -43,6 +44,11 @@ type globalnetworkpolicies struct {
 func (r globalnetworkpolicies) Create(ctx context.Context, res *apiv2.GlobalNetworkPolicy, opts options.SetOptions) (*apiv2.GlobalNetworkPolicy, error) {
 	defaultPolicyTypesField(res.Spec.Ingress, res.Spec.Egress, &res.Spec.Types)
 
+	// Check if it is permitted to create the network policy with the specific alpha feature support.
+	if err := r.checkAlphaFeatures(res); err != nil {
+		return nil, err
+	}
+
 	// Properly prefix the name
 	res.GetObjectMeta().SetName(convertPolicyNameForStorage(res.GetObjectMeta().GetName()))
 	out, err := r.client.resources.Create(ctx, opts, apiv2.KindGlobalNetworkPolicy, res)
@@ -61,6 +67,11 @@ func (r globalnetworkpolicies) Create(ctx context.Context, res *apiv2.GlobalNetw
 // representation of the GlobalNetworkPolicy, and an error, if there is any.
 func (r globalnetworkpolicies) Update(ctx context.Context, res *apiv2.GlobalNetworkPolicy, opts options.SetOptions) (*apiv2.GlobalNetworkPolicy, error) {
 	defaultPolicyTypesField(res.Spec.Ingress, res.Spec.Egress, &res.Spec.Types)
+
+	// Check if it is permitted to create the network policy with the specific alpha feature support.
+	if err := r.checkAlphaFeatures(res); err != nil {
+		return nil, err
+	}
 
 	// Properly prefix the name
 	res.GetObjectMeta().SetName(convertPolicyNameForStorage(res.GetObjectMeta().GetName()))
@@ -119,6 +130,18 @@ func (r globalnetworkpolicies) List(ctx context.Context, opts options.ListOption
 // supplied options.
 func (r globalnetworkpolicies) Watch(ctx context.Context, opts options.ListOptions) (watch.Interface, error) {
 	return r.client.resources.Watch(ctx, opts, apiv2.KindGlobalNetworkPolicy)
+}
+
+func (r globalnetworkpolicies) checkAlphaFeatures(res *apiv2.GlobalNetworkPolicy) error {
+	if r.client.config.Spec.AlphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+		if res.Spec.Ingress.Rule.Source.ServiceAccounts != nil ||
+			res.Spec.Egress.Rule.Destination.ServiceAccounts != nil {
+			errS := fmt.Sprintf("Global NP %s invalid alpha feature %s used.", res.GetObjectMeta().GetName(), apiconfig.AlphaFeatureSA)
+			return error.New(errS)
+		}
+	}
+
+	return nil
 }
 
 func defaultPolicyTypesField(ingressRules, egressRules []apiv2.Rule, types *[]apiv2.PolicyType) {

@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
@@ -31,16 +32,18 @@ import (
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 )
 
-func NewWorkloadEndpointClient(c *kubernetes.Clientset) K8sResourceClient {
+func NewWorkloadEndpointClient(c *kubernetes.Clientset, a *apiconfig.AlphaFeatureType) K8sResourceClient {
 	return &WorkloadEndpointClient{
-		clientSet: c,
+		clientSet:     c,
+		alphaFeatures: a,
 	}
 }
 
 // Implements the api.Client interface for WorkloadEndpoints.
 type WorkloadEndpointClient struct {
-	clientSet *kubernetes.Clientset
-	converter conversion.Converter
+	clientSet     *kubernetes.Clientset
+	alphaFeatures *apiconfig.AlphaFeatureType
+	converter     conversion.Converter
 }
 
 func (c *WorkloadEndpointClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
@@ -71,7 +74,7 @@ func (c *WorkloadEndpointClient) Create(ctx context.Context, kvp *model.KVPair) 
 			return nil, K8sErrorToCalico(err, kvp.Key)
 		}
 		log.Debugf("Successfully applied pod: %+v", pod)
-		return c.converter.PodToWorkloadEndpoint(pod)
+		return c.podToWorkloadEndpoint(pod)
 	}
 	return kvp, nil
 }
@@ -104,7 +107,7 @@ func (c *WorkloadEndpointClient) Update(ctx context.Context, kvp *model.KVPair) 
 			return nil, K8sErrorToCalico(err, kvp.Key)
 		}
 		log.Debugf("Successfully applied pod: %+v", pod)
-		return c.converter.PodToWorkloadEndpoint(pod)
+		return c.podToWorkloadEndpoint(pod)
 	}
 	return kvp, nil
 }
@@ -136,7 +139,7 @@ func (c *WorkloadEndpointClient) Get(ctx context.Context, key model.Key, revisio
 	if !c.converter.IsValidCalicoWorkloadEndpoint(pod) {
 		return nil, cerrors.ErrorResourceDoesNotExist{Identifier: k}
 	}
-	return c.converter.PodToWorkloadEndpoint(pod)
+	return c.podToWorkloadEndpoint(pod)
 }
 
 func (c *WorkloadEndpointClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
@@ -184,7 +187,7 @@ func (c *WorkloadEndpointClient) List(ctx context.Context, list model.ListInterf
 			continue
 		}
 
-		kvp, err := c.converter.PodToWorkloadEndpoint(&pod)
+		kvp, err := c.podToWorkloadEndpoint(&pod)
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +223,11 @@ func (c *WorkloadEndpointClient) Watch(ctx context.Context, list model.ListInter
 			// Returning a nil KVP and a nil error swallows the event.
 			return nil, nil
 		}
-		return c.converter.PodToWorkloadEndpoint(k8sPod)
+		return c.podToWorkloadEndpoint(k8sPod)
 	}
 	return newK8sWatcherConverter(ctx, "Pod", converter, k8sWatch), nil
+}
+
+func (c *WorkloadEndpointClient) podToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error) {
+	return c.converter.PodToWorkloadEndpoint(pod, c.alphaFeatures.Get(apiconfig.AlphaFeatureSA))
 }

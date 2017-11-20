@@ -21,11 +21,15 @@ import (
 )
 
 type DatastoreType string
+type AlphaFeatureType struct {
+	features map[string]struct{}
+}
 
 const (
 	EtcdV3              DatastoreType = "etcdv3"
 	Kubernetes          DatastoreType = "kubernetes"
 	KindCalicoAPIConfig               = "CalicoAPIConfig"
+	AlphaFeatureSA                    = "serviceaccounts"
 )
 
 // CalicoAPIConfig contains the connection information for a Calico CalicoAPIConfig resource
@@ -44,6 +48,8 @@ type CalicoAPIConfigSpec struct {
 	EtcdConfig
 	// Inline the k8s config fields.
 	KubeConfig
+	// Alpha Feature set
+	AlphaFeatures AlphaFeatureType `json:"alphafeatures" envconfig:"ALPHA_FEATURES" default:""`
 }
 
 type EtcdConfig struct {
@@ -75,4 +81,12 @@ func NewCalicoAPIConfig() *CalicoAPIConfig {
 			APIVersion: apiv2.GroupVersionCurrent,
 		},
 	}
+}
+
+func (a *AlphaFeatureType) Get(name string) bool {
+	if _, ok := a.features[name]; ok {
+		return true
+	}
+
+	return false
 }

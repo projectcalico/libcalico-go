@@ -26,15 +26,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 )
 
-func NewProfileClient(c *kubernetes.Clientset) K8sResourceClient {
+func NewProfileClient(c *kubernetes.Clientset, af *apiconfig.AlphaFeatureType) K8sResourceClient {
 	return &profileClient{
-		clientSet: c,
+		clientSet:     c,
+		alphaFeatures: af,
 	}
 }
 
@@ -42,6 +44,7 @@ func NewProfileClient(c *kubernetes.Clientset) K8sResourceClient {
 type profileClient struct {
 	clientSet *kubernetes.Clientset
 	conversion.Converter
+	alphaFeatures *apiconfig.AlphaFeatureType
 }
 
 func (c *profileClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
@@ -74,7 +77,7 @@ func (c *profileClient) getSaKv(sa *kapiv1.ServiceAccount) (*model.KVPair, error
 		return nil, err
 	}
 
-	kvPair.Revision = c.JoinRevisions("", kvPair.Revision)
+	kvPair.Revision = c.joinRevs("", kvPair.Revision)
 	return kvPair, nil
 }
 
@@ -98,7 +101,7 @@ func (c *profileClient) getNsKv(ns *kapiv1.Namespace) (*model.KVPair, error) {
 		return nil, err
 	}
 
-	kvPair.Revision = c.JoinRevisions(kvPair.Revision, "")
+	kvPair.Revision = c.joinRevs(kvPair.Revision, "")
 	return kvPair, nil
 }
 
@@ -123,13 +126,17 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 		return nil, fmt.Errorf("Profile key missing name: %+v", rk)
 	}
 
-	nsRev, saRev, err := c.SplitRevision(revision)
+	nsRev, saRev, err := c.splitRev(revision)
 	if err != nil {
 		return nil, err
 	}
 
 	if strings.HasPrefix(rk.Name, conversion.NamespaceProfileNamePrefix) {
 		return c.getNamespace(ctx, rk.Name, nsRev)
+	}
+
+	if c.alphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+		return nil, fmt.Errorf("Revision %s invalid", revision)
 	}
 
 	if strings.HasPrefix(rk.Name, conversion.ServiceAccountProfileNamePrefix) {
@@ -164,7 +171,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		}, nil
 	}
 
-	nsRev, saRev, err := c.SplitRevision(revision)
+	nsRev, saRev, err := c.splitRev(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +190,13 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 			continue
 		}
 		kvps = append(kvps, kvp)
+	}
+
+	if c.alphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+		return &model.KVPairList{
+			KVPairs:  kvps,
+			Revision: namespaces.ResourceVersion,
+		}, nil
 	}
 
 	// Enumerate all SA
@@ -204,7 +218,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	}
 	return &model.KVPairList{
 		KVPairs:  kvps,
-		Revision: c.JoinRevisions(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
+		Revision: c.joinRevs(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
 	}, nil
 }
 
@@ -218,7 +232,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		return nil, fmt.Errorf("cannot watch specific resource instance: %s", list.(model.ResourceListOptions).Name)
 	}
 
-	nsRev, saRev, err := c.SplitRevision(revision)
+	nsRev, saRev, err := c.splitRev(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -241,6 +255,10 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 	}
 
 	nsWatcher := newK8sWatcherConverter(ctx, "Profile-NS", converter, nsWatch)
+
+	if c.alphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+		return nsWatcher, nil
+	}
 
 	// Watch all service accounts in ALL namespaces
 	saWatch, err := c.clientSet.CoreV1().ServiceAccounts(kapiv1.NamespaceAll).Watch(metav1.ListOptions{ResourceVersion: saRev})
@@ -425,4 +443,20 @@ func (pw *profileWatcher) processProfileEvents() {
 			return
 		}
 	}
+}
+
+func (c *profileClient) joinRevs(ns, sa string) string {
+	if c.alphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+		return ns
+	}
+
+	return c.JoinRevisions(ns, sa)
+}
+
+func (c *profileClient) splitRev(in string) (string, string, error) {
+	if c.alphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+		return in, "", nil
+	}
+
+	return c.SplitRevision(in)
 }

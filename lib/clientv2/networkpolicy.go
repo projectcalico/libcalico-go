@@ -17,6 +17,7 @@ package clientv2
 import (
 	"context"
 
+	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
@@ -40,6 +41,12 @@ type networkPolicies struct {
 // Create takes the representation of a NetworkPolicy and creates it.  Returns the stored
 // representation of the NetworkPolicy, and an error, if there is any.
 func (r networkPolicies) Create(ctx context.Context, res *apiv2.NetworkPolicy, opts options.SetOptions) (*apiv2.NetworkPolicy, error) {
+
+	// Check if it is permitted to create the network policy with the specific alpha feature support.
+	if err := r.checkAlphaFeatures(res); err != nil {
+		return nil, err
+	}
+
 	defaultPolicyTypesField(res.Spec.Ingress, res.Spec.Egress, &res.Spec.Types)
 
 	// Properly prefix the name
@@ -60,6 +67,11 @@ func (r networkPolicies) Create(ctx context.Context, res *apiv2.NetworkPolicy, o
 // representation of the NetworkPolicy, and an error, if there is any.
 func (r networkPolicies) Update(ctx context.Context, res *apiv2.NetworkPolicy, opts options.SetOptions) (*apiv2.NetworkPolicy, error) {
 	defaultPolicyTypesField(res.Spec.Ingress, res.Spec.Egress, &res.Spec.Types)
+
+	// Check if it is permitted to create the network policy with the specific alpha feature support.
+	if err := r.checkAlphaFeatures(res); err != nil {
+		return nil, err
+	}
 
 	// Properly prefix the name
 	res.GetObjectMeta().SetName(convertPolicyNameForStorage(res.GetObjectMeta().GetName()))
@@ -118,4 +130,16 @@ func (r networkPolicies) List(ctx context.Context, opts options.ListOptions) (*a
 // supplied options.
 func (r networkPolicies) Watch(ctx context.Context, opts options.ListOptions) (watch.Interface, error) {
 	return r.client.resources.Watch(ctx, opts, apiv2.KindNetworkPolicy)
+}
+
+func (r networkPolicies) checkAlphaFeatures(res *apiv2.NetworkPolicy) error {
+	if r.client.config.Spec.AlphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+		if res.Spec.Ingress.Rule.Source.ServiceAccounts != nil ||
+			res.Spec.Egress.Rule.Destination.ServiceAccounts != nil {
+			errS := fmt.Sprintf("NP %s invalid alpha feature %s used.", res.GetObjectMeta().GetName(), apiconfig.AlphaFeatureSA)
+			return error.New(errS)
+		}
+	}
+
+	return nil
 }
