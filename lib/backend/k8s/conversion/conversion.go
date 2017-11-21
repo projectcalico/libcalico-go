@@ -25,7 +25,7 @@ import (
 	kapiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
+	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/names"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
@@ -53,11 +53,11 @@ type Converter struct {
 
 // VethNameForWorkload returns a deterministic veth name
 // for the given Kubernetes workload (WEP) name and namespace.
-func VethNameForWorkload(namespace, name string) string {
+func VethNameForWorkload(namespace, podname string) string {
 	// A SHA1 is always 20 bytes long, and so is sufficient for generating the
 	// veth name and mac addr.
 	h := sha1.New()
-	h.Write([]byte(fmt.Sprintf("%s/%s", namespace, name)))
+	h.Write([]byte(fmt.Sprintf("%s.%s", namespace, podname)))
 	return fmt.Sprintf("cali%s", hex.EncodeToString(h.Sum(nil))[:11])
 }
 
@@ -81,15 +81,15 @@ func (c Converter) NamespaceToProfile(ns *kapiv1.Namespace) (*model.KVPair, erro
 
 	// Create the profile object.
 	name := NamespaceProfileNamePrefix + ns.Name
-	profile := apiv2.NewProfile()
+	profile := apiv3.NewProfile()
 	profile.ObjectMeta = metav1.ObjectMeta{
 		Name:              name,
 		CreationTimestamp: ns.CreationTimestamp,
 		UID:               ns.UID,
 	}
-	profile.Spec = apiv2.ProfileSpec{
-		Ingress:       []apiv2.Rule{{Action: apiv2.Allow}},
-		Egress:        []apiv2.Rule{{Action: apiv2.Allow}},
+	profile.Spec = apiv3.ProfileSpec{
+		Ingress:       []apiv3.Rule{{Action: apiv3.Allow}},
+		Egress:        []apiv3.Rule{{Action: apiv3.Allow}},
 		LabelsToApply: labels,
 	}
 
@@ -97,7 +97,7 @@ func (c Converter) NamespaceToProfile(ns *kapiv1.Namespace) (*model.KVPair, erro
 	kvp := model.KVPair{
 		Key: model.ResourceKey{
 			Name: name,
-			Kind: apiv2.KindProfile,
+			Kind: apiv3.KindProfile,
 		},
 		Value:    profile,
 		Revision: ns.ResourceVersion,
@@ -159,7 +159,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 
 	wepids := names.WorkloadEndpointIdentifiers{
 		Node:         pod.Spec.NodeName,
-		Orchestrator: apiv2.OrchestratorKubernetes,
+		Orchestrator: apiv3.OrchestratorKubernetes,
 		Endpoint:     "eth0",
 		Pod:          pod.Name,
 	}
@@ -182,7 +182,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 
 	// Generate the interface name based on workload.  This must match
 	// the host-side veth configured by the CNI plugin.
-	interfaceName := VethNameForWorkload(pod.Namespace, wepName)
+	interfaceName := VethNameForWorkload(pod.Namespace, pod.Name)
 
 	// Build the labels map.  Start with the pod labels, and append two additional labels for
 	// namespace and orchestrator matches.
@@ -190,8 +190,8 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 	if labels == nil {
 		labels = make(map[string]string, 2)
 	}
-	labels[apiv2.LabelNamespace] = pod.Namespace
-	labels[apiv2.LabelOrchestrator] = apiv2.OrchestratorKubernetes
+	labels[apiv3.LabelNamespace] = pod.Namespace
+	labels[apiv3.LabelOrchestrator] = apiv3.OrchestratorKubernetes
 
 	var saName string
 	if c.AlphaSA == true && pod.Spec.ServiceAccountName != "" {
@@ -199,7 +199,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 	}
 
 	// Map any named ports through.
-	var endpointPorts []apiv2.EndpointPort
+	var endpointPorts []apiv3.EndpointPort
 	for _, container := range pod.Spec.Containers {
 		for _, containerPort := range container.Ports {
 			if containerPort.Name != "" && containerPort.ContainerPort != 0 {
@@ -218,7 +218,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 					continue
 				}
 
-				endpointPorts = append(endpointPorts, apiv2.EndpointPort{
+				endpointPorts = append(endpointPorts, apiv3.EndpointPort{
 					Name:     containerPort.Name,
 					Protocol: modelProto,
 					Port:     uint16(containerPort.ContainerPort),
@@ -228,7 +228,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 	}
 
 	// Create the workload endpoint.
-	wep := apiv2.NewWorkloadEndpoint()
+	wep := apiv3.NewWorkloadEndpoint()
 	wep.ObjectMeta = metav1.ObjectMeta{
 		Name:              wepName,
 		Namespace:         pod.Namespace,
@@ -236,16 +236,15 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 		UID:               pod.UID,
 		Labels:            labels,
 	}
-	wep.Spec = apiv2.WorkloadEndpointSpec{
-		Orchestrator:   "k8s",
-		Node:           pod.Spec.NodeName,
-		Pod:            pod.Name,
-		Endpoint:       "eth0",
-		InterfaceName:  interfaceName,
+	wep.Spec = apiv3.WorkloadEndpointSpec{
+		Orchestrator:  "k8s",
+		Node:          pod.Spec.NodeName,
+		Pod:           pod.Name,
+		Endpoint:      "eth0",
+		InterfaceName: interfaceName,
 		Profiles:       profiles,
-		IPNetworks:     ipNets,
-		Ports:          endpointPorts,
-		ServiceAccount: saName,
+		IPNetworks:    ipNets,
+		Ports:         endpointPorts,
 	}
 
 	// Embed the workload endpoint into a KVPair.
@@ -253,7 +252,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 		Key: model.ResourceKey{
 			Name:      wepName,
 			Namespace: pod.Namespace,
-			Kind:      apiv2.KindWorkloadEndpoint,
+			Kind:      apiv3.KindWorkloadEndpoint,
 		},
 		Value:    wep,
 		Revision: pod.ResourceVersion,
@@ -271,13 +270,13 @@ func (c Converter) K8sNetworkPolicyToCalico(np *extensions.NetworkPolicy) (*mode
 	order := float64(1000.0)
 
 	// Generate the ingress rules list.
-	var ingressRules []apiv2.Rule
+	var ingressRules []apiv3.Rule
 	for _, r := range np.Spec.Ingress {
 		ingressRules = append(ingressRules, c.k8sRuleToCalico(r.From, r.Ports, np.Namespace, true)...)
 	}
 
 	// Generate the egress rules list.
-	var egressRules []apiv2.Rule
+	var egressRules []apiv3.Rule
 	for _, r := range np.Spec.Egress {
 		egressRules = append(egressRules, c.k8sRuleToCalico(r.To, r.Ports, np.Namespace, false)...)
 	}
@@ -293,15 +292,15 @@ func (c Converter) K8sNetworkPolicyToCalico(np *extensions.NetworkPolicy) (*mode
 			egress = true
 		}
 	}
-	types := []apiv2.PolicyType{}
+	types := []apiv3.PolicyType{}
 	if ingress {
-		types = append(types, apiv2.PolicyTypeIngress)
+		types = append(types, apiv3.PolicyTypeIngress)
 	}
 	if egress {
-		types = append(types, apiv2.PolicyTypeEgress)
+		types = append(types, apiv3.PolicyTypeEgress)
 	} else if len(egressRules) > 0 {
 		// Egress was introduced at the same time as policyTypes.  It shouldn't be possible to
-		// receive a NetworkPolicy with an egress rule but without "egress" specified in its types,
+		// receive a NetworkPolicy with an egress rule but without "Egress" specified in its types,
 		// but we'll warn about it anyway.
 		log.Warn("K8s PolicyTypes don't include 'egress', but NetworkPolicy has egress rules.")
 	}
@@ -310,18 +309,18 @@ func (c Converter) K8sNetworkPolicyToCalico(np *extensions.NetworkPolicy) (*mode
 	// include support for that field in the API.  In that case, the correct behavior is for the policy
 	// to apply to only ingress traffic.
 	if len(types) == 0 {
-		types = append(types, apiv2.PolicyTypeIngress)
+		types = append(types, apiv3.PolicyTypeIngress)
 	}
 
 	// Create the NetworkPolicy.
-	policy := apiv2.NewNetworkPolicy()
+	policy := apiv3.NewNetworkPolicy()
 	policy.ObjectMeta = metav1.ObjectMeta{
 		Name:              policyName,
 		Namespace:         np.Namespace,
 		CreationTimestamp: np.CreationTimestamp,
 		UID:               np.UID,
 	}
-	policy.Spec = apiv2.NetworkPolicySpec{
+	policy.Spec = apiv3.NetworkPolicySpec{
 		Order:    &order,
 		Selector: c.k8sSelectorToCalico(&np.Spec.PodSelector, SelectorPod),
 		Ingress:  ingressRules,
@@ -334,7 +333,7 @@ func (c Converter) K8sNetworkPolicyToCalico(np *extensions.NetworkPolicy) (*mode
 		Key: model.ResourceKey{
 			Name:      policyName,
 			Namespace: np.Namespace,
-			Kind:      apiv2.KindNetworkPolicy,
+			Kind:      apiv3.KindNetworkPolicy,
 		},
 		Value:    policy,
 		Revision: np.ResourceVersion,
@@ -347,7 +346,7 @@ func (c Converter) k8sSelectorToCalico(s *metav1.LabelSelector, selectorType sel
 	// Only prefix pod selectors - this won't work for namespace selectors.
 	selectors := []string{}
 	if selectorType == SelectorPod {
-		selectors = append(selectors, fmt.Sprintf("%s == 'k8s'", apiv2.LabelOrchestrator))
+		selectors = append(selectors, fmt.Sprintf("%s == 'k8s'", apiv3.LabelOrchestrator))
 	}
 
 	// matchLabels is a map key => value, it means match if (label[key] ==
@@ -375,15 +374,15 @@ func (c Converter) k8sSelectorToCalico(s *metav1.LabelSelector, selectorType sel
 		case metav1.LabelSelectorOpExists:
 			selectors = append(selectors, fmt.Sprintf("has(%s)", e.Key))
 		case metav1.LabelSelectorOpDoesNotExist:
-			selectors = append(selectors, fmt.Sprintf("! has(%s%s)", e.Key))
+			selectors = append(selectors, fmt.Sprintf("! has(%s)", e.Key))
 		}
 	}
 
 	return strings.Join(selectors, " && ")
 }
 
-func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts []extensions.NetworkPolicyPort, ns string, ingress bool) []apiv2.Rule {
-	rules := []apiv2.Rule{}
+func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts []extensions.NetworkPolicyPort, ns string, ingress bool) []apiv3.Rule {
+	rules := []apiv3.Rule{}
 	peers := []*extensions.NetworkPolicyPeer{}
 	ports := []*extensions.NetworkPolicyPort{}
 
@@ -434,25 +433,25 @@ func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts
 			selector, nsSelector, nets, notNets := c.k8sPeerToCalicoFields(peer, ns)
 			if ingress {
 				// Build inbound rule and append to list.
-				rules = append(rules, apiv2.Rule{
-					Action:   "allow",
+				rules = append(rules, apiv3.Rule{
+					Action:   "Allow",
 					Protocol: protocol,
-					Source: apiv2.EntityRule{
+					Source: apiv3.EntityRule{
 						Selector:          selector,
 						NamespaceSelector: nsSelector,
 						Nets:              nets,
 						NotNets:           notNets,
 					},
-					Destination: apiv2.EntityRule{
+					Destination: apiv3.EntityRule{
 						Ports: calicoPorts,
 					},
 				})
 			} else {
 				// Build outbound rule and append to list.
-				rules = append(rules, apiv2.Rule{
-					Action:   "allow",
+				rules = append(rules, apiv3.Rule{
+					Action:   "Allow",
 					Protocol: protocol,
-					Destination: apiv2.EntityRule{
+					Destination: apiv3.EntityRule{
 						Ports:             calicoPorts,
 						Selector:          selector,
 						NamespaceSelector: nsSelector,
@@ -479,7 +478,7 @@ func (c Converter) k8sPortToCalicoFields(port *extensions.NetworkPolicyPort) (pr
 
 func (c Converter) k8sProtocolToCalico(protocol *kapiv1.Protocol) *numorstring.Protocol {
 	if protocol != nil {
-		p := numorstring.ProtocolFromString(strings.ToLower(string(*protocol)))
+		p := numorstring.ProtocolFromString(string(*protocol))
 		return &p
 	}
 	return nil
@@ -499,7 +498,7 @@ func (c Converter) k8sPeerToCalicoFields(peer *extensions.NetworkPolicyPeer, ns 
 	}
 	if peer.NamespaceSelector != nil {
 		nsSelector = c.k8sSelectorToCalico(peer.NamespaceSelector, SelectorNamespace)
-		selector = fmt.Sprintf("%s == 'k8s'", apiv2.LabelOrchestrator)
+		selector = fmt.Sprintf("%s == 'k8s'", apiv3.LabelOrchestrator)
 		return
 	}
 	if peer.IPBlock != nil {

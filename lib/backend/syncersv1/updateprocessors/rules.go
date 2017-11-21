@@ -20,14 +20,15 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
+	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/selector/parser"
 )
 
-func RulesAPIV2ToBackend(ars []apiv2.Rule, ns string) []model.Rule {
+func RulesAPIV2ToBackend(ars []apiv3.Rule, ns string) []model.Rule {
 	if len(ars) == 0 {
 		return nil
 	}
@@ -40,7 +41,7 @@ func RulesAPIV2ToBackend(ars []apiv2.Rule, ns string) []model.Rule {
 }
 
 // RuleAPIToBackend converts an API Rule structure to a Backend Rule structure.
-func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
+func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 	var icmpCode, icmpType, notICMPCode, notICMPType *int
 	if ar.ICMP != nil {
 		icmpCode = ar.ICMP.Code
@@ -61,7 +62,7 @@ func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
 	} else if ns != "" {
 		// No namespace selector was given and this is a namespaced network policy,
 		// so the rule applies only to its own namespace.
-		sourceNSSelector = fmt.Sprintf("%s == '%s'", apiv2.LabelNamespace, ns)
+		sourceNSSelector = fmt.Sprintf("%s == '%s'", apiv3.LabelNamespace, ns)
 	}
 
 	var destNSSelector string
@@ -72,7 +73,7 @@ func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
 	} else if ns != "" {
 		// No namespace selector was given and this is a namespaced network policy,
 		// so the rule applies only to its own namespace.
-		destNSSelector = fmt.Sprintf("%s == '%s'", apiv2.LabelNamespace, ns)
+		destNSSelector = fmt.Sprintf("%s == '%s'", apiv3.LabelNamespace, ns)
 	}
 
 	// Determine which service account are impacted by this rule.
@@ -165,10 +166,10 @@ func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
 	return model.Rule{
 		Action:      ruleActionAPIV2ToBackend(ar.Action),
 		IPVersion:   ar.IPVersion,
-		Protocol:    ar.Protocol,
+		Protocol:    convertV3ProtocolToV1(ar.Protocol),
 		ICMPCode:    icmpCode,
 		ICMPType:    icmpType,
-		NotProtocol: ar.NotProtocol,
+		NotProtocol: convertV3ProtocolToV1(ar.NotProtocol),
 		NotICMPCode: notICMPCode,
 		NotICMPType: notICMPType,
 
@@ -188,7 +189,7 @@ func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
 	}
 }
 
-// parseNamespaceSelector takes a v2 namespace selector and returns the appropriate v1 representation
+// parseNamespaceSelector takes a v3 namespace selector and returns the appropriate v1 representation
 // by prefixing the keys with the `pcns.` prefix. For example, `k == 'v'` becomes `pcns.k == 'v'`.
 func parseNamespaceSelector(s string) string {
 	parsedSelector, err := parser.Parse(s)
@@ -243,6 +244,14 @@ func parseServiceAccounts(sam *apiv2.ServiceAccountMatch) string {
 	return parsedSelector.String()
 }
 
+// convertV3ProtocolToV1 converts a v1 protocol string to a v3 protocol string
+func convertV3ProtocolToV1(p *numorstring.Protocol) *numorstring.Protocol {
+	if p != nil && p.Type == numorstring.NumOrStringString {
+		p.StrVal = strings.ToLower(p.String())
+	}
+	return p
+}
+
 // normalizeIPNet converts an IPNet to a network by ensuring the IP address is correctly masked.
 func normalizeIPNet(n string) *cnet.IPNet {
 	if n == "" {
@@ -270,8 +279,8 @@ func normalizeIPNets(nets []string) []*cnet.IPNet {
 
 // ruleActionAPIV2ToBackend converts the rule action field value from the API
 // value to the equivalent backend value.
-func ruleActionAPIV2ToBackend(action apiv2.Action) string {
-	if action == apiv2.Pass {
+func ruleActionAPIV2ToBackend(action apiv3.Action) string {
+	if action == apiv3.Pass {
 		return "next-tier"
 	}
 	return strings.ToLower(string(action))

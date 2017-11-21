@@ -37,7 +37,7 @@ const (
 
 // NewIPAMClient returns a new ipamClient, which implements Interface.
 // Consumers of the Calico API should not create this directly, but should
-// access IPAM through the main client IPAM accessor (e.g. clientv2.IPAM())
+// access IPAM through the main client IPAM accessor (e.g. clientv3.IPAM())
 func NewIPAMClient(client bapi.Client, pools PoolAccessorInterface) Interface {
 	return &ipamClient{
 		client: client,
@@ -787,13 +787,13 @@ func (c ipamClient) decrementHandle(ctx context.Context, handleID string, blockC
 	for i := 0; i < ipamEtcdRetries; i++ {
 		obj, err := c.client.Get(ctx, model.IPAMHandleKey{HandleID: handleID}, "")
 		if err != nil {
-			log.Fatalf("Can't decrement block because it doesn't exist")
+			log.WithField("handleID", handleID).WithError(err).Panic("Can't decrement block because it doesn't exist")
 		}
 		handle := allocationHandle{obj.Value.(*model.IPAMHandle)}
 
 		_, err = handle.decrementBlock(blockCIDR, num)
 		if err != nil {
-			log.Fatalf("Can't decrement block - too few allocated")
+			log.WithField("handleID", handleID).WithError(err).Panic("Can't decrement block - too few allocated")
 		}
 
 		// Update / Delete as appropriate.  Since we have been manipulating the
@@ -904,7 +904,7 @@ func decideHostname(host string) string {
 	} else {
 		hostname, err = os.Hostname()
 		if err != nil {
-			log.Fatalf("Failed to acquire hostname")
+			log.Panicf("Failed to acquire hostname")
 		}
 	}
 	log.Debugf("Using hostname=%s", hostname)

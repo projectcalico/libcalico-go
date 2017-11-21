@@ -31,7 +31,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/ipam"
 	"github.com/projectcalico/libcalico-go/lib/net"
-	"github.com/projectcalico/libcalico-go/lib/validator"
+	validator "github.com/projectcalico/libcalico-go/lib/validator/v1"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -173,7 +173,7 @@ func LoadClientConfig(filename string) (*api.CalicoAPIConfig, error) {
 func LoadClientConfigFromBytes(b []byte) (*api.CalicoAPIConfig, error) {
 	var c api.CalicoAPIConfig
 
-	// Default the backend type to be etcd v2.  This will be overridden if
+	// Default the backend type to be etcd v3.  This will be overridden if
 	// explicitly specified in the file.
 	log.Info("Loading config from JSON or YAML data")
 	c = api.CalicoAPIConfig{

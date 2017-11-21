@@ -85,6 +85,7 @@ func (wc *watcherCache) run() {
 			// If the channel is closed then resync/recreate the watch.
 			wc.logger.Info("Watch channel closed by remote - recreate watcher")
 			wc.resyncAndCreateWatcher()
+			continue
 		}
 
 		// Handle the specific event type.
@@ -114,7 +115,7 @@ func (wc *watcherCache) run() {
 			}
 		default:
 			// Unknown event type - not much we can do other than log.
-			wc.logger.WithField("EventType", event.Type).Fatal("Unknown event type received from the datastore")
+			wc.logger.WithField("EventType", event.Type).Panic("Unknown event type received from the datastore")
 		}
 	}
 }

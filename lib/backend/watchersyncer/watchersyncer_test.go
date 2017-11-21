@@ -25,7 +25,7 @@ import (
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 
-	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
+	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/backend/watchersyncer"
@@ -37,31 +37,31 @@ import (
 var (
 	dsError = cerrors.ErrorDatastoreError{Err: errors.New("Generic datastore error")}
 	l1Key1  = model.ResourceKey{
-		Kind:      apiv2.KindNetworkPolicy,
+		Kind:      apiv3.KindNetworkPolicy,
 		Namespace: "namespace1",
 		Name:      "policy-1",
 	}
 	l1Key2 = model.ResourceKey{
-		Kind:      apiv2.KindNetworkPolicy,
+		Kind:      apiv3.KindNetworkPolicy,
 		Namespace: "namespace1",
 		Name:      "policy-2",
 	}
 	l1Key3 = model.ResourceKey{
-		Kind:      apiv2.KindNetworkPolicy,
+		Kind:      apiv3.KindNetworkPolicy,
 		Namespace: "namespace2",
 		Name:      "policy-1",
 	}
 	l1Key4 = model.ResourceKey{
-		Kind:      apiv2.KindNetworkPolicy,
+		Kind:      apiv3.KindNetworkPolicy,
 		Namespace: "namespace2999",
 		Name:      "policy-1000",
 	}
 	l2Key1 = model.ResourceKey{
-		Kind: apiv2.KindIPPool,
+		Kind: apiv3.KindIPPool,
 		Name: "ippool-1",
 	}
 	l2Key2 = model.ResourceKey{
-		Kind: apiv2.KindIPPool,
+		Kind: apiv3.KindIPPool,
 		Name: "ippool-2",
 	}
 	l3Key1 = model.BlockAffinityKey{
@@ -78,10 +78,10 @@ var (
 var _ = Describe("Test the backend datstore multi-watch syncer", func() {
 
 	r1 := watchersyncer.ResourceType{
-		ListInterface: model.ResourceListOptions{Kind: apiv2.KindNetworkPolicy},
+		ListInterface: model.ResourceListOptions{Kind: apiv3.KindNetworkPolicy},
 	}
 	r2 := watchersyncer.ResourceType{
-		ListInterface: model.ResourceListOptions{Kind: apiv2.KindIPPool},
+		ListInterface: model.ResourceListOptions{Kind: apiv3.KindIPPool},
 	}
 	r3 := watchersyncer.ResourceType{
 		ListInterface: model.BlockAffinityListOptions{},
@@ -520,7 +520,7 @@ var _ = Describe("Test the backend datstore multi-watch syncer", func() {
 	It("Should invoke the supplied converter to alter the update", func() {
 		rc1 := watchersyncer.ResourceType{
 			UpdateProcessor: &fakeConverter{},
-			ListInterface:   model.ResourceListOptions{Kind: apiv2.KindNetworkPolicy},
+			ListInterface:   model.ResourceListOptions{Kind: apiv3.KindNetworkPolicy},
 		}
 
 		// Since the fake converter doesn't actually look at the incoming event we can
@@ -998,7 +998,7 @@ func (fw *listWatchSource) list() (*model.KVPairList, error) {
 		log.WithField("Name", fw.name).Info("Returning results from List invocation")
 		return r, nil
 	default:
-		log.WithField("Result", r).Fatal("Unexpected result on list result channel")
+		log.WithField("Result", r).Panic("Unexpected result on list result channel")
 		return nil, nil
 	}
 }
@@ -1015,7 +1015,7 @@ func (fw *listWatchSource) watch() (api.WatchInterface, error) {
 		// results channel.
 		select {
 		case r := <-fw.results:
-			log.Fatalf("Test harness for %s expects results chan to be empty during watch creation: %v", fw.name, r)
+			log.Panicf("Test harness for %s expects results chan to be empty during watch creation: %v", fw.name, r)
 		default:
 		}
 
@@ -1073,7 +1073,7 @@ func (w *watcher) ResultChan() <-chan api.WatchEvent {
 
 func (w *watcher) HasTerminated() bool {
 	// Never invoked by the syncer code, so no need to return anything sensible.
-	log.WithField("Name", w.name).Fatalf("HasTerminated called on watcher - not expected")
+	log.WithField("Name", w.name).Panicf("HasTerminated called on watcher - not expected")
 	return false
 }
 

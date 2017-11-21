@@ -22,7 +22,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
+	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/namespace"
 )
 
@@ -34,8 +34,8 @@ type resourceInfo struct {
 }
 
 var (
-	matchGlobalResource     = regexp.MustCompile("^/calico/resources/v2/projectcalico[.]org/([^/]+)/([^/]+)$")
-	matchNamespacedResource = regexp.MustCompile("^/calico/resources/v2/projectcalico[.]org/([^/]+)/([^/]+)/([^/]+)$")
+	matchGlobalResource     = regexp.MustCompile("^/calico/resources/v3/projectcalico[.]org/([^/]+)/([^/]+)$")
+	matchNamespacedResource = regexp.MustCompile("^/calico/resources/v3/projectcalico[.]org/([^/]+)/([^/]+)/([^/]+)$")
 	resourceInfoByKind      = make(map[string]resourceInfo)
 	resourceInfoByPlural    = make(map[string]resourceInfo)
 )
@@ -54,59 +54,59 @@ func registerResourceInfo(kind string, plural string, typeOf reflect.Type) {
 
 func init() {
 	registerResourceInfo(
-		apiv2.KindBGPPeer,
+		apiv3.KindBGPPeer,
 		"bgppeers",
-		reflect.TypeOf(apiv2.BGPPeer{}),
+		reflect.TypeOf(apiv3.BGPPeer{}),
 	)
 	registerResourceInfo(
-		apiv2.KindBGPConfiguration,
+		apiv3.KindBGPConfiguration,
 		"bgpconfigurations",
-		reflect.TypeOf(apiv2.BGPConfiguration{}),
+		reflect.TypeOf(apiv3.BGPConfiguration{}),
 	)
 	registerResourceInfo(
-		apiv2.KindClusterInformation,
+		apiv3.KindClusterInformation,
 		"clusterinformations",
-		reflect.TypeOf(apiv2.ClusterInformation{}),
+		reflect.TypeOf(apiv3.ClusterInformation{}),
 	)
 	registerResourceInfo(
-		apiv2.KindFelixConfiguration,
+		apiv3.KindFelixConfiguration,
 		"felixconfigurations",
-		reflect.TypeOf(apiv2.FelixConfiguration{}),
+		reflect.TypeOf(apiv3.FelixConfiguration{}),
 	)
 	registerResourceInfo(
-		apiv2.KindGlobalNetworkPolicy,
+		apiv3.KindGlobalNetworkPolicy,
 		"globalnetworkpolicies",
-		reflect.TypeOf(apiv2.GlobalNetworkPolicy{}),
+		reflect.TypeOf(apiv3.GlobalNetworkPolicy{}),
 	)
 	registerResourceInfo(
-		apiv2.KindHostEndpoint,
+		apiv3.KindHostEndpoint,
 		"hostendpoints",
-		reflect.TypeOf(apiv2.HostEndpoint{}),
+		reflect.TypeOf(apiv3.HostEndpoint{}),
 	)
 	registerResourceInfo(
-		apiv2.KindIPPool,
+		apiv3.KindIPPool,
 		"ippools",
-		reflect.TypeOf(apiv2.IPPool{}),
+		reflect.TypeOf(apiv3.IPPool{}),
 	)
 	registerResourceInfo(
-		apiv2.KindNetworkPolicy,
+		apiv3.KindNetworkPolicy,
 		"networkpolicies",
-		reflect.TypeOf(apiv2.NetworkPolicy{}),
+		reflect.TypeOf(apiv3.NetworkPolicy{}),
 	)
 	registerResourceInfo(
-		apiv2.KindNode,
+		apiv3.KindNode,
 		"nodes",
-		reflect.TypeOf(apiv2.Node{}),
+		reflect.TypeOf(apiv3.Node{}),
 	)
 	registerResourceInfo(
-		apiv2.KindProfile,
+		apiv3.KindProfile,
 		"profiles",
-		reflect.TypeOf(apiv2.Profile{}),
+		reflect.TypeOf(apiv3.Profile{}),
 	)
 	registerResourceInfo(
-		apiv2.KindWorkloadEndpoint,
+		apiv3.KindWorkloadEndpoint,
 		"workloadendpoints",
-		reflect.TypeOf(apiv2.WorkloadEndpoint{}),
+		reflect.TypeOf(apiv3.WorkloadEndpoint{}),
 	)
 }
 
@@ -126,12 +126,12 @@ func (key ResourceKey) defaultPath() (string, error) {
 func (key ResourceKey) defaultDeletePath() (string, error) {
 	ri, ok := resourceInfoByKind[strings.ToLower(key.Kind)]
 	if !ok {
-		log.Fatal("Unexpected resource kind: " + key.Kind)
+		log.Panic("Unexpected resource kind: " + key.Kind)
 	}
 	if namespace.IsNamespaced(key.Kind) {
-		return fmt.Sprintf("/calico/resources/v2/projectcalico.org/%s/%s/%s", ri.plural, key.Namespace, key.Name), nil
+		return fmt.Sprintf("/calico/resources/v3/projectcalico.org/%s/%s/%s", ri.plural, key.Namespace, key.Name), nil
 	}
-	return fmt.Sprintf("/calico/resources/v2/projectcalico.org/%s/%s", ri.plural, key.Name), nil
+	return fmt.Sprintf("/calico/resources/v3/projectcalico.org/%s/%s", ri.plural, key.Name), nil
 }
 
 func (key ResourceKey) defaultDeleteParentPaths() ([]string, error) {
@@ -141,7 +141,7 @@ func (key ResourceKey) defaultDeleteParentPaths() ([]string, error) {
 func (key ResourceKey) valueType() reflect.Type {
 	ri, ok := resourceInfoByKind[strings.ToLower(key.Kind)]
 	if !ok {
-		log.Fatal("Unexpected resource kind: " + key.Kind)
+		log.Panic("Unexpected resource kind: " + key.Kind)
 	}
 	return ri.typeOf
 }
@@ -176,7 +176,7 @@ func (options ResourceListOptions) IsLastSegmentIsPrefix() bool {
 func (options ResourceListOptions) KeyFromDefaultPath(path string) Key {
 	ri, ok := resourceInfoByKind[strings.ToLower(options.Kind)]
 	if !ok {
-		log.Fatal("Unexpected resource kind: " + options.Kind)
+		log.Panic("Unexpected resource kind: " + options.Kind)
 	}
 
 	if namespace.IsNamespaced(options.Kind) {
@@ -239,10 +239,10 @@ func (options ResourceListOptions) KeyFromDefaultPath(path string) Key {
 func (options ResourceListOptions) defaultPathRoot() string {
 	ri, ok := resourceInfoByKind[strings.ToLower(options.Kind)]
 	if !ok {
-		log.Fatal("Unexpected resource kind: " + options.Kind)
+		log.Panic("Unexpected resource kind: " + options.Kind)
 	}
 
-	k := "/calico/resources/v2/projectcalico.org/" + ri.plural
+	k := "/calico/resources/v3/projectcalico.org/" + ri.plural
 	if namespace.IsNamespaced(options.Kind) {
 		if options.Namespace == "" {
 			return k
