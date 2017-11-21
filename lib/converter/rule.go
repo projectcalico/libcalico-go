@@ -89,7 +89,6 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 		SrcSelector:    ar.Source.Selector,
 		SrcPorts:       ar.Source.Ports,
 		SrcSANames:     ar.Source.ServiceAccounts.Names,
-		SrcSANamespace: ar.Source.ServiceAccounts.Namespace,
 		SrcSASelector:  ar.Source.ServiceAccounts.Selector,
 		DstTag:         ar.Destination.Tag,
 		DstNet:         normalizeIPNet(ar.Destination.Net),
@@ -97,7 +96,6 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 		DstSelector:    ar.Destination.Selector,
 		DstPorts:       ar.Destination.Ports,
 		DstSANames:     ar.Destination.ServiceAccounts.Names,
-		DstSANamespace: ar.Destination.ServiceAccounts.Namespace,
 		DstSASelector:  ar.Destination.ServiceAccounts.Selector,
 
 		NotSrcTag:      ar.Source.NotTag,

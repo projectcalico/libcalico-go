@@ -149,10 +149,6 @@ type ServiceAccountMatch struct {
 	// at) a pod running as a service account whose name is in the list.
 	Names []string `json:"names,omitempty" validate:"omitempty"`
 
-	// Namespace is an optional field that restricts the rule to only apply to traffic that originates from (or
-	// terminates at) a pod running as a service account from the given namespace.
-	Namespace string `json:"namespace,omitempty" validate:"omitempty"`
-
 	// Selector is an optional field that restricts the rule to only apply to traffic that originates from
 	// (or terminates at) a pod running as a service account that matches the given label selector.
 	Selector string `json:"selector,omitempty" validate:"omitempty"`

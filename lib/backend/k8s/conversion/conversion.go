@@ -195,8 +195,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 
 	var saName string
 	if c.AlphaSA == true && pod.Spec.ServiceAccountName != "" {
-		saName = ServiceAccountWithNamespace(pod.Spec.ServiceAccountName, pod.Namespace)
-		labels[apiv2.LabelServiceAccount] = saName
+		labels[apiv2.LabelServiceAccount] = pod.Spec.ServiceAccountName
 	}
 
 	// Map any named ports through.
@@ -582,15 +581,6 @@ func serviceAccountNameToProfileName(sa, namespace string) string {
 		namespace = "default"
 	}
 	return ServiceAccountProfileNamePrefix + namespace + "." + sa
-}
-
-func ServiceAccountWithNamespace(sa, namespace string) string {
-	// Need to incorporate the namespace into the name of the sa based profile
-	// to make them globally unique
-	if namespace == "" {
-		namespace = "default"
-	}
-	return namespace + "." + sa
 }
 
 // ServiceAccountToProfile converts a ServiceAccount to a Calico Profile.  The Profile stores

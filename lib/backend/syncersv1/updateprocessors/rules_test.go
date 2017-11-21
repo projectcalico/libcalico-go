@@ -303,13 +303,12 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 	})
 
 	It("should parse a serviceaccount selector", func() {
-		srce := fmt.Sprintf("(%skey == \"value1\" && %s in {\"namespace.%s\", \"namespace.%s\"})", conversion.ServiceAccountLabelPrefix, apiv2.LabelServiceAccount, "sa1", "sa2")
-		dste := fmt.Sprintf("((%skey == \"value2\" && %s in {\"nsvalue1.%s\"})) && (pcns.nskey == \"nsvalue\")", conversion.ServiceAccountLabelPrefix, apiv2.LabelServiceAccount, "sa3")
+		srce := fmt.Sprintf("(%skey == \"value1\" && %s in {\"%s\", \"%s\"})", conversion.ServiceAccountLabelPrefix, apiv2.LabelServiceAccount, "sa1", "sa2")
+		dste := fmt.Sprintf("((%skey == \"value2\" && %s in {\"%s\"})) && (pcns.nskey == \"nsvalue\")", conversion.ServiceAccountLabelPrefix, apiv2.LabelServiceAccount, "sa3")
 
 		r := apiv2.Rule{
 			Action: apiv2.Allow,
 			Source: apiv2.EntityRule{
-//				NamespaceSelector: "nskey == 'nsvalue'",
 				ServiceAccounts: &apiv2.ServiceAccountMatch{	Names: []string{"sa1", "sa2"},
 										Selector: "key == 'value1'",
 									},
@@ -317,7 +316,6 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 			Destination: apiv2.EntityRule{
 				NamespaceSelector: "nskey == 'nsvalue'",
 				ServiceAccounts: &apiv2.ServiceAccountMatch{	Names: []string{"sa3"},
-										Namespace: "nsvalue1",
 										Selector: "key == 'value2'",
 									},
 			},
@@ -332,26 +330,6 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 
 		By("generating the correct destination selector", func() {
 			Expect(rulev1.DstSelector).To(Equal(dste))
-		})
-	})
-
-	It("should parse a serviceaccount selector without namespace", func() {
-		srce := fmt.Sprintf("(%skey == \"value1\" && %s in {\"default.%s\", \"default.%s\"})", conversion.ServiceAccountLabelPrefix, apiv2.LabelServiceAccount, "sa1", "sa2")
-
-		r := apiv2.Rule{
-			Action: apiv2.Allow,
-			Source: apiv2.EntityRule{
-				ServiceAccounts: &apiv2.ServiceAccountMatch{	Names: []string{"sa1", "sa2"},
-										Selector: "key == 'value1'",
-									},
-			},
-		}
-
-		// Process the rule and get the corresponding v1 representation.
-		rulev1 := updateprocessors.RuleAPIV2ToBackend(r, "")
-
-		By("generating the correct source selector", func() {
-			Expect(rulev1.SrcSelector).To(Equal(srce))
 		})
 	})
 })

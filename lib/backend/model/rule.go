@@ -46,7 +46,6 @@ type Rule struct {
 	SrcPorts       []numorstring.Port `json:"src_ports,omitempty" validate:"omitempty,dive"`
 	SrcSANames     string           `json:"src_sa_name,omitempty" validate:"omitempty"`
 	SrcSASelector  string             `json:"src_sa_selector,omitempty" validate:"omitempty"`
-	SrcSANamespace string             `json:"src_sa_namespace,omitempty" validate:"omitempty"`
 	DstTag         string             `json:"dst_tag,omitempty" validate:"omitempty,tag"`
 	DstSelector    string             `json:"dst_selector,omitempty" validate:"omitempty,selector"`
 	DstNet         *net.IPNet         `json:"dst_net,omitempty" validate:"omitempty"`
@@ -54,7 +53,6 @@ type Rule struct {
 	DstPorts       []numorstring.Port `json:"dst_ports,omitempty" validate:"omitempty,dive"`
 	DstSANames     string           `json:"dst_sa_name,omitempty" validate:"omitempty"`
 	DstSASelector  string             `json:"dst_sa_selector,omitempty" validate:"omitempty"`
-	DstSANamespace string             `json:"dst_sa_namespace,omitempty" validate:"omitempty"`
 
 	NotSrcTag      string             `json:"!src_tag,omitempty" validate:"omitempty,tag"`
 	NotSrcNet      *net.IPNet         `json:"!src_net,omitempty" validate:"omitempty"`

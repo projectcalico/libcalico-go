@@ -80,14 +80,14 @@ func RuleAPIV2ToBackend(ar apiv2.Rule, ns string) model.Rule {
 	if ar.Source.ServiceAccounts != nil {
 		// A service account selector was given - the rule applies to all serviceaccount
 		// which match this selector.
-		sourceSASelector = parseServiceAccounts(ar.Source.ServiceAccounts, ns)
+		sourceSASelector = parseServiceAccounts(ar.Source.ServiceAccounts)
 	}
 
 	var dstSASelector string
 	if ar.Destination.ServiceAccounts != nil {
 		// A service account selector was given - the rule applies to all serviceaccount
 		// which match this selector.
-		dstSASelector = parseServiceAccounts(ar.Destination.ServiceAccounts, ns)
+		dstSASelector = parseServiceAccounts(ar.Destination.ServiceAccounts)
 	}
 
 	srcSelector := ar.Source.Selector
@@ -204,17 +204,7 @@ func parseNamespaceSelector(s string) string {
 
 // parseServiceAccounts takes a v2 service account selector and returns the appropriate v1 representation
 // by prefixing the keys with the `pcsa.` prefix. For example, `k == 'v'` becomes `pcsa.k == 'v'`.
-func parseServiceAccounts(sam *apiv2.ServiceAccountMatch, ns string) string {
-	namespace := ns
-	if namespace == "" {
-		// not in a namespaced rule; apply to default namespace
-		namespace = "default"
-	}
-
-	// If the rule itself has a namespace then use it
-	if sam.Namespace != "" {
-		namespace = sam.Namespace
-	}
+func parseServiceAccounts(sam *apiv2.ServiceAccountMatch) string {
 
 	parsedSelector, err := parser.Parse(sam.Selector)
 	if err != nil {
@@ -233,7 +223,7 @@ func parseServiceAccounts(sam *apiv2.ServiceAccountMatch, ns string) string {
 	var namesSelector, comma string
 	namesSelector = fmt.Sprintf("%s in { ", apiv2.LabelServiceAccount)
 	for _, name := range sam.Names {
-		namesSelector = fmt.Sprintf("%s%s'%s'", namesSelector, comma, conversion.ServiceAccountWithNamespace(name, namespace))
+		namesSelector = fmt.Sprintf("%s%s'%s'", namesSelector, comma, name)
 		comma = ", "
 	}
 	namesSelector = fmt.Sprintf("%s }", namesSelector)
@@ -241,14 +231,14 @@ func parseServiceAccounts(sam *apiv2.ServiceAccountMatch, ns string) string {
 	// A list of Service account names are AND'd with the selectors.
 	// TBD: U sure about that?
 	selectors := updated + " && " + namesSelector
-	log.Errorf("SA Selector pre-parse is: %s", selectors)
+	log.Debugf("SA Selector pre-parse is: %s", selectors)
 
 	parsedSelector, err = parser.Parse(selectors)
 	if err != nil {
 		log.WithError(err).Errorf("Failed to parse service account selector: %s", selectors)
 		return ""
 	}
-	log.Errorf("SA Selector post-parse is: %s", parsedSelector.String())
+	log.Debugf("SA Selector post-parse is: %s", parsedSelector.String())
 
 	return parsedSelector.String()
 }
