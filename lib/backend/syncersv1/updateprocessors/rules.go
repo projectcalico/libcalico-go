@@ -205,7 +205,7 @@ func parseNamespaceSelector(s string) string {
 
 // parseServiceAccounts takes a v2 service account selector and returns the appropriate v1 representation
 // by prefixing the keys with the `pcsa.` prefix. For example, `k == 'v'` becomes `pcsa.k == 'v'`.
-func parseServiceAccounts(sam *apiv2.ServiceAccountMatch) string {
+func parseServiceAccounts(sam *apiv3.ServiceAccountMatch) string {
 
 	parsedSelector, err := parser.Parse(sam.Selector)
 	if err != nil {
@@ -222,7 +222,7 @@ func parseServiceAccounts(sam *apiv2.ServiceAccountMatch) string {
 
 	// Convert the list of ServiceAccounts to selector
 	var namesSelector, comma string
-	namesSelector = fmt.Sprintf("%s in { ", apiv2.LabelServiceAccount)
+	namesSelector = fmt.Sprintf("%s in { ", apiv3.LabelServiceAccount)
 	for _, name := range sam.Names {
 		namesSelector = fmt.Sprintf("%s%s'%s'", namesSelector, comma, name)
 		comma = ", "

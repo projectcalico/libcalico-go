@@ -1876,20 +1876,20 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(p.Key.(model.ResourceKey).Name).To(Equal("ksa.default.sa-test"))
-		Expect(p.Key.(model.ResourceKey).Kind).To(Equal(apiv2.KindProfile))
+		Expect(p.Key.(model.ResourceKey).Kind).To(Equal(apiv3.KindProfile))
 
 		// Ensure rules are correct for profile.
-		Ingress := p.Value.(*apiv2.Profile).Spec.Ingress
-		Egress := p.Value.(*apiv2.Profile).Spec.Egress
+		Ingress := p.Value.(*apiv3.Profile).Spec.Ingress
+		Egress := p.Value.(*apiv3.Profile).Spec.Egress
 		Expect(len(Ingress)).To(Equal(1))
 		Expect(len(Egress)).To(Equal(1))
 
 		// Ensure both inbound and outbound rules are set to allow.
-		Expect(Ingress[0]).To(Equal(apiv2.Rule{Action: apiv2.Allow}))
-		Expect(Egress[0]).To(Equal(apiv2.Rule{Action: apiv2.Allow}))
+		Expect(Ingress[0]).To(Equal(apiv3.Rule{Action: apiv3.Allow}))
+		Expect(Egress[0]).To(Equal(apiv3.Rule{Action: apiv3.Allow}))
 
 		// Check labels.
-		labels := p.Value.(*apiv2.Profile).Spec.LabelsToApply
+		labels := p.Value.(*apiv3.Profile).Spec.LabelsToApply
 		Expect(labels["pcsa.foo"]).To(Equal("bar"))
 		Expect(labels["pcsa.roger"]).To(Equal("rabbit"))
 	})
@@ -1907,7 +1907,7 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(p.Key.(model.ResourceKey).Name).To(Equal("ksa.test.sa-test"))
-		Expect(p.Key.(model.ResourceKey).Kind).To(Equal(apiv2.KindProfile))
+		Expect(p.Key.(model.ResourceKey).Kind).To(Equal(apiv3.KindProfile))
 	})
 
 	It("should parse a ServiceAccount to a Profile with no labels", func() {
@@ -1922,17 +1922,17 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		// Ensure rules are correct.
-		Ingress := p.Value.(*apiv2.Profile).Spec.Ingress
-		Egress := p.Value.(*apiv2.Profile).Spec.Egress
+		Ingress := p.Value.(*apiv3.Profile).Spec.Ingress
+		Egress := p.Value.(*apiv3.Profile).Spec.Egress
 		Expect(len(Ingress)).To(Equal(1))
 		Expect(len(Egress)).To(Equal(1))
 
 		// Ensure both inbound and outbound rules are set to allow.
-		Expect(Ingress[0]).To(Equal(apiv2.Rule{Action: apiv2.Allow}))
-		Expect(Egress[0]).To(Equal(apiv2.Rule{Action: apiv2.Allow}))
+		Expect(Ingress[0]).To(Equal(apiv3.Rule{Action: apiv3.Allow}))
+		Expect(Egress[0]).To(Equal(apiv3.Rule{Action: apiv3.Allow}))
 
 		// Check labels.
-		labels := p.Value.(*apiv2.Profile).Spec.LabelsToApply
+		labels := p.Value.(*apiv3.Profile).Spec.LabelsToApply
 		Expect(len(labels)).To(Equal(0))
 	})
 })

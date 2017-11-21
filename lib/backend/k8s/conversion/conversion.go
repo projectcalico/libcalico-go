@@ -195,7 +195,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 
 	var saName string
 	if c.AlphaSA == true && pod.Spec.ServiceAccountName != "" {
-		labels[apiv2.LabelServiceAccount] = pod.Spec.ServiceAccountName
+		labels[apiv3.LabelServiceAccount] = pod.Spec.ServiceAccountName
 	}
 
 	// Map any named ports through.
@@ -594,15 +594,15 @@ func (c Converter) ServiceAccountToProfile(sa *kapiv1.ServiceAccount) (*model.KV
 	}
 
 	name := serviceAccountNameToProfileName(sa.Name, sa.Namespace)
-	profile := apiv2.NewProfile()
+	profile := apiv3.NewProfile()
 	profile.ObjectMeta = metav1.ObjectMeta{
 		Name:              name,
 		CreationTimestamp: sa.CreationTimestamp,
 		UID:               sa.UID,
 	}
-	profile.Spec = apiv2.ProfileSpec{
-		Ingress:       []apiv2.Rule{{Action: apiv2.Allow}},
-		Egress:        []apiv2.Rule{{Action: apiv2.Allow}},
+	profile.Spec = apiv3.ProfileSpec{
+		Ingress:       []apiv3.Rule{{Action: apiv3.Allow}},
+		Egress:        []apiv3.Rule{{Action: apiv3.Allow}},
 		LabelsToApply: labels,
 	}
 
@@ -610,7 +610,7 @@ func (c Converter) ServiceAccountToProfile(sa *kapiv1.ServiceAccount) (*model.KV
 	kvp := model.KVPair{
 		Key: model.ResourceKey{
 			Name: name,
-			Kind: apiv2.KindProfile,
+			Kind: apiv3.KindProfile,
 		},
 		Value:    profile,
 		Revision: sa.ResourceVersion,

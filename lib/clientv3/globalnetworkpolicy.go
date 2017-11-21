@@ -152,7 +152,7 @@ func (r globalNetworkPolicies) Watch(ctx context.Context, opts options.ListOptio
 	return r.client.resources.Watch(ctx, opts, apiv3.KindGlobalNetworkPolicy)
 }
 
-func (r globalnetworkpolicies) checkAlphaFeatures(res *apiv2.GlobalNetworkPolicy) error {
+func (r globalnetworkpolicies) checkAlphaFeatures(res *apiv3.GlobalNetworkPolicy) error {
 	if apiconfig.IsAlphaFeatureSet(r.client.config.Spec.AlphaFeatures, apiconfig.AlphaFeatureSA) == false {
 		errS := fmt.Sprintf("Global NP %s invalid alpha feature %s used.", res.GetObjectMeta().GetName(), apiconfig.AlphaFeatureSA)
 		for _, rule := range res.Spec.Ingress {

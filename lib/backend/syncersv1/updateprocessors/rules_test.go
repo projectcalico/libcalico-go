@@ -303,19 +303,19 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 	})
 
 	It("should parse a serviceaccount selector", func() {
-		srce := fmt.Sprintf("(%skey == \"value1\" && %s in {\"%s\", \"%s\"})", conversion.ServiceAccountLabelPrefix, apiv2.LabelServiceAccount, "sa1", "sa2")
-		dste := fmt.Sprintf("((%skey == \"value2\" && %s in {\"%s\"})) && (pcns.nskey == \"nsvalue\")", conversion.ServiceAccountLabelPrefix, apiv2.LabelServiceAccount, "sa3")
+		srce := fmt.Sprintf("(%skey == \"value1\" && %s in {\"%s\", \"%s\"})", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa1", "sa2")
+		dste := fmt.Sprintf("((%skey == \"value2\" && %s in {\"%s\"})) && (pcns.nskey == \"nsvalue\")", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa3")
 
-		r := apiv2.Rule{
-			Action: apiv2.Allow,
-			Source: apiv2.EntityRule{
-				ServiceAccounts: &apiv2.ServiceAccountMatch{	Names: []string{"sa1", "sa2"},
+		r := apiv3.Rule{
+			Action: apiv3.Allow,
+			Source: apiv3.EntityRule{
+				ServiceAccounts: &apiv3.ServiceAccountMatch{	Names: []string{"sa1", "sa2"},
 										Selector: "key == 'value1'",
 									},
 			},
-			Destination: apiv2.EntityRule{
+			Destination: apiv3.EntityRule{
 				NamespaceSelector: "nskey == 'nsvalue'",
-				ServiceAccounts: &apiv2.ServiceAccountMatch{	Names: []string{"sa3"},
+				ServiceAccounts: &apiv3.ServiceAccountMatch{	Names: []string{"sa3"},
 										Selector: "key == 'value2'",
 									},
 			},
