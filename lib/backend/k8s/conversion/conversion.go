@@ -25,7 +25,6 @@ import (
 	kapiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/names"
@@ -48,7 +47,8 @@ const (
 
 //TODO: make this private and expose a public conversion interface instead
 type Converter struct {
-	af *apiconfig.AlphaFeatureType
+	// AlphaSA set to true if the alpha feature for serviceaccounts is enabled.
+	AlphaSA bool
 }
 
 // VethNameForWorkload returns a deterministic veth name
@@ -147,13 +147,13 @@ func (c Converter) HasIPAddress(pod *kapiv1.Pod) bool {
 // has verified that the provided Pod is valid to convert to a WorkloadEndpoint.
 // PodToWorkloadEndpoint requires a Pods Name and Node Name to be populated. It will
 // fail to convert from a Pod to WorkloadEndpoint otherwise.
-func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod, alphaSA bool) (*model.KVPair, error) {
+func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error) {
 	// Get all the profiles that apply
 	var profiles []string
 	// Pull out the Namespace based profile off the pod name and Namespace.
 	profiles = append(profiles, NamespaceProfileNamePrefix+pod.Namespace)
 	// Pull out the Serviceaccount based profile off the pod SA and namespace
-	if alphaSA == true && pod.Spec.ServiceAccountName != "" {
+	if c.AlphaSA == true && pod.Spec.ServiceAccountName != "" {
 		profiles = append(profiles, serviceAccountNameToProfileName(pod.Spec.ServiceAccountName, pod.Namespace))
 	}
 
@@ -194,7 +194,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod, alphaSA bool) (*model.
 	labels[apiv2.LabelOrchestrator] = apiv2.OrchestratorKubernetes
 
 	var saName string
-	if alphaSA == true && pod.Spec.ServiceAccountName != "" {
+	if c.AlphaSA == true && pod.Spec.ServiceAccountName != "" {
 		saName = ServiceAccountWithNamespace(pod.Spec.ServiceAccountName, pod.Namespace)
 		labels[apiv2.LabelServiceAccount] = saName
 	}

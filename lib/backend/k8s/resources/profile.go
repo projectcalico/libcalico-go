@@ -33,10 +33,11 @@ import (
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 )
 
-func NewProfileClient(c *kubernetes.Clientset, af *apiconfig.AlphaFeatureType) K8sResourceClient {
+func NewProfileClient(c *kubernetes.Clientset, af string) K8sResourceClient {
+	alphaSA := apiconfig.IsAlphaFeatureSet(af, apiconfig.AlphaFeatureSA)
 	return &profileClient{
-		clientSet:     c,
-		alphaFeatures: af,
+		clientSet: c,
+		Converter: conversion.Converter{AlphaSA: alphaSA},
 	}
 }
 
@@ -44,7 +45,6 @@ func NewProfileClient(c *kubernetes.Clientset, af *apiconfig.AlphaFeatureType) K
 type profileClient struct {
 	clientSet *kubernetes.Clientset
 	conversion.Converter
-	alphaFeatures *apiconfig.AlphaFeatureType
 }
 
 func (c *profileClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
@@ -135,7 +135,7 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 		return c.getNamespace(ctx, rk.Name, nsRev)
 	}
 
-	if c.alphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+	if c.AlphaSA == false {
 		return nil, fmt.Errorf("Revision %s invalid", revision)
 	}
 
@@ -192,7 +192,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		kvps = append(kvps, kvp)
 	}
 
-	if c.alphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+	if c.AlphaSA == false {
 		return &model.KVPairList{
 			KVPairs:  kvps,
 			Revision: namespaces.ResourceVersion,
@@ -256,7 +256,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 
 	nsWatcher := newK8sWatcherConverter(ctx, "Profile-NS", converter, nsWatch)
 
-	if c.alphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+	if c.AlphaSA == false {
 		return nsWatcher, nil
 	}
 
@@ -446,7 +446,7 @@ func (pw *profileWatcher) processProfileEvents() {
 }
 
 func (c *profileClient) joinRevs(ns, sa string) string {
-	if c.alphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+	if c.AlphaSA == false {
 		return ns
 	}
 
@@ -454,7 +454,7 @@ func (c *profileClient) joinRevs(ns, sa string) string {
 }
 
 func (c *profileClient) splitRev(in string) (string, string, error) {
-	if c.alphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+	if c.AlphaSA == false {
 		return in, "", nil
 	}
 

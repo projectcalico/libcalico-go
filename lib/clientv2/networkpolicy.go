@@ -135,17 +135,17 @@ func (r networkPolicies) Watch(ctx context.Context, opts options.ListOptions) (w
 }
 
 func (r networkPolicies) checkAlphaFeatures(res *apiv2.NetworkPolicy) error {
-	if r.client.config.Spec.AlphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
+	if apiconfig.IsAlphaFeatureSet(r.client.config.Spec.AlphaFeatures, apiconfig.AlphaFeatureSA) == false {
 		errS := fmt.Sprintf("NP %s invalid alpha feature %s used.", res.GetObjectMeta().GetName(), apiconfig.AlphaFeatureSA)
 		for _, rule := range res.Spec.Ingress {
 			if rule.Source.ServiceAccounts != nil ||
-                           rule.Destination.ServiceAccounts != nil {
+				rule.Destination.ServiceAccounts != nil {
 				return errors.New(errS)
 			}
 		}
 		for _, rule := range res.Spec.Egress {
 			if rule.Source.ServiceAccounts != nil ||
-                           rule.Destination.ServiceAccounts != nil {
+				rule.Destination.ServiceAccounts != nil {
 				return errors.New(errS)
 			}
 		}

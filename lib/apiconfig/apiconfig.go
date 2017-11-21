@@ -15,15 +15,14 @@
 package apiconfig
 
 import (
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apiv2 "github.com/projectcalico/libcalico-go/lib/apis/v2"
 )
 
 type DatastoreType string
-type AlphaFeatureType struct {
-	features map[string]struct{}
-}
 
 const (
 	EtcdV3              DatastoreType = "etcdv3"
@@ -48,8 +47,8 @@ type CalicoAPIConfigSpec struct {
 	EtcdConfig
 	// Inline the k8s config fields.
 	KubeConfig
-	// Alpha Feature set
-	AlphaFeatures AlphaFeatureType `json:"alphafeatures" envconfig:"ALPHA_FEATURES" default:""`
+	// Alpha Feature set: comma seprated list of alpha features that are enabled.
+	AlphaFeatures string `json:"alphafeatures" envconfig:"ALPHA_FEATURES" default:""`
 }
 
 type EtcdConfig struct {
@@ -83,9 +82,18 @@ func NewCalicoAPIConfig() *CalicoAPIConfig {
 	}
 }
 
-func (a *AlphaFeatureType) Get(name string) bool {
-	if _, ok := a.features[name]; ok {
-		return true
+// IsAlphaFeatureSet checks if the comma separated features have the
+// name set in it.
+func IsAlphaFeatureSet(features, name string) bool {
+	if features == "" {
+		return false
+	}
+
+	fs := strings.Split(features, ",")
+	for _, f := range fs {
+		if f == name {
+			return true
+		}
 	}
 
 	return false

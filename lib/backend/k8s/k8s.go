@@ -70,12 +70,9 @@ type KubeClient struct {
 
 	// Non v2 resource clients keyed off List Type.
 	clientsByListType map[reflect.Type]resources.K8sResourceClient
-
-	// Features enabled
-	alphaConfig *apiconfig.AlphaFeatureType
 }
 
-func NewKubeClient(kc *apiconfig.KubeConfig, ac *apiconfig.AlphaFeatureType) (api.Client, error) {
+func NewKubeClient(kc *apiconfig.KubeConfig, af string) (api.Client, error) {
 	// Use the kubernetes client code to load the kubeconfig file and combine it with the overrides.
 	log.Debugf("Building client for config: %+v", kc)
 	configOverrides := &clientcmd.ConfigOverrides{}
@@ -135,7 +132,6 @@ func NewKubeClient(kc *apiconfig.KubeConfig, ac *apiconfig.AlphaFeatureType) (ap
 		clientsByResourceKind: make(map[string]resources.K8sResourceClient),
 		clientsByKeyType:      make(map[reflect.Type]resources.K8sResourceClient),
 		clientsByListType:     make(map[reflect.Type]resources.K8sResourceClient),
-		alphaConfig:           ac,
 	}
 
 	// Create the Calico sub-clients and register them.
@@ -191,13 +187,13 @@ func NewKubeClient(kc *apiconfig.KubeConfig, ac *apiconfig.AlphaFeatureType) (ap
 		reflect.TypeOf(model.ResourceKey{}),
 		reflect.TypeOf(model.ResourceListOptions{}),
 		apiv2.KindProfile,
-		resources.NewProfileClient(cs, kubeClient.alphaConfig),
+		resources.NewProfileClient(cs, af),
 	)
 	kubeClient.registerResourceClient(
 		reflect.TypeOf(model.ResourceKey{}),
 		reflect.TypeOf(model.ResourceListOptions{}),
 		apiv2.KindWorkloadEndpoint,
-		resources.NewWorkloadEndpointClient(cs, kubeClient.alphaConfig),
+		resources.NewWorkloadEndpointClient(cs, af),
 	)
 	kubeClient.registerResourceClient(
 		reflect.TypeOf(model.BlockAffinityKey{}),
