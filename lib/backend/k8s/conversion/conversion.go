@@ -193,7 +193,6 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 	labels[apiv3.LabelNamespace] = pod.Namespace
 	labels[apiv3.LabelOrchestrator] = apiv3.OrchestratorKubernetes
 
-	var saName string
 	if c.AlphaSA == true && pod.Spec.ServiceAccountName != "" {
 		labels[apiv3.LabelServiceAccount] = pod.Spec.ServiceAccountName
 	}
