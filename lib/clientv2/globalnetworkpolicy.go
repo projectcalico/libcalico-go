@@ -16,6 +16,8 @@ package clientv2
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
@@ -134,10 +136,19 @@ func (r globalnetworkpolicies) Watch(ctx context.Context, opts options.ListOptio
 
 func (r globalnetworkpolicies) checkAlphaFeatures(res *apiv2.GlobalNetworkPolicy) error {
 	if r.client.config.Spec.AlphaFeatures.Get(apiconfig.AlphaFeatureSA) == false {
-		if res.Spec.Ingress.Rule.Source.ServiceAccounts != nil ||
-			res.Spec.Egress.Rule.Destination.ServiceAccounts != nil {
-			errS := fmt.Sprintf("Global NP %s invalid alpha feature %s used.", res.GetObjectMeta().GetName(), apiconfig.AlphaFeatureSA)
-			return error.New(errS)
+		errS := fmt.Sprintf("Global NP %s invalid alpha feature %s used.", res.GetObjectMeta().GetName(), apiconfig.AlphaFeatureSA)
+		for _, rule := range res.Spec.Ingress {
+			if rule.Source.ServiceAccounts != nil ||
+                           rule.Destination.ServiceAccounts != nil {
+				return errors.New(errS)
+			}
+		}
+
+		for _, rule := range res.Spec.Egress {
+			if rule.Source.ServiceAccounts != nil ||
+                           rule.Destination.ServiceAccounts != nil {
+				return errors.New(errS)
+			}
 		}
 	}
 
