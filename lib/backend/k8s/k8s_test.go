@@ -272,7 +272,7 @@ func (c cb) GetSyncerValuePresentFunc(key model.Key) func() interface{} {
 
 func CreateClientAndSyncer(cfg apiconfig.KubeConfig) (*KubeClient, *cb, api.Syncer) {
 	// First create the client.
-	c, err := NewKubeClient(&cfg)
+	c, err := NewKubeClient(&cfg, "")
 	if err != nil {
 		panic(err)
 	}

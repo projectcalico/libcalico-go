@@ -73,6 +73,17 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 		})
 	}
 
+	var srcSANames, srcSASelector, dstSANames, dstSASelector string
+	if ar.Source.ServiceAccounts != nil {
+		srcSANames = ar.Source.ServiceAccounts.Names
+		srcSASelector = ar.Source.ServiceAccounts.Selector
+	}
+
+	if ar.Destination.ServiceAccounts != nil {
+		srcSANames = ar.Destination.ServiceAccounts.Names
+		srcSASelector = ar.Destination.ServiceAccounts.Selector
+	}
+
 	return model.Rule{
 		Action:      ruleActionAPIToBackend(ar.Action),
 		IPVersion:   ar.IPVersion,
@@ -88,15 +99,15 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 		SrcNets:       ar.Source.Nets,
 		SrcSelector:   ar.Source.Selector,
 		SrcPorts:      ar.Source.Ports,
-		SrcSANames:    ar.Source.ServiceAccounts.Names,
-		SrcSASelector: ar.Source.ServiceAccounts.Selector,
+		SrcSANames:    srcSANames,
+		SrcSASelector: srcSASelector,
 		DstTag:        ar.Destination.Tag,
 		DstNet:        normalizeIPNet(ar.Destination.Net),
 		DstNets:       normalizeIPNets(ar.Destination.Nets),
 		DstSelector:   ar.Destination.Selector,
 		DstPorts:      ar.Destination.Ports,
-		DstSANames:    ar.Destination.ServiceAccounts.Names,
-		DstSASelector: ar.Destination.ServiceAccounts.Selector,
+		DstSANames:    dstSANames,
+		DstSASelector: dstSASelector,
 
 		NotSrcTag:      ar.Source.NotTag,
 		NotSrcNet:      ar.Source.NotNet,
@@ -155,6 +166,21 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 			Type: br.NotICMPType,
 		}
 	}
+
+	var srcSA, dstSA *api.ServiceAccountMatch
+	if br.SrcSANames != "" || br.SrcSASelector != "" {
+		srcSA = &api.ServiceAccountMatch{
+			Names:    br.SrcSANames,
+			Selector: br.SrcSASelector,
+		}
+	}
+	if br.DstSANames != "" || br.DstSASelector != "" {
+		dstSA = &api.ServiceAccountMatch{
+			Names:    br.DstSANames,
+			Selector: br.DstSASelector,
+		}
+	}
+
 	return api.Rule{
 		Action:      ruleActionBackendToAPI(br.Action),
 		IPVersion:   br.IPVersion,
@@ -163,36 +189,29 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 		NotProtocol: br.NotProtocol,
 		NotICMP:     notICMP,
 		Source: api.EntityRule{
-			Tag:         br.SrcTag,
-			Nets:        br.AllSrcNets(),
-			Selector:    br.SrcSelector,
-			Ports:       br.SrcPorts,
-			NotTag:      br.NotSrcTag,
-			NotNets:     br.AllNotSrcNets(),
-			NotSelector: br.NotSrcSelector,
-			NotPorts:    br.NotSrcPorts,
-			ServiceAccounts: &api.ServiceAccountMatch{
-				Names:     br.SrcSANames,
-				Selector:  br.SrcSASelector,
-			},
+			Tag:             br.SrcTag,
+			Nets:            br.AllSrcNets(),
+			Selector:        br.SrcSelector,
+			Ports:           br.SrcPorts,
+			NotTag:          br.NotSrcTag,
+			NotNets:         br.AllNotSrcNets(),
+			NotSelector:     br.NotSrcSelector,
+			NotPorts:        br.NotSrcPorts,
+			ServiceAccounts: srcSA,
 		},
 
 		Destination: api.EntityRule{
-			Tag:         br.DstTag,
-			Nets:        br.AllDstNets(),
-			Selector:    br.DstSelector,
-			Ports:       br.DstPorts,
-			NotTag:      br.NotDstTag,
-			NotNets:     br.AllNotDstNets(),
-			NotSelector: br.NotDstSelector,
-			NotPorts:    br.NotDstPorts,
-			ServiceAccounts: &api.ServiceAccountMatch{
-				Names:     br.DstSANames,
-				Selector:  br.DstSASelector,
-			},
-
-			HTTP: httpRuleBackendToAPI(br.HTTP),
+			Tag:             br.DstTag,
+			Nets:            br.AllDstNets(),
+			Selector:        br.DstSelector,
+			Ports:           br.DstPorts,
+			NotTag:          br.NotDstTag,
+			NotNets:         br.AllNotDstNets(),
+			NotSelector:     br.NotDstSelector,
+			NotPorts:        br.NotDstPorts,
+			ServiceAccounts: dstSA,
 		},
+		HTTP: httpRuleBackendToAPI(br.HTTP),
 	}
 }
 
