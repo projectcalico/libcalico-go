@@ -309,15 +309,15 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		r := apiv3.Rule{
 			Action: apiv3.Allow,
 			Source: apiv3.EntityRule{
-				ServiceAccounts: &apiv3.ServiceAccountMatch{	Names: []string{"sa1", "sa2"},
-										Selector: "key == 'value1'",
-									},
+				ServiceAccounts: &apiv3.ServiceAccountMatch{Names: []string{"sa1", "sa2"},
+					Selector: "key == 'value1'",
+				},
 			},
 			Destination: apiv3.EntityRule{
 				NamespaceSelector: "nskey == 'nsvalue'",
-				ServiceAccounts: &apiv3.ServiceAccountMatch{	Names: []string{"sa3"},
-										Selector: "key == 'value2'",
-									},
+				ServiceAccounts: &apiv3.ServiceAccountMatch{Names: []string{"sa3"},
+					Selector: "key == 'value2'",
+				},
 			},
 		}
 

@@ -20,7 +20,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
@@ -290,7 +289,7 @@ var _ = Describe("Test the WorkloadEndpoint update processor", func() {
 			"projectcalico.org/orchestrator": oid1,
 			nsLabel: "ns1",
 			saLabel: "sa1",
-			"k1": "v1",
+			"k1":    "v1",
 		}
 		res.Spec.Node = hn1
 		res.Spec.Orchestrator = oid1
