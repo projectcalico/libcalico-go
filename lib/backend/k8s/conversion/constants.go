@@ -18,6 +18,6 @@ const (
 	NamespaceLabelPrefix            = "pcns."
 	NamespaceProfileNamePrefix      = "kns."
 	K8sNetworkPolicyNamePrefix      = "knp.default."
-	ServiceAccountLabelPrefix       = "pcsa."
-	ServiceAccountProfileNamePrefix = "ksa."
+	ServiceAccountLabelPrefix       = "pcsa/"
+	ServiceAccountProfileNamePrefix = "ksa/"
 )

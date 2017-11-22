@@ -193,7 +193,9 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 	labels[apiv3.LabelNamespace] = pod.Namespace
 	labels[apiv3.LabelOrchestrator] = apiv3.OrchestratorKubernetes
 
+	var saName string
 	if c.AlphaSA == true && pod.Spec.ServiceAccountName != "" {
+		saName = pod.Spec.ServiceAccountName
 		labels[apiv3.LabelServiceAccount] = pod.Spec.ServiceAccountName
 	}
 
@@ -236,14 +238,15 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 		Labels:            labels,
 	}
 	wep.Spec = apiv3.WorkloadEndpointSpec{
-		Orchestrator:  "k8s",
-		Node:          pod.Spec.NodeName,
-		Pod:           pod.Name,
-		Endpoint:      "eth0",
-		InterfaceName: interfaceName,
+		Orchestrator:   "k8s",
+		Node:           pod.Spec.NodeName,
+		Pod:            pod.Name,
+		Endpoint:       "eth0",
+		InterfaceName:  interfaceName,
 		Profiles:       profiles,
-		IPNetworks:    ipNets,
-		Ports:         endpointPorts,
+		IPNetworks:     ipNets,
+		Ports:          endpointPorts,
+		ServiceAccount: saName,
 	}
 
 	// Embed the workload endpoint into a KVPair.
@@ -572,13 +575,19 @@ func (c Converter) SplitRevision(rev string) (RevA string, RevB string, err erro
 	return
 }
 
+// serviceAccountNameToProfileName creates a profile name that is a join
+// of 'ksa/' + namespace + "/" + serviceaccount name.
+// namespace can only have [a-z0-9] and '-'. But serviceaccount name may have
+// '.'.
+// Ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+// Hence the use of "/" as a separator
 func serviceAccountNameToProfileName(sa, namespace string) string {
 	// Need to incorporate the namespace into the name of the sa based profile
 	// to make them globally unique
 	if namespace == "" {
 		namespace = "default"
 	}
-	return ServiceAccountProfileNamePrefix + namespace + "." + sa
+	return ServiceAccountProfileNamePrefix + namespace + "/" + sa
 }
 
 // ServiceAccountToProfile converts a ServiceAccount to a Calico Profile.  The Profile stores
@@ -626,7 +635,7 @@ func (c Converter) ProfileNameToServiceAccount(profileName string) (ns, sa strin
 		return
 	}
 
-	names := strings.Split(profileName, ".")
+	names := strings.Split(profileName, "/")
 	if len(names) != 3 {
 		err = fmt.Errorf("Profile %s is not formatted correctly", profileName)
 		return
