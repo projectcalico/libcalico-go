@@ -119,14 +119,6 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 		NotDstNets:     normalizeIPNets(ar.Destination.NotNets),
 		NotDstSelector: ar.Destination.NotSelector,
 		NotDstPorts:    ar.Destination.NotPorts,
-
-		HTTP: httpRuleAPIToBackend(ar.HTTP),
-	}
-}
-
-func httpRuleAPIToBackend(rule api.HTTPRule) model.HTTPRule {
-	return model.HTTPRule{
-		Methods: rule.Methods,
 	}
 }
 
@@ -211,13 +203,6 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 			NotPorts:        br.NotDstPorts,
 			ServiceAccounts: dstSA,
 		},
-		HTTP: httpRuleBackendToAPI(br.HTTP),
-	}
-}
-
-func httpRuleBackendToAPI(rule model.HTTPRule) api.HTTPRule {
-	return api.HTTPRule{
-		Methods: rule.Methods,
 	}
 }
 
