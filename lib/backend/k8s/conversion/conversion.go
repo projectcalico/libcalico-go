@@ -626,7 +626,7 @@ func (c Converter) ServiceAccountToProfile(sa *kapiv1.ServiceAccount) (*model.KV
 	return &kvp, nil
 }
 
-// ProfileNameToService extracts the ServiceAccount name from the given Profile name.
+// ProfileNameToServiceAccount extracts the ServiceAccount name from the given Profile name.
 func (c Converter) ProfileNameToServiceAccount(profileName string) (ns, sa string, err error) {
 	// Profile objects backed by Namespaces have form "kns.<ns_name>"
 	if !strings.HasPrefix(profileName, ServiceAccountProfileNamePrefix) {

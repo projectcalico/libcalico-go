@@ -204,7 +204,7 @@ func parseNamespaceSelector(s string) string {
 }
 
 // parseServiceAccounts takes a v2 service account selector and returns the appropriate v1 representation
-// by prefixing the keys with the `pcsa.` prefix. For example, `k == 'v'` becomes `pcsa.k == 'v'`.
+// by prefixing the keys with the `pcsa/` prefix. For example, `k == 'v'` becomes `pcsa/k == 'v'`.
 func parseServiceAccounts(sam *apiv3.ServiceAccountMatch) string {
 
 	parsedSelector, err := parser.Parse(sam.Selector)

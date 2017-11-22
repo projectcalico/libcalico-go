@@ -151,6 +151,7 @@ type ServiceAccountMatch struct {
 
 	// Selector is an optional field that restricts the rule to only apply to traffic that originates from
 	// (or terminates at) a pod running as a service account that matches the given label selector.
+	// If both Names and Selector are specified then they are AND'ed.
 	Selector string `json:"selector,omitempty" validate:"omitempty"`
 }
 

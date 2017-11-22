@@ -47,7 +47,7 @@ type CalicoAPIConfigSpec struct {
 	EtcdConfig
 	// Inline the k8s config fields.
 	KubeConfig
-	// Alpha Feature set: comma seprated list of alpha features that are enabled.
+	// Alpha Feature set: comma separated list of alpha features that are enabled.
 	AlphaFeatures string `json:"alphafeatures" envconfig:"ALPHA_FEATURES" default:""`
 }
 

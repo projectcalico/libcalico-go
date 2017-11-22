@@ -173,7 +173,6 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 			NotPorts:    br.NotSrcPorts,
 			ServiceAccounts: &api.ServiceAccountMatch{
 				Names:     br.SrcSANames,
-				Namespace: br.SrcSANamespace,
 				Selector:  br.SrcSASelector,
 			},
 		},
@@ -189,7 +188,6 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 			NotPorts:    br.NotDstPorts,
 			ServiceAccounts: &api.ServiceAccountMatch{
 				Names:     br.DstSANames,
-				Namespace: br.DstSANamespace,
 				Selector:  br.DstSASelector,
 			},
 
