@@ -73,17 +73,6 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 		})
 	}
 
-	var srcSANames, srcSASelector, dstSANames, dstSASelector string
-	if ar.Source.ServiceAccounts != nil {
-		srcSANames = ar.Source.ServiceAccounts.Names
-		srcSASelector = ar.Source.ServiceAccounts.Selector
-	}
-
-	if ar.Destination.ServiceAccounts != nil {
-		srcSANames = ar.Destination.ServiceAccounts.Names
-		srcSASelector = ar.Destination.ServiceAccounts.Selector
-	}
-
 	return model.Rule{
 		Action:      ruleActionAPIToBackend(ar.Action),
 		IPVersion:   ar.IPVersion,
@@ -99,15 +88,11 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 		SrcNets:       ar.Source.Nets,
 		SrcSelector:   ar.Source.Selector,
 		SrcPorts:      ar.Source.Ports,
-		SrcSANames:    srcSANames,
-		SrcSASelector: srcSASelector,
 		DstTag:        ar.Destination.Tag,
 		DstNet:        normalizeIPNet(ar.Destination.Net),
 		DstNets:       normalizeIPNets(ar.Destination.Nets),
 		DstSelector:   ar.Destination.Selector,
 		DstPorts:      ar.Destination.Ports,
-		DstSANames:    dstSANames,
-		DstSASelector: dstSASelector,
 
 		NotSrcTag:      ar.Source.NotTag,
 		NotSrcNet:      ar.Source.NotNet,
@@ -159,20 +144,6 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 		}
 	}
 
-	var srcSA, dstSA *api.ServiceAccountMatch
-	if br.SrcSANames != "" || br.SrcSASelector != "" {
-		srcSA = &api.ServiceAccountMatch{
-			Names:    br.SrcSANames,
-			Selector: br.SrcSASelector,
-		}
-	}
-	if br.DstSANames != "" || br.DstSASelector != "" {
-		dstSA = &api.ServiceAccountMatch{
-			Names:    br.DstSANames,
-			Selector: br.DstSASelector,
-		}
-	}
-
 	return api.Rule{
 		Action:      ruleActionBackendToAPI(br.Action),
 		IPVersion:   br.IPVersion,
@@ -189,7 +160,6 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 			NotNets:         br.AllNotSrcNets(),
 			NotSelector:     br.NotSrcSelector,
 			NotPorts:        br.NotSrcPorts,
-			ServiceAccounts: srcSA,
 		},
 
 		Destination: api.EntityRule{
@@ -201,7 +171,6 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 			NotNets:         br.AllNotDstNets(),
 			NotSelector:     br.NotDstSelector,
 			NotPorts:        br.NotDstPorts,
-			ServiceAccounts: dstSA,
 		},
 	}
 }
