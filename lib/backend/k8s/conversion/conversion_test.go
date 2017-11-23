@@ -59,7 +59,7 @@ var _ = Describe("Test parsing strings", func() {
 	})
 
 	It("should parse valid sa profile names", func() {
-		name := "ksa/default/test"
+		name := "ksa.default.test"
 		ns, sa, err := c.ProfileNameToServiceAccount(name)
 		Expect(sa).To(Equal("test"))
 		Expect(ns).To(Equal("default"))
@@ -67,7 +67,7 @@ var _ = Describe("Test parsing strings", func() {
 	})
 
 	It("should parse valid sa profile names with dot(.)", func() {
-		name := "ksa/default/test.foo"
+		name := "ksa.default.test.foo"
 		ns, sa, err := c.ProfileNameToServiceAccount(name)
 		Expect(sa).To(Equal("test.foo"))
 		Expect(ns).To(Equal("default"))
@@ -1881,7 +1881,7 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		p, err := c.ServiceAccountToProfile(&sa)
 		Expect(err).NotTo(HaveOccurred())
 
-		Expect(p.Key.(model.ResourceKey).Name).To(Equal("ksa/default/sa-test"))
+		Expect(p.Key.(model.ResourceKey).Name).To(Equal("ksa.default.sa-test"))
 		Expect(p.Key.(model.ResourceKey).Kind).To(Equal(apiv3.KindProfile))
 
 		// Ensure rules are correct for profile.
@@ -1896,8 +1896,8 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 
 		// Check labels.
 		labels := p.Value.(*apiv3.Profile).Spec.LabelsToApply
-		Expect(labels["pcsa/foo"]).To(Equal("bar"))
-		Expect(labels["pcsa/roger"]).To(Equal("rabbit"))
+		Expect(labels["pcsa.foo"]).To(Equal("bar"))
+		Expect(labels["pcsa.roger"]).To(Equal("rabbit"))
 	})
 
 	It("should parse a ServiceAccount in Namespace to a Profile", func() {
@@ -1912,7 +1912,7 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		p, err := c.ServiceAccountToProfile(&sa)
 		Expect(err).NotTo(HaveOccurred())
 
-		Expect(p.Key.(model.ResourceKey).Name).To(Equal("ksa/test/sa-test"))
+		Expect(p.Key.(model.ResourceKey).Name).To(Equal("ksa.test.sa-test"))
 		Expect(p.Key.(model.ResourceKey).Kind).To(Equal(apiv3.KindProfile))
 	})
 

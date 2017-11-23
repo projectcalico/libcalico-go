@@ -576,18 +576,14 @@ func (c Converter) SplitRevision(rev string) (RevA string, RevB string, err erro
 }
 
 // serviceAccountNameToProfileName creates a profile name that is a join
-// of 'ksa/' + namespace + "/" + serviceaccount name.
-// namespace can only have [a-z0-9] and '-'. But serviceaccount name may have
-// '.'.
-// Ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-// Hence the use of "/" as a separator
+// of 'ksa.' + namespace + "." + serviceaccount name.
 func serviceAccountNameToProfileName(sa, namespace string) string {
 	// Need to incorporate the namespace into the name of the sa based profile
 	// to make them globally unique
 	if namespace == "" {
 		namespace = "default"
 	}
-	return ServiceAccountProfileNamePrefix + namespace + "/" + sa
+	return ServiceAccountProfileNamePrefix + namespace + "." + sa
 }
 
 // ServiceAccountToProfile converts a ServiceAccount to a Calico Profile.  The Profile stores
@@ -635,7 +631,7 @@ func (c Converter) ProfileNameToServiceAccount(profileName string) (ns, sa strin
 		return
 	}
 
-	names := strings.Split(profileName, "/")
+	names := strings.SplitN(profileName, ".", 3)
 	if len(names) != 3 {
 		err = fmt.Errorf("Profile %s is not formatted correctly", profileName)
 		return

@@ -221,13 +221,8 @@ func parseServiceAccounts(sam *apiv3.ServiceAccountMatch) string {
 	}
 
 	// Convert the list of ServiceAccounts to selector
-	var namesSelector, comma string
-	namesSelector = fmt.Sprintf("%s in { ", apiv3.LabelServiceAccount)
-	for _, name := range sam.Names {
-		namesSelector = fmt.Sprintf("%s%s'%s'", namesSelector, comma, name)
-		comma = ", "
-	}
-	namesSelector = fmt.Sprintf("%s }", namesSelector)
+	names := strings.Join(sam.Names, "', '")
+	namesSelector := fmt.Sprintf("%s in { '%s' }", apiv3.LabelServiceAccount, names)
 
 	// A list of Service account names are AND'd with the selectors.
 	// TBD: U sure about that?
