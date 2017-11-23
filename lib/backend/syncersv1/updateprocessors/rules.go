@@ -58,7 +58,7 @@ func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 	if ar.Source.NamespaceSelector != "" {
 		// A namespace selector was given - the rule applies to all namespaces
 		// which match this selector.
-		sourceNSSelector = parseNamespaceSelector(ar.Source.NamespaceSelector)
+		sourceNSSelector = parseSelectorAttachPrefix(ar.Source.NamespaceSelector, conversion.NamespaceLabelPrefix)
 	} else if ns != "" {
 		// No namespace selector was given and this is a namespaced network policy,
 		// so the rule applies only to its own namespace.
@@ -69,7 +69,7 @@ func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 	if ar.Destination.NamespaceSelector != "" {
 		// A namespace selector was given - the rule applies to all namespaces
 		// which match this selector.
-		destNSSelector = parseNamespaceSelector(ar.Destination.NamespaceSelector)
+		destNSSelector = parseSelectorAttachPrefix(ar.Destination.NamespaceSelector, conversion.NamespaceLabelPrefix)
 	} else if ns != "" {
 		// No namespace selector was given and this is a namespaced network policy,
 		// so the rule applies only to its own namespace.
@@ -189,47 +189,47 @@ func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 	}
 }
 
-// parseNamespaceSelector takes a v3 namespace selector and returns the appropriate v1 representation
-// by prefixing the keys with the `pcns.` prefix. For example, `k == 'v'` becomes `pcns.k == 'v'`.
-func parseNamespaceSelector(s string) string {
+// parseSelectorAttachPrefix takes a v3 selector and returns the appropriate v1 representation
+// by prefixing the keys with the given prefix.
+// If prefix is `pcns.` then the selector changes from `k == 'v'` to `pcns.k == 'v'`.
+func parseSelectorAttachPrefix(s, prefix string) string {
 	parsedSelector, err := parser.Parse(s)
 	if err != nil {
-		log.WithError(err).Errorf("Failed to parse namespace selector: %s", s)
+		log.WithError(err).Errorf("Failed to parse selector: %s (for prefix) %s", s, prefix)
 		return ""
 	}
-	parsedSelector.AcceptVisitor(parser.PrefixVisitor{Prefix: conversion.NamespaceLabelPrefix})
+	parsedSelector.AcceptVisitor(parser.PrefixVisitor{Prefix: prefix})
 	updated := parsedSelector.String()
-	log.WithFields(log.Fields{"original": s, "updated": updated}).Debug("Updated namespace selector")
+	log.WithFields(log.Fields{"original": s, "updated": updated}).Debug("Updated selector")
 	return updated
 }
 
-// parseServiceAccounts takes a v2 service account selector and returns the appropriate v1 representation
-// by prefixing the keys with the `pcsa/` prefix. For example, `k == 'v'` becomes `pcsa/k == 'v'`.
+// parseServiceAccounts takes a v3 service account match and returns the appropriate v1 representation
+// by converting the list of service account names into a set of service account with
+// key: "projectcalico.org/serviceaccount" in { 'sa-1', 'sa-2' } AND
+// by prefixing the keys with the `pcsa.` prefix. For example, `k == 'v'` becomes `pcsa.k == 'v'`.
 func parseServiceAccounts(sam *apiv3.ServiceAccountMatch) string {
 
-	parsedSelector, err := parser.Parse(sam.Selector)
-	if err != nil {
-		log.WithError(err).Errorf("Failed to parse service account selector: %s", sam.Names)
-		return ""
+	var updated string
+	if sam.Selector != "" {
+		updated = parseSelectorAttachPrefix(sam.Selector, conversion.ServiceAccountLabelPrefix)
 	}
-
-	parsedSelector.AcceptVisitor(parser.PrefixVisitor{Prefix: conversion.ServiceAccountLabelPrefix})
-	updated := parsedSelector.String()
-	log.WithFields(log.Fields{"original": sam.Selector, "updated": updated}).Debug("Updated service account selector")
 	if len(sam.Names) == 0 {
 		return updated
 	}
 
 	// Convert the list of ServiceAccounts to selector
 	names := strings.Join(sam.Names, "', '")
-	namesSelector := fmt.Sprintf("%s in { '%s' }", apiv3.LabelServiceAccount, names)
+	selectors := fmt.Sprintf("%s in { '%s' }", apiv3.LabelServiceAccount, names)
 
 	// A list of Service account names are AND'd with the selectors.
-	// TBD: U sure about that?
-	selectors := updated + " && " + namesSelector
+	if updated != "" {
+		selectors = updated + " && " + selectors
+	}
 	log.Debugf("SA Selector pre-parse is: %s", selectors)
 
-	parsedSelector, err = parser.Parse(selectors)
+	// TBD: Do i need this section now or is selectors ready for consumption?
+	parsedSelector, err := parser.Parse(selectors)
 	if err != nil {
 		log.WithError(err).Errorf("Failed to parse service account selector: %s", selectors)
 		return ""

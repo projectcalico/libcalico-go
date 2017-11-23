@@ -1887,12 +1887,8 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		// Ensure rules are correct for profile.
 		Ingress := p.Value.(*apiv3.Profile).Spec.Ingress
 		Egress := p.Value.(*apiv3.Profile).Spec.Egress
-		Expect(len(Ingress)).To(Equal(1))
-		Expect(len(Egress)).To(Equal(1))
-
-		// Ensure both inbound and outbound rules are set to allow.
-		Expect(Ingress[0]).To(Equal(apiv3.Rule{Action: apiv3.Allow}))
-		Expect(Egress[0]).To(Equal(apiv3.Rule{Action: apiv3.Allow}))
+		Expect(len(Ingress)).To(Equal(0))
+		Expect(len(Egress)).To(Equal(0))
 
 		// Check labels.
 		labels := p.Value.(*apiv3.Profile).Spec.LabelsToApply

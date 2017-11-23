@@ -148,12 +148,15 @@ func (c Converter) HasIPAddress(pod *kapiv1.Pod) bool {
 // PodToWorkloadEndpoint requires a Pods Name and Node Name to be populated. It will
 // fail to convert from a Pod to WorkloadEndpoint otherwise.
 func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error) {
+
 	// Get all the profiles that apply
 	var profiles []string
+
 	// Pull out the Namespace based profile off the pod name and Namespace.
 	profiles = append(profiles, NamespaceProfileNamePrefix+pod.Namespace)
+
 	// Pull out the Serviceaccount based profile off the pod SA and namespace
-	if c.AlphaSA == true && pod.Spec.ServiceAccountName != "" {
+	if c.AlphaSA && pod.Spec.ServiceAccountName != "" {
 		profiles = append(profiles, serviceAccountNameToProfileName(pod.Spec.ServiceAccountName, pod.Namespace))
 	}
 
@@ -194,7 +197,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 	labels[apiv3.LabelOrchestrator] = apiv3.OrchestratorKubernetes
 
 	var saName string
-	if c.AlphaSA == true && pod.Spec.ServiceAccountName != "" {
+	if c.AlphaSA && pod.Spec.ServiceAccountName != "" {
 		saName = pod.Spec.ServiceAccountName
 		labels[apiv3.LabelServiceAccount] = pod.Spec.ServiceAccountName
 	}
@@ -605,8 +608,6 @@ func (c Converter) ServiceAccountToProfile(sa *kapiv1.ServiceAccount) (*model.KV
 		UID:               sa.UID,
 	}
 	profile.Spec = apiv3.ProfileSpec{
-		Ingress:       []apiv3.Rule{{Action: apiv3.Allow}},
-		Egress:        []apiv3.Rule{{Action: apiv3.Allow}},
 		LabelsToApply: labels,
 	}
 

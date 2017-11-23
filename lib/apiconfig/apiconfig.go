@@ -85,9 +85,6 @@ func NewCalicoAPIConfig() *CalicoAPIConfig {
 // IsAlphaFeatureSet checks if the comma separated features have the
 // name set in it.
 func IsAlphaFeatureSet(features, name string) bool {
-	if features == "" {
-		return false
-	}
 
 	fs := strings.Split(features, ",")
 	for _, f := range fs {
