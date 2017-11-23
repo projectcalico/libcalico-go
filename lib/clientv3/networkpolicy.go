@@ -16,10 +16,8 @@ package clientv3
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	validator "github.com/projectcalico/libcalico-go/lib/validator/v3"
@@ -153,20 +151,9 @@ func (r networkPolicies) Watch(ctx context.Context, opts options.ListOptions) (w
 }
 
 func (r networkPolicies) checkAlphaFeatures(res *apiv3.NetworkPolicy) error {
-	if apiconfig.IsAlphaFeatureSet(r.client.config.Spec.AlphaFeatures, apiconfig.AlphaFeatureSA) == false {
-		errS := fmt.Sprintf("NP %s invalid alpha feature %s used.", res.GetObjectMeta().GetName(), apiconfig.AlphaFeatureSA)
-		for _, rule := range res.Spec.Ingress {
-			if rule.Source.ServiceAccounts != nil ||
-				rule.Destination.ServiceAccounts != nil {
-				return errors.New(errS)
-			}
-		}
-		for _, rule := range res.Spec.Egress {
-			if rule.Source.ServiceAccounts != nil ||
-				rule.Destination.ServiceAccounts != nil {
-				return errors.New(errS)
-			}
-		}
+	err := checkAlphaFeatures(r.client.config.Spec.AlphaFeatures, res.Spec.Ingress, res.Spec.Egress)
+	if err != nil {
+		return fmt.Errorf("NP %s: %s", res.GetObjectMeta().GetName(), err.Error())
 	}
 
 	return nil
