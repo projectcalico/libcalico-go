@@ -40,6 +40,45 @@ func RulesAPIV2ToBackend(ars []apiv3.Rule, ns string) []model.Rule {
 	return brs
 }
 
+// entityRuleAPIV2ToBackend collects the ordered set of selectors for the EntityRule:
+// (serviceAccountSelector) && (selector)
+// It also returns the namespace selector to use
+func entityRuleAPIV2TOBackend(er *apiv3.EntityRule, ns string) (nsSelector, selector string) {
+
+	// Determine which namespaces are impacted by this entityRule.
+	if er.NamespaceSelector != "" {
+		// A namespace selector was given - the rule applies to all namespaces
+		// which match this selector.
+		nsSelector = parseSelectorAttachPrefix(er.NamespaceSelector, conversion.NamespaceLabelPrefix)
+	} else if ns != "" {
+		// No namespace selector was given and this is a namespaced network policy,
+		// so the rule applies only to its own namespace.
+		nsSelector = fmt.Sprintf("%s == '%s'", apiv3.LabelNamespace, ns)
+	}
+
+	var selectors []string
+
+	// Determine which service account selector.
+	if er.ServiceAccounts != nil {
+		// A service account selector was given - the rule applies to all serviceaccount
+		// which match this selector.
+		saSelector := parseServiceAccounts(er.ServiceAccounts)
+		if saSelector != "" {
+			selectors = append(selectors, saSelector)
+		}
+	}
+
+	if er.Selector != "" {
+		selectors = append(selectors, er.Selector)
+	}
+
+	if len(selectors) > 0 {
+		selector = strings.Join(selectors, " && ")
+	}
+
+	return
+}
+
 // RuleAPIToBackend converts an API Rule structure to a Backend Rule structure.
 func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 	var icmpCode, icmpType, notICMPCode, notICMPType *int
@@ -53,113 +92,40 @@ func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 		notICMPType = ar.NotICMP.Type
 	}
 
-	// Determine which namespaces are impacted by this rule.
-	var sourceNSSelector string
-	if ar.Source.NamespaceSelector != "" {
-		// A namespace selector was given - the rule applies to all namespaces
-		// which match this selector.
-		sourceNSSelector = parseSelectorAttachPrefix(ar.Source.NamespaceSelector, conversion.NamespaceLabelPrefix)
-	} else if ns != "" {
-		// No namespace selector was given and this is a namespaced network policy,
-		// so the rule applies only to its own namespace.
-		sourceNSSelector = fmt.Sprintf("%s == '%s'", apiv3.LabelNamespace, ns)
-	}
+	sourceNSSelector, sourceSelector := entityRuleAPIV2TOBackend(&ar.Source, ns)
 
-	var destNSSelector string
-	if ar.Destination.NamespaceSelector != "" {
-		// A namespace selector was given - the rule applies to all namespaces
-		// which match this selector.
-		destNSSelector = parseSelectorAttachPrefix(ar.Destination.NamespaceSelector, conversion.NamespaceLabelPrefix)
-	} else if ns != "" {
-		// No namespace selector was given and this is a namespaced network policy,
-		// so the rule applies only to its own namespace.
-		destNSSelector = fmt.Sprintf("%s == '%s'", apiv3.LabelNamespace, ns)
-	}
-
-	// Determine which service account are impacted by this rule.
-	var sourceSASelector string
-	if ar.Source.ServiceAccounts != nil {
-		// A service account selector was given - the rule applies to all serviceaccount
-		// which match this selector.
-		sourceSASelector = parseServiceAccounts(ar.Source.ServiceAccounts)
-	}
-
-	var dstSASelector string
-	if ar.Destination.ServiceAccounts != nil {
-		// A service account selector was given - the rule applies to all serviceaccount
-		// which match this selector.
-		dstSASelector = parseServiceAccounts(ar.Destination.ServiceAccounts)
-	}
-
-	srcSelector := ar.Source.Selector
-	if sourceNSSelector != "" && (ar.Source.Selector != "" || ar.Source.NotSelector != "" || ar.Source.NamespaceSelector != "") {
-		// We need to namespace the rule's selector when converting to a v1 object.
-		// This occurs when a Selector, NotSelector, or NamespaceSelector is provided and either this is a
-		// namespaced NetworkPolicy object, or a NamespaceSelector was defined.
+	// We need to namespace the rule's selector when converting to a v1 object.
+	// This occurs when the selector (and/or SA Selector), NotSelector, or NamespaceSelector
+	// is provided and either this is a namespaced NetworkPolicy object, or a
+	// NamespaceSelector was defined.
+	if sourceNSSelector != "" && (sourceSelector != "" || ar.Source.NotSelector != "" || ar.Source.NamespaceSelector != "") {
 		logCxt := log.WithFields(log.Fields{
 			"Namespace":         ns,
-			"Selector":          ar.Source.Selector,
-			"NamespaceSelector": ar.Source.NamespaceSelector,
+			"Selector(s)":       sourceSelector,
+			"NamespaceSelector": sourceNSSelector,
 			"NotSelector":       ar.Source.NotSelector,
 		})
 		logCxt.Debug("Update source Selector to include namespace")
-		if ar.Source.Selector != "" {
-			srcSelector = fmt.Sprintf("(%s) && (%s)", sourceNSSelector, ar.Source.Selector)
+		if sourceSelector != "" {
+			sourceSelector = fmt.Sprintf("(%s) && (%s)", sourceNSSelector, sourceSelector)
 		} else {
-			srcSelector = sourceNSSelector
+			sourceSelector = sourceNSSelector
 		}
 	}
 
-	// Append sourceSASelector
-	if sourceSASelector != "" && (ar.Source.Selector != "" || ar.Source.NotSelector != "" || ar.Source.ServiceAccounts != nil) {
-		logCxt := log.WithFields(log.Fields{
-			"Namespace":              ns,
-			"Selector":               ar.Source.Selector,
-			"NamespaceSelector":      ar.Source.NamespaceSelector,
-			"ServiceAccountSelector": ar.Source.ServiceAccounts.Names,
-			"NotSelector":            ar.Source.NotSelector,
-		})
-		logCxt.Debug("Update source Selector to include namespace")
-		if srcSelector != "" {
-			srcSelector = fmt.Sprintf("(%s) && (%s)", sourceSASelector, srcSelector)
-		} else {
-			srcSelector = sourceSASelector
-		}
-	}
-
-	dstSelector := ar.Destination.Selector
-	if destNSSelector != "" && (ar.Destination.Selector != "" || ar.Destination.NotSelector != "" || ar.Destination.NamespaceSelector != "") {
-		// We need to namespace the rule's selector when converting to a v1 object.
-		// This occurs when a Selector, NotSelector, or NamespaceSelector is provided and either this is a
-		// namespaced NetworkPolicy object, or a NamespaceSelector was defined.
+	destNSSelector, destSelector := entityRuleAPIV2TOBackend(&ar.Destination, ns)
+	if destNSSelector != "" && (destSelector != "" || ar.Destination.NotSelector != "" || ar.Destination.NamespaceSelector != "") {
 		logCxt := log.WithFields(log.Fields{
 			"Namespace":         ns,
-			"Selector":          ar.Destination.Selector,
-			"NamespaceSelector": ar.Destination.NamespaceSelector,
+			"Selector(s)":       destSelector,
+			"NamespaceSelector": destNSSelector,
 			"NotSelector":       ar.Destination.NotSelector,
 		})
 		logCxt.Debug("Update Destination Selector to include namespace")
-		if ar.Destination.Selector != "" {
-			dstSelector = fmt.Sprintf("(%s) && (%s)", destNSSelector, ar.Destination.Selector)
+		if destSelector != "" {
+			destSelector = fmt.Sprintf("(%s) && (%s)", destNSSelector, destSelector)
 		} else {
-			dstSelector = destNSSelector
-		}
-	}
-
-	// Append dstSASelector
-	if dstSASelector != "" && (ar.Destination.Selector != "" || ar.Destination.NotSelector != "" || ar.Destination.ServiceAccounts != nil) {
-		logCxt := log.WithFields(log.Fields{
-			"Namespace":              ns,
-			"Selector":               ar.Destination.Selector,
-			"NamespaceSelector":      ar.Destination.NamespaceSelector,
-			"ServiceAccountSelector": ar.Destination.ServiceAccounts.Names,
-			"NotSelector":            ar.Destination.NotSelector,
-		})
-		logCxt.Debug("Update Destination Selector to include serviceaccounts")
-		if dstSelector != "" {
-			dstSelector = fmt.Sprintf("(%s) && (%s)", dstSASelector, dstSelector)
-		} else {
-			dstSelector = dstSASelector
+			destSelector = destNSSelector
 		}
 	}
 
@@ -174,10 +140,10 @@ func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 		NotICMPType: notICMPType,
 
 		SrcNets:     convertStringsToNets(ar.Source.Nets),
-		SrcSelector: srcSelector,
+		SrcSelector: sourceSelector,
 		SrcPorts:    ar.Source.Ports,
 		DstNets:     normalizeIPNets(ar.Destination.Nets),
-		DstSelector: dstSelector,
+		DstSelector: destSelector,
 		DstPorts:    ar.Destination.Ports,
 
 		NotSrcNets:     convertStringsToNets(ar.Source.NotNets),
