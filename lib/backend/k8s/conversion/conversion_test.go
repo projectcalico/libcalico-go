@@ -165,8 +165,7 @@ var _ = Describe("Test Pod conversion", func() {
 				ResourceVersion: "1234",
 			},
 			Spec: kapiv1.PodSpec{
-				NodeName:           "nodeA",
-				ServiceAccountName: "sa-test",
+				NodeName: "nodeA",
 				Containers: []kapiv1.Container{
 					{
 						Ports: []kapiv1.ContainerPort{
@@ -221,15 +220,14 @@ var _ = Describe("Test Pod conversion", func() {
 		// Assert key fields.
 		Expect(wep.Key.(model.ResourceKey).Name).To(Equal("nodeA-k8s-podA-eth0"))
 		Expect(wep.Key.(model.ResourceKey).Namespace).To(Equal("default"))
-		Expect(wep.Key.(model.ResourceKey).Kind).To(Equal(apiv3.KindWorkloadEndpoint))
+		Expect(wep.Key.(model.ResourceKey).Kind).To(Equal(apiv2.KindWorkloadEndpoint))
 
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Pod).To(Equal("podA"))
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Node).To(Equal("nodeA"))
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Endpoint).To(Equal("eth0"))
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Orchestrator).To(Equal("k8s"))
-		Expect(len(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks)).To(Equal(1))
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks[0]).To(Equal("192.168.0.1/32"))
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.ServiceAccount).To(Equal(""))
+		Expect(wep.Value.(*apiv2.WorkloadEndpoint).Spec.Pod).To(Equal("podA"))
+		Expect(wep.Value.(*apiv2.WorkloadEndpoint).Spec.Node).To(Equal("nodeA"))
+		Expect(wep.Value.(*apiv2.WorkloadEndpoint).Spec.Endpoint).To(Equal("eth0"))
+		Expect(wep.Value.(*apiv2.WorkloadEndpoint).Spec.Orchestrator).To(Equal("k8s"))
+		Expect(len(wep.Value.(*apiv2.WorkloadEndpoint).Spec.IPNetworks)).To(Equal(1))
+		Expect(wep.Value.(*apiv2.WorkloadEndpoint).Spec.IPNetworks[0]).To(Equal("192.168.0.1/32"))
 		Expect(len(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Profiles)).To(Equal(1))
 		expectedLabels := map[string]string{
 			"labelA":                         "valueA",
@@ -307,13 +305,13 @@ var _ = Describe("Test Pod conversion", func() {
 		Expect(wep.Key.(model.ResourceKey).Namespace).To(Equal("default"))
 		Expect(wep.Key.(model.ResourceKey).Kind).To(Equal(apiv3.KindWorkloadEndpoint))
 		// Assert value fields.
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Pod).To(Equal("podB"))
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Node).To(Equal("nodeA"))
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Endpoint).To(Equal("eth0"))
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Orchestrator).To(Equal("k8s"))
-		Expect(len(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks)).To(Equal(1))
+		Expect(wep.Value.(*apiv2.WorkloadEndpoint).Spec.Pod).To(Equal("podA"))
+		Expect(wep.Value.(*apiv2.WorkloadEndpoint).Spec.Node).To(Equal("nodeA"))
+		Expect(wep.Value.(*apiv2.WorkloadEndpoint).Spec.Endpoint).To(Equal("eth0"))
+		Expect(wep.Value.(*apiv2.WorkloadEndpoint).Spec.Orchestrator).To(Equal("k8s"))
+		Expect(len(wep.Value.(*apiv2.WorkloadEndpoint).Spec.IPNetworks)).To(Equal(1))
 		Expect(len(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Profiles)).To(Equal(1))
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).ObjectMeta.Labels).To(Equal(map[string]string{
+		Expect(wep.Value.(*apiv2.WorkloadEndpoint).ObjectMeta.Labels).To(Equal(map[string]string{
 			"projectcalico.org/namespace":    "default",
 			"projectcalico.org/orchestrator": "k8s",
 		}))
@@ -1817,46 +1815,46 @@ var _ = Describe("Test Namespace conversion", func() {
 
 	It("should handle NetworkPolicy resource versions", func() {
 		By("converting crd and k8s versions to the correct combined version")
-		rev := c.JoinRevisions("1234", "5678")
+		rev := c.JoinNetworkPolicyRevisions("1234", "5678")
 		Expect(rev).To(Equal("1234/5678"))
 
-		rev = c.JoinRevisions("", "5678")
+		rev = c.JoinNetworkPolicyRevisions("", "5678")
 		Expect(rev).To(Equal("/5678"))
 
-		rev = c.JoinRevisions("1234", "")
+		rev = c.JoinNetworkPolicyRevisions("1234", "")
 		Expect(rev).To(Equal("1234/"))
 
 		By("extracting crd and k8s versions from the combined version")
-		crdRev, k8sRev, err := c.SplitRevision("")
+		crdRev, k8sRev, err := c.SplitNetworkPolicyRevision("")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(crdRev).To(Equal(""))
 		Expect(k8sRev).To(Equal(""))
 
-		crdRev, k8sRev, err = c.SplitRevision("/")
+		crdRev, k8sRev, err = c.SplitNetworkPolicyRevision("/")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(crdRev).To(Equal(""))
 		Expect(k8sRev).To(Equal(""))
 
-		crdRev, k8sRev, err = c.SplitRevision("1234/5678")
+		crdRev, k8sRev, err = c.SplitNetworkPolicyRevision("1234/5678")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(crdRev).To(Equal("1234"))
 		Expect(k8sRev).To(Equal("5678"))
 
-		crdRev, k8sRev, err = c.SplitRevision("/5678")
+		crdRev, k8sRev, err = c.SplitNetworkPolicyRevision("/5678")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(crdRev).To(Equal(""))
 		Expect(k8sRev).To(Equal("5678"))
 
-		crdRev, k8sRev, err = c.SplitRevision("1234/")
+		crdRev, k8sRev, err = c.SplitNetworkPolicyRevision("1234/")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(crdRev).To(Equal("1234"))
 		Expect(k8sRev).To(Equal(""))
 
 		By("failing to convert an invalid combined version")
-		_, _, err = c.SplitRevision("1234")
+		_, _, err = c.SplitNetworkPolicyRevision("1234")
 		Expect(err).To(HaveOccurred())
 
-		_, _, err = c.SplitRevision("1234/5678/1313")
+		_, _, err = c.SplitNetworkPolicyRevision("1234/5678/1313")
 		Expect(err).To(HaveOccurred())
 	})
 })

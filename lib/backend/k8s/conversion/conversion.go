@@ -555,14 +555,15 @@ func (c Converter) ProfileNameToNamespace(profileName string) (string, error) {
 	return strings.TrimPrefix(profileName, NamespaceProfileNamePrefix), nil
 }
 
-// JoinRevisions constructs the revision from the individual revisions to one revision.
-func (c Converter) JoinRevisions(RevA, RevB string) string {
-	revs := []string{RevA, RevB}
-	return strings.Join(revs, "/")
+// JoinNetworkPolicyRevisions constructs the revision from the individual CRD and K8s NetworkPolicy
+// revisions.
+func (c Converter) JoinNetworkPolicyRevisions(crdNPRev, k8sNPRev string) string {
+	return crdNPRev + "/" + k8sNPRev
 }
 
-// SplitRevision extracts the two underlying revisions from the combined revision.
-func (c Converter) SplitRevision(rev string) (RevA string, RevB string, err error) {
+// SplitNetworkPolicyRevision extracts the CRD and K8s NetworkPolicy revisions from the combined
+// revision returned on the KDD NetworkPolicy client.
+func (c Converter) SplitNetworkPolicyRevision(rev string) (crdNPRev string, k8sNPRev string, err error) {
 	if rev == "" {
 		return
 	}
@@ -573,8 +574,8 @@ func (c Converter) SplitRevision(rev string) (RevA string, RevB string, err erro
 		return
 	}
 
-	RevA = revs[0]
-	RevB = revs[1]
+	crdNPRev = revs[0]
+	k8sNPRev = revs[1]
 	return
 }
 
