@@ -77,19 +77,20 @@ func (c *profileClient) getSaKv(sa *kapiv1.ServiceAccount) (*model.KVPair, error
 		return nil, err
 	}
 
-	kvPair.Revision = c.JoinServiceAccountRevisions("", kvPair.Revision)
+	kvPair.Revision = c.JoinProfileRevisions("", kvPair.Revision)
 	return kvPair, nil
 }
 
-func (c *profileClient) getServiceAccount(ctx context.Context, name, revision string) (*model.KVPair, error) {
-	namespace, serviceAccountName, err := c.converter.ProfileNameToServiceAccount(name)
+func (c *profileClient) getServiceAccount(ctx context.Context, rk model.ResourceKey, revision string) (*model.KVPair, error) {
+
+	namespace, serviceAccountName, err := c.converter.ProfileNameToServiceAccount(rk.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	serviceAccount, err := c.clientSet.CoreV1().ServiceAccounts(namespace).Get(serviceAccountName, metav1.GetOptions{ResourceVersion: revision})
 	if err != nil {
-		return nil, err
+		return nil, K8sErrorToCalico(err, rk)
 	}
 
 	return c.getSaKv(serviceAccount)
@@ -101,19 +102,19 @@ func (c *profileClient) getNsKv(ns *kapiv1.Namespace) (*model.KVPair, error) {
 		return nil, err
 	}
 
-	kvPair.Revision = c.JoinServiceAccountRevisions(kvPair.Revision, "")
+	kvPair.Revision = c.JoinProfileRevisions(kvPair.Revision, "")
 	return kvPair, nil
 }
 
-func (c *profileClient) getNamespace(ctx context.Context, name, revision string) (*model.KVPair, error) {
-	namespaceName, err := c.converter.ProfileNameToNamespace(name)
+func (c *profileClient) getNamespace(ctx context.Context, rk mode.ResourceKey, revision string) (*model.KVPair, error) {
+	namespaceName, err := c.converter.ProfileNameToNamespace(rk.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	namespace, err := c.clientSet.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{ResourceVersion: revision})
 	if err != nil {
-		return nil, err
+		return nil, K8sErrorToCalico(err, rk)
 	}
 
 	return c.getNsKv(namespace)
@@ -126,13 +127,13 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 		return nil, fmt.Errorf("Profile key missing name: %+v", rk)
 	}
 
-	nsRev, saRev, err := c.SplitServiceAccountRevision(revision)
+	nsRev, saRev, err := c.SplitProfileRevision(revision)
 	if err != nil {
 		return nil, err
 	}
 
 	if strings.HasPrefix(rk.Name, conversion.NamespaceProfileNamePrefix) {
-		return c.getNamespace(ctx, rk.Name, nsRev)
+		return c.getNamespace(ctx, rk, nsRev)
 	}
 
 	if c.AlphaSA == false {
@@ -140,7 +141,7 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 	}
 
 	if strings.HasPrefix(rk.Name, conversion.ServiceAccountProfileNamePrefix) {
-		return c.getServiceAccount(ctx, rk.Name, saRev)
+		return c.getServiceAccount(ctx, rk, saRev)
 	}
 
 	return nil, fmt.Errorf("Revision %s invalid", revision)
@@ -171,7 +172,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		}, nil
 	}
 
-	nsRev, saRev, err := c.SplitServiceAccountRevision(revision)
+	nsRev, saRev, err := c.SplitProfileRevision(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +211,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	for _, sa := range serviceaccounts.Items {
 		kvp, err := c.getSaKv(&sa)
 		if err != nil {
-			log.Errorf("Unable to convert k8s service account to Calico Profile: %s: %v", sa.Name, err)
+			log.WithError(err).Errorf("Unable to convert k8s service account to Calico Profile: %s", sa.Name)
 			continue
 		}
 		log.Debug("Converted k8s sa to Calico profile ", sa.Name)
@@ -218,7 +219,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	}
 	return &model.KVPairList{
 		KVPairs:  kvps,
-		Revision: c.JoinServiceAccountRevisions(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
+		Revision: c.JoinProfileRevisions(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
 	}, nil
 }
 
@@ -232,15 +233,17 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		return nil, fmt.Errorf("cannot watch specific resource instance: %s", list.(model.ResourceListOptions).Name)
 	}
 
-	nsRev, saRev, err := c.SplitServiceAccountRevision(revision)
+	nsRev, saRev, err := c.SplitProfileRevision(revision)
 	if err != nil {
 		return nil, err
 	}
 
-	log.WithFields(log.Fields{
-		"NSPROFRev": nsRev,
-		"SAPROFRev": saRev,
-	}).Info("Watching two resources at individual revisions")
+	if c.AlphaSA {
+		log.WithFields(log.Fields{
+			"nsRev": nsRev,
+			"saRev": saRev,
+		}).Info("Watching two resources at individual revisions")
+	}
 
 	nsWatch, err := c.clientSet.CoreV1().Namespaces().Watch(metav1.ListOptions{ResourceVersion: nsRev})
 	if err != nil {
@@ -264,7 +267,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 	saWatch, err := c.clientSet.CoreV1().ServiceAccounts(kapiv1.NamespaceAll).Watch(metav1.ListOptions{ResourceVersion: saRev})
 	if err != nil {
 		nsWatch.Stop()
-		return nil, err
+		return nil, K8sErrorToCalico(err, list)
 	}
 
 	converterSA := func(r Resource) (*model.KVPair, error) {
@@ -359,7 +362,7 @@ func (pw *profileWatcher) processProfileEvents() {
 					Type: api.WatchError,
 					Error: cerrors.ErrorWatchTerminated{
 						ClosedByRemote: true,
-						Err: errors.New("Profile namespace watch channel closed."),
+						Err:            errors.New("Profile namespace watch channel closed."),
 					},
 				}
 			}
@@ -375,7 +378,7 @@ func (pw *profileWatcher) processProfileEvents() {
 					Type: api.WatchError,
 					Error: cerrors.ErrorWatchTerminated{
 						ClosedByRemote: true,
-						Err: errors.New("Profile serviceaccount watch channel closed."),
+						Err:            errors.New("Profile serviceaccount watch channel closed."),
 					},
 				}
 			}
@@ -409,7 +412,7 @@ func (pw *profileWatcher) processProfileEvents() {
 					Type: api.WatchError,
 					Error: cerrors.ErrorWatchTerminated{
 						ClosedByRemote: true,
-						Err: errors.New("Profile value does not implement ObjectMetaAccessor interface."),
+						Err:            errors.New("Profile value does not implement ObjectMetaAccessor interface."),
 					},
 				}
 			} else {

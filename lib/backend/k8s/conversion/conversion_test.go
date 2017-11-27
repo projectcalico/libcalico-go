@@ -1995,7 +1995,6 @@ var _ = Describe("Test Pod conversion with alpha feature flag", func() {
 		Expect(wep.Key.(model.ResourceKey).Kind).To(Equal(apiv3.KindWorkloadEndpoint))
 
 		// Check for only values that are controlled by the alphaSA flag
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.ServiceAccount).To(Equal("sa-test"))
 		Expect(len(wep.Value.(*apiv3.WorkloadEndpoint).Spec.Profiles)).To(Equal(2))
 		expectedLabels := map[string]string{
 			"labelA":                         "valueA",

@@ -100,7 +100,7 @@ func (c Converter) NamespaceToProfile(ns *kapiv1.Namespace) (*model.KVPair, erro
 			Kind: apiv3.KindProfile,
 		},
 		Value:    profile,
-		Revision: ns.ResourceVersion,
+		Revision: c.JoinProfileRevisions(ns.ResourceVersion, ""),
 	}
 	return &kvp, nil
 }
@@ -196,9 +196,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 	labels[apiv3.LabelNamespace] = pod.Namespace
 	labels[apiv3.LabelOrchestrator] = apiv3.OrchestratorKubernetes
 
-	var saName string
 	if c.AlphaSA && pod.Spec.ServiceAccountName != "" {
-		saName = pod.Spec.ServiceAccountName
 		labels[apiv3.LabelServiceAccount] = pod.Spec.ServiceAccountName
 	}
 
@@ -241,15 +239,14 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 		Labels:            labels,
 	}
 	wep.Spec = apiv3.WorkloadEndpointSpec{
-		Orchestrator:   "k8s",
-		Node:           pod.Spec.NodeName,
-		Pod:            pod.Name,
-		Endpoint:       "eth0",
-		InterfaceName:  interfaceName,
-		Profiles:       profiles,
-		IPNetworks:     ipNets,
-		Ports:          endpointPorts,
-		ServiceAccount: saName,
+		Orchestrator:  "k8s",
+		Node:          pod.Spec.NodeName,
+		Pod:           pod.Name,
+		Endpoint:      "eth0",
+		InterfaceName: interfaceName,
+		Profiles:      profiles,
+		IPNetworks:    ipNets,
+		Ports:         endpointPorts,
 	}
 
 	// Embed the workload endpoint into a KVPair.
@@ -592,10 +589,10 @@ func serviceAccountNameToProfileName(sa, namespace string) string {
 
 // ServiceAccountToProfile converts a ServiceAccount to a Calico Profile.  The Profile stores
 // labels from the ServiceAccount which are inherited by the WorkloadEndpoints within
-// the Profile. This Profile also has the default ingress and egress rules, which are both 'allow'.
+// the Profile.
 func (c Converter) ServiceAccountToProfile(sa *kapiv1.ServiceAccount) (*model.KVPair, error) {
 	// Generate the labels to apply to the profile, using a special prefix
-	// to indicate that these are the labels from the parent Kubernetes Namespace.
+	// to indicate that these are the labels from the parent Kubernetes ServiceAccount.
 	labels := map[string]string{}
 	for k, v := range sa.ObjectMeta.Labels {
 		labels[ServiceAccountLabelPrefix+k] = v
@@ -619,16 +616,17 @@ func (c Converter) ServiceAccountToProfile(sa *kapiv1.ServiceAccount) (*model.KV
 			Kind: apiv3.KindProfile,
 		},
 		Value:    profile,
-		Revision: sa.ResourceVersion,
+		Revision: c.JoinProfileRevisions("", sa.ResourceVersion),
 	}
 	return &kvp, nil
 }
 
 // ProfileNameToServiceAccount extracts the ServiceAccount name from the given Profile name.
 func (c Converter) ProfileNameToServiceAccount(profileName string) (ns, sa string, err error) {
-	// Profile objects backed by Namespaces have form "kns.<ns_name>"
+
+	// Profile objects backed by ServiceAccounts have form "ksa.<namespace>.<sa_name>"
 	if !strings.HasPrefix(profileName, ServiceAccountProfileNamePrefix) {
-		// This is not backed by a Kubernetes Namespace.
+		// This is not backed by a Kubernetes ServiceAccount.
 		err = fmt.Errorf("Profile %s not backed by a ServiceAccount", profileName)
 		return
 	}
@@ -644,10 +642,10 @@ func (c Converter) ProfileNameToServiceAccount(profileName string) (ns, sa strin
 	return
 }
 
-// JoinServiceAccountRevisions constructs the revision from the individual namespace and serviceaccount
+// JoinProfileRevisions constructs the revision from the individual namespace and serviceaccount
 // revisions.
 // This is conditional on the feature flag for serviceaccount set or not.
-func (c Converter) JoinServiceAccountRevisions(nsRev, saRev string) string {
+func (c Converter) JoinProfileRevisions(nsRev, saRev string) string {
 	if c.AlphaSA == false {
 		return nsRev
 	}
@@ -655,10 +653,10 @@ func (c Converter) JoinServiceAccountRevisions(nsRev, saRev string) string {
 	return nsRev + "/" + saRev
 }
 
-// SplitServiceAccountRevision extracts the namespace and serviceaccount revisions from the combined
+// SplitProfileRevision extracts the namespace and serviceaccount revisions from the combined
 // revision returned on the KDD service account based profile.
 // This is conditional on the feature flag for serviceaccount set or not.
-func (c Converter) SplitServiceAccountRevision(rev string) (nsRev string, saRev string, err error) {
+func (c Converter) SplitProfileRevision(rev string) (nsRev string, saRev string, err error) {
 	if rev == "" {
 		return
 	}
@@ -667,7 +665,6 @@ func (c Converter) SplitServiceAccountRevision(rev string) (nsRev string, saRev 
 		nsRev = rev
 		return
 	}
-
 
 	revs := strings.Split(rev, "/")
 	if len(revs) != 2 {
