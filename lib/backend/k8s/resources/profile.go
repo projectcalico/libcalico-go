@@ -77,7 +77,7 @@ func (c *profileClient) getSaKv(sa *kapiv1.ServiceAccount) (*model.KVPair, error
 		return nil, err
 	}
 
-	kvPair.Revision = c.joinRevs("", kvPair.Revision)
+	kvPair.Revision = c.JoinServiceAccountRevisions("", kvPair.Revision)
 	return kvPair, nil
 }
 
@@ -101,7 +101,7 @@ func (c *profileClient) getNsKv(ns *kapiv1.Namespace) (*model.KVPair, error) {
 		return nil, err
 	}
 
-	kvPair.Revision = c.joinRevs(kvPair.Revision, "")
+	kvPair.Revision = c.JoinServiceAccountRevisions(kvPair.Revision, "")
 	return kvPair, nil
 }
 
@@ -126,7 +126,7 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 		return nil, fmt.Errorf("Profile key missing name: %+v", rk)
 	}
 
-	nsRev, saRev, err := c.splitRev(revision)
+	nsRev, saRev, err := c.SplitServiceAccountRevision(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		}, nil
 	}
 
-	nsRev, saRev, err := c.splitRev(revision)
+	nsRev, saRev, err := c.SplitServiceAccountRevision(revision)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +218,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	}
 	return &model.KVPairList{
 		KVPairs:  kvps,
-		Revision: c.joinRevs(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
+		Revision: c.JoinServiceAccountRevisions(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
 	}, nil
 }
 
@@ -232,7 +232,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		return nil, fmt.Errorf("cannot watch specific resource instance: %s", list.(model.ResourceListOptions).Name)
 	}
 
-	nsRev, saRev, err := c.splitRev(revision)
+	nsRev, saRev, err := c.SplitServiceAccountRevision(revision)
 	if err != nil {
 		return nil, err
 	}

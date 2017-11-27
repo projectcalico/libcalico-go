@@ -643,3 +643,39 @@ func (c Converter) ProfileNameToServiceAccount(profileName string) (ns, sa strin
 	sa = names[2]
 	return
 }
+
+// JoinServiceAccountRevisions constructs the revision from the individual namespace and serviceaccount
+// revisions.
+// This is conditional on the feature flag for serviceaccount set or not.
+func (c Converter) JoinServiceAccountRevisions(nsRev, saRev string) string {
+	if c.AlphaSA == false {
+		return nsRev
+	}
+
+	return nsRev + "/" + saRev
+}
+
+// SplitServiceAccountRevision extracts the namespace and serviceaccount revisions from the combined
+// revision returned on the KDD service account based profile.
+// This is conditional on the feature flag for serviceaccount set or not.
+func (c Converter) SplitServiceAccountRevision(rev string) (nsRev string, saRev string, err error) {
+	if rev == "" {
+		return
+	}
+
+	if c.AlphaSA == false {
+		nsRev = rev
+		return
+	}
+
+
+	revs := strings.Split(rev, "/")
+	if len(revs) != 2 {
+		err = fmt.Errorf("ResourceVersion is not valid: %s", rev)
+		return
+	}
+
+	nsRev = revs[0]
+	saRev = revs[1]
+	return
+}
