@@ -1864,7 +1864,7 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 	// Use a single instance of the Converter for these tests.
 	c := Converter{AlphaSA: true}
 
-	It("should parse a ServiceAccount to a Profile", func() {
+	It("should parse a ServiceAccount in default namespace to a Profile", func() {
 		sa := kapiv1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "sa-test",
@@ -1910,11 +1910,10 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		Expect(p.Key.(model.ResourceKey).Kind).To(Equal(apiv3.KindProfile))
 	})
 
-	It("should parse a ServiceAccount to a Profile with no labels", func() {
-		sa := kapiv1.Namespace{
+	It("should parse a ServiceAccount with no labels to a Profile", func() {
+		sa := kapiv1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        "sa-test",
-				Annotations: map[string]string{},
+				Name: "sa-test",
 			},
 		}
 
@@ -1924,12 +1923,8 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		// Ensure rules are correct.
 		Ingress := p.Value.(*apiv3.Profile).Spec.Ingress
 		Egress := p.Value.(*apiv3.Profile).Spec.Egress
-		Expect(len(Ingress)).To(Equal(1))
-		Expect(len(Egress)).To(Equal(1))
-
-		// Ensure both inbound and outbound rules are set to allow.
-		Expect(Ingress[0]).To(Equal(apiv3.Rule{Action: apiv3.Allow}))
-		Expect(Egress[0]).To(Equal(apiv3.Rule{Action: apiv3.Allow}))
+		Expect(len(Ingress)).To(Equal(0))
+		Expect(len(Egress)).To(Equal(0))
 
 		// Check labels.
 		labels := p.Value.(*apiv3.Profile).Spec.LabelsToApply
