@@ -303,8 +303,8 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 	})
 
 	It("should parse a serviceaccount match", func() {
-		srce := fmt.Sprintf("(%s == 'namespace') && ((%skey == \"value1\" && %s in {\"%s\", \"%s\"}))", apiv3.LabelNamespace, conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa1", "sa2")
-		dste := fmt.Sprintf("(pcns.nskey == \"nsvalue\") && ((%skey == \"value2\" && %s in {\"%s\"}))", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa3")
+		srce := fmt.Sprintf("(%s == 'namespace') && ((%skey == \"value1\") && (%s in {\"%s\", \"%s\"}))", apiv3.LabelNamespace, conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa1", "sa2")
+		dste := fmt.Sprintf("(pcns.nskey == \"nsvalue\") && ((%skey == \"value2\") && (%s in {\"%s\"}))", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa3")
 
 		r := apiv3.Rule{
 			Action: apiv3.Allow,
@@ -333,8 +333,8 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		})
 	})
 
-	It("should parse a serviceaccount match with no namespace and no namespace selector", func() {
-		srce := fmt.Sprintf("(%skey == \"value1\" && %s in {\"%s\", \"%s\"})", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa1", "sa2")
+	It("should parse a serviceaccount match with default namespace and no namespace selector", func() {
+		srce := fmt.Sprintf("(%skey == \"value1\") && (%s in {\"%s\", \"%s\"})", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa1", "sa2")
 
 		r := apiv3.Rule{
 			Action: apiv3.Allow,
@@ -371,7 +371,7 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 	})
 
 	It("should parse a serviceaccount match with selector and namespace", func() {
-		dste := fmt.Sprintf("(pcns.nskey == \"nsvalue\") && ((%skey == \"value2\" && %s in {\"%s\"}) && has(label1))", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa3")
+		dste := fmt.Sprintf("(pcns.nskey == \"nsvalue\") && (((%skey == \"value2\") && (%s in {\"%s\"})) && (has(label1)))", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa3")
 
 		r := apiv3.Rule{
 			Action: apiv3.Allow,

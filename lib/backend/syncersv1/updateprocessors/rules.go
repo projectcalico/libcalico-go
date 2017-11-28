@@ -73,7 +73,15 @@ func entityRuleAPIV2TOBackend(er *apiv3.EntityRule, ns string) (nsSelector, sele
 	}
 
 	if len(selectors) > 0 {
-		selector = strings.Join(selectors, " && ")
+		// If it's just one selector then just return it
+		// it will be enclosed in () by the caller.
+		if len(selectors) == 1 {
+			selector = selectors[0]
+		} else {
+			// Combine the selectors together
+			selector = strings.Join(selectors, ") && (")
+			selector = "(" + selector + ")"
+		}
 	}
 
 	return
@@ -188,21 +196,21 @@ func parseServiceAccounts(sam *apiv3.ServiceAccountMatch) string {
 	names := strings.Join(sam.Names, "', '")
 	selectors := fmt.Sprintf("%s in { '%s' }", apiv3.LabelServiceAccount, names)
 
-	// A list of Service account names are AND'd with the selectors.
-	if updated != "" {
-		selectors = updated + " && " + selectors
-	}
-	log.Debugf("SA Selector pre-parse is: %s", selectors)
-
-	// TBD: Do i need this section now or is selectors ready for consumption?
+	// Normailize it now
 	parsedSelector, err := parser.Parse(selectors)
 	if err != nil {
-		log.WithError(err).Errorf("Failed to parse service account selector: %s", selectors)
+		log.WithError(err).Errorf("Failed to parse service account Names: %s", selectors)
 		return ""
 	}
-	log.Debugf("SA Selector post-parse is: %s", parsedSelector.String())
 
-	return parsedSelector.String()
+	selectors = parsedSelector.String()
+
+	// A list of Service account names are AND'd with the selectors.
+	if updated != "" {
+		selectors = fmt.Sprintf("(%s) && (%s)", updated, selectors)
+	}
+	log.Debugf("SA Selector is: %s", selectors)
+	return selectors
 }
 
 // convertV3ProtocolToV1 converts a v1 protocol string to a v3 protocol string
