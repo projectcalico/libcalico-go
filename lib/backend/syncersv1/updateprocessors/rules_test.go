@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"os"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
@@ -302,7 +303,29 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		})
 	})
 
+	It("should ignore the serviceaccount match", func() {
+
+		srce := fmt.Sprintf("(%s == 'namespace') && (has(label1))", apiv3.LabelNamespace)
+		r := apiv3.Rule{
+			Action: apiv3.Allow,
+			Source: apiv3.EntityRule{
+				ServiceAccounts: &apiv3.ServiceAccountMatch{Names: []string{"sa1", "sa2"},
+					Selector: "key == 'value1'",
+				},
+				Selector: "has(label1)",
+			},
+		}
+
+		// Process the rule and get the corresponding v1 representation.
+		rulev1 := updateprocessors.RuleAPIV2ToBackend(r, "namespace")
+
+		By("generating the correct source selector", func() {
+			Expect(rulev1.SrcSelector).To(Equal(srce))
+		})
+	})
+
 	It("should parse a serviceaccount match", func() {
+		os.Setenv("ALPHA_FEATURES", "serviceaccounts")
 		srce := fmt.Sprintf("(%s == 'namespace') && ((%skey == \"value1\") && (%s in {\"%s\", \"%s\"}))", apiv3.LabelNamespace, conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa1", "sa2")
 		dste := fmt.Sprintf("(pcns.nskey == \"nsvalue\") && ((%skey == \"value2\") && (%s in {\"%s\"}))", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa3")
 
