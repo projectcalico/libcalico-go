@@ -77,7 +77,6 @@ func (c *profileClient) getSaKv(sa *kapiv1.ServiceAccount) (*model.KVPair, error
 		return nil, err
 	}
 
-	kvPair.Revision = c.JoinProfileRevisions("", kvPair.Revision)
 	return kvPair, nil
 }
 
@@ -102,7 +101,6 @@ func (c *profileClient) getNsKv(ns *kapiv1.Namespace) (*model.KVPair, error) {
 		return nil, err
 	}
 
-	kvPair.Revision = c.JoinProfileRevisions(kvPair.Revision, "")
 	return kvPair, nil
 }
 

@@ -1930,6 +1930,82 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		labels := p.Value.(*apiv3.Profile).Spec.LabelsToApply
 		Expect(len(labels)).To(Equal(0))
 	})
+
+	It("should handle ServiceAccount resource versions, with feature flag set", func() {
+		By("converting ns and sa versions to the correct combined version")
+		rev := c.JoinProfileRevisions("1234", "5678")
+		Expect(rev).To(Equal("1234/5678"))
+
+		rev = c.JoinProfileRevisions("", "5678")
+		Expect(rev).To(Equal("/5678"))
+
+		rev = c.JoinProfileRevisions("1234", "")
+		Expect(rev).To(Equal("1234/"))
+
+		By("extracting ns and sa versions from the combined version")
+		nsRev, saRev, err := c.SplitProfileRevision("")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nsRev).To(Equal(""))
+		Expect(saRev).To(Equal(""))
+
+		nsRev, saRev, err = c.SplitProfileRevision("/")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nsRev).To(Equal(""))
+		Expect(saRev).To(Equal(""))
+
+		nsRev, saRev, err = c.SplitProfileRevision("1234/5678")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nsRev).To(Equal("1234"))
+		Expect(saRev).To(Equal("5678"))
+
+		nsRev, saRev, err = c.SplitProfileRevision("/5678")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nsRev).To(Equal(""))
+		Expect(saRev).To(Equal("5678"))
+
+		nsRev, saRev, err = c.SplitProfileRevision("1234/")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nsRev).To(Equal("1234"))
+		Expect(saRev).To(Equal(""))
+
+		By("failing to convert an invalid combined version")
+		_, _, err = c.SplitProfileRevision("1234")
+		Expect(err).To(HaveOccurred())
+
+		_, _, err = c.SplitProfileRevision("1234/5678/1313")
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("should handle ServiceAccount resource versions, with feature flag unset", func() {
+		// When AlphaSA == false profile ignore the saRev completely.
+		c.AlphaSA = false
+		By("returning only the ns version")
+		rev := c.JoinProfileRevisions("1234", "5678")
+		Expect(rev).To(Equal("1234"))
+
+		rev = c.JoinProfileRevisions("", "5678")
+		Expect(rev).To(Equal(""))
+
+		rev = c.JoinProfileRevisions("1234", "")
+		Expect(rev).To(Equal("1234"))
+
+		By("extracting only the input version without spliting")
+		nsRev, saRev, err := c.SplitProfileRevision("")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nsRev).To(Equal(""))
+		Expect(saRev).To(Equal(""))
+
+		nsRev, saRev, err = c.SplitProfileRevision("1234/5678")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nsRev).To(Equal("1234/5678"))
+		Expect(saRev).To(Equal(""))
+
+		nsRev, saRev, err = c.SplitProfileRevision("1234")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nsRev).To(Equal("1234"))
+		Expect(saRev).To(Equal(""))
+
+	})
 })
 
 var _ = Describe("Test Pod conversion with alpha feature flag", func() {
