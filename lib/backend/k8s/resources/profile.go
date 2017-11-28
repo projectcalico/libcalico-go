@@ -44,7 +44,7 @@ func NewProfileClient(c *kubernetes.Clientset, af string) K8sResourceClient {
 // Implements the api.Client interface for Profiles.
 type profileClient struct {
 	clientSet *kubernetes.Clientset
-	converter conversion.Converter
+	conversion.Converter
 }
 
 func (c *profileClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
@@ -72,7 +72,7 @@ func (c *profileClient) Delete(ctx context.Context, key model.Key, revision stri
 }
 
 func (c *profileClient) getSaKv(sa *kapiv1.ServiceAccount) (*model.KVPair, error) {
-	kvPair, err := c.converter.ServiceAccountToProfile(sa)
+	kvPair, err := c.ServiceAccountToProfile(sa)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (c *profileClient) getSaKv(sa *kapiv1.ServiceAccount) (*model.KVPair, error
 
 func (c *profileClient) getServiceAccount(ctx context.Context, rk model.ResourceKey, revision string) (*model.KVPair, error) {
 
-	namespace, serviceAccountName, err := c.converter.ProfileNameToServiceAccount(rk.Name)
+	namespace, serviceAccountName, err := c.ProfileNameToServiceAccount(rk.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (c *profileClient) getServiceAccount(ctx context.Context, rk model.Resource
 }
 
 func (c *profileClient) getNsKv(ns *kapiv1.Namespace) (*model.KVPair, error) {
-	kvPair, err := c.converter.NamespaceToProfile(ns)
+	kvPair, err := c.NamespaceToProfile(ns)
 	if err != nil {
 		return nil, err
 	}
@@ -106,8 +106,8 @@ func (c *profileClient) getNsKv(ns *kapiv1.Namespace) (*model.KVPair, error) {
 	return kvPair, nil
 }
 
-func (c *profileClient) getNamespace(ctx context.Context, rk mode.ResourceKey, revision string) (*model.KVPair, error) {
-	namespaceName, err := c.converter.ProfileNameToNamespace(rk.Name)
+func (c *profileClient) getNamespace(ctx context.Context, rk model.ResourceKey, revision string) (*model.KVPair, error) {
+	namespaceName, err := c.ProfileNameToNamespace(rk.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		if !ok {
 			return nil, errors.New("profile conversion with incorrect k8s resource type")
 		}
-		return c.converter.NamespaceToProfile(k8sNamespace)
+		return c.NamespaceToProfile(k8sNamespace)
 	}
 
 	nsWatcher := newK8sWatcherConverter(ctx, "Profile-NS", converter, nsWatch)
@@ -276,7 +276,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 			nsWatch.Stop()
 			return nil, errors.New("Profile converion with incorrect k8s resource type")
 		}
-		return c.converter.ServiceAccountToProfile(k8sServiceAccount)
+		return c.ServiceAccountToProfile(k8sServiceAccount)
 	}
 
 	saWatcher := newK8sWatcherConverter(ctx, "Profile-SA", converterSA, saWatch)
@@ -293,12 +293,14 @@ func newProfileWatcher(ctx context.Context, k8sWatchNS, k8sWatchSA api.WatchInte
 		context:    ctx,
 		cancel:     cancel,
 		resultChan: make(chan api.WatchEvent, resultsBufSize),
+		Converter:  conversion.Converter{AlphaSA: true},
 	}
 	go wc.processProfileEvents()
 	return wc
 }
 
 type profileWatcher struct {
+	conversion.Converter
 	converter  ConvertK8sResourceToKVPair
 	k8sNSWatch api.WatchInterface
 	k8sSAWatch api.WatchInterface
@@ -421,7 +423,7 @@ func (pw *profileWatcher) processProfileEvents() {
 				} else {
 					pw.k8sSARev = oma.GetObjectMeta().GetResourceVersion()
 				}
-				oma.GetObjectMeta().SetResourceVersion(joinRev(pw.k8sNSRev, pw.k8sSARev))
+				oma.GetObjectMeta().SetResourceVersion(pw.JoinProfileRevisions(pw.k8sNSRev, pw.k8sSARev))
 			}
 		} else if e.Error == nil {
 			log.WithField("event", e).Warning("Event without error or value")
