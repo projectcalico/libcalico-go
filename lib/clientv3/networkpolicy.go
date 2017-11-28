@@ -152,7 +152,7 @@ func (r networkPolicies) Watch(ctx context.Context, opts options.ListOptions) (w
 }
 
 func (r networkPolicies) validateAlphaFeatures(res *apiv3.NetworkPolicy) error {
-	if apiconfig.IsAlphaFeatureSet(r.client.config.Spec.AlphaFetures, apiconfig.AlphaFeatureSA) == false {
+	if apiconfig.IsAlphaFeatureSet(r.client.config.Spec.AlphaFeatures, apiconfig.AlphaFeatureSA) == false {
 		err := validator.ValidateNoServiceAccountRules(res.Spec.Ingress, res.Spec.Egress)
 		if err != nil {
 			return fmt.Errorf("NP %s: %s", res.GetObjectMeta().GetName(), err.Error())
