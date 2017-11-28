@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	validator "github.com/projectcalico/libcalico-go/lib/validator/v3"
@@ -50,7 +51,7 @@ func (r globalNetworkPolicies) Create(ctx context.Context, res *apiv3.GlobalNetw
 	}
 
 	// Check if it is permitted to create the network policy with the specific alpha feature support.
-	if err := r.checkAlphaFeatures(res); err != nil {
+	if err := r.validateAlphaFeatures(res); err != nil {
 		return nil, err
 	}
 
@@ -78,7 +79,7 @@ func (r globalNetworkPolicies) Update(ctx context.Context, res *apiv3.GlobalNetw
 	}
 
 	// Check if it is permitted to create the network policy with the specific alpha feature support.
-	if err := r.checkAlphaFeatures(res); err != nil {
+	if err := r.validateAlphaFeatures(res); err != nil {
 		return nil, err
 	}
 	// Properly prefix the name
@@ -150,10 +151,12 @@ func (r globalNetworkPolicies) Watch(ctx context.Context, opts options.ListOptio
 	return r.client.resources.Watch(ctx, opts, apiv3.KindGlobalNetworkPolicy)
 }
 
-func (r globalNetworkPolicies) checkAlphaFeatures(res *apiv3.GlobalNetworkPolicy) error {
-	err := checkAlphaFeatures(r.client.config.Spec.AlphaFeatures, res.Spec.Ingress, res.Spec.Egress)
-	if err != nil {
-		return fmt.Errorf("Global NP %s: %s", res.GetObjectMeta().GetName(), err.Error())
+func (r globalNetworkPolicies) validateAlphaFeatures(res *apiv3.GlobalNetworkPolicy) error {
+	if apiconfig.IsAlphaFeatureSet(r.client.config.Spec.AlphaFetures, apiconfig.AlphaFeatureSA) == false {
+		err := validator.ValidateNoServiceAccountRules(res.Spec.Ingress, res.Spec.Egress)
+		if err != nil {
+			return fmt.Errorf("Global NP %s: %s", res.GetObjectMeta().GetName(), err.Error())
+		}
 	}
 
 	return nil
