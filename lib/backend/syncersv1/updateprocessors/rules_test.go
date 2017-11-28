@@ -309,7 +309,8 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		r := apiv3.Rule{
 			Action: apiv3.Allow,
 			Source: apiv3.EntityRule{
-				ServiceAccounts: &apiv3.ServiceAccountMatch{Names: []string{"sa1", "sa2"},
+				ServiceAccounts: &apiv3.ServiceAccountMatch{
+					Names:    []string{"sa1", "sa2"},
 					Selector: "key == 'value1'",
 				},
 				Selector: "has(label1)",
@@ -332,13 +333,15 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		r := apiv3.Rule{
 			Action: apiv3.Allow,
 			Source: apiv3.EntityRule{
-				ServiceAccounts: &apiv3.ServiceAccountMatch{Names: []string{"sa1", "sa2"},
+				ServiceAccounts: &apiv3.ServiceAccountMatch{
+					Names:    []string{"sa1", "sa2"},
 					Selector: "key == 'value1'",
 				},
 			},
 			Destination: apiv3.EntityRule{
 				NamespaceSelector: "nskey == 'nsvalue'",
-				ServiceAccounts: &apiv3.ServiceAccountMatch{Names: []string{"sa3"},
+				ServiceAccounts: &apiv3.ServiceAccountMatch{
+					Names:    []string{"sa3"},
 					Selector: "key == 'value2'",
 				},
 			},
@@ -356,13 +359,14 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		})
 	})
 
-	It("should parse a serviceaccount match with default namespace and no namespace selector", func() {
+	It("should parse a serviceaccount match with global namespace and no namespace selector", func() {
 		srce := fmt.Sprintf("(%skey == \"value1\") && (%s in {\"%s\", \"%s\"})", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa1", "sa2")
 
 		r := apiv3.Rule{
 			Action: apiv3.Allow,
 			Source: apiv3.EntityRule{
-				ServiceAccounts: &apiv3.ServiceAccountMatch{Names: []string{"sa1", "sa2"},
+				ServiceAccounts: &apiv3.ServiceAccountMatch{
+					Names:    []string{"sa1", "sa2"},
 					Selector: "key == 'value1'",
 				},
 			},
@@ -400,7 +404,8 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 			Action: apiv3.Allow,
 			Destination: apiv3.EntityRule{
 				NamespaceSelector: "nskey == 'nsvalue'",
-				ServiceAccounts: &apiv3.ServiceAccountMatch{Names: []string{"sa3"},
+				ServiceAccounts: &apiv3.ServiceAccountMatch{
+					Names:    []string{"sa3"},
 					Selector: "key == 'value2'",
 				},
 				Selector: "has(label1)",
