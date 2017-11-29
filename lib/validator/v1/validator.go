@@ -31,7 +31,6 @@ import (
 	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"gopkg.in/go-playground/validator.v8"
 )
 
 var validate *validator.Validate

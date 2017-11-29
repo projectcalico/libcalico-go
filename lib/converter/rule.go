@@ -143,6 +143,7 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 			Type: br.NotICMPType,
 		}
 	}
+
 	return api.Rule{
 		Action:      ruleActionBackendToAPI(br.Action),
 		IPVersion:   br.IPVersion,

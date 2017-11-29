@@ -141,8 +141,8 @@ func (r workloadEndpoints) assignOrValidateName(res *apiv3.WorkloadEndpoint) err
 }
 
 // updateLabelsForStorage updates the set of labels that we persist.  It adds/overrides
-// the Namespace and Orchestrator labels which must be set to the correct values and are
-// not user configurable.
+// the Namespace, Orchestrator and if needed the Service account labels which must be
+// set to the correct values and are not user configurable.
 func (r workloadEndpoints) updateLabelsForStorage(res *apiv3.WorkloadEndpoint) {
 	if res.Labels == nil {
 		res.Labels = make(map[string]string, 2)

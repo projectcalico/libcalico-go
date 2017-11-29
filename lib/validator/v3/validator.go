@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/go-playground/validator.v8"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 
