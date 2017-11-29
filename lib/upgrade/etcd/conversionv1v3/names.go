@@ -15,14 +15,14 @@
 package conversionv1v3
 
 import (
-	"strings"
 	"regexp"
+	"strings"
 )
 
 var (
-	nonNameChar = regexp.MustCompile("[^-.a-z0-9]+")
-	nonNameNoDotChar = regexp.MustCompile("[^-a-z0-9]+")
-	dotDashSeq = regexp.MustCompile("[.-]*[.][.-]*")
+	nonNameChar               = regexp.MustCompile("[^-.a-z0-9]+")
+	nonNameNoDotChar          = regexp.MustCompile("[^-a-z0-9]+")
+	dotDashSeq                = regexp.MustCompile("[.-]*[.][.-]*")
 	trailingLeadingDotsDashes = regexp.MustCompile("^[.-]*(.*?)[.-]*$")
 )
 
@@ -35,7 +35,7 @@ var (
 // -  Remove leading and trailing dashes and dots
 func convertName(v1Name string) string {
 	name := strings.ToLower(v1Name)
-	name = strings.Replace(name,"/", ".", -1)
+	name = strings.Replace(name, "/", ".", -1)
 	name = nonNameChar.ReplaceAllString(name, "-")
 	name = dotDashSeq.ReplaceAllString(name, ".")
 

@@ -33,7 +33,6 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/set"
-	"github.com/satori/go.uuid"
 )
 
 // client implements the client.Interface.
