@@ -148,7 +148,7 @@ func (r globalNetworkPolicies) Watch(ctx context.Context, opts options.ListOptio
 		opts.Name = convertPolicyNameForStorage(opts.Name)
 	}
 
-	return r.client.resources.Watch(ctx, opts, apiv3.KindGlobalNetworkPolicy)
+	return r.client.resources.Watch(ctx, opts, apiv3.KindGlobalNetworkPolicy, &policyConverter{})
 }
 
 func (r globalNetworkPolicies) validateAlphaFeatures(res *apiv3.GlobalNetworkPolicy) error {
@@ -198,4 +198,11 @@ func convertPolicyNameFromStorage(name string) string {
 	}
 	parts := strings.SplitN(name, ".", 2)
 	return parts[len(parts)-1]
+}
+
+type policyConverter struct{}
+
+func (pc *policyConverter) Convert(r resource) resource {
+	r.GetObjectMeta().SetName(convertPolicyNameFromStorage(r.GetObjectMeta().GetName()))
+	return r
 }
