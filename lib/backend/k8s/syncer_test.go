@@ -20,13 +20,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
+	extensions "github.com/projectcalico/libcalico-go/lib/backend/extensions"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/net"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	k8sapi "k8s.io/client-go/pkg/api/v1"
-	extensions "github.com/projectcalico/libcalico-go/lib/backend/extensions"
 )
 
 type testWatch struct {

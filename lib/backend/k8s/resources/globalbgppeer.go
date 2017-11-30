@@ -15,6 +15,7 @@
 package resources
 
 import (
+	"errors"
 	"reflect"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
@@ -84,6 +85,10 @@ func (c GlobalBGPPeerConverter) ToKVPair(r CustomK8sResource) (*model.KVPair, er
 	// Since we are using the Calico API Spec definition to store the Calico
 	// BGP Peer, use the client conversion helper to convert between KV and API.
 	t := r.(*custom.BGPPeer)
+
+	if t.Spec.Scope != scope.Global {
+		return nil, errors.New("global BGPPeer is configured with non-global scope - this is expected during upgrade to v3.x")
+	}
 
 	peer := api.BGPPeer{
 		Metadata: api.BGPPeerMetadata{

@@ -21,8 +21,8 @@ package extensions
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // NetworkPolicy describes what network traffic is allowed for a set of Pods
@@ -225,4 +225,3 @@ type NetworkPolicyList struct {
 	// Items is a list of schema objects.
 	Items []NetworkPolicy `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
-
