@@ -35,14 +35,15 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
+	"os/exec"
+
 	"github.com/projectcalico/libcalico-go/lib/api"
+	"github.com/projectcalico/libcalico-go/lib/client"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
-	"github.com/projectcalico/libcalico-go/lib/testutils"
-	"github.com/projectcalico/libcalico-go/lib/client"
 	"github.com/projectcalico/libcalico-go/lib/scope"
-	"os/exec"
+	"github.com/projectcalico/libcalico-go/lib/testutils"
 )
 
 var _ = testutils.E2eDatastoreDescribe("Node tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
