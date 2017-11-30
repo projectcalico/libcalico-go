@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"errors"
 )
 
 const (
@@ -85,6 +86,10 @@ func (c GlobalBGPPeerConverter) ToKVPair(r CustomK8sResource) (*model.KVPair, er
 	// BGP Peer, use the client conversion helper to convert between KV and API.
 	t := r.(*custom.BGPPeer)
 
+	if t.Spec.Scope != scope.Global {
+		return nil, errors.New("global BGPPeer is configured with non-global scope - this is expected during upgrade to v3.x")
+	}
+	
 	peer := api.BGPPeer{
 		Metadata: api.BGPPeerMetadata{
 			PeerIP: t.Spec.PeerIP,
