@@ -15,9 +15,9 @@
 package resources_test
 
 import (
-	"github.com/projectcalico/calico/calico_upgrade/pkg/migrate/clients/v1/k8s/custom"
-	"github.com/projectcalico/calico/calico_upgrade/pkg/migrate/clients/v1/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/migrate/clients/v1/k8s/custom"
+	"github.com/projectcalico/libcalico-go/lib/migrate/clients/v1/k8s/resources"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 

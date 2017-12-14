@@ -190,7 +190,8 @@ func (m *migrationHelper) parseFelixConfigV1IntoResourceV3(
 			configStrValue = convertLogLevel(configStrValue)
 		}
 
-		_, ok = fieldValue.Interface().(*metav1.Duration); if ok {
+		_, ok = fieldValue.Interface().(*metav1.Duration)
+		if ok {
 			if duration, err := strconv.ParseFloat(configStrValue, 64); err != nil {
 				logCxt.WithError(err).Info("Failed to parse float for Duration field")
 				data.ConversionErrors = append(data.ConversionErrors, ConversionError{
@@ -198,7 +199,7 @@ func (m *migrationHelper) parseFelixConfigV1IntoResourceV3(
 					KeyV1:   keysv1[configName],
 					ValueV1: configStrValue,
 					KeyV3:   resourceToKey(res),
-			    })
+				})
 			} else {
 				switch field.Tag.Get("configv1timescale") {
 				case "milliseconds":

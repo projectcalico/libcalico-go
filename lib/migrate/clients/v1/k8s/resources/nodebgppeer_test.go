@@ -15,8 +15,8 @@
 package resources_test
 
 import (
-	"github.com/projectcalico/calico/calico_upgrade/pkg/migrate/clients/v1/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/migrate/clients/v1/k8s/resources"
 	"github.com/projectcalico/libcalico-go/lib/net"
 
 	. "github.com/onsi/ginkgo"

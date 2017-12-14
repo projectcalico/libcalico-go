@@ -79,7 +79,7 @@ var _ = Describe("Test felix configuration upgrade", func() {
 		InterfacePrefix:           "califoobar",
 		IPIPEnabled:               &bool2,
 		IptablesMarkMask:          &uint2,
-		FailsafeInboundHostPorts:  &[]apiv3.ProtoPort{
+		FailsafeInboundHostPorts: &[]apiv3.ProtoPort{
 			{
 				Protocol: "TCP",
 				Port:     1234,
@@ -102,8 +102,8 @@ var _ = Describe("Test felix configuration upgrade", func() {
 	globalCluster := apiv3.NewClusterInformation()
 	globalCluster.Name = "default"
 	globalCluster.Spec = apiv3.ClusterInformationSpec{
-		ClusterGUID: "abcedfg",
-		ClusterType: "Mesos,K8s",
+		ClusterGUID:    "abcedfg",
+		ClusterType:    "Mesos,K8s",
 		DatastoreReady: &bool1,
 	}
 
