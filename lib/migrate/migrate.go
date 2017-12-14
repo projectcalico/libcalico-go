@@ -52,6 +52,7 @@ const (
 type Interface interface {
 	ValidateConversion() (*MigrationData, error)
 	IsDestinationEmpty() (bool, error)
+	ShouldMigrate() (bool, error)
 	Migrate() (*MigrationData, error)
 	Abort() error
 	Complete() error
