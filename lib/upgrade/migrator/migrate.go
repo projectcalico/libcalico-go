@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/go-semver/semver"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -51,6 +52,7 @@ const (
 type Interface interface {
 	ValidateConversion() (*MigrationData, error)
 	IsDestinationEmpty() (bool, error)
+	ShouldMigrate() (bool, error)
 	Migrate() (*MigrationData, error)
 	Abort() error
 	Complete() error
@@ -653,6 +655,62 @@ func (m *migrationHelper) queryAndConvertV1ToV3Nodes(data *MigrationData) error 
 	data.Resources = append(data.Resources, nodes...)
 
 	return nil
+}
+
+// ShouldMigrate checks version information and reports if migration is needed
+// and is possible.
+func (m *migrationHelper) ShouldMigrate() (bool, error) {
+	_, err := m.clientv3.ClusterInformation().Get(context.Background(), "default", options.GetOptions{})
+	if err == nil {
+		// Nothing to do ClusterInformation exists so data has already been migrated
+		return false, nil
+	} else if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+		// The error indicates a problem with accessing the resource
+		return false, err
+	} else {
+		// Grab the version from the clientv1
+		v, err := m.getV1ClusterVersion()
+		if err != nil {
+			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+				return false, nil
+			} else {
+				return false, err
+			}
+		}
+
+		// Migrate only if it is possible to migrate from the current version
+		if !canMigrate(v) {
+			return false, errors.New(fmt.Sprintf("Migration to v3 requires a base of Calico v2.6.4+, currently at %s", v))
+		}
+		return true, nil
+	}
+}
+
+// getV1ClusterVersion reads the CalicoVersion from the v1 client interface.
+func (m *migrationHelper) getV1ClusterVersion() (string, error) {
+	if kv, err := m.clientv1.Get(model.GlobalConfigKey{Name: "CalicoVersion"}); err == nil {
+		return kv.Value.(string), nil
+	} else {
+		return "", err
+	}
+}
+
+// canMigrate returns true if the given version can be upgraded, otherwise
+// returns false.
+func canMigrate(v string) bool {
+	sv, err := semver.NewVersion(strings.TrimPrefix(v, "v"))
+	// Using 2.6.3 for the comparison point because '2.6.4-rc1' is LessThan
+	// '2.6.4', and we want the -rc1 to be upgradeable.
+	sv263 := semver.New("2.6.3")
+	if err != nil {
+		log.Warnf("Error converting version %s: %v", v, err)
+		return false
+	} else if sv263.LessThan(*sv) {
+		return true
+	}
+	log.Warnf("Cannot migrate from version %s", v)
+	return false
+
 }
 
 // convertLogLevel converts the v1 log level to the equivalent v3 log level. We
