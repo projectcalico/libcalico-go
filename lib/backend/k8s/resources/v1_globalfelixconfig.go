@@ -19,12 +19,12 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/upgrade/migrator/clients/v1/k8s/custom"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	apiv1 "github.com/projectcalico/libcalico-go/lib/backend/k8s/v1"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 )
 
 const (
@@ -32,24 +32,24 @@ const (
 	GlobalFelixConfigCRDName      = "globalconfigs.crd.projectcalico.org"
 )
 
-func NewGlobalFelixConfigClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceClient {
-	return &customK8sResourceClient{
+func NewGlobalFelixConfigClientV1(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceClient {
+	return &customK8sResourceClientV1{
 		clientSet:       c,
 		restClient:      r,
 		name:            GlobalFelixConfigCRDName,
 		resource:        GlobalFelixConfigResourceName,
 		description:     "Calico Global Felix Configuration",
-		k8sResourceType: reflect.TypeOf(custom.GlobalFelixConfig{}),
-		k8sListType:     reflect.TypeOf(custom.GlobalFelixConfigList{}),
-		converter:       GlobalFelixConfigConverter{},
+		k8sResourceType: reflect.TypeOf(apiv1.GlobalFelixConfig{}),
+		k8sListType:     reflect.TypeOf(apiv1.GlobalFelixConfigList{}),
+		converter:       GlobalFelixConfigConverterV1{},
 	}
 }
 
-// GlobalFelixConfigConverter implements the K8sResourceConverter interface.
-type GlobalFelixConfigConverter struct {
+// GlobalFelixConfigConverterV1 implements the K8sResourceConverter interface.
+type GlobalFelixConfigConverterV1 struct {
 }
 
-func (_ GlobalFelixConfigConverter) ListInterfaceToKey(l model.ListInterface) model.Key {
+func (_ GlobalFelixConfigConverterV1) ListInterfaceToKey(l model.ListInterface) model.Key {
 	pl := l.(model.GlobalConfigListOptions)
 	if pl.Name != "" {
 		return model.GlobalConfigKey{Name: pl.Name}
@@ -57,16 +57,16 @@ func (_ GlobalFelixConfigConverter) ListInterfaceToKey(l model.ListInterface) mo
 	return nil
 }
 
-func (_ GlobalFelixConfigConverter) KeyToName(k model.Key) (string, error) {
+func (_ GlobalFelixConfigConverterV1) KeyToName(k model.Key) (string, error) {
 	return strings.ToLower(k.(model.GlobalConfigKey).Name), nil
 }
 
-func (_ GlobalFelixConfigConverter) NameToKey(name string) (model.Key, error) {
+func (_ GlobalFelixConfigConverterV1) NameToKey(name string) (model.Key, error) {
 	return nil, fmt.Errorf("Mapping of Name to Key is not possible for global felix config")
 }
 
-func (c GlobalFelixConfigConverter) ToKVPair(r CustomK8sResource) (*model.KVPair, error) {
-	t := r.(*custom.GlobalFelixConfig)
+func (c GlobalFelixConfigConverterV1) ToKVPair(r Resource) (*model.KVPair, error) {
+	t := r.(*apiv1.GlobalFelixConfig)
 	return &model.KVPair{
 		Key: model.GlobalConfigKey{
 			Name: t.Spec.Name,
@@ -76,16 +76,16 @@ func (c GlobalFelixConfigConverter) ToKVPair(r CustomK8sResource) (*model.KVPair
 	}, nil
 }
 
-func (c GlobalFelixConfigConverter) FromKVPair(kvp *model.KVPair) (CustomK8sResource, error) {
+func (c GlobalFelixConfigConverterV1) FromKVPair(kvp *model.KVPair) (Resource, error) {
 	name, err := c.KeyToName(kvp.Key)
 	if err != nil {
 		return nil, err
 	}
-	crd := custom.GlobalFelixConfig{
+	crd := apiv1.GlobalFelixConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: custom.GlobalFelixConfigSpec{
+		Spec: apiv1.GlobalFelixConfigSpec{
 			Name:  kvp.Key.(model.GlobalConfigKey).Name,
 			Value: kvp.Value.(string),
 		},

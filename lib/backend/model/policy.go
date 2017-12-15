@@ -57,7 +57,7 @@ func (key PolicyKey) valueType() reflect.Type {
 }
 
 func (key PolicyKey) String() string {
-	return fmt.Sprintf("Policy(name=%s)", key.Name)
+	return fmt.Sprintf("Policy(%s)", key.Name)
 }
 
 type PolicyListOptions struct {

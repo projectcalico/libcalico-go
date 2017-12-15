@@ -20,19 +20,6 @@ import (
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
-
-	_ "k8s.io/client-go/plugin/pkg/client/auth" // Import all auth providers.
-
-	"github.com/projectcalico/libcalico-go/lib/apiconfig"
-	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	"github.com/projectcalico/libcalico-go/lib/backend/api"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
-	"github.com/projectcalico/libcalico-go/lib/net"
-
-	"github.com/projectcalico/libcalico-go/lib/backend/syncersv1/felixsyncer"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,8 +27,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth" // Import all auth providers.
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/projectcalico/libcalico-go/lib/apiconfig"
+	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
+	apiv1 "github.com/projectcalico/libcalico-go/lib/backend/k8s/v1"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/backend/syncersv1/felixsyncer"
+	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/net"
 )
 
 var (
@@ -195,11 +194,35 @@ func NewKubeClient(ca *apiconfig.CalicoAPIConfigSpec) (api.Client, error) {
 		apiv3.KindWorkloadEndpoint,
 		resources.NewWorkloadEndpointClient(cs, ca.AlphaFeatures),
 	)
+
+	// BlockAffinityKey is used by BGP, KDD doesn't actually support this, but
+	// we return the node CIDR for the host affinities.
 	kubeClient.registerResourceClient(
 		reflect.TypeOf(model.BlockAffinityKey{}),
 		reflect.TypeOf(model.BlockAffinityListOptions{}),
 		"",
 		resources.NewAffinityBlockClient(cs),
+	)
+
+	// The following are v1 resources that we need limited (get/list) support for
+	// to enable data migration.
+	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.GlobalConfigKey{}),
+		reflect.TypeOf(model.GlobalConfigListOptions{}),
+		"",
+		resources.NewGlobalFelixConfigClientV1(cs, crdClientV1),
+	)
+	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.GlobalBGPConfigKey{}),
+		reflect.TypeOf(model.GlobalBGPConfigListOptions{}),
+		"",
+		resources.NewGlobalBGPConfigClientV1(cs, crdClientV1),
+	)
+	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.NodeBGPPeerKey{}),
+		reflect.TypeOf(model.NodeBGPPeerListOptions{}),
+		"",
+		resources.NewNodeBGPPeerClientV1(cs),
 	)
 
 	return kubeClient, nil
@@ -330,6 +353,10 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 				&apiv3.GlobalNetworkPolicyList{},
 				&apiv3.NetworkPolicy{},
 				&apiv3.NetworkPolicyList{},
+				&apiv1.GlobalFelixConfig{},
+				&apiv1.GlobalFelixConfigList{},
+				&apiv1.GlobalBGPConfig{},
+				&apiv1.GlobalBGPConfigList{},
 			)
 			return nil
 		})

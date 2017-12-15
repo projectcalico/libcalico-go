@@ -15,34 +15,22 @@
 package resources
 
 import (
+	"context"
 	"reflect"
 
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/errors"
 	log "github.com/sirupsen/logrus"
-
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	"github.com/projectcalico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
-// Interface required to satisfy use as a Kubernetes Custom Resource type.
-type CustomK8sResource interface {
-	runtime.Object
-	metav1.ObjectMetaAccessor
-}
-
-// Interface required to satisfy use as a Kubernetes Custom Resource List type.
-type CustomK8sList interface {
-	runtime.Object
-	metav1.ListMetaAccessor
-}
-
-// CustomK8sResourceConverter defines an interface to map between KVPair representation
+// customK8sResourceConverterV1 defines an interface to map between KVPair representation
 // and a custom Kubernetes resource.
-type CustomK8sResourceConverter interface {
+type customK8sResourceConverterV1 interface {
 	// ListInterfaceToKey converts a ListInterface to a Key if the
 	// ListInterface specifies a specific instance, otherwise returns nil.
 	ListInterfaceToKey(model.ListInterface) model.Key
@@ -54,16 +42,16 @@ type CustomK8sResourceConverter interface {
 	NameToKey(string) (model.Key, error)
 
 	// Convert the Resource to a KVPair.
-	ToKVPair(CustomK8sResource) (*model.KVPair, error)
+	ToKVPair(Resource) (*model.KVPair, error)
 
 	// Convert a KVPair to a Resource.
-	FromKVPair(*model.KVPair) (CustomK8sResource, error)
+	FromKVPair(*model.KVPair) (Resource, error)
 }
 
-// customK8sResourceClient implements the K8sResourceClient interface and provides a generic
+// customK8sResourceClientV1 implements the K8sResourceClient interface and provides a generic
 // mechanism for a 1:1 mapping between a Calico Resource and an equivalent Kubernetes
 // custom resource type.
-type customK8sResourceClient struct {
+type customK8sResourceClientV1 struct {
 	clientSet       *kubernetes.Clientset
 	restClient      *rest.RESTClient
 	name            string
@@ -71,11 +59,11 @@ type customK8sResourceClient struct {
 	description     string
 	k8sResourceType reflect.Type
 	k8sListType     reflect.Type
-	converter       CustomK8sResourceConverter
+	converter       customK8sResourceConverterV1
 }
 
 // Get gets an existing Custom K8s Resource instance in the k8s API using the supplied Key.
-func (c *customK8sResourceClient) Get(key model.Key) (*model.KVPair, error) {
+func (c *customK8sResourceClientV1) Get(ctx context.Context, key model.Key, rev string) (*model.KVPair, error) {
 	logContext := log.WithFields(log.Fields{
 		"Key":      key,
 		"Resource": c.resource,
@@ -91,7 +79,7 @@ func (c *customK8sResourceClient) Get(key model.Key) (*model.KVPair, error) {
 	// Kubernetes.
 	logContext = logContext.WithField("Name", name)
 	logContext.Debug("Get custom Kubernetes resource by name")
-	resOut := reflect.New(c.k8sResourceType).Interface().(CustomK8sResource)
+	resOut := reflect.New(c.k8sResourceType).Interface().(Resource)
 	err = c.restClient.Get().
 		Resource(c.resource).
 		Name(name).
@@ -106,7 +94,7 @@ func (c *customK8sResourceClient) Get(key model.Key) (*model.KVPair, error) {
 
 // List lists configured Custom K8s Resource instances in the k8s API matching the
 // supplied ListInterface.
-func (c *customK8sResourceClient) List(list model.ListInterface) ([]*model.KVPair, string, error) {
+func (c *customK8sResourceClientV1) List(ctx context.Context, list model.ListInterface, rev string) (*model.KVPairList, error) {
 	logContext := log.WithFields(log.Fields{
 		"ListInterface": list,
 		"Resource":      c.resource,
@@ -119,24 +107,30 @@ func (c *customK8sResourceClient) List(list model.ListInterface) ([]*model.KVPai
 	// List.
 	if key := c.converter.ListInterfaceToKey(list); key != nil {
 		logContext.Debug("Performing List using Get")
-		if kvp, err := c.Get(key); err != nil {
+		if kvp, err := c.Get(ctx, key, rev); err != nil {
 			// The error will already be a Calico error type.  Ignore
 			// error that it doesn't exist - we'll return an empty
 			// list.
 			if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
 				log.WithField("Resource", c.resource).WithError(err).Info("Error listing resource")
-				return nil, "", err
+				return nil, err
 			}
-			return kvps, "", nil
+			return &model.KVPairList{
+				KVPairs:  kvps,
+				Revision: rev,
+			}, nil
 		} else {
 			kvps = append(kvps, kvp)
-			return kvps, kvp.Revision, nil
+			return &model.KVPairList{
+				KVPairs:  kvps,
+				Revision: rev,
+			}, nil
 		}
 	}
 
 	// Since we are not performing an exact Get, Kubernetes will return a
 	// list of resources.
-	reslOut := reflect.New(c.k8sListType).Interface().(CustomK8sList)
+	reslOut := reflect.New(c.k8sListType).Interface().(ResourceList)
 
 	// Perform the request.
 	err := c.restClient.Get().
@@ -148,9 +142,12 @@ func (c *customK8sResourceClient) List(list model.ListInterface) ([]*model.KVPai
 		// an empty list.
 		if !kerrors.IsNotFound(err) {
 			log.WithError(err).Info("Error listing resources")
-			return nil, "", K8sErrorToCalico(err, list)
+			return nil, K8sErrorToCalico(err, list)
 		}
-		return kvps, reslOut.GetListMeta().GetResourceVersion(), nil
+		return &model.KVPairList{
+			KVPairs:  kvps,
+			Revision: reslOut.GetListMeta().GetResourceVersion(),
+		}, nil
 	}
 
 	// We expect the list type to have an "Items" field that we can
@@ -158,7 +155,7 @@ func (c *customK8sResourceClient) List(list model.ListInterface) ([]*model.KVPai
 	elem := reflect.ValueOf(reslOut).Elem()
 	items := reflect.ValueOf(elem.FieldByName("Items").Interface())
 	for idx := 0; idx < items.Len(); idx++ {
-		res := items.Index(idx).Addr().Interface().(CustomK8sResource)
+		res := items.Index(idx).Addr().Interface().(Resource)
 
 		if kvp, err := c.converter.ToKVPair(res); err == nil {
 			kvps = append(kvps, kvp)
@@ -166,5 +163,28 @@ func (c *customK8sResourceClient) List(list model.ListInterface) ([]*model.KVPai
 			logContext.WithError(err).WithField("Item", res).Warning("unable to process resource, skipping")
 		}
 	}
-	return kvps, reslOut.GetListMeta().GetResourceVersion(), nil
+	return &model.KVPairList{
+		KVPairs:  kvps,
+		Revision: reslOut.GetListMeta().GetResourceVersion(),
+	}, nil
+}
+
+// Methods not required for the v1 resources.
+func (c *customK8sResourceClientV1) Create(ctx context.Context, object *model.KVPair) (*model.KVPair, error) {
+	panic("Not supported")
+}
+func (c *customK8sResourceClientV1) Update(ctx context.Context, object *model.KVPair) (*model.KVPair, error) {
+	panic("Not supported")
+}
+func (c *customK8sResourceClientV1) Apply(object *model.KVPair) (*model.KVPair, error) {
+	panic("not supported")
+}
+func (c *customK8sResourceClientV1) Delete(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
+	panic("not supported")
+}
+func (c *customK8sResourceClientV1) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
+	panic("Not supported")
+}
+func (c *customK8sResourceClientV1) EnsureInitialized() error {
+	panic("Not supported")
 }

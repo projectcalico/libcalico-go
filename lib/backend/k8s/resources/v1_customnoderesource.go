@@ -15,17 +15,18 @@
 package resources
 
 import (
+	"context"
 	"sort"
 	"strings"
 
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/errors"
-
 	log "github.com/sirupsen/logrus"
-
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/projectcalico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
 // Action strings - used for context logging.
@@ -37,9 +38,13 @@ const (
 	actUpdate action = "Update"
 )
 
-// CustomK8sNodeResourceConverter defines an interface to map between the model and the
-// annotation representation of a resource.,
-type CustomK8sNodeResourceConverter interface {
+// customK8sNodeResourceConverterV1 defines an interface to map between the model and the
+// annotation representation of a resource.
+//
+// This is maintained purely for migration purposes from the v1 data format.  It only
+// requires the accessor (List/Get) methods to be implemented and all others can be
+// mocked out.
+type customK8sNodeResourceConverterV1 interface {
 	// ListInterfaceToNodeAndName converts the ListInterface to the node name
 	// and resource name.
 	ListInterfaceToNodeAndName(model.ListInterface) (string, string, error)
@@ -51,42 +56,52 @@ type CustomK8sNodeResourceConverter interface {
 	NodeAndNameToKey(string, string) (model.Key, error)
 }
 
-// CustomK8sNodeResourceClientConfig is the config required for initializing a new
+// customK8sNodeResourceClientConfigV1 is the config required for initializing a new
 // per-node K8sResourceClient
-type CustomK8sNodeResourceClientConfig struct {
+type customK8sNodeResourceClientConfigV1 struct {
 	ClientSet    *kubernetes.Clientset
 	ResourceType string
-	Converter    CustomK8sNodeResourceConverter
+	Converter    customK8sNodeResourceConverterV1
 	Namespace    string
 }
 
-// NewCustomK8sNodeResourceClient creates a new per-node K8sResourceClient.
-func NewCustomK8sNodeResourceClient(config CustomK8sNodeResourceClientConfig) K8sResourceClient {
-	return &nodeRetryWrapper{
-		retryWrapper: &retryWrapper{
-			client: &customK8sNodeResourceClient{
-				CustomK8sNodeResourceClientConfig: config,
-				annotationKeyPrefix:               config.Namespace + "/",
-			},
-		},
+// NewCustomK8sNodeResourceClientV1 creates a new per-node K8sResourceClient.
+func NewCustomK8sNodeResourceClientV1(config customK8sNodeResourceClientConfigV1) K8sResourceClient {
+	return &customK8sNodeResourceClientV1{
+		customK8sNodeResourceClientConfigV1: config,
+		annotationKeyPrefix:                 config.Namespace + "/",
 	}
 }
 
-// nodeRetryWrapper extends the retryWrapper to include the ExtractResourcesFromNode
-// method.
-type nodeRetryWrapper struct {
-	*retryWrapper
-}
-
-// customK8sNodeResourceClient implements the K8sResourceClient interface.  It
+// customK8sNodeResourceClientV1 implements the K8sResourceClient interface.  It
 // should only be created using newCustomK8sNodeResourceClientConfig since that
 // ensures it is wrapped with a retryWrapper.
-type customK8sNodeResourceClient struct {
-	CustomK8sNodeResourceClientConfig
+type customK8sNodeResourceClientV1 struct {
+	customK8sNodeResourceClientConfigV1
 	annotationKeyPrefix string
 }
 
-func (c *customK8sNodeResourceClient) Get(key model.Key) (*model.KVPair, error) {
+// Methods not required for the v1 resources.
+func (c *customK8sNodeResourceClientV1) Create(ctx context.Context, object *model.KVPair) (*model.KVPair, error) {
+	panic("Not supported")
+}
+func (c *customK8sNodeResourceClientV1) Update(ctx context.Context, object *model.KVPair) (*model.KVPair, error) {
+	panic("Not supported")
+}
+func (c *customK8sNodeResourceClientV1) Apply(object *model.KVPair) (*model.KVPair, error) {
+	panic("not supported")
+}
+func (c *customK8sNodeResourceClientV1) Delete(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
+	panic("not supported")
+}
+func (c *customK8sNodeResourceClientV1) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
+	panic("Not supported")
+}
+func (c *customK8sNodeResourceClientV1) EnsureInitialized() error {
+	panic("Not supported")
+}
+
+func (c *customK8sNodeResourceClientV1) Get(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
 	logContext := log.WithFields(log.Fields{
 		"Key":       key,
 		"Resource":  c.ResourceType,
@@ -115,7 +130,7 @@ func (c *customK8sNodeResourceClient) Get(key model.Key) (*model.KVPair, error) 
 	return kvps[0], nil
 }
 
-func (c *customK8sNodeResourceClient) List(list model.ListInterface) ([]*model.KVPair, string, error) {
+func (c *customK8sNodeResourceClientV1) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
 	logContext := log.WithFields(log.Fields{
 		"ListInterface": list,
 		"Resource":      c.ResourceType,
@@ -128,7 +143,7 @@ func (c *customK8sNodeResourceClient) List(list model.ListInterface) ([]*model.K
 	nodeName, resName, err := c.Converter.ListInterfaceToNodeAndName(list)
 	if err != nil {
 		logContext.WithError(err).Info("Failed to list resources: error in list interface conversion")
-		return nil, "", err
+		return nil, err
 	}
 
 	// Get a list of the required nodes - which will either be all of them
@@ -142,10 +157,12 @@ func (c *customK8sNodeResourceClient) List(list model.ListInterface) ([]*model.K
 			err = K8sErrorToCalico(err, nodeName)
 			if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
 				newLogContext.WithError(err).Error("Failed to list resources: unable to query node")
-				return nil, "", err
+				return nil, err
 			}
 			newLogContext.WithError(err).Warning("Return no results for resource list: node does not exist")
-			return kvps, "", nil
+			return &model.KVPairList{
+				KVPairs: kvps,
+			}, err
 		}
 		nodes = append(nodes, *node)
 		rev = node.GetResourceVersion()
@@ -153,7 +170,7 @@ func (c *customK8sNodeResourceClient) List(list model.ListInterface) ([]*model.K
 		nodeList, err := c.ClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
 		if err != nil {
 			logContext.WithError(err).Info("Failed to list resources: unable to list Nodes")
-			return nil, "", K8sErrorToCalico(err, nodeName)
+			return nil, K8sErrorToCalico(err, nodeName)
 		}
 		nodes = nodeList.Items
 		rev = nodeList.GetResourceVersion()
@@ -168,13 +185,16 @@ func (c *customK8sNodeResourceClient) List(list model.ListInterface) ([]*model.K
 		kvps = append(kvps, nodeKVPs...)
 	}
 
-	return kvps, rev, nil
+	return &model.KVPairList{
+		KVPairs:  kvps,
+		Revision: rev,
+	}, err
 }
 
 // getNameAndNodeFromKey extracts the resource name from the key
 // and gets the Node resource from the Kubernetes API.
 // Returns: the resource name, the Node resource.
-func (c *customK8sNodeResourceClient) getNameAndNodeFromKey(key model.Key) (string, *apiv1.Node, error) {
+func (c *customK8sNodeResourceClientV1) getNameAndNodeFromKey(key model.Key) (string, *apiv1.Node, error) {
 	logContext := log.WithFields(log.Fields{
 		"Key":       key,
 		"Resource":  c.ResourceType,
@@ -200,67 +220,23 @@ func (c *customK8sNodeResourceClient) getNameAndNodeFromKey(key model.Key) (stri
 }
 
 // nameToAnnotationKey converts the resource name to the annotations key.
-func (c *customK8sNodeResourceClient) nameToAnnotationKey(name string) string {
+func (c *customK8sNodeResourceClientV1) nameToAnnotationKey(name string) string {
 	return c.annotationKeyPrefix + name
 }
 
 // annotationKeyToName converts the annotations key to a resource name, or returns
 // and empty string if the annotation key does not represent a resource.
-func (c *customK8sNodeResourceClient) annotationKeyToName(key string) string {
+func (c *customK8sNodeResourceClientV1) annotationKeyToName(key string) string {
 	if strings.HasPrefix(key, c.annotationKeyPrefix) {
 		return key[len(c.annotationKeyPrefix):]
 	}
 	return ""
 }
 
-// applyResourceToAnnotation applies the per-Node resource to the Node annotation.
-func (c *customK8sNodeResourceClient) applyResourceToAnnotation(node *apiv1.Node, resName string, kvp *model.KVPair, action action) (*model.KVPair, error) {
-	logContext := log.WithFields(log.Fields{
-		"Value":     kvp.Value,
-		"Resource":  c.ResourceType,
-		"Action":    action,
-		"Namespace": c.Namespace,
-	})
-
-	logContext.Debug("Updating value in annotation")
-	data, err := model.SerializeValue(kvp)
-	if err != nil {
-		logContext.Error("Unable to convert value for annotation")
-		return nil, err
-	}
-	if node.Annotations == nil {
-		node.Annotations = map[string]string{}
-	}
-	node.Annotations[c.nameToAnnotationKey(resName)] = string(data)
-
-	// Update the Node resource.
-	node, err = c.ClientSet.CoreV1().Nodes().Update(node)
-	if err != nil {
-		// Failed to update the Node.  Just log info and perform a retry.  The retryWrapper will
-		// log Error if this continues to fail.
-		logContext.WithError(err).Warning("Error updating Kubernetes Node")
-		err = K8sErrorToCalico(err, kvp.Key)
-
-		// If this is an update conflict, indicate to the retryWrapper
-		// that we can retry the action.
-		if _, ok := err.(errors.ErrorResourceUpdateConflict); ok {
-			err = retryError{err: err}
-		}
-		return nil, err
-	}
-
-	// Return the Key and Value with updated Revision information.
-	return &model.KVPair{
-		Key:      kvp.Key,
-		Value:    kvp.Value,
-		Revision: node.GetObjectMeta().GetResourceVersion(),
-	}, nil
-}
-
 // extractResourcesFromAnnotation queries the current Kubernetes Node resource
 // and parses the per-node resource entries configured in the annotations.
 // Returns the Node resource configuration and the slice of parsed resources.
-func (c *customK8sNodeResourceClient) extractResourcesFromAnnotation(node *apiv1.Node, name string) ([]*model.KVPair, error) {
+func (c *customK8sNodeResourceClientV1) extractResourcesFromAnnotation(node *apiv1.Node, name string) ([]*model.KVPair, error) {
 	logContext := log.WithFields(log.Fields{
 		"ResourceType": name,
 		"Resource":     c.ResourceType,
@@ -329,6 +305,6 @@ func (c *customK8sNodeResourceClient) extractResourcesFromAnnotation(node *apiv1
 // ExtractResourcesFromNode returns the resources stored in the Node configuration.
 //
 // This convenience method is expected to be removed in a future libcalico-go release.
-func (c *customK8sNodeResourceClient) ExtractResourcesFromNode(node *apiv1.Node) ([]*model.KVPair, error) {
+func (c *customK8sNodeResourceClientV1) ExtractResourcesFromNode(node *apiv1.Node) ([]*model.KVPair, error) {
 	return c.extractResourcesFromAnnotation(node, "")
 }

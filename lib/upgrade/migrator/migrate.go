@@ -16,6 +16,7 @@ package migrator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -26,17 +27,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 
-	"errors"
-
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/clientv3"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
-	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/upgrade/converters"
-	"github.com/projectcalico/libcalico-go/lib/upgrade/migrator/clients"
 	validatorv3 "github.com/projectcalico/libcalico-go/lib/validator/v3"
 )
 
@@ -67,20 +63,23 @@ type StatusWriterInterface interface {
 }
 
 // New creates a new migration helper implementing Interface.
-func New(clientv3 clientv3.Interface, clientv1 clients.V1ClientInterface, statusWriter StatusWriterInterface) Interface {
+// statusWriter is an optional interface used by the migrator to output migration status
+// information to the user - primarily focussed around CLI integration.
+func New(clientV3 bapi.Client, clientV1 bapi.Client, isKDD bool, statusWriter StatusWriterInterface) Interface {
 	return &migrationHelper{
-		clientv3:     clientv3,
-		clientv1:     clientv1,
+		clientV3:     clientV3,
+		clientV1:     clientV1,
+		isKDD:        isKDD,
 		statusWriter: statusWriter,
 	}
 }
 
 // migrationHelper implements the migrate.Interface.
 type migrationHelper struct {
-	clientv3                clientv3.Interface
-	clientv1                clients.V1ClientInterface
-	enforceEmptyDestination bool
-	statusWriter            StatusWriterInterface
+	clientV3     bapi.Client
+	clientV1     bapi.Client
+	statusWriter StatusWriterInterface
+	isKDD        bool
 }
 
 // Error types encountered during validation and migration.
@@ -182,7 +181,7 @@ func (m *migrationHelper) ValidateConversion() (*MigrationData, error) {
 
 	// Finally, check that we found some data. For KDD if there were no resources
 	// then that's fine, otherwise we should fail.
-	if !m.clientv1.IsKDD() && len(data.Resources) == 0 {
+	if !m.isKDD && len(data.Resources) == 0 {
 		m.statusError("No v1 resources detected: is the API configuration correctly configured?")
 		return nil, MigrationError{
 			Type: ErrorGeneric,
@@ -220,7 +219,7 @@ func (m *migrationHelper) IsDestinationEmpty() (bool, error) {
 func (m *migrationHelper) Migrate() (*MigrationData, error) {
 	// Now set the Ready flag to False. This will stop Felix from making any data plane updates
 	// and will prevent the orchestrator plugins from adding any new workloads or IP allocations
-	if !m.clientv1.IsKDD() {
+	if !m.isKDD {
 		m.status("Pausing Calico networking")
 		if err := m.setReadyV1(false); err != nil {
 			m.statusError("Unable to pause calico networking")
@@ -264,7 +263,7 @@ func (m *migrationHelper) Migrate() (*MigrationData, error) {
 
 	// And we also need to migrate the IPAM data.
 	m.status("Migrating IPAM data")
-	if m.clientv1.IsKDD() {
+	if m.isKDD {
 		m.statusBullet("no data to migrate - not supported")
 	} else if err = m.migrateIPAMData(); err != nil {
 		m.statusError("Unable to migrate the v3 IPAM data")
@@ -281,7 +280,7 @@ func (m *migrationHelper) Migrate() (*MigrationData, error) {
 }
 
 func (m *migrationHelper) abortAfterError(err error, errType ErrorType) error {
-	if m.clientv1.IsKDD() {
+	if m.isKDD {
 		return MigrationError{Type: errType, Err: err}
 	}
 	if ae := m.Abort(); ae == nil {
@@ -295,7 +294,7 @@ func (m *migrationHelper) abortAfterError(err error, errType ErrorType) error {
 func (m *migrationHelper) Abort() error {
 	m.status("Aborting upgrade")
 	var err error
-	if !m.clientv1.IsKDD() {
+	if !m.isKDD {
 		m.status("Re-enabling Calico networking for v1")
 		for i := 0; i < forceEnableReadyRetries; i++ {
 			err = m.setReadyV1(true)
@@ -319,7 +318,7 @@ func (m *migrationHelper) Abort() error {
 func (m *migrationHelper) Complete() error {
 	m.status("Completing upgrade")
 	var err error
-	if !m.clientv1.IsKDD() {
+	if !m.isKDD {
 		m.status("Enabling Calico networking for v3")
 		for i := 0; i < forceEnableReadyRetries; i++ {
 			err = m.setReadyV3(true)
@@ -359,8 +358,7 @@ type ic interface {
 }
 
 func (m *migrationHelper) v3DatastoreIsClean() (bool, error) {
-	bc := m.clientv3.(backend).Backend()
-	if i, ok := bc.(ic); ok {
+	if i, ok := m.clientV3.(ic); ok {
 		return i.IsClean()
 	}
 	return true, nil
@@ -387,7 +385,7 @@ func (m *migrationHelper) queryAndConvertResources() (*MigrationData, error) {
 		return nil, err
 	}
 
-	if m.clientv1.IsKDD() {
+	if m.isKDD {
 		m.statusBullet("skipping BGPPeer (global) resources - these do not need migrating")
 	} else {
 		m.statusBullet("handling BGPPeer (global) resources")
@@ -406,7 +404,7 @@ func (m *migrationHelper) queryAndConvertResources() (*MigrationData, error) {
 		return nil, err
 	}
 
-	if m.clientv1.IsKDD() {
+	if m.isKDD {
 		m.statusBullet("skipping HostEndpoint resources - not supported")
 	} else {
 		m.statusBullet("handling HostEndpoint resources")
@@ -418,7 +416,7 @@ func (m *migrationHelper) queryAndConvertResources() (*MigrationData, error) {
 		}
 	}
 
-	if m.clientv1.IsKDD() {
+	if m.isKDD {
 		m.statusBullet("skipping IPPool resources - these do not need migrating")
 	} else {
 		m.statusBullet("handling IPPool resources")
@@ -430,7 +428,7 @@ func (m *migrationHelper) queryAndConvertResources() (*MigrationData, error) {
 		}
 	}
 
-	if m.clientv1.IsKDD() {
+	if m.isKDD {
 		m.statusBullet("skipping Node resources - these do not need migrating")
 	} else {
 		m.statusBullet("handling Node resources")
@@ -440,7 +438,7 @@ func (m *migrationHelper) queryAndConvertResources() (*MigrationData, error) {
 		}
 	}
 
-	if m.clientv1.IsKDD() {
+	if m.isKDD {
 		m.statusBullet("skipping GlobalNetworkPolicy resources - these do not need migrating")
 	} else {
 		m.statusBullet("handling GlobalNetworkPolicy resources")
@@ -452,7 +450,7 @@ func (m *migrationHelper) queryAndConvertResources() (*MigrationData, error) {
 		}
 	}
 
-	if m.clientv1.IsKDD() {
+	if m.isKDD {
 		m.statusBullet("skipping Profile resources - these do not need migrating")
 	} else {
 		m.statusBullet("handling Profile resources")
@@ -464,7 +462,7 @@ func (m *migrationHelper) queryAndConvertResources() (*MigrationData, error) {
 		}
 	}
 
-	if m.clientv1.IsKDD() {
+	if m.isKDD {
 		m.statusBullet("skipping WorkloadEndpoint resources - these do not need migrating")
 	} else {
 		m.statusBullet("handling WorkloadEndpoint resources")
@@ -488,7 +486,7 @@ func (m *migrationHelper) queryAndConvertV1ToV3Resources(
 	filterOut policyCtrlFilterOut,
 ) error {
 	// Start by listing the results from the v1 client.
-	kvps, err := m.clientv1.List(listInterface)
+	kvps, err := m.clientV1.List(context.Background(), listInterface, "")
 	if err != nil {
 		switch err.(type) {
 		case cerrors.ErrorResourceDoesNotExist, cerrors.ErrorOperationNotSupported:
@@ -501,11 +499,11 @@ func (m *migrationHelper) queryAndConvertV1ToV3Resources(
 	// Keep track of the converted names so that we can determine if we have any
 	// name clashes. We don't generally expect this, but we do need to police against
 	// it just in case.
-	convertedNames := make(map[string]model.Key, len(kvps))
+	convertedNames := make(map[string]model.Key, len(kvps.KVPairs))
 
 	// Pass the results through the supplied converter and check that each result
 	// validates.
-	for _, kvp := range kvps {
+	for _, kvp := range kvps.KVPairs {
 		if filterOut(kvp.Key) {
 			log.Infof("Filter out Policy Controller created resource: %s", kvp.Key)
 			data.HandledByPolicyCtrl = append(data.HandledByPolicyCtrl, kvp.Key)
@@ -566,7 +564,7 @@ func (m *migrationHelper) queryAndConvertGlobalBGPConfigV1ToV3(data *MigrationDa
 
 	log.Info("Converting BGP config -> BGPConfiguration(default)")
 	var setValue bool
-	if kvp, err := m.clientv1.Get(model.GlobalBGPConfigKey{Name: "AsNumber"}); err != nil {
+	if kvp, err := m.clientV1.Get(context.Background(), model.GlobalBGPConfigKey{Name: "AsNumber"}, ""); err != nil {
 		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
 			return err
 		}
@@ -585,7 +583,7 @@ func (m *migrationHelper) queryAndConvertGlobalBGPConfigV1ToV3(data *MigrationDa
 		setValue = true
 	}
 
-	if kvp, err := m.clientv1.Get(model.GlobalBGPConfigKey{Name: "LogLevel"}); err != nil {
+	if kvp, err := m.clientV1.Get(context.Background(), model.GlobalBGPConfigKey{Name: "LogLevel"}, ""); err != nil {
 		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
 			return err
 		}
@@ -595,7 +593,7 @@ func (m *migrationHelper) queryAndConvertGlobalBGPConfigV1ToV3(data *MigrationDa
 		setValue = true
 	}
 
-	if kvp, err := m.clientv1.Get(model.GlobalBGPConfigKey{Name: "NodeMeshEnabled"}); err != nil {
+	if kvp, err := m.clientV1.Get(context.Background(), model.GlobalBGPConfigKey{Name: "NodeMeshEnabled"}, ""); err != nil {
 		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
 			return err
 		}
@@ -626,7 +624,7 @@ func (m *migrationHelper) queryAndConvertV1ToV3Nodes(data *MigrationData) error 
 
 	// Query all of the per-node config and extract all of the IPIP tunnel addresses that are
 	// configured.
-	kvps, err := m.clientv1.List(model.HostConfigListOptions{Name: "IpInIpTunnelAddr"})
+	kvps, err := m.clientV1.List(context.Background(), model.HostConfigListOptions{Name: "IpInIpTunnelAddr"}, "")
 	if err != nil {
 		switch err.(type) {
 		case cerrors.ErrorResourceDoesNotExist, cerrors.ErrorOperationNotSupported:
@@ -636,7 +634,7 @@ func (m *migrationHelper) queryAndConvertV1ToV3Nodes(data *MigrationData) error 
 		}
 	}
 	addrs := map[string]string{}
-	for _, kvp := range kvps {
+	for _, kvp := range kvps.KVPairs {
 		k := kvp.Key.(model.HostConfigKey)
 		addrs[converters.ConvertNodeName(k.Hostname)] = kvp.Value.(string)
 	}
@@ -660,52 +658,103 @@ func (m *migrationHelper) queryAndConvertV1ToV3Nodes(data *MigrationData) error 
 // ShouldMigrate checks version information and reports if migration is needed
 // and is possible.
 func (m *migrationHelper) ShouldMigrate() (bool, error) {
-	ci, err := m.clientv3.ClusterInformation().Get(context.Background(), "default", options.GetOptions{})
-	if err == nil {
-		if canMigrate(ci.Spec.CalicoVersion) {
-			log.Debugf("ClusterInformation contained CalicoVersion %s and indicates migration is needed", ci.Spec.CalicoVersion)
+	m.status("Checking whether migration is possible and required")
+	v, err := m.getCalicoVersionV3()
+	if err != nil {
+		m.statusBullet("unable to detect Calico version: %v", err)
+		return false, MigrationError{
+			Type: ErrorGeneric,
+			Err:  err,
+		}
+	}
+	if v != "" {
+		// The ClusterInformation calicoVersion field is set.  It will either be set from the
+		// node after migration or from a clean install (in which case it will be 3.0+), or it
+		// will be set from the data migration (in which case the version will be the version we
+		// are upgrading from).
+		if canMigrate(v) {
+			m.statusBullet("detected a Calico version of %s in the v3 API; migration is necessary", v)
 			return true, nil
 		}
-		log.Debugf("ClusterInformation contained CalicoVersion %s and indicates migration is not needed", ci.Spec.CalicoVersion)
+		m.statusBullet("detected a Calico version of %s in the v3 API; migration is not necessary", v)
 		return false, nil
-	} else if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
-		// The error indicates a problem with accessing the resource
-		return false, err
 	}
-	// The resource does not exist from the clientv3 so we need to check the
-	// clientv1 version.
 
-	// Grab the version from the clientv1
-	v, err := m.getV1ClusterVersion()
+	// The resource does not exist from the clientV3 so we need to check the
+	// clientV1 version.
+	m.statusBullet("no v3 Calico version configured in the v3 API")
+	v, err = m.getCalicoVersionV1()
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
-			log.Debugf("CalicoVersion does exist in the v1 or v3 data, no migration needed")
-			// The resource does not exist in the clientv1 (or in the clientv3)
-			// so no migration is needed because it seems that this is an
-			// unitialized datastore.
-			return false, nil
+		m.statusBullet("unable to detect Calico version in the v3 API: %v", err)
+		return false, MigrationError{
+			Type: ErrorGeneric,
+			Err:  err,
 		}
-
-		// The error indicates a problem accessing the resource.
-		return false, err
+	}
+	if v == "" {
+		// There is no Calico version configured in the v1 datastore (nor in v3). For non-KDD,
+		// treat this as an error case since the v1 datastore could be misconfigured.  For KDD,
+		// this implies a clean install and therefore no migration is required.
+		if m.isKDD {
+			m.statusBullet("no Calico version configured in the v1 API; migration is not necessary")
+			return false, nil
+		} else {
+			m.statusBullet("could not detect a v1 Calico version")
+			return false, MigrationError{
+				Type: ErrorGeneric,
+				Err:  errors.New("no Calico version detected in the v1 API: is the API configuration correctly configured?"),
+			}
+		}
 	}
 
-	// Migrate only if it is possible to migrate from the current version
+	// Migrate only if it is possible to migrate from the current version. This checks the
+	// version is at least at the minimum to upgrade.
 	if !canMigrate(v) {
-		log.Debugf("Migration to v3 requires a base of Calico v2.6.4+, currently at %s", v)
-		return false, errors.New(fmt.Sprintf("Migration to v3 requires a base of Calico v2.6.4+, currently at %s", v))
+		m.statusError("Migration to v3 requires a base of Calico v2.6.4+, currently at %s", v)
+		return false, MigrationError{
+			Type: ErrorGeneric,
+			Err:  errors.New(fmt.Sprintf("migration to v3 requires a base of Calico v2.6.4+, currently at %s", v)),
+		}
 	}
-	log.Debugf("GlobalConfig contained CalicoVersion %s and indicates migration is needed", v)
+	m.statusBullet("detected a v3 Calico version of %s in the v1 API; migration is required", v)
 	return true, nil
 }
 
-// getV1ClusterVersion reads the CalicoVersion from the v1 client interface.
-func (m *migrationHelper) getV1ClusterVersion() (string, error) {
-	kv, err := m.clientv1.Get(model.GlobalConfigKey{Name: "CalicoVersion"})
+// getCalicoVersionV1 reads the Calico version from the v1 client interface.  This
+// may return an empty string if the cluster information does not exist, or if the value
+// has yet to be assigned.
+func (m *migrationHelper) getCalicoVersionV1() (string, error) {
+	// In the v1 datastore, the version is stored in the CalicoVersion felix config.
+	kv, err := m.clientV1.Get(context.Background(), model.GlobalConfigKey{
+		Name: "CalicoVersion",
+	}, "")
 	if err == nil {
+		// The value is the string version.
 		return kv.Value.(string), nil
+	} else if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+		// The error indicates a problem with accessing the resource.
+		return "", err
 	}
-	return "", err
+	return "", nil
+}
+
+// getCalicoVersionV3 reads the Calico version from the v3 client interface.  This
+// may return an empty string if the cluster information does not exist, or if the value
+// has yet to be assigned.
+func (m *migrationHelper) getCalicoVersionV3() (string, error) {
+	// In the v3 datastore, the version is stored in the ClusterInformation resource.
+	kvp, err := m.clientV3.Get(context.Background(), model.ResourceKey{
+		Kind: apiv3.KindClusterInformation,
+		Name: "default",
+	}, "")
+	if err == nil {
+		// Extract the version from the ClusterInformation spec.
+		return kvp.Value.(*apiv3.ClusterInformation).Spec.CalicoVersion, nil
+	} else if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+		// The error indicates a problem with accessing the resource.
+		return "", err
+	}
+	return "", nil
 }
 
 // canMigrate returns true if the given version can be upgraded, otherwise
@@ -780,7 +829,7 @@ func (m *migrationHelper) statusError(format string, a ...interface{}) {
 // setReadyV1 sets the ready flag in the v1 datastore.
 func (m *migrationHelper) setReadyV1(ready bool) error {
 	log.WithField("Ready", ready).Info("Updating Ready flag in v1")
-	_, err := m.clientv1.Apply(&model.KVPair{
+	_, err := m.clientV1.Apply(&model.KVPair{
 		Key:   model.ReadyFlagKey{},
 		Value: ready,
 	})
@@ -800,14 +849,22 @@ func (m *migrationHelper) setReadyV1(ready bool) error {
 }
 
 // setReadyV1 sets the ready flag in the v3 datastore.
+// Note that we don't handle resource update conflicts in this processing - it is only
+// invoked for etcd, and in that scenario we only expect a single instance of the migration
+// script to be running at a time.
 func (m *migrationHelper) setReadyV3(ready bool) error {
 	log.WithField("Ready", ready).Info("Updating Ready flag in v3")
-	c, err := m.clientv3.ClusterInformation().Get(context.Background(), "default", options.GetOptions{})
+	key := model.ResourceKey{
+		Kind: apiv3.KindClusterInformation,
+		Name: "default",
+	}
+	kvp, err := m.clientV3.Get(context.Background(), key, "")
 	if err == nil {
-		// ClusterInformation already exists - update the settings.
+		// ClusterInformation already exists - update the datastore ready flag.
 		log.WithField("Ready", ready).Info("Updating Ready flag in v3 ClusterInformation")
+		c := kvp.Value.(*apiv3.ClusterInformation)
 		c.Spec.DatastoreReady = &ready
-		_, err = m.clientv3.ClusterInformation().Update(context.Background(), c, options.SetOptions{})
+		_, err = m.clientV3.Update(context.Background(), kvp)
 		if err != nil {
 			log.WithError(err).Info("Hit error setting ready flag in v3 ClusterInformation")
 			if ready {
@@ -836,10 +893,13 @@ func (m *migrationHelper) setReadyV3(ready bool) error {
 	}
 
 	// ClusterInformation does not exist - create a new one.
-	c = apiv3.NewClusterInformation()
-	c.Name = "default"
-	c.Spec.DatastoreReady = &ready
-	_, err = m.clientv3.ClusterInformation().Create(context.Background(), c, options.SetOptions{})
+	ci := apiv3.NewClusterInformation()
+	ci.Name = "default"
+	ci.Spec.DatastoreReady = &ready
+	_, err = m.clientV3.Create(context.Background(), &model.KVPair{
+		Key:   key,
+		Value: ci,
+	})
 	if err != nil {
 		if ready {
 			m.statusBullet("failed to resume Calico networking in the v3 configuration (unable to create ClusterInformation)")
@@ -872,7 +932,7 @@ func (m *migrationHelper) storeV3Resources(data *MigrationData) error {
 		// Convert the resource to a KVPair and access the backend datastore directly.
 		// This is slightly more efficient, and cuts out some of the unneccessary additional
 		// processing. Since we applying directly to the backend we need to set the UUID
-		// and creation timestamp which is normally handled by clientv3.
+		// and creation timestamp which is normally handled by clientV3.
 		r.GetObjectMeta().SetCreationTimestamp(metav1.Now())
 		r.GetObjectMeta().SetUID(uuid.NewUUID())
 		if err := m.applyToBackend(&model.KVPair{
@@ -902,13 +962,13 @@ func (m *migrationHelper) migrateIPAMData() error {
 	// AllocationBlocks need to have their host affinity updated to use the
 	// normalized node name.
 	m.statusBullet("listing and converting IPAM allocation blocks")
-	kvps, err := m.clientv1.List(model.BlockListOptions{})
+	kvps, err := m.clientV1.List(context.Background(), model.BlockListOptions{}, "")
 	if err != nil {
 		m.statusError("Unable to list IPAM allocation blocks")
 		m.statusBullet("cause: %v", err)
 		return fmt.Errorf("unable to list IPAM allocation blocks: %v", err)
 	}
-	for _, kvp := range kvps {
+	for _, kvp := range kvps.KVPairs {
 		ab := kvp.Value.(*model.AllocationBlock)
 		node := ""
 		if ab.Affinity != nil && strings.HasPrefix(*ab.Affinity, "host:") {
@@ -927,13 +987,13 @@ func (m *migrationHelper) migrateIPAMData() error {
 	// BlockAffinities need to have their host updated to use the
 	// normalized node name.
 	m.statusBullet("listing and converting IPAM affinity blocks")
-	kvps, err = m.clientv1.List(model.BlockAffinityListOptions{})
+	kvps, err = m.clientV1.List(context.Background(), model.BlockAffinityListOptions{}, "")
 	if err != nil {
 		m.statusError("Unable to list IPAM affinity blocks")
 		m.statusBullet("cause: %v", err)
 		return fmt.Errorf("unable to list IPAM affinity blocks: %v", err)
 	}
-	for _, kvp := range kvps {
+	for _, kvp := range kvps.KVPairs {
 		k := kvp.Key.(model.BlockAffinityKey)
 		k.Host = converters.ConvertNodeName(k.Host)
 		kvp.Key = k
@@ -942,17 +1002,17 @@ func (m *migrationHelper) migrateIPAMData() error {
 
 	// IPAMHandle does not require any conversion.
 	m.statusBullet("listing IPAM handles")
-	kvps, err = m.clientv1.List(model.IPAMHandleListOptions{})
+	kvps, err = m.clientV1.List(context.Background(), model.IPAMHandleListOptions{}, "")
 	if err != nil {
 		m.statusError("Unable to list IPAM handles")
 		m.statusBullet("cause: %v", err)
 		return fmt.Errorf("unable to list IPAM handles: %v", err)
 	}
-	kvpsv3 = append(kvpsv3, kvps...)
+	kvpsv3 = append(kvpsv3, kvps.KVPairs...)
 
 	// Create/Apply the converted entries into the v3 datastore.
 	m.statusBullet("storing IPAM data in v3 format")
-	for _, kvp := range kvps {
+	for _, kvp := range kvps.KVPairs {
 		if err := m.applyToBackend(kvp); err != nil {
 			m.statusError("Error writing IPAM data to v3 datastore")
 			return fmt.Errorf("error storing converted IPAM data: %v", err)
@@ -964,21 +1024,16 @@ func (m *migrationHelper) migrateIPAMData() error {
 	return nil
 }
 
-// backend is an interface used to access the backend client from the main clientv3.
-type backend interface {
-	Backend() bapi.Client
-}
-
 // applyToBackend applies the supplied KVPair directly to the backend datastore.
+// Note that this processing needs to handle resource update conflicts because it
+// is used for K8s migration which may have multiple nodes/typhas performing the
+// migration at the same time.
 func (m *migrationHelper) applyToBackend(kvp *model.KVPair) error {
-	// Extract the backend API from the v3 client.
-	bc := m.clientv3.(backend).Backend()
-
 	// First try creating the resource. If the resource already exists, try an update.
 	logCxt := log.WithField("Key", kvp.Key)
 	logCxt.Debug("Attempting to create resource")
 	kvp.Revision = ""
-	_, err := bc.Create(context.Background(), kvp)
+	_, err := m.clientV3.Create(context.Background(), kvp)
 	if err == nil {
 		logCxt.Debug("Resource created")
 		return nil
@@ -993,13 +1048,13 @@ func (m *migrationHelper) applyToBackend(kvp *model.KVPair) error {
 		// Query the current settings and update the kvp revision so that we can
 		// perform an update.
 		logCxt.Debug("Attempting to update resource")
-		current, err := bc.Get(context.Background(), kvp.Key, "")
+		current, err := m.clientV3.Get(context.Background(), kvp.Key, "")
 		if err != nil {
 			return err
 		}
 		kvp.Revision = current.Revision
 
-		_, err = bc.Update(context.Background(), kvp)
+		_, err = m.clientV3.Update(context.Background(), kvp)
 		if err == nil {
 			logCxt.Debug("Resource updated")
 			return nil

@@ -19,12 +19,12 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/upgrade/migrator/clients/v1/k8s/custom"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	apiv1 "github.com/projectcalico/libcalico-go/lib/backend/k8s/v1"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 )
 
 const (
@@ -32,40 +32,40 @@ const (
 	GlobalBGPConfigCRDName      = "globalbgpconfigs.projectcalico.org"
 )
 
-func NewGlobalBGPConfigClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceClient {
-	return &customK8sResourceClient{
+func NewGlobalBGPConfigClientV1(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceClient {
+	return &customK8sResourceClientV1{
 		clientSet:       c,
 		restClient:      r,
 		name:            GlobalBGPConfigCRDName,
 		resource:        GlobalBGPConfigResourceName,
 		description:     "Calico Global BGP Configuration",
-		k8sResourceType: reflect.TypeOf(custom.GlobalBGPConfig{}),
-		k8sListType:     reflect.TypeOf(custom.GlobalBGPConfigList{}),
-		converter:       GlobalBGPConfigConverter{},
+		k8sResourceType: reflect.TypeOf(apiv1.GlobalBGPConfig{}),
+		k8sListType:     reflect.TypeOf(apiv1.GlobalBGPConfigList{}),
+		converter:       GlobalBGPConfigConverterV1{},
 	}
 }
 
-// GlobalBGPConfigConverter implements the K8sResourceConverter interface.
-type GlobalBGPConfigConverter struct {
+// GlobalBGPConfigConverterV1 implements the K8sResourceConverter interface.
+type GlobalBGPConfigConverterV1 struct {
 }
 
-func (_ GlobalBGPConfigConverter) ListInterfaceToKey(l model.ListInterface) model.Key {
+func (_ GlobalBGPConfigConverterV1) ListInterfaceToKey(l model.ListInterface) model.Key {
 	if name := l.(model.GlobalBGPConfigListOptions).Name; name != "" {
 		return model.GlobalBGPConfigKey{Name: name}
 	}
 	return nil
 }
 
-func (_ GlobalBGPConfigConverter) KeyToName(k model.Key) (string, error) {
+func (_ GlobalBGPConfigConverterV1) KeyToName(k model.Key) (string, error) {
 	return strings.ToLower(k.(model.GlobalBGPConfigKey).Name), nil
 }
 
-func (_ GlobalBGPConfigConverter) NameToKey(name string) (model.Key, error) {
+func (_ GlobalBGPConfigConverterV1) NameToKey(name string) (model.Key, error) {
 	return nil, fmt.Errorf("Mapping of Name to Key is not possible for global BGP config")
 }
 
-func (c GlobalBGPConfigConverter) ToKVPair(r CustomK8sResource) (*model.KVPair, error) {
-	t := r.(*custom.GlobalBGPConfig)
+func (c GlobalBGPConfigConverterV1) ToKVPair(r Resource) (*model.KVPair, error) {
+	t := r.(*apiv1.GlobalBGPConfig)
 	return &model.KVPair{
 		Key: model.GlobalBGPConfigKey{
 			Name: t.Spec.Name,
@@ -75,12 +75,12 @@ func (c GlobalBGPConfigConverter) ToKVPair(r CustomK8sResource) (*model.KVPair, 
 	}, nil
 }
 
-func (c GlobalBGPConfigConverter) FromKVPair(kvp *model.KVPair) (CustomK8sResource, error) {
+func (c GlobalBGPConfigConverterV1) FromKVPair(kvp *model.KVPair) (Resource, error) {
 	name, err := c.KeyToName(kvp.Key)
 	if err != nil {
 		return nil, err
 	}
-	crd := custom.GlobalBGPConfig{
+	crd := apiv1.GlobalBGPConfig{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "GlobalBGPConfig",
 			APIVersion: "crd.projectcalico.org/v1",
@@ -88,7 +88,7 @@ func (c GlobalBGPConfigConverter) FromKVPair(kvp *model.KVPair) (CustomK8sResour
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: custom.GlobalBGPConfigSpec{
+		Spec: apiv1.GlobalBGPConfigSpec{
 			Name:  kvp.Key.(model.GlobalBGPConfigKey).Name,
 			Value: kvp.Value.(string),
 		},

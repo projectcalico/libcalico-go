@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package custom
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,13 +21,13 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type GlobalBGPConfig struct {
+type GlobalFelixConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              GlobalBGPConfigSpec `json:"spec"`
+	Spec              GlobalFelixConfigSpec `json:"spec"`
 }
 
-type GlobalBGPConfigSpec struct {
+type GlobalFelixConfigSpec struct {
 	// The reason we have Name field in Spec is because k8s metadata
 	// name field requires the string to be lowercase, so Name field
 	// in Spec is to preserve the casing.
@@ -37,8 +37,8 @@ type GlobalBGPConfigSpec struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type GlobalBGPConfigList struct {
+type GlobalFelixConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []GlobalBGPConfig `json:"items"`
+	Items           []GlobalFelixConfig `json:"items"`
 }

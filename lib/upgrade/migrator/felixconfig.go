@@ -15,6 +15,7 @@
 package migrator
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -37,7 +38,7 @@ func (m *migrationHelper) queryAndConvertFelixConfigV1ToV3(
 ) error {
 	// Query all of the global config into a slice of KVPairs.
 	m.statusBullet("handling FelixConfiguration (global) resource")
-	kvps, err := m.clientv1.List(model.GlobalConfigListOptions{})
+	kvps, err := m.clientV1.List(context.Background(), model.GlobalConfigListOptions{}, "")
 	if err != nil {
 		return fmt.Errorf("error querying FelixConfiguration: %v", err)
 	}
@@ -47,27 +48,27 @@ func (m *migrationHelper) queryAndConvertFelixConfigV1ToV3(
 	// flag to true, otherwise to false.
 	globalConfig := apiv3.NewFelixConfiguration()
 	globalConfig.Name = "default"
-	if err := m.parseFelixConfigV1IntoResourceV3(kvps, globalConfig, data); err != nil {
+	if err := m.parseFelixConfigV1IntoResourceV3(kvps.KVPairs, globalConfig, data); err != nil {
 		return fmt.Errorf("error converting FelixConfiguration: %v", err)
 	}
 
 	m.statusBullet("handling ClusterInformation (global) resource")
 	clusterInfo := apiv3.NewClusterInformation()
 	clusterInfo.Name = "default"
-	if err = m.parseFelixConfigV1IntoResourceV3(kvps, clusterInfo, data); err != nil {
+	if err = m.parseFelixConfigV1IntoResourceV3(kvps.KVPairs, clusterInfo, data); err != nil {
 		return fmt.Errorf("error converting ClusterInformation: %v", err)
 	}
 	// Update the ready flag in the resource based on the datastore type.  For KDD the ready
 	// flag should be true, for etcd it should be false.
-	ready := m.clientv1.IsKDD()
+	ready := m.isKDD
 	clusterInfo.Spec.DatastoreReady = &ready
 
-	if m.clientv1.IsKDD() {
+	if m.isKDD {
 		m.statusBullet("skipping FelixConfiguration (per-node) resources - not supported")
 	} else {
 		// Query all of the per-host felix config into a slice of KVPairs.
 		m.statusBullet("handling FelixConfiguration (per-node) resources")
-		kvps, err = m.clientv1.List(model.HostConfigListOptions{})
+		kvps, err = m.clientV1.List(context.Background(), model.HostConfigListOptions{}, "")
 		if err != nil {
 			return fmt.Errorf("error querying FelixConfiguration: %v", err)
 		}
@@ -75,7 +76,7 @@ func (m *migrationHelper) queryAndConvertFelixConfigV1ToV3(
 		// Sort the configuration into slices of KVPairs for each node, converting the
 		// nodename as we go.
 		nodeKvps := make(map[string][]*model.KVPair, 0)
-		for _, kvp := range kvps {
+		for _, kvp := range kvps.KVPairs {
 			// Extract the key, update it and store the updated key. Store in the node-specific
 			// bucket.
 			hk := kvp.Key.(model.HostConfigKey)
