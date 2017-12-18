@@ -15,28 +15,27 @@
 package resources_test
 
 import (
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/upgrade/migrator/clients/v1/k8s/custom"
-	"github.com/projectcalico/libcalico-go/lib/upgrade/migrator/clients/v1/k8s/resources"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/v1"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 )
 
-var _ = Describe("Global BGP config conversion methods", func() {
+var _ = Describe("Global Felix config conversion methods", func() {
 
-	converter := resources.GlobalBGPConfigConverter{}
+	converter := resources.GlobalFelixConfigConverterV1{}
 
 	// Define some useful test data.
-	listIncomplete := model.GlobalBGPConfigListOptions{}
+	listIncomplete := model.GlobalConfigListOptions{}
 
 	// Compatible set of list, key and name (used for Key to Name conversion)
-	list1 := model.GlobalBGPConfigListOptions{
+	list1 := model.GlobalConfigListOptions{
 		Name: "AbCd",
 	}
-	key1 := model.GlobalBGPConfigKey{
+	key1 := model.GlobalConfigKey{
 		Name: "AbCd",
 	}
 	name1 := "abcd"
@@ -48,12 +47,12 @@ var _ = Describe("Global BGP config conversion methods", func() {
 		Value:    value1,
 		Revision: "rv",
 	}
-	res1 := &custom.GlobalBGPConfig{
+	res1 := &v1.GlobalFelixConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name1,
 			ResourceVersion: "rv",
 		},
-		Spec: custom.GlobalBGPConfigSpec{
+		Spec: v1.GlobalFelixConfigSpec{
 			Name:  key1.Name,
 			Value: value1,
 		},
@@ -83,11 +82,11 @@ var _ = Describe("Global BGP config conversion methods", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(r.GetObjectMeta().GetName()).To(Equal(res1.Name))
 		Expect(r.GetObjectMeta().GetResourceVersion()).To(Equal(res1.ResourceVersion))
-		Expect(r).To(BeAssignableToTypeOf(&custom.GlobalBGPConfig{}))
-		Expect(r.(*custom.GlobalBGPConfig).Spec).To(Equal(res1.Spec))
+		Expect(r).To(BeAssignableToTypeOf(&v1.GlobalFelixConfig{}))
+		Expect(r.(*v1.GlobalFelixConfig).Spec).To(Equal(res1.Spec))
 	})
 
-	It("should convert between a Kubernetes resource and the equivalent KVPair", func() {
+	It("should convert between a Kuberenetes resource and the equivalent KVPair", func() {
 		kvp, err := converter.ToKVPair(res1)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(kvp.Key).To(Equal(kvp1.Key))

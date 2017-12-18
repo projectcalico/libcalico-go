@@ -15,17 +15,17 @@
 package resources_test
 
 import (
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/net"
-	"github.com/projectcalico/libcalico-go/lib/upgrade/migrator/clients/v1/k8s/resources"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/resources"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/net"
 )
 
 var _ = Describe("Node BGP conversion methods", func() {
 
-	converter := resources.NodeBGPPeerConverter{}
+	converter := resources.NodeBGPPeerConverterV1{}
 
 	It("should convert an empty ListInterface", func() {
 		node, name, err := converter.ListInterfaceToNodeAndName(

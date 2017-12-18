@@ -15,28 +15,28 @@
 package resources
 
 import (
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
-
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 )
 
 const (
 	perNodeBgpPeerAnnotationNamespace = "peer.bgp.projectcalico.org"
 )
 
-func NewNodeBGPPeerClient(c *kubernetes.Clientset) K8sResourceClient {
-	return NewCustomK8sNodeResourceClient(CustomK8sNodeResourceClientConfig{
+func NewNodeBGPPeerClientV1(c *kubernetes.Clientset) K8sResourceClient {
+	return NewCustomK8sNodeResourceClientV1(customK8sNodeResourceClientConfigV1{
 		ClientSet:    c,
 		ResourceType: "NodeBGPPeer",
-		Converter:    NodeBGPPeerConverter{},
+		Converter:    NodeBGPPeerConverterV1{},
 		Namespace:    perNodeBgpPeerAnnotationNamespace,
 	})
 }
 
-// NodeBGPPeerConverter implements the CustomK8sNodeResourceConverter interface.
-type NodeBGPPeerConverter struct{}
+// NodeBGPPeerConverterV1 implements the customK8sNodeResourceConverterV1 interface.
+type NodeBGPPeerConverterV1 struct{}
 
-func (_ NodeBGPPeerConverter) ListInterfaceToNodeAndName(l model.ListInterface) (string, string, error) {
+func (_ NodeBGPPeerConverterV1) ListInterfaceToNodeAndName(l model.ListInterface) (string, string, error) {
 	pl := l.(model.NodeBGPPeerListOptions)
 	if pl.PeerIP.IP == nil {
 		return pl.Nodename, "", nil
@@ -45,12 +45,12 @@ func (_ NodeBGPPeerConverter) ListInterfaceToNodeAndName(l model.ListInterface) 
 	}
 }
 
-func (_ NodeBGPPeerConverter) KeyToNodeAndName(k model.Key) (string, string, error) {
+func (_ NodeBGPPeerConverterV1) KeyToNodeAndName(k model.Key) (string, string, error) {
 	pk := k.(model.NodeBGPPeerKey)
 	return pk.Nodename, IPToResourceName(pk.PeerIP), nil
 }
 
-func (_ NodeBGPPeerConverter) NodeAndNameToKey(node, name string) (model.Key, error) {
+func (_ NodeBGPPeerConverterV1) NodeAndNameToKey(node, name string) (model.Key, error) {
 	ip, err := ResourceNameToIP(name)
 	if err != nil {
 		return nil, err

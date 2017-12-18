@@ -57,7 +57,7 @@ func (key GlobalBGPConfigKey) valueType() reflect.Type {
 }
 
 func (key GlobalBGPConfigKey) String() string {
-	return fmt.Sprintf("GlobalBGPConfig(name=%s)", key.Name)
+	return fmt.Sprintf("GlobalBGPConfig(%s)", key.Name)
 }
 
 type GlobalBGPConfigListOptions struct {

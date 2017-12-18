@@ -15,9 +15,8 @@
 package api
 
 import (
-	"fmt"
-
 	"context"
+	"fmt"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 )

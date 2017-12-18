@@ -78,7 +78,7 @@ func (key NodeKey) valueType() reflect.Type {
 }
 
 func (key NodeKey) String() string {
-	return fmt.Sprintf("Node(name=%s)", key.Hostname)
+	return fmt.Sprintf("Node(%s)", key.Hostname)
 }
 
 type NodeListOptions struct {

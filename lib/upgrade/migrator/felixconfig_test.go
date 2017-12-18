@@ -139,7 +139,7 @@ var _ = Describe("Test felix configuration upgrade", func() {
 
 		// Convert the data back to a set of resources.
 		data := &MigrationData{}
-		mh := &migrationHelper{clientv1: clientv1}
+		mh := &migrationHelper{clientV1: clientv1}
 		err = mh.queryAndConvertFelixConfigV1ToV3(data)
 		Expect(err).NotTo(HaveOccurred())
 		By("Checking total conversion is 3")

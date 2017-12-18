@@ -59,7 +59,7 @@ func (key ProfileKey) valueType() reflect.Type {
 }
 
 func (key ProfileKey) String() string {
-	return fmt.Sprintf("Profile(name=%s)", key.Name)
+	return fmt.Sprintf("Profile(%s)", key.Name)
 }
 
 // ProfileRulesKey implements the KeyInterface for the profile rules
