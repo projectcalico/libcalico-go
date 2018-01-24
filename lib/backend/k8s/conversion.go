@@ -445,7 +445,9 @@ func (c Converter) k8sPortToCalico(port extensions.NetworkPolicyPort) []numorstr
 	if port.Port != nil {
 		p, err := numorstring.PortFromString(port.Port.String())
 		if err != nil {
-			log.Panic("Invalid port %+v: %s", port.Port, err)
+			// If we get an invalid port, ignore it.
+			log.Errorf("Invalid port %+v: %s", port.Port, err)
+			return portList
 		}
 		return append(portList, p)
 	}

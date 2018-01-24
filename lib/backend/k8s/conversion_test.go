@@ -73,6 +73,23 @@ var _ = Describe("Test parsing strings", func() {
 	})
 })
 
+var _ = Describe("Test parsing ports", func() {
+
+	// Use a single instance of the Converter for these tests.
+	c := Converter{}
+
+	It("should not parse named ports", func() {
+		portval := intstr.FromString("webport")
+		port := extensions.NetworkPolicyPort{}
+		protoTCP := extensions.ProtocolTCP
+		port.Port = &portval
+		port.Protocol = &protoTCP
+
+		ret := c.k8sPortToCalico(port)
+		Expect(len(ret)).To(Equal(0))
+	})
+})
+
 var _ = Describe("Test Pod conversion", func() {
 
 	// Use a single instance of the Converter for these tests.
