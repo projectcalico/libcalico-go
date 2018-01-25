@@ -506,9 +506,11 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 				continue
 			}
 			// Event is OK - parse it and send it over the channel.
-			kvp := syn.parseNetworkPolicyEvent(event)
-			latestVersions.networkPolicyVersion = kvp.Revision.(string)
-			syn.sendUpdates([]model.KVPair{*kvp}, KEY_NP)
+			kvp, err := syn.parseNetworkPolicyEvent(event)
+			if err == nil {
+				latestVersions.networkPolicyVersion = kvp.Revision.(string)
+				syn.sendUpdates([]model.KVPair{*kvp}, KEY_NP)
+			}
 		case event = <-gnpChan:
 			log.Debugf("Incoming GlobalNetworkPolicy watch event. Type=%s", event.Type)
 			if syn.eventNeedsResync(event) {
@@ -668,9 +670,11 @@ func (syn *kubeSyncer) performSnapshot(versions *resourceVersions) (map[string][
 
 			versions.networkPolicyVersion = npList.ListMeta.ResourceVersion
 			for _, np := range npList.Items {
-				pol, _ := syn.converter.NetworkPolicyToPolicy(&np)
-				snap[KEY_NP] = append(snap[KEY_NP], *pol)
-				keys[KEY_NP][pol.Key.String()] = true
+				pol, err := syn.converter.NetworkPolicyToPolicy(&np)
+				if err == nil {
+					snap[KEY_NP] = append(snap[KEY_NP], *pol)
+					keys[KEY_NP][pol.Key.String()] = true
+				}
 			}
 		}
 
@@ -1006,7 +1010,7 @@ func (syn *kubeSyncer) parsePodEvent(e watch.Event) *model.KVPair {
 	return kvp
 }
 
-func (syn *kubeSyncer) parseNetworkPolicyEvent(e watch.Event) *model.KVPair {
+func (syn *kubeSyncer) parseNetworkPolicyEvent(e watch.Event) (*model.KVPair, error) {
 	log.Debug("Parsing NetworkPolicy watch event")
 	// First, check the event type.
 	np, ok := e.Object.(*extensions.NetworkPolicy)
@@ -1017,14 +1021,14 @@ func (syn *kubeSyncer) parseNetworkPolicyEvent(e watch.Event) *model.KVPair {
 	// Convert the received NetworkPolicy into a profile KVPair.
 	kvp, err := syn.converter.NetworkPolicyToPolicy(np)
 	if err != nil {
-		log.Panicf("%s", err)
+		return nil, err
 	}
 
 	// For deletes, we need to nil out the Value part of the KVPair
 	if e.Type == watch.Deleted {
 		kvp.Value = nil
 	}
-	return kvp
+	return kvp, nil
 }
 
 func (syn *kubeSyncer) parseGlobalFelixConfigEvent(e watch.Event) *model.KVPair {

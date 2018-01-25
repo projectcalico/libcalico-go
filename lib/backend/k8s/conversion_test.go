@@ -85,7 +85,8 @@ var _ = Describe("Test parsing ports", func() {
 		port.Port = &portval
 		port.Protocol = &protoTCP
 
-		ret := c.k8sPortToCalico(port)
+		ret, err := c.k8sPortToCalico(port)
+		Expect(err).To(HaveOccurred())
 		Expect(len(ret)).To(Equal(0))
 	})
 })
@@ -472,6 +473,47 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 			Expect(pol.Value.(*model.Policy).InboundRules[3].SrcSelector).To(Equal("calico/k8s_ns == 'default' && k2 == 'v2'"))
 			Expect(pol.Value.(*model.Policy).InboundRules[3].DstPorts).To(Equal([]numorstring.Port{eighty}))
 		})
+	})
+
+	It("should not parse a NetworkPolicy with named ports", func() {
+		namedPort := intstr.FromString("namedport")
+		np := extensions.NetworkPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testPolicy",
+				Namespace: "default",
+			},
+			Spec: extensions.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"label":  "value",
+						"label2": "value2",
+					},
+				},
+				Ingress: []extensions.NetworkPolicyIngressRule{
+					{
+						Ports: []extensions.NetworkPolicyPort{
+							{Port: &namedPort},
+						},
+						From: []extensions.NetworkPolicyPeer{
+							{
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"k":  "v",
+										"k2": "v2",
+									},
+								},
+							},
+						},
+					},
+				},
+				PolicyTypes: []extensions.PolicyType{extensions.PolicyTypeIngress},
+			},
+		}
+
+		// Parse the policy.
+		pol, err := c.NetworkPolicyToPolicy(&np)
+		Expect(err).To(HaveOccurred())
+		Expect(pol).To(BeNil())
 	})
 
 	It("should parse a NetworkPolicy with empty podSelector", func() {

@@ -200,13 +200,21 @@ func (c Converter) NetworkPolicyToPolicy(np *extensions.NetworkPolicy) (*model.K
 	// Generate the inbound rules list.
 	var inboundRules []model.Rule
 	for _, r := range np.Spec.Ingress {
-		inboundRules = append(inboundRules, c.k8sRuleToCalico(r.From, r.Ports, np.ObjectMeta.Namespace, true)...)
+		rules, err := c.k8sRuleToCalico(r.From, r.Ports, np.ObjectMeta.Namespace, true)
+		if err != nil {
+			return nil, err
+		}
+		inboundRules = append(inboundRules, rules...)
 	}
 
 	// Generate the outbound rules list.
 	var outboundRules []model.Rule
 	for _, r := range np.Spec.Egress {
-		outboundRules = append(outboundRules, c.k8sRuleToCalico(r.To, r.Ports, np.ObjectMeta.Namespace, false)...)
+		rules, err := c.k8sRuleToCalico(r.To, r.Ports, np.ObjectMeta.Namespace, false)
+		if err != nil {
+			return nil, err
+		}
+		outboundRules = append(outboundRules, rules...)
 	}
 
 	// Calculate Types setting.
@@ -305,7 +313,7 @@ func (c Converter) k8sSelectorToCalico(s *metav1.LabelSelector, ns *string) stri
 	return strings.Join(selectors, " && ")
 }
 
-func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts []extensions.NetworkPolicyPort, ns string, ingress bool) []model.Rule {
+func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts []extensions.NetworkPolicyPort, ns string, ingress bool) ([]model.Rule, error) {
 	rules := []model.Rule{}
 	peers := []*extensions.NetworkPolicyPeer{}
 	ports := []*extensions.NetworkPolicyPort{}
@@ -353,7 +361,10 @@ func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts
 	// into a rule.  We can combine these so that we don't need as many rules!
 	for _, port := range ports {
 		for _, peer := range peers {
-			protocol, dstPorts := c.k8sPortToCalicoFields(port)
+			protocol, dstPorts, err := c.k8sPortToCalicoFields(port)
+			if err != nil {
+				return nil, err
+			}
 			selector, nets, notNets := c.k8sPeerToCalicoFields(peer, ns)
 			if ingress {
 				// Build inbound rule and append to list.
@@ -378,17 +389,17 @@ func (c Converter) k8sRuleToCalico(rPeers []extensions.NetworkPolicyPeer, rPorts
 			}
 		}
 	}
-	return rules
+	return rules, nil
 }
 
-func (c Converter) k8sPortToCalicoFields(port *extensions.NetworkPolicyPort) (protocol *numorstring.Protocol, dstPorts []numorstring.Port) {
+func (c Converter) k8sPortToCalicoFields(port *extensions.NetworkPolicyPort) (protocol *numorstring.Protocol, dstPorts []numorstring.Port, err error) {
 	// If no port info, return zero values for all fields (protocol, dstPorts).
 	if port == nil {
 		return
 	}
 	// Port information available.
 	protocol = c.k8sProtocolToCalico(port.Protocol)
-	dstPorts = c.k8sPortToCalico(*port)
+	dstPorts, err = c.k8sPortToCalico(*port)
 	return
 }
 
@@ -440,18 +451,18 @@ func (c Converter) k8sPeerToCalicoFields(peer *extensions.NetworkPolicyPeer, ns 
 	return
 }
 
-func (c Converter) k8sPortToCalico(port extensions.NetworkPolicyPort) []numorstring.Port {
+func (c Converter) k8sPortToCalico(port extensions.NetworkPolicyPort) ([]numorstring.Port, error) {
 	var portList []numorstring.Port
 	if port.Port != nil {
 		p, err := numorstring.PortFromString(port.Port.String())
 		if err != nil {
 			// If we get an invalid port, ignore it.
 			log.Errorf("Invalid port %+v: %s", port.Port, err)
-			return portList
+			return portList, err
 		}
-		return append(portList, p)
+		return append(portList, p), nil
 	}
 
 	// No ports - return empty list.
-	return portList
+	return portList, nil
 }

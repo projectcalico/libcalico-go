@@ -664,7 +664,8 @@ func (c *KubeClient) listPolicies(l model.PolicyListOptions) ([]*model.KVPair, e
 	for _, p := range networkPolicies.Items {
 		kvp, err := c.converter.NetworkPolicyToPolicy(&p)
 		if err != nil {
-			return nil, err
+			log.WithError(err).Warnf("Failed to list policy")
+			continue
 		}
 		ret = append(ret, kvp)
 	}
