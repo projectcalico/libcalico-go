@@ -33,6 +33,7 @@ import (
 
 	extensions "github.com/projectcalico/libcalico-go/lib/backend/extensions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8sapi "k8s.io/client-go/pkg/api/v1"
 )
@@ -533,6 +534,69 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 			policy := p.Value.(*model.Policy)
 			Expect(len(policy.OutboundRules)).To(Equal(1))
 		})
+	})
+
+	It("should not respect a NetworkPolicy with a named port", func() {
+		namedPort := intstr.FromString("namedport")
+		np := extensions.NetworkPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-syncer-named-port",
+			},
+			Spec: extensions.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{"label": "value"},
+				},
+				Ingress: []extensions.NetworkPolicyIngressRule{
+					extensions.NetworkPolicyIngressRule{
+						Ports: []extensions.NetworkPolicyPort{
+							{Port: &namedPort},
+						},
+						From: []extensions.NetworkPolicyPeer{
+							extensions.NetworkPolicyPeer{
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"k": "v",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		res := c.extensionsClientV1Beta1.
+			Post().
+			Resource("networkpolicies").
+			Namespace("default").
+			Body(&np).
+			Do()
+
+		// Make sure we clean up after ourselves.
+		defer func() {
+			res := c.extensionsClientV1Beta1.
+				Delete().
+				Resource("networkpolicies").
+				Namespace("default").
+				Name(np.ObjectMeta.Name).
+				Do()
+			Expect(res.Error()).NotTo(HaveOccurred())
+		}()
+
+		// Check to see if the create succeeded.
+		Expect(res.Error()).NotTo(HaveOccurred())
+
+		// Perform a List and ensure it doesn't error.
+		_, err := c.List(model.PolicyListOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		// Perform a Get - it shouldn't show up in the Calico API.
+		k := model.PolicyKey{Name: fmt.Sprintf("knp.default.default.%s", np.ObjectMeta.Name)}
+		_, err = c.Get(k)
+		Expect(err).To(HaveOccurred())
+
+		// The NP should not show up in the Syncer.
+		Consistently(cb.GetSyncerValueFunc(k)).Should(BeNil())
+
 	})
 
 	// Add a defer to wait for policies to clean up.
