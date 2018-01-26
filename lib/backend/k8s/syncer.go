@@ -682,6 +682,8 @@ func (syn *kubeSyncer) performSnapshot(versions *resourceVersions) (map[string][
 				if err == nil {
 					snap[KEY_NP] = append(snap[KEY_NP], *pol)
 					keys[KEY_NP][pol.Key.String()] = true
+				} else {
+					log.WithError(err).Warnf("Failed to parse policy")
 				}
 			}
 		}
