@@ -508,8 +508,16 @@ func (syn *kubeSyncer) readFromKubernetesAPI() {
 			// Event is OK - parse it and send it over the channel.
 			kvp, err := syn.parseNetworkPolicyEvent(event)
 			if err == nil {
+				// Successfully parsed the event - send it.
 				latestVersions.networkPolicyVersion = kvp.Revision.(string)
 				syn.sendUpdates([]model.KVPair{*kvp}, KEY_NP)
+			} else if kvp != nil {
+				// If we got a KVP back, it means it was parsed enough
+				// that we can treat as a delete.
+				kvp.Value = nil
+				syn.sendUpdates([]model.KVPair{*kvp}, KEY_NP)
+			} else {
+				log.WithError(err).Warnf("Failed to parse NetworkPolicy watch event")
 			}
 		case event = <-gnpChan:
 			log.Debugf("Incoming GlobalNetworkPolicy watch event. Type=%s", event.Type)
