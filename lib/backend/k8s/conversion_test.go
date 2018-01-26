@@ -475,7 +475,7 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 		})
 	})
 
-	It("should not parse a NetworkPolicy with named ports", func() {
+	It("should not parse a NetworkPolicy rule with named ports", func() {
 		namedPort := intstr.FromString("namedport")
 		np := extensions.NetworkPolicy{
 			ObjectMeta: metav1.ObjectMeta{
@@ -512,8 +512,8 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 
 		// Parse the policy.
 		pol, err := c.NetworkPolicyToPolicy(&np)
-		Expect(err).To(HaveOccurred())
-		Expect(pol).To(BeNil())
+		Expect(err).NotTo(HaveOccurred())
+		Expect(len(pol.Value.(*model.Policy).InboundRules)).To(Equal(0))
 	})
 
 	It("should parse a NetworkPolicy with empty podSelector", func() {

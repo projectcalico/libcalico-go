@@ -202,7 +202,9 @@ func (c Converter) NetworkPolicyToPolicy(np *extensions.NetworkPolicy) (*model.K
 	for _, r := range np.Spec.Ingress {
 		rules, err := c.k8sRuleToCalico(r.From, r.Ports, np.ObjectMeta.Namespace, true)
 		if err != nil {
-			return nil, err
+			// If we fail to parse this rule, skip it.
+			log.WithError(err).Warnf("Failed to parse rule")
+			continue
 		}
 		inboundRules = append(inboundRules, rules...)
 	}
@@ -212,7 +214,9 @@ func (c Converter) NetworkPolicyToPolicy(np *extensions.NetworkPolicy) (*model.K
 	for _, r := range np.Spec.Egress {
 		rules, err := c.k8sRuleToCalico(r.To, r.Ports, np.ObjectMeta.Namespace, false)
 		if err != nil {
-			return nil, err
+			// If we fail to parse this rule, skip it.
+			log.WithError(err).Warnf("Failed to parse rule")
+			continue
 		}
 		outboundRules = append(outboundRules, rules...)
 	}

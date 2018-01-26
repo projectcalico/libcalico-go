@@ -589,14 +589,13 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		_, err := c.List(model.PolicyListOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
-		// Perform a Get - it shouldn't show up in the Calico API.
+		// Perform a Get - it shouldn't have any rules.
 		k := model.PolicyKey{Name: fmt.Sprintf("knp.default.default.%s", np.ObjectMeta.Name)}
-		_, err = c.Get(k)
-		Expect(err).To(HaveOccurred())
+		kvp, err := c.Get(k)
+		Expect(len(kvp.Value.(*model.Policy).InboundRules)).To(Equal(0))
 
 		// The NP should not show up in the Syncer.
-		Consistently(cb.GetSyncerValueFunc(k)).Should(BeNil())
-
+		Eventually(cb.GetSyncerValueFunc(k)).Should(Equal(kvp.Value))
 	})
 
 	// Add a defer to wait for policies to clean up.
