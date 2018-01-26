@@ -73,6 +73,24 @@ var _ = Describe("Test parsing strings", func() {
 	})
 })
 
+var _ = Describe("Test parsing ports", func() {
+
+	// Use a single instance of the Converter for these tests.
+	c := Converter{}
+
+	It("should not parse named ports", func() {
+		portval := intstr.FromString("webport")
+		port := extensions.NetworkPolicyPort{}
+		protoTCP := extensions.ProtocolTCP
+		port.Port = &portval
+		port.Protocol = &protoTCP
+
+		ret, err := c.k8sPortToCalico(port)
+		Expect(err).To(HaveOccurred())
+		Expect(len(ret)).To(Equal(0))
+	})
+})
+
 var _ = Describe("Test Pod conversion", func() {
 
 	// Use a single instance of the Converter for these tests.
@@ -455,6 +473,47 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 			Expect(pol.Value.(*model.Policy).InboundRules[3].SrcSelector).To(Equal("calico/k8s_ns == 'default' && k2 == 'v2'"))
 			Expect(pol.Value.(*model.Policy).InboundRules[3].DstPorts).To(Equal([]numorstring.Port{eighty}))
 		})
+	})
+
+	It("should not parse a NetworkPolicy rule with named ports", func() {
+		namedPort := intstr.FromString("namedport")
+		np := extensions.NetworkPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testPolicy",
+				Namespace: "default",
+			},
+			Spec: extensions.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"label":  "value",
+						"label2": "value2",
+					},
+				},
+				Ingress: []extensions.NetworkPolicyIngressRule{
+					{
+						Ports: []extensions.NetworkPolicyPort{
+							{Port: &namedPort},
+						},
+						From: []extensions.NetworkPolicyPeer{
+							{
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"k":  "v",
+										"k2": "v2",
+									},
+								},
+							},
+						},
+					},
+				},
+				PolicyTypes: []extensions.PolicyType{extensions.PolicyTypeIngress},
+			},
+		}
+
+		// Parse the policy.
+		pol, err := c.NetworkPolicyToPolicy(&np)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(len(pol.Value.(*model.Policy).InboundRules)).To(Equal(0))
 	})
 
 	It("should parse a NetworkPolicy with empty podSelector", func() {
