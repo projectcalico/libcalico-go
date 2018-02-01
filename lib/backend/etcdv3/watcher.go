@@ -16,9 +16,9 @@ package etcdv3
 
 import (
 	"context"
-	goerrors "errors"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/coreos/etcd/clientv3"
 	log "github.com/sirupsen/logrus"
@@ -52,6 +52,30 @@ func (c *etcdV3Client) Watch(cxt context.Context, l model.ListInterface, revisio
 	wc.ctx, wc.cancel = context.WithCancel(cxt)
 	go wc.watchLoop()
 	return wc, nil
+}
+
+// watchDog helps monitor for broken watches.
+type watchDog struct {
+	interval time.Duration
+	timer    *time.Timer
+	done     <-chan time.Time
+}
+
+func newWatchDog(interval time.Duration) *watchDog {
+	t := time.NewTimer(interval)
+	return &watchDog{
+		interval: interval,
+		timer:    t,
+	}
+}
+
+func (w *watchDog) stop() {
+	w.timer.Stop()
+}
+
+func (w *watchDog) reset() {
+	w.timer.Stop()
+	w.timer.Reset(w.interval)
 }
 
 // watcher implements watch.Interface.
@@ -111,31 +135,39 @@ func (wc *watcher) watchLoop() {
 		opts = append(opts, clientv3.WithPrefix())
 		key += "/"
 	}
+
 	wch := wc.client.etcdClient.Watch(wc.ctx, key, opts...)
-	for wres := range wch {
-		if wres.Err() != nil {
-			// A watch channel error is a terminating event, so exit the loop.
-			err := wres.Err()
-			log.WithError(err).Error("Watch channel error")
-			wc.sendError(err, true)
-			return
-		}
-		for _, e := range wres.Events {
-			// Convert the etcdv3 event to the equivalent Watcher event.  An error
-			// parsing the event is returned as an error, but don't exit the watcher as
-			// restarting the watcher is unlikely to fix the conversion error.
-			if ae, err := convertWatchEvent(e, wc.list); ae != nil {
-				wc.sendEvent(ae)
-			} else if err != nil {
-				wc.sendError(err, false)
+
+	// Configure the watch dog to monitor the watch.
+	pup := newWatchDog(90 * time.Second)
+	defer pup.stop()
+	for {
+		select {
+		case <-pup.timer.C:
+			// Watchdog triggered.
+			log.WithField("key", key).Info("Watch timer for key expired")
+			wc.terminateWatcher()
+		case wres, ok := <-wch:
+			pup.reset()
+			if wres.Err() != nil || !ok {
+				// A watch channel error is a terminating event, so exit the loop.
+				err := wres.Err()
+				log.WithError(err).Error("Watch channel error")
+				wc.sendError(err, true)
+				return
+			}
+			for _, e := range wres.Events {
+				// Convert the etcdv3 event to the equivalent Watcher event.  An error
+				// parsing the event is returned as an error, but don't exit the watcher as
+				// restarting the watcher is unlikely to fix the conversion error.
+				if ae, err := convertWatchEvent(e, wc.list); ae != nil {
+					wc.sendEvent(ae)
+				} else if err != nil {
+					wc.sendError(err, false)
+				}
 			}
 		}
 	}
-
-	// If we exit the loop, it means the watcher has closed for some reason.
-	// Bubble this up as a watch termination error.
-	log.Warn("etcdv3 watch channel closed")
-	wc.sendError(goerrors.New("etcdv3 watch channel closed"), true)
 }
 
 // listCurrent retrieves the existing entries and sends an event for each listed
