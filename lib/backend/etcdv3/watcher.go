@@ -146,7 +146,7 @@ func (wc *watcher) watchLoop() {
 		case <-pup.timer.C:
 			// Watchdog triggered.
 			log.WithField("key", key).Info("Watch timer for key expired")
-			wc.terminateWatcher()
+			wc.Stop()
 		case wres, ok := <-wch:
 			pup.reset()
 			if wres.Err() != nil || !ok {
