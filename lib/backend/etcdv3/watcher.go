@@ -146,9 +146,10 @@ func (wc *watcher) watchLoop() {
 	for {
 		select {
 		case <-pup.timer.C:
-			// Watchdog triggered.
+			// Watchdog triggered - close the result channel. This indicates to the calling code
+			// to restart the watch.
 			log.WithField("key", key).Info("Watch timer for key expired")
-			wc.Stop()
+			close(wc.resultChan)
 		case wres, ok := <-wch:
 			if !ok {
 				logCxt.Info("Watch channel closed")
