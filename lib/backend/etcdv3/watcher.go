@@ -16,6 +16,7 @@ package etcdv3
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -137,6 +138,7 @@ func (wc *watcher) watchLoop() {
 	}
 
 	wch := wc.client.etcdClient.Watch(wc.ctx, key, opts...)
+	logCxt.Info("Started etcdv3 watch")
 
 	// Configure the watch dog to monitor the watch.
 	pup := newWatchDog(90 * time.Second)
@@ -148,14 +150,20 @@ func (wc *watcher) watchLoop() {
 			log.WithField("key", key).Info("Watch timer for key expired")
 			wc.Stop()
 		case wres, ok := <-wch:
-			pup.reset()
-			if wres.Err() != nil || !ok {
+			if !ok {
+				logCxt.Info("Watch channel closed")
+				wc.sendError(fmt.Errorf("Watch channel closed"), true)
+				return
+			}
+			if wres.Err() != nil {
 				// A watch channel error is a terminating event, so exit the loop.
 				err := wres.Err()
 				log.WithError(err).Error("Watch channel error")
 				wc.sendError(err, true)
 				return
 			}
+
+			pup.reset()
 			for _, e := range wres.Events {
 				// Convert the etcdv3 event to the equivalent Watcher event.  An error
 				// parsing the event is returned as an error, but don't exit the watcher as
