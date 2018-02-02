@@ -21,6 +21,9 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
+
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/pkg/transport"
 	log "github.com/sirupsen/logrus"
@@ -33,7 +36,9 @@ import (
 )
 
 var (
-	clientTimeout = 30 * time.Second
+	clientTimeout    = 10 * time.Second
+	keepAlivePeriod  = 10 * time.Second
+	keepAliveTimeout = 5 * time.Second
 )
 
 type etcdV3Client struct {
@@ -60,10 +65,19 @@ func NewEtcdV3Client(config *apiconfig.EtcdConfig) (api.Client, error) {
 	}
 	tls, _ := tlsInfo.ClientConfig()
 
+	// Configure gRPC client params for timing out of watches.
+	params := keepalive.ClientParameters{
+		Time:    keepAlivePeriod,
+		Timeout: keepAliveTimeout,
+	}
+	opts := []grpc.DialOption{grpc.WithKeepaliveParams(params)}
+
+	// Build the etcdv3 config.
 	cfg := clientv3.Config{
 		Endpoints:   etcdLocation,
 		TLS:         tls,
 		DialTimeout: clientTimeout,
+		DialOptions: opts,
 	}
 
 	// Plumb through the username and password if both are configured.
