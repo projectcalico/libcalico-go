@@ -214,8 +214,10 @@ func (wc *watcher) terminateWatcher() {
 	// cancelled through an explicit Stop, but it is fine to cancel multiple times.
 	wc.cancel()
 
-	// Close the results channel.
-	close(wc.resultChan)
+	// Close the results channel if it's open.
+	if wc.resultChan != nil {
+		close(wc.resultChan)
+	}
 
 	// Increment the terminated counter using a goroutine safe operation.
 	atomic.AddUint32(&wc.terminated, 1)
