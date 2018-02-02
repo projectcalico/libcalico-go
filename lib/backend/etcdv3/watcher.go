@@ -141,7 +141,7 @@ func (wc *watcher) watchLoop() {
 	logCxt.Info("Started etcdv3 watch")
 
 	// Configure the watch dog to monitor the watch.
-	pup := newWatchDog(90 * time.Second)
+	pup := newWatchDog(10 * time.Second)
 	defer pup.stop()
 	for {
 		select {
@@ -150,6 +150,7 @@ func (wc *watcher) watchLoop() {
 			// to restart the watch.
 			log.WithField("key", key).Info("Watch timer for key expired")
 			close(wc.resultChan)
+			wc.resultChan = nil
 		case wres, ok := <-wch:
 			if !ok {
 				logCxt.Info("Watch channel closed")
