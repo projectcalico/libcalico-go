@@ -126,7 +126,7 @@ func (key ResourceKey) defaultPath() (string, error) {
 func (key ResourceKey) defaultDeletePath() (string, error) {
 	ri, ok := resourceInfoByKind[strings.ToLower(key.Kind)]
 	if !ok {
-		log.Panic("Unexpected resource kind: " + key.Kind)
+		return "", fmt.Errorf("couldn't convert key: %+v", key)
 	}
 	if namespace.IsNamespaced(key.Kind) {
 		return fmt.Sprintf("/calico/resources/v3/projectcalico.org/%s/%s/%s", ri.plural, key.Namespace, key.Name), nil
@@ -138,12 +138,12 @@ func (key ResourceKey) defaultDeleteParentPaths() ([]string, error) {
 	return nil, nil
 }
 
-func (key ResourceKey) valueType() reflect.Type {
+func (key ResourceKey) valueType() (reflect.Type, error) {
 	ri, ok := resourceInfoByKind[strings.ToLower(key.Kind)]
 	if !ok {
-		log.Panic("Unexpected resource kind: " + key.Kind)
+		return nil, fmt.Errorf("Unexpected resource kind: " + key.Kind)
 	}
-	return ri.typeOf
+	return ri.typeOf, nil
 }
 
 func (key ResourceKey) String() string {
