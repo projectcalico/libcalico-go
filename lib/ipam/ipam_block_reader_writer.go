@@ -131,7 +131,7 @@ func (rw blockReaderWriter) getPendingAffinity(ctx context.Context, host string,
 	logCtx.Info("Trying to create affinity in pending state")
 	obj := model.KVPair{
 		Key:   model.BlockAffinityKey{Host: host, CIDR: subnet},
-		Value: model.BlockAffinity{State: model.StatePending},
+		Value: &model.BlockAffinity{State: model.StatePending},
 	}
 	aff, err := rw.client.Create(ctx, &obj)
 	if err != nil {

@@ -493,7 +493,7 @@ func (in *BlockAffinityList) DeepCopyInto(out *BlockAffinityList) {
 	out.ListMeta = in.ListMeta
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]BlockAffinityList, len(*in))
+		*out = make([]BlockAffinity, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

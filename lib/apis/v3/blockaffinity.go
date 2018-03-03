@@ -47,7 +47,7 @@ type BlockAffinitySpec struct {
 type BlockAffinityList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []BlockAffinityList `json:"items"`
+	Items           []BlockAffinity `json:"items"`
 }
 
 // NewBGPPeer creates a new (zeroed) BGPPeer struct with the TypeMetadata initialised to the current
