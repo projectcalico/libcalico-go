@@ -552,7 +552,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreK8s, fun
 				applyPool(v, true)
 			}
 
-			assignIPutil(ic, args.assignIP, "Host-A")
+			assignIPutil(ic, args.assignIP, "host-a")
 
 			outClaimed, outFailed, outError := ic.ClaimAffinity(context.Background(), inIPNet, args.host)
 			log.Println("Claimed IP blocks: ", outClaimed)
@@ -579,13 +579,13 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreK8s, fun
 		Entry("Claim affinity for an unclaimed IPNet of size smaller than 64", testArgsClaimAff{"192.168.1.0/27", "host-a", true, []string{"192.168.1.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 0, 0, errors.New("The requested CIDR (192.168.1.0/27) is smaller than the minimum.")}),
 
 		// Test 3: claim affinity for a IPNet that has an IP already assigned to another host.
-		// - Assign an IP with AssignIP to "Host-A" from a configured pool
+		// - Assign an IP with AssignIP to "host-a" from a configured pool
 		// - Claim affinity for "host-b" to the block that IP belongs to - expect 3 claimed blocks and 1 failed.
 		Entry("Claim affinity for a IPNet that has an IP already assigned to another host (Claim affinity for host-b)", testArgsClaimAff{"10.0.0.0/24", "host-b", true, []string{"10.0.0.0/24", "fd80:24e2:f998:72d6::/120"}, net.ParseIP("10.0.0.1"), 3, 1, nil}),
 
 		// Test 4: claim affinity to a block twice from different hosts.
-		// - Claim affinity to an unclaimed block for "Host-A" - expect 4 claimed blocks, 0 failed and expect no error.
-		Entry("Claim affinity to an unclaimed block for Host-A", testArgsClaimAff{"10.0.0.0/24", "host-a", true, []string{"10.0.0.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 4, 0, nil}),
+		// - Claim affinity to an unclaimed block for "host-a" - expect 4 claimed blocks, 0 failed and expect no error.
+		Entry("Claim affinity to an unclaimed block for host-a", testArgsClaimAff{"10.0.0.0/24", "host-a", true, []string{"10.0.0.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 4, 0, nil}),
 
 		// - Claim affinity to the same block again but for "host-b" this time - expect 0 claimed blocks, 4 failed and expect no error.
 		Entry("Claim affinity to the same block again but for host-b this time", testArgsClaimAff{"10.0.0.0/24", "host-b", false, []string{"10.0.0.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 0, 4, nil}),

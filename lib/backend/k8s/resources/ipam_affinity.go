@@ -171,9 +171,20 @@ func (c *affinityBlockClient) List(ctx context.Context, list model.ListInterface
 		return nil, err
 	}
 
+	host := list.(model.BlockAffinityListOptions).Host
+	requestedIPVersion := list.(model.BlockAffinityListOptions).IPVersion
+
 	kvpl := &model.KVPairList{KVPairs: []*model.KVPair{}}
 	for _, i := range v3list.KVPairs {
-		kvpl.KVPairs = append(kvpl.KVPairs, toV1(i))
+		v1kvp := toV1(i)
+		if host == "" || v1kvp.Key.(model.BlockAffinityKey).Host == host {
+			cidr := v1kvp.Key.(model.BlockAffinityKey).CIDR
+			cidr2 := &cidr
+			if requestedIPVersion == 0 || requestedIPVersion == cidr2.Version() {
+				// Matches the given host and IP version.
+				kvpl.KVPairs = append(kvpl.KVPairs, v1kvp)
+			}
+		}
 	}
 	return kvpl, nil
 }

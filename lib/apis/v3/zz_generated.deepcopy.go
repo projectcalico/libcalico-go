@@ -1462,7 +1462,7 @@ func (in *IPAMBlockList) DeepCopyInto(out *IPAMBlockList) {
 	out.ListMeta = in.ListMeta
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]IPAMBlockList, len(*in))
+		*out = make([]IPAMBlock, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

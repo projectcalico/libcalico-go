@@ -62,7 +62,7 @@ type AllocationAttribute struct {
 type IPAMBlockList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []IPAMBlockList `json:"items"`
+	Items           []IPAMBlock `json:"items"`
 }
 
 // NewBGPPeer creates a new (zeroed) BGPPeer struct with the TypeMetadata initialised to the current

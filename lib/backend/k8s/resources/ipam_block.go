@@ -202,7 +202,8 @@ func (c *ipamBlockClient) List(ctx context.Context, list model.ListInterface, re
 
 	kvpl := &model.KVPairList{KVPairs: []*model.KVPair{}}
 	for _, i := range v3list.KVPairs {
-		kvpl.KVPairs = append(kvpl.KVPairs, c.toV1(i))
+		v1kvp := c.toV1(i)
+		kvpl.KVPairs = append(kvpl.KVPairs, v1kvp)
 	}
 	return kvpl, nil
 }

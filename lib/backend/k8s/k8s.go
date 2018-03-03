@@ -305,6 +305,29 @@ func (c *KubeClient) Clean() error {
 		}
 	}
 
+	// And clean up IPAM data.
+	lo := model.BlockListOptions{}
+	if rs, err := c.List(ctx, lo, ""); err != nil {
+		log.WithField("Kind", lo).Warning("Failed to list resources")
+	} else {
+		for _, r := range rs.KVPairs {
+			if _, err = c.Delete(ctx, r.Key, r.Revision); err != nil {
+				log.WithField("Key", r.Key).Warning("Failed to delete entry from KDD")
+			}
+		}
+	}
+
+	balo := model.BlockAffinityListOptions{}
+	if rs, err := c.List(ctx, balo, ""); err != nil {
+		log.WithField("Kind", balo).Warning("Failed to list resources")
+	} else {
+		for _, r := range rs.KVPairs {
+			if _, err = c.Delete(ctx, r.Key, r.Revision); err != nil {
+				log.WithField("Key", r.Key).Warning("Failed to delete entry from KDD")
+			}
+		}
+	}
+
 	// Get a list of Nodes and remove all BGP configuration from the nodes.
 	if nodes, err := c.List(ctx, model.ResourceListOptions{Kind: apiv3.KindNode}, ""); err != nil {
 		log.Warning("Failed to list Nodes")
