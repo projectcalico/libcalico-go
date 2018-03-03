@@ -16,9 +16,10 @@ package resources
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"reflect"
-	"strings"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -62,10 +63,8 @@ type affinityBlockClient struct {
 }
 
 func toV1(kvpv3 *model.KVPair) *model.KVPair {
-	splits := strings.Split(kvpv3.Key.(model.ResourceKey).Name, "---")
-	host := splits[0]
-	cidrStr := strings.Replace(splits[1], "--", "/", -1)
-	cidrStr = strings.Replace(cidrStr, "-", ".", -1)
+	cidrStr := kvpv3.Value.(*apiv3.BlockAffinity).Annotations["projectcalico.org/cidr"]
+	host := kvpv3.Value.(*apiv3.BlockAffinity).Annotations["projectcalico.org/host"]
 	_, cidr, err := net.ParseCIDR(cidrStr)
 	if err != nil {
 		panic(err)
@@ -83,12 +82,17 @@ func toV1(kvpv3 *model.KVPair) *model.KVPair {
 	}
 }
 
+func v3Fields(k model.Key) (name, cidr, host string) {
+	host = k.(model.BlockAffinityKey).Host
+	cidr = fmt.Sprintf("%s", k.(model.BlockAffinityKey).CIDR)
+	h := sha1.New()
+	h.Write([]byte(fmt.Sprintf("%s+%s", host, cidr)))
+	name = fmt.Sprintf("%s-%sc", host, hex.EncodeToString(h.Sum(nil))[:11])
+	return
+}
+
 func toV3(kvpv1 *model.KVPair) *model.KVPair {
-	host := kvpv1.Key.(model.BlockAffinityKey).Host
-	cidr := fmt.Sprintf("%s", kvpv1.Key.(mode.BlockAffinityKey).CIDR)
-	cidr = strings.Replace(cidr, ".", "-", -1)
-	cidr = strings.Replace(cidr, "/", "--", -1)
-	name := fmt.Sprintf("%s---%s", host, cidr)
+	name, cidr, host := v3Fields(kvpv1.Key)
 	state := kvpv1.Value.(*model.BlockAffinity).State
 	return &model.KVPair{
 		Key: model.ResourceKey{
@@ -103,6 +107,10 @@ func toV3(kvpv1 *model.KVPair) *model.KVPair {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            name,
 				ResourceVersion: kvpv1.Revision,
+				Annotations: map[string]string{
+					"projectcalico.org/host": host,
+					"projectcalico.org/cidr": cidr,
+				},
 			},
 			Spec: apiv3.BlockAffinitySpec{
 				State: string(state),
@@ -131,8 +139,7 @@ func (c *affinityBlockClient) Update(ctx context.Context, kvp *model.KVPair) (*m
 }
 
 func (c *affinityBlockClient) Delete(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
-	host := key.(model.BlockAffinityKey).Host
-	name := fmt.Sprintf("%s", host)
+	name, _, _ := v3Fields(key)
 	k := model.ResourceKey{
 		Name: name,
 		Kind: apiv3.KindBlockAffinity,
@@ -145,8 +152,7 @@ func (c *affinityBlockClient) Delete(ctx context.Context, key model.Key, revisio
 }
 
 func (c *affinityBlockClient) Get(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
-	host := key.(model.BlockAffinityKey).Host
-	name := fmt.Sprintf("%s", host)
+	name, _, _ := v3Fields(key)
 	k := model.ResourceKey{
 		Name: name,
 		Kind: apiv3.KindBlockAffinity,

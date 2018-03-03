@@ -16,12 +16,15 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"reflect"
+	"strings"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/net"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -58,52 +61,150 @@ type ipamBlockClient struct {
 	rc customK8sResourceClient
 }
 
-func (c *ipamBlockClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
-	nkvp := &model.KVPair{
-		Key: model.ResourceKey{
-			Name:      "foo",
-			Namespace: "bar",
-			Kind:      apiv3.KindIPAMBlock,
-		},
-		Value: apiv3.IPAMBlock{
-			Spec: apiv3.IPAMBlockSpec{},
-		},
+func (c ipamBlockClient) toV1(kvpv3 *model.KVPair) *model.KVPair {
+	cidrStr := kvpv3.Value.(*apiv3.IPAMBlock).Annotations["projectcalico.org/cidr"]
+	_, cidr, err := net.ParseCIDR(cidrStr)
+	if err != nil {
+		panic(err)
 	}
-	return c.rc.Create(ctx, nkvp)
+
+	ab := kvpv3.Value.(*apiv3.IPAMBlock)
+
+	// The CRD needs ints, not *int, so convert here.
+	allocations := []*int{}
+	for _, a := range ab.Spec.Allocations {
+		if a == -1 {
+			allocations = append(allocations, nil)
+		} else {
+			allocations = append(allocations, &a)
+		}
+	}
+
+	return &model.KVPair{
+		Key: model.BlockKey{
+			CIDR: *cidr,
+		},
+		Value: &model.AllocationBlock{
+			CIDR:           *cidr,
+			Affinity:       ab.Spec.Affinity,
+			StrictAffinity: ab.Spec.StrictAffinity,
+			Allocations:    allocations,
+			Unallocated:    ab.Spec.Unallocated,
+			Attributes:     nil,
+		},
+		Revision: kvpv3.Revision,
+	}
+}
+
+func (c ipamBlockClient) v3Fields(k model.Key) (name, cidr string) {
+	cidr = fmt.Sprintf("%s", k.(model.BlockKey).CIDR)
+	name = strings.Replace(cidr, ".", "-", -1)
+	name = strings.Replace(name, ":", "-", -1)
+	name = strings.Replace(name, "/", "-", -1)
+	return
+}
+
+func (c ipamBlockClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
+	name, cidr := c.v3Fields(kvpv1.Key)
+
+	ab := kvpv1.Value.(*model.AllocationBlock)
+
+	// The CRD needs ints, not *int, so convert here.
+	allocations := []int{}
+	for _, a := range ab.Allocations {
+		if a != nil {
+			allocations = append(allocations, *a)
+		} else {
+			allocations = append(allocations, -1)
+		}
+	}
+
+	return &model.KVPair{
+		Key: model.ResourceKey{
+			Name: name,
+			Kind: apiv3.KindIPAMBlock,
+		},
+		Value: &apiv3.IPAMBlock{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       apiv3.KindIPAMBlock,
+				APIVersion: "crd.projectcalico.org/v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            name,
+				ResourceVersion: kvpv1.Revision,
+				Annotations: map[string]string{
+					"projectcalico.org/cidr": cidr,
+				},
+			},
+			Spec: apiv3.IPAMBlockSpec{
+				CIDR:           cidr,
+				Allocations:    allocations,
+				Unallocated:    ab.Unallocated,
+				Affinity:       ab.Affinity,
+				StrictAffinity: ab.StrictAffinity,
+				Attributes:     nil,
+			},
+		},
+		Revision: kvpv1.Revision,
+	}
+}
+
+func (c *ipamBlockClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
+	nkvp := c.toV3(kvp)
+	b, err := c.rc.Create(ctx, nkvp)
+	if err != nil {
+		return nil, err
+	}
+	return c.toV1(b), nil
 }
 
 func (c *ipamBlockClient) Update(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
-	log.Warn("Operation Update is not supported on IPAMBlock type")
-	return nil, cerrors.ErrorOperationNotSupported{
-		Identifier: kvp.Key,
-		Operation:  "Create",
+	nkvp := c.toV3(kvp)
+	b, err := c.rc.Update(ctx, nkvp)
+	if err != nil {
+		return nil, err
 	}
+	return c.toV1(b), nil
 }
 
 func (c *ipamBlockClient) Delete(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
-	log.Warn("Operation Delete is not supported on IPAMBlock type")
-	return nil, cerrors.ErrorOperationNotSupported{
-		Identifier: key,
-		Operation:  "Delete",
+	name, _ := c.v3Fields(key)
+	k := model.ResourceKey{
+		Name: name,
+		Kind: apiv3.KindIPAMBlock,
 	}
+	kvp, err := c.rc.Delete(ctx, k, revision)
+	if err != nil {
+		return nil, err
+	}
+	return c.toV1(kvp), nil
 }
 
 func (c *ipamBlockClient) Get(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
+	name, _ := c.v3Fields(key)
 	k := model.ResourceKey{
-		Name:      "foo",
-		Namespace: "bar",
-		Kind:      apiv3.KindIPAMBlock,
+		Name: name,
+		Kind: apiv3.KindIPAMBlock,
 	}
-	return c.rc.Get(ctx, k, revision)
+	kvp, err := c.rc.Get(ctx, k, revision)
+	if err != nil {
+		return nil, err
+	}
+	return c.toV1(kvp), nil
 }
 
 func (c *ipamBlockClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
-	l := model.ResourceListOptions{
-		Name:      "foo",
-		Namespace: "bar",
-		Kind:      apiv3.KindIPAMBlock,
+	l := model.ResourceListOptions{Kind: apiv3.KindIPAMBlock}
+	v3list, err := c.rc.List(ctx, l, revision)
+	if err != nil {
+		return nil, err
 	}
-	return c.rc.List(ctx, l, revision)
+
+	kvpl := &model.KVPairList{KVPairs: []*model.KVPair{}}
+	for _, i := range v3list.KVPairs {
+		kvpl.KVPairs = append(kvpl.KVPairs, c.toV1(i))
+	}
+	return kvpl, nil
 }
 
 func (c *ipamBlockClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
