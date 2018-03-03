@@ -81,7 +81,7 @@ type testArgsClaimAff struct {
 	expError                    error
 }
 
-var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, func(config apiconfig.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreK8s, func(config apiconfig.CalicoAPIConfig) {
 	// Create a new backend client and an IPAM Client using the IP Pools Accessor.
 	// Tests that need to ensure a clean datastore should invokke Clean() on the datastore at the start of the
 	// tests.
