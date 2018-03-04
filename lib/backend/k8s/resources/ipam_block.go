@@ -76,8 +76,18 @@ func (c ipamBlockClient) toV1(kvpv3 *model.KVPair) *model.KVPair {
 		if a == -1 {
 			allocations = append(allocations, nil)
 		} else {
-			allocations = append(allocations, &a)
+			a2 := a
+			allocations = append(allocations, &a2)
 		}
+	}
+
+	// Convert attributes.
+	attrs := []model.AllocationAttribute{}
+	for _, a := range ab.Spec.Attributes {
+		attrs = append(attrs, model.AllocationAttribute{
+			AttrPrimary:   a.AttrPrimary,
+			AttrSecondary: a.AttrSecondary,
+		})
 	}
 
 	return &model.KVPair{
@@ -90,7 +100,7 @@ func (c ipamBlockClient) toV1(kvpv3 *model.KVPair) *model.KVPair {
 			StrictAffinity: ab.Spec.StrictAffinity,
 			Allocations:    allocations,
 			Unallocated:    ab.Spec.Unallocated,
-			Attributes:     nil,
+			Attributes:     attrs,
 		},
 		Revision: kvpv3.Revision,
 	}
@@ -114,9 +124,18 @@ func (c ipamBlockClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
 	for _, a := range ab.Allocations {
 		if a != nil {
 			allocations = append(allocations, *a)
-		} else {
+		} else if a == nil {
 			allocations = append(allocations, -1)
 		}
+	}
+
+	// Convert attributes.
+	attrs := []apiv3.AllocationAttribute{}
+	for _, a := range ab.Attributes {
+		attrs = append(attrs, apiv3.AllocationAttribute{
+			AttrPrimary:   a.AttrPrimary,
+			AttrSecondary: a.AttrSecondary,
+		})
 	}
 
 	return &model.KVPair{
@@ -142,7 +161,7 @@ func (c ipamBlockClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
 				Unallocated:    ab.Unallocated,
 				Affinity:       ab.Affinity,
 				StrictAffinity: ab.StrictAffinity,
-				Attributes:     nil,
+				Attributes:     attrs,
 			},
 		},
 		Revision: kvpv1.Revision,

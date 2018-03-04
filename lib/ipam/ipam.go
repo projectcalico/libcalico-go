@@ -612,6 +612,8 @@ func (c ipamClient) releaseIPsFromBlock(ctx context.Context, ips []net.IP, block
 
 		// Block exists - get the allocationBlock from the KVPair.
 		b := allocationBlock{obj.Value.(*model.AllocationBlock)}
+		cd := obj.Value.(*model.AllocationBlock)
+		log.Errorf("CD4: %#v", *cd)
 
 		// Release the IPs.
 		unallocated, handles, err2 := b.release(ips)
