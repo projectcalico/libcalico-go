@@ -173,6 +173,48 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreK8s, fun
 		})
 	})
 
+	Describe("IPAM handle tests", func() {
+		It("should support querying and releasing an IP address by handle", func() {
+			By("setting up an IP pool", func() {
+				deleteAllPools()
+				applyPool("10.0.0.0/24", true)
+			})
+
+			handle := "test-handle"
+			ctx := context.Background()
+
+			By("Querying the IP by handle and expecting none", func() {
+				ips, err := ic.IPsByHandle(ctx, handle)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(ips)).To(Equal(0))
+			})
+
+			By("Assigning an IP address", func() {
+				args := AutoAssignArgs{Num4: 1, HandleID: &handle, Hostname: "test-host"}
+				v4, _, err := ic.AutoAssign(context.Background(), args)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(v4)).To(Equal(1))
+			})
+
+			By("Querying the IP by handle and expecting one", func() {
+				ips, err := ic.IPsByHandle(ctx, handle)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(ips)).To(Equal(1))
+			})
+
+			By("Releasing the IP address using its handle", func() {
+				err := ic.ReleaseByHandle(ctx, handle)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			By("Querying the IP by handle and expecting none", func() {
+				ips, err := ic.IPsByHandle(ctx, handle)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(ips)).To(Equal(0))
+			})
+		})
+	})
+
 	Describe("IPAM AutoAssign from any pool", func() {
 		// Assign an IP address, don't pass a pool, make sure we can get an
 		// address.
