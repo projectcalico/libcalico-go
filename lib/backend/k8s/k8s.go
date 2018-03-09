@@ -219,6 +219,12 @@ func NewKubeClient(ca *apiconfig.CalicoAPIConfigSpec) (api.Client, error) {
 		resources.NewIPAMBlockClient(cs, crdClientV1),
 	)
 	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.IPAMHandleKey{}),
+		reflect.TypeOf(model.IPAMHandleListOptions{}),
+		apiv3.KindIPAMHandle,
+		resources.NewIPAMHandleClient(cs, crdClientV1),
+	)
+	kubeClient.registerResourceClient(
 		reflect.TypeOf(model.IPAMConfigKey{}),
 		nil,
 		"",
@@ -320,6 +326,17 @@ func (c *KubeClient) Clean() error {
 	balo := model.BlockAffinityListOptions{}
 	if rs, err := c.List(ctx, balo, ""); err != nil {
 		log.WithField("Kind", balo).Warning("Failed to list resources")
+	} else {
+		for _, r := range rs.KVPairs {
+			if _, err = c.Delete(ctx, r.Key, r.Revision); err != nil {
+				log.WithField("Key", r.Key).Warning("Failed to delete entry from KDD")
+			}
+		}
+	}
+
+	halo := model.BlockAffinityListOptions{}
+	if rs, err := c.List(ctx, halo, ""); err != nil {
+		log.WithField("Kind", halo).Warning("Failed to list resources")
 	} else {
 		for _, r := range rs.KVPairs {
 			if _, err = c.Delete(ctx, r.Key, r.Revision); err != nil {

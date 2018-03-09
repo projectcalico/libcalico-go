@@ -184,9 +184,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreK8s, fun
 			ctx := context.Background()
 
 			By("Querying the IP by handle and expecting none", func() {
-				ips, err := ic.IPsByHandle(ctx, handle)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(ips)).To(Equal(0))
+				_, err := ic.IPsByHandle(ctx, handle)
+				Expect(err).To(HaveOccurred())
 			})
 
 			By("Assigning an IP address", func() {
@@ -208,9 +207,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreK8s, fun
 			})
 
 			By("Querying the IP by handle and expecting none", func() {
-				ips, err := ic.IPsByHandle(ctx, handle)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(ips)).To(Equal(0))
+				_, err := ic.IPsByHandle(ctx, handle)
+				Expect(err).To(HaveOccurred())
 			})
 		})
 	})
