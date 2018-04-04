@@ -108,8 +108,8 @@ func GRInProgress(ipv string) (bool, error) {
 	return false, scanner.Err()
 }
 
-// bgpPeer is a structure containing details about a BGP peer.
-type bgpPeer struct {
+// BGPPeer is a structure containing details about a BGP peer.
+type BGPPeer struct {
 	PeerIP   string
 	PeerType string
 	State    string
@@ -118,7 +118,7 @@ type bgpPeer struct {
 	Info     string
 }
 
-func GetPeers(ipv string) ([]bgpPeer, error) {
+func GetPeers(ipv string) ([]BGPPeer, error) {
 	log.Debugf("Print BIRD peers for IPv%s", ipv)
 	birdSuffix := ""
 	if ipv == "6" {
@@ -158,12 +158,12 @@ func GetPeers(ipv string) ([]bgpPeer, error) {
 	return peers, nil
 }
 
-// scanBIRDPeers scans through BIRD output to return a slice of bgpPeer
+// scanBIRDPeers scans through BIRD output to return a slice of BGPPeer
 // structs.
 //
 // We split this out from the main printBIRDPeers() function to allow us to
 // test this processing in isolation.
-func scanBIRDPeers(ipv string, conn net.Conn) ([]bgpPeer, error) {
+func scanBIRDPeers(ipv string, conn net.Conn) ([]BGPPeer, error) {
 	// Determine the separator to use for an IP address, based on the
 	// IP version.
 	ipSep := "."
@@ -181,7 +181,7 @@ func scanBIRDPeers(ipv string, conn net.Conn) ([]bgpPeer, error) {
 	//  	 Mesh_172_17_8_102 BGP      master   up     2016-11-21  Established
 	// 	0000
 	scanner := bufio.NewScanner(conn)
-	peers := []bgpPeer{}
+	peers := []BGPPeer{}
 
 	// Set a time-out for reading from the socket connection.
 	conn.SetReadDeadline(time.Now().Add(birdTimeOut))
@@ -204,13 +204,13 @@ func scanBIRDPeers(ipv string, conn net.Conn) ([]bgpPeer, error) {
 			}
 		} else if strings.HasPrefix(str, "1002") {
 			// "1002" code means first row of data.
-			peer := bgpPeer{}
+			peer := BGPPeer{}
 			if peer.unmarshalBIRD(str[5:], ipSep) {
 				peers = append(peers, peer)
 			}
 		} else if strings.HasPrefix(str, " ") {
 			// Row starting with a " " is another row of data.
-			peer := bgpPeer{}
+			peer := BGPPeer{}
 			if peer.unmarshalBIRD(str[1:], ipSep) {
 				peers = append(peers, peer)
 			}
@@ -229,13 +229,13 @@ func scanBIRDPeers(ipv string, conn net.Conn) ([]bgpPeer, error) {
 
 // Unmarshal a peer from a line in the BIRD protocol output.  Returns true if
 // successful, false otherwise.
-func (b *bgpPeer) unmarshalBIRD(line, ipSep string) bool {
+func (b *BGPPeer) unmarshalBIRD(line, ipSep string) bool {
 	// Split into fields.  We expect at least 6 columns:
 	// 	name, proto, table, state, since and info.
 	// The info column contains the BGP state plus possibly some additional
 	// info (which will be columns > 6).
 	//
-	// Peer names will be of the format described by bgpPeerRegex.
+	// Peer names will be of the format described by BGPPeerRegex.
 	log.Debugf("Parsing line: %s", line)
 	columns := strings.Fields(line)
 	if len(columns) < 6 {
