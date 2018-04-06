@@ -376,6 +376,16 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
+		By("Performing a prefixed List of profiles", func() {
+			pros, err := c.List(ctx, model.ResourceListOptions{
+				Kind:   apiv3.KindProfile,
+				Name:   "test-syncer",
+				Prefix: true,
+			}, "")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(pros.KVPairs)).To(Equal(1))
+		})
+
 		By("Performing a List of Policies", func() {
 			_, err := c.List(ctx, model.ResourceListOptions{Kind: apiv3.KindNetworkPolicy, Namespace: "test-syncer-namespace-default-deny"}, "")
 			Expect(err).NotTo(HaveOccurred())
@@ -796,6 +806,23 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 
 		By("Listing all Host Endpoints", func() {
 			kvps, err := c.List(ctx, model.ResourceListOptions{Kind: apiv3.KindHostEndpoint}, "")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(kvps.KVPairs).To(HaveLen(2))
+			keys := []model.Key{}
+			vals := []interface{}{}
+			for _, k := range kvps.KVPairs {
+				keys = append(keys, k.Key)
+				vals = append(vals, k.Value.(*apiv3.HostEndpoint).Spec)
+			}
+			Expect(keys).To(ContainElement(kvp1b.Key))
+			Expect(keys).To(ContainElement(kvp2b.Key))
+			Expect(vals).To(ContainElement(kvp1b.Value.(*apiv3.HostEndpoint).Spec))
+			Expect(vals).To(ContainElement(kvp2b.Value.(*apiv3.HostEndpoint).Spec))
+
+		})
+
+		By("Listing Host Endpoints by prefix", func() {
+			kvps, err := c.List(ctx, model.ResourceListOptions{Kind: apiv3.KindHostEndpoint, Prefix: true, Name: "my"}, "")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(kvps.KVPairs).To(HaveLen(2))
 			keys := []model.Key{}

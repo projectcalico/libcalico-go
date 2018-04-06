@@ -52,6 +52,16 @@ var _ = Describe("Custom resource conversion methods (tested using BGPPeer)", fu
 		Kind: apiv3.KindBGPPeer,
 	}
 
+	// Unqualified list options.
+	list2 := model.ResourceListOptions{
+		Name: "1-2-3",
+		Kind: apiv3.KindBGPPeer,
+	}
+	key1 := model.ResourceKey{
+		Name: "1-2-3",
+		Kind: apiv3.KindBGPPeer,
+	}
+
 	// Compatible set of KVPair and Kubernetes Resource.
 	value1 := apiv3.NewBGPPeer()
 	value1.ObjectMeta.Name = name1
@@ -82,11 +92,21 @@ var _ = Describe("Custom resource conversion methods (tested using BGPPeer)", fu
 	}
 
 	It("should convert an incomplete ListInterface to no Key", func() {
-		Expect(client.listInterfaceToKey(listIncomplete)).To(BeNil())
+		k, q := client.listInterfaceToKey(listIncomplete)
+		Expect(k).To(BeNil())
+		Expect(q).NotTo(BeTrue())
 	})
 
 	It("should convert a qualified ListInterface to the equivalent Key", func() {
-		Expect(client.listInterfaceToKey(list1)).To(Equal(key1))
+		k, q := client.listInterfaceToKey(list2)
+		Expect(k).To(Equal(key1))
+		Expect(q).To(BeTrue())
+	})
+
+	It("should convert an unqualified ListInterface to the equivalent Key", func() {
+		k, q := client.listInterfaceToKey(list1)
+		Expect(k).To(Equal(key1))
+		Expect(q).To(BeTrue())
 	})
 
 	It("should convert a Key to the equivalent resource name", func() {
