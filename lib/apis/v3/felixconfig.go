@@ -186,6 +186,10 @@ type FelixConfigurationSpec struct {
 	// like Application layer policy. [Default: Empty]
 	PolicySyncPathPrefix string `json:"policySyncPathPrefix,omitempty"`
 
+	// HealthHost is used by Felix to specify which address Felix should listen on for its healthcheck
+	// endpoint. [Default: Empty]
+	HealthHost string `json:"healthHost,omitempty"`
+
 	// UsageReportingEnabled reports anonymous Calico version number and cluster size to projectcalico.org. Logs warnings returned by the usage
 	// server. For example, if a significant security vulnerability has been discovered in the version of Calico being used. [Default: true]
 	UsageReportingEnabled *bool `json:"usageReportingEnabled,omitempty"`
