@@ -53,11 +53,11 @@ var _ = Describe("Custom resource conversion methods (tested using BGPPeer)", fu
 	}
 
 	// Unqualified list options.
-	list2 := model.ResourceListOptions{
+	listUnqualified := model.ResourceListOptions{
 		Name: "1-2-3",
 		Kind: apiv3.KindBGPPeer,
 	}
-	key1 := model.ResourceKey{
+	keyUnqualified := model.ResourceKey{
 		Name: "1-2-3",
 		Kind: apiv3.KindBGPPeer,
 	}
@@ -98,15 +98,15 @@ var _ = Describe("Custom resource conversion methods (tested using BGPPeer)", fu
 	})
 
 	It("should convert a qualified ListInterface to the equivalent Key", func() {
-		k, q := client.listInterfaceToKey(list2)
+		k, isPrefix := client.listInterfaceToKey(list1)
 		Expect(k).To(Equal(key1))
-		Expect(q).To(BeTrue())
+		Expect(isPrefix).NotTo(BeTrue())
 	})
 
 	It("should convert an unqualified ListInterface to the equivalent Key", func() {
-		k, q := client.listInterfaceToKey(list1)
-		Expect(k).To(Equal(key1))
-		Expect(q).To(BeTrue())
+		k, isPrefix := client.listInterfaceToKey(listUnqualified)
+		Expect(k).To(Equal(keyUnqualified))
+		Expect(isPrefix).To(BeTrue())
 	})
 
 	It("should convert a Key to the equivalent resource name", func() {

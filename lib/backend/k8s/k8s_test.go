@@ -379,7 +379,7 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		By("Performing a prefixed List of profiles", func() {
 			pros, err := c.List(ctx, model.ResourceListOptions{
 				Kind:   apiv3.KindProfile,
-				Name:   "test-syncer",
+				Name:   "kns.test-",
 				Prefix: true,
 			}, "")
 			Expect(err).NotTo(HaveOccurred())

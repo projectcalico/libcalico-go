@@ -239,8 +239,8 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 	// Attempt to convert the ListInterface to a Key.  If possible, the parameters
 	// indicate a fully qualified resource, and we'll need to use Get instead of
 	// List.
-	key, fullyQualified := c.listInterfaceToKey(list)
-	if key != nil && fullyQualified {
+	key, isPrefix := c.listInterfaceToKey(list)
+	if key != nil && !isPrefix {
 		logContext.Debug("Performing List using Get")
 		if kvp, err := c.Get(ctx, key, revision); err != nil {
 			// The error will already be a Calico error type.  Ignore
@@ -297,14 +297,23 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 	for idx := 0; idx < items.Len(); idx++ {
 		res := items.Index(idx).Addr().Interface().(Resource)
 		if kvp, err := c.convertResourceToKVPair(res); err == nil {
-			if key != nil && !fullyQualified {
+			if isPrefix {
 				// Only add if the prefix matches.
-				dp, _ := model.KeyToDefaultPath(kvp.Key)
-				parent, _ := model.KeyToDefaultPath(key)
+				dp, err := model.KeyToDefaultPath(kvp.Key)
+				if err != nil {
+					logContext.WithError(err).WithField("Item", res).Warning("unable to process resource, skipping")
+					continue
+				}
+				parent, err := model.KeyToDefaultPath(key)
+				if err != nil {
+					logContext.WithError(err).WithField("Item", res).Warning("unable to process resource, skipping")
+					continue
+				}
 				if !strings.HasPrefix(dp, parent) {
 					// Not a match - skip this kvp.
 					continue
 				}
+				// The kvp matches the given prefix.
 			}
 			kvps = append(kvps, kvp)
 		} else {
@@ -351,9 +360,9 @@ func (c *customK8sResourceClient) EnsureInitialized() error {
 func (c *customK8sResourceClient) listInterfaceToKey(l model.ListInterface) (model.Key, bool) {
 	pl := l.(model.ResourceListOptions)
 	if pl.Name != "" {
-		return model.ResourceKey{Name: pl.Name, Kind: pl.Kind}, model.ListOptionsIsFullyQualified(l)
+		return model.ResourceKey{Name: pl.Name, Kind: pl.Kind}, pl.Prefix
 	}
-	return nil, model.ListOptionsIsFullyQualified(l)
+	return nil, false
 }
 
 func (c *customK8sResourceClient) keyToName(k model.Key) (string, error) {
