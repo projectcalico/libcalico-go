@@ -96,7 +96,7 @@ var _ = Describe("Test selector conversion", func() {
 		},
 
 		Entry("should handle an empty pod selector", metav1.LabelSelector{}, SelectorPod, "projectcalico.org/orchestrator == 'k8s'"),
-		Entry("should handle an empty namespace selector", metav1.LabelSelector{}, SelectorNamespace, ""),
+		Entry("should handle an empty namespace selector", metav1.LabelSelector{}, SelectorNamespace, "all()"),
 		Entry("should handle an OpDoesNotExist namespace selector",
 			metav1.LabelSelector{
 				MatchExpressions: []metav1.LabelSelectorRequirement{
@@ -997,6 +997,52 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Types[0]).To(Equal(apiv3.PolicyTypeIngress))
 	})
 
+	It("should parse a NetworkPolicy with a nil namespace selector", func() {
+		np := extensions.NetworkPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test.policy",
+				Namespace: "default",
+			},
+			Spec: extensions.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{"label": "value"},
+				},
+				Ingress: []extensions.NetworkPolicyIngressRule{
+					{
+						From: []extensions.NetworkPolicyPeer{
+							{
+								NamespaceSelector: nil,
+								PodSelector:       &metav1.LabelSelector{},
+							},
+						},
+					},
+				},
+				PolicyTypes: []extensions.PolicyType{extensions.PolicyTypeIngress},
+			},
+		}
+
+		// Parse the policy.
+		pol, err := c.K8sNetworkPolicyToCalico(&np)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Assert key fields are correct.
+		Expect(pol.Key.(model.ResourceKey).Name).To(Equal("knp.default.test.policy"))
+
+		// Assert value fields are correct.
+		Expect(int(*pol.Value.(*apiv3.NetworkPolicy).Spec.Order)).To(Equal(1000))
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Selector).To(Equal("projectcalico.org/orchestrator == 'k8s' && label == 'value'"))
+		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress)).To(Equal(1))
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress[0].Source.Selector).To(Equal("projectcalico.org/orchestrator == 'k8s'"))
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress[0].Source.NamespaceSelector).To(Equal(""))
+
+		// There should be no Egress rules.
+		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Egress)).To(Equal(0))
+
+		// Check that Types field exists and has only 'ingress'
+		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Types)).To(Equal(1))
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Types[0]).To(Equal(apiv3.PolicyTypeIngress))
+	})
+
 	It("should parse a NetworkPolicy with an empty namespaceSelector", func() {
 		np := extensions.NetworkPolicy{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1034,6 +1080,7 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Selector).To(Equal("projectcalico.org/orchestrator == 'k8s' && label == 'value'"))
 		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress)).To(Equal(1))
 		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress[0].Source.Selector).To(Equal("projectcalico.org/orchestrator == 'k8s'"))
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress[0].Source.NamespaceSelector).To(Equal("all()"))
 
 		// There should be no Egress rules.
 		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Egress)).To(Equal(0))
@@ -1696,51 +1743,6 @@ var _ = Describe("Test NetworkPolicy conversion (k8s <= 1.7, no policyTypes)", f
 		Expect(int(*pol.Value.(*apiv3.NetworkPolicy).Spec.Order)).To(Equal(1000))
 		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Selector).To(Equal("projectcalico.org/orchestrator == 'k8s'"))
 		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress)).To(Equal(0))
-
-		// There should be no Egress rule.
-		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Egress)).To(Equal(0))
-
-		// Check that Types field exists and has only 'ingress'
-		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Types)).To(Equal(1))
-		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Types[0]).To(Equal(apiv3.PolicyTypeIngress))
-	})
-
-	It("should parse a NetworkPolicy with an empty namespaceSelector", func() {
-		np := extensions.NetworkPolicy{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test.policy",
-				Namespace: "default",
-			},
-			Spec: extensions.NetworkPolicySpec{
-				PodSelector: metav1.LabelSelector{
-					MatchLabels: map[string]string{"label": "value"},
-				},
-				Ingress: []extensions.NetworkPolicyIngressRule{
-					{
-						From: []extensions.NetworkPolicyPeer{
-							{
-								NamespaceSelector: &metav1.LabelSelector{
-									MatchLabels: map[string]string{},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-
-		// Parse the policy.
-		pol, err := c.K8sNetworkPolicyToCalico(&np)
-		Expect(err).NotTo(HaveOccurred())
-
-		// Assert key fields are correct.
-		Expect(pol.Key.(model.ResourceKey).Name).To(Equal("knp.default.test.policy"))
-
-		// Assert value fields are correct.
-		Expect(int(*pol.Value.(*apiv3.NetworkPolicy).Spec.Order)).To(Equal(1000))
-		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Selector).To(Equal("projectcalico.org/orchestrator == 'k8s' && label == 'value'"))
-		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress)).To(Equal(1))
-		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress[0].Source.Selector).To(Equal("projectcalico.org/orchestrator == 'k8s'"))
 
 		// There should be no Egress rule.
 		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Egress)).To(Equal(0))
