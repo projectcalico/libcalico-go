@@ -67,6 +67,9 @@ type NodeBGPSpec struct {
 	IPv6Address string `json:"ipv6Address,omitempty" validate:"omitempty,cidrv6"`
 	// IPv4IPIPTunnelAddr is the IPv4 address of the IP in IP tunnel.
 	IPv4IPIPTunnelAddr string `json:"ipv4IPIPTunnelAddr,omitempty" validate:"omitempty,ipv4"`
+	// RouteReflectorClusterID enables this node as a route reflector, automatically peering with
+	// other nodes in the same cluster.
+	RouteReflectorClusterID string `json:"routeReflectorClusterID,omitempty" validate:"omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

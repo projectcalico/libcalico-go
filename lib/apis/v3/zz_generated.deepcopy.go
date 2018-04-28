@@ -499,6 +499,15 @@ func (in *FelixConfigurationSpec) DeepCopyInto(out *FelixConfigurationSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.HealthHost != nil {
+		in, out := &in.HealthHost, &out.HealthHost
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(string)
+			**out = **in
+		}
+	}
 	if in.HealthPort != nil {
 		in, out := &in.HealthPort, &out.HealthPort
 		*out = new(int)
