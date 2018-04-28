@@ -94,7 +94,7 @@ func (c *conflictResolvingCache) Process(kvp *model.KVPair) ([]*model.KVPair, er
 	if err != nil {
 		// We were unable to convert the resource.  If we have an entry for this resource then we
 		// need to handle this as a delete.  In either case we return the original error.
-		log.Warningf("Unable to convert resource %s(%s) - treating as delete", c.v3Kind, name)
+		log.WithError(err).Warningf("Unable to convert resource %s(%s) - treating as delete", c.v3Kind, name)
 		if kvp := c.kvpsByName[name]; kvp != nil {
 			res, _ := c.delete(name)
 			return res, err
@@ -109,7 +109,7 @@ func (c *conflictResolvingCache) Process(kvp *model.KVPair) ([]*model.KVPair, er
 		// config will result in stale entries being stuck in the syncer.  This should have been
 		// caught by the converter, but handle here just in case.  Always return the original error
 		// along with the results.
-		log.Warningf("Unable to convert resource %s(%s) - treating as delete", c.v3Kind, name)
+		log.WithError(err).Warningf("Unable to convert resource %s(%s) - treating as delete", c.v3Kind, name)
 		if kvp := c.kvpsByName[name]; kvp != nil {
 			res, _ := c.delete(name)
 			return res, err

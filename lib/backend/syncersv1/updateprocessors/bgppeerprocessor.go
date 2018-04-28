@@ -46,13 +46,17 @@ func convertBGPPeerV2ToV1(kvp *model.KVPair) (*model.KVPair, error) {
 	// the Node are now in the Spec - if a Node is not specified then this is a global
 	// peer.
 	ip := cnet.ParseIP(v3res.Spec.PeerIP)
-	if ip == nil {
+	if ip == nil && v3res.Spec.PeerSelector == "" {
 		return nil, errors.New("PeerIP is not assigned or is malformed")
 	}
 	var v1key model.Key
-	if node := v3res.Spec.Node; len(node) == 0 {
+	if node := v3res.Spec.Node; len(node) == 0 && v3res.Spec.NodeSelector == "" {
 		v1key = model.GlobalBGPPeerKey{
 			PeerIP: *ip,
+		}
+	} else if v3res.Spec.NodeSelector != "" || v3res.Spec.PeerSelector != "" {
+		v1key = model.SelectorBGPPeerKey{
+			Name: v3res.Name,
 		}
 	} else {
 		v1key = model.NodeBGPPeerKey{
@@ -61,12 +65,19 @@ func convertBGPPeerV2ToV1(kvp *model.KVPair) (*model.KVPair, error) {
 		}
 	}
 
+	val := &model.BGPPeer{
+		Name:         v3res.Name,
+		ASNum:        v3res.Spec.ASNumber,
+		NodeSelector: v3res.Spec.NodeSelector,
+		PeerSelector: v3res.Spec.PeerSelector,
+	}
+	if ip != nil {
+		val.PeerIP = *ip
+	}
+
 	return &model.KVPair{
-		Key: v1key,
-		Value: &model.BGPPeer{
-			PeerIP: *ip,
-			ASNum:  v3res.Spec.ASNumber,
-		},
+		Key:      v1key,
+		Value:    val,
 		Revision: kvp.Revision,
 	}, nil
 }

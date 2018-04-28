@@ -32,6 +32,31 @@ var (
 	typeBGPPeer        = reflect.TypeOf(BGPPeer{})
 )
 
+type SelectorBGPPeerKey struct {
+	Name string `json:"-" validate:"omitempty"`
+}
+
+func (key SelectorBGPPeerKey) defaultPath() (string, error) {
+	e := fmt.Sprintf("/calico/bgp/v1/global/peer_sel/%s", key.Name)
+	return e, nil
+}
+
+func (key SelectorBGPPeerKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
+}
+
+func (key SelectorBGPPeerKey) defaultDeleteParentPaths() ([]string, error) {
+	return nil, nil
+}
+
+func (key SelectorBGPPeerKey) valueType() (reflect.Type, error) {
+	return typeBGPPeer, nil
+}
+
+func (key SelectorBGPPeerKey) String() string {
+	return fmt.Sprintf("SelectorBGPPeer(%s)", key.Name)
+}
+
 type NodeBGPPeerKey struct {
 	Nodename string `json:"-" validate:"omitempty"`
 	PeerIP   net.IP `json:"-" validate:"required"`
@@ -175,6 +200,8 @@ func (options GlobalBGPPeerListOptions) KeyFromDefaultPath(path string) Key {
 }
 
 type BGPPeer struct {
+	Name string `json:"name"`
+
 	// PeerIP is the IP address of the BGP peer.
 	PeerIP net.IP `json:"ip"`
 
@@ -183,4 +210,7 @@ type BGPPeer struct {
 	// converts large uints to float e notation which breaks the BIRD
 	// configuration.
 	ASNum numorstring.ASNumber `json:"as_num,string"`
+
+	NodeSelector string `json:"node_selector"`
+	PeerSelector string `json:"peer_selector"`
 }
