@@ -81,9 +81,7 @@ func (c *bgpNodeUpdateProcessor) Process(kvp *model.KVPair) ([]*model.KVPair, er
 			if bgp.ASNumber != nil {
 				asNum = bgp.ASNumber.String()
 			}
-			if bgp.RouteReflectorClusterID != "" {
-				clusterID = bgp.RouteReflectorClusterID
-			}
+			clusterID = bgp.RouteReflectorClusterID
 		}
 	}
 

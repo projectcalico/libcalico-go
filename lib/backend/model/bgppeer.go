@@ -54,7 +54,7 @@ func (key SelectorBGPPeerKey) valueType() (reflect.Type, error) {
 }
 
 func (key SelectorBGPPeerKey) String() string {
-	return fmt.Sprintf("SelectorBGPPeer(%s)", key.Name)
+	return fmt.Sprintf("BGPPeer(%s)", key.Name)
 }
 
 type NodeBGPPeerKey struct {
