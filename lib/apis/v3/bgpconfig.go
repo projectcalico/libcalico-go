@@ -45,6 +45,8 @@ type BGPConfigurationSpec struct {
 	NodeToNodeMeshEnabled *bool `json:"nodeToNodeMeshEnabled,omitempty" validate:"omitempty" confignamev1:"node_mesh"`
 	// ASNumber is the default AS number used by a node. [Default: 64512]
 	ASNumber *numorstring.ASNumber `json:"asNumber,omitempty" validate:"omitempty" confignamev1:"as_num"`
+	// Password, if specified, is the TCP MD5 password used to authenticate node to node mesh peerings. [Default: ""]
+	Password string `json:"password,omitempty" validate:"omitempty" confignamev1:"password"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -48,6 +48,8 @@ type BGPPeerSpec struct {
 	PeerIP string `json:"peerIP" validate:"omitempty,ip"`
 	// The AS Number of the peer.
 	ASNumber numorstring.ASNumber `json:"asNumber"`
+	// Password, if specified, is the TCP MD5 password used to authenticate peerings to this peer.
+	Password string `json:"password,omitempty" validate:"omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
