@@ -1093,18 +1093,18 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 	})
 
 	It("should parse a NetworkPolicy with pod and namespace selectors", func() {
-		np := networkingv1.NetworkPolicy{
+		np := extensions.NetworkPolicy{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test.policy",
 				Namespace: "default",
 			},
-			Spec: networkingv1.NetworkPolicySpec{
+			Spec: extensions.NetworkPolicySpec{
 				PodSelector: metav1.LabelSelector{
 					MatchLabels: map[string]string{"label": "value"},
 				},
-				Ingress: []networkingv1.NetworkPolicyIngressRule{
+				Ingress: []extensions.NetworkPolicyIngressRule{
 					{
-						From: []networkingv1.NetworkPolicyPeer{
+						From: []extensions.NetworkPolicyPeer{
 							{
 								NamespaceSelector: &metav1.LabelSelector{
 									MatchLabels: map[string]string{
@@ -1122,7 +1122,7 @@ var _ = Describe("Test NetworkPolicy conversion", func() {
 						},
 					},
 				},
-				PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeIngress},
+				PolicyTypes: []extensions.PolicyType{extensions.PolicyTypeIngress},
 			},
 		}
 
