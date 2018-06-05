@@ -214,6 +214,7 @@ func (c client) ensureClusterInformation(ctx context.Context, calicoVersion, clu
 				newClusterInfo := v3.NewClusterInformation()
 				newClusterInfo.Name = globalClusterInfoName
 				newClusterInfo.Spec.CalicoVersion = calicoVersion
+				newClusterInfo.Spec.CalicoVersion = cniVersion
 				newClusterInfo.Spec.ClusterType = clusterType
 				newClusterInfo.Spec.ClusterGUID = fmt.Sprintf("%s", hex.EncodeToString(uuid.NewV4().Bytes()))
 				datastoreReady := true
