@@ -270,6 +270,7 @@ func (c Converter) PodToWorkloadEndpoint(pod *kapiv1.Pod) (*model.KVPair, error)
 		CreationTimestamp: pod.CreationTimestamp,
 		UID:               pod.UID,
 		Labels:            labels,
+		GenerateName:      pod.GenerateName,
 	}
 	wep.Spec = apiv3.WorkloadEndpointSpec{
 		Orchestrator:  "k8s",
