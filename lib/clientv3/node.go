@@ -55,7 +55,7 @@ func (r nodes) Create(ctx context.Context, res *apiv3.Node, opts options.SetOpti
 	// For host-protection only clusters, we instruct the user to create a Node as the first
 	// operation.  Piggy-back the datastore initialisation on that to ensure the Ready flag gets
 	// set.  Since we're likely being called from calicoctl, we don't know the Calico version.
-	err := r.client.EnsureInitialized(ctx, "", "")
+	err := r.client.EnsureInitialized(ctx, "", "", "")
 	if err != nil {
 		return nil, err
 	}

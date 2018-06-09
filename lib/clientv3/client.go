@@ -171,13 +171,13 @@ func (p poolAccessor) GetEnabledPools(ipVersion int) ([]net.IPNet, error) {
 // Most Calico deployment scenarios will automatically implicitly invoke this
 // method and so a general consumer of this API can assume that the datastore
 // is already initialized.
-func (c client) EnsureInitialized(ctx context.Context, calicoVersion, clusterType string) error {
+func (c client) EnsureInitialized(ctx context.Context, calicoVersion, clusterType, cniVersion string) error {
 	// Perform datastore specific initialization first.
 	if err := c.backend.EnsureInitialized(); err != nil {
 		return err
 	}
 
-	if err := c.ensureClusterInformation(ctx, calicoVersion, clusterType); err != nil {
+	if err := c.ensureClusterInformation(ctx, calicoVersion, clusterType, cniVersion); err != nil {
 		return err
 	}
 
@@ -188,7 +188,7 @@ const globalClusterInfoName = "default"
 
 // ensureClusterInformation ensures that the ClusterInformation fields i.e. ClusterType,
 // CalicoVersion and ClusterGUID are set.  It creates/updates the ClusterInformation as needed.
-func (c client) ensureClusterInformation(ctx context.Context, calicoVersion, clusterType string) error {
+func (c client) ensureClusterInformation(ctx context.Context, calicoVersion, clusterType, cniVersion string) error {
 	// Append "kdd" last if the datastoreType is 'kubernetes'.
 	if c.config.Spec.DatastoreType == apiconfig.Kubernetes {
 		// If clusterType is already set then append ",kdd" at the end.
@@ -214,6 +214,7 @@ func (c client) ensureClusterInformation(ctx context.Context, calicoVersion, clu
 				newClusterInfo := v3.NewClusterInformation()
 				newClusterInfo.Name = globalClusterInfoName
 				newClusterInfo.Spec.CalicoVersion = calicoVersion
+				newClusterInfo.Spec.CalicoVersion = cniVersion
 				newClusterInfo.Spec.ClusterType = clusterType
 				newClusterInfo.Spec.ClusterGUID = fmt.Sprintf("%s", hex.EncodeToString(uuid.NewV4().Bytes()))
 				datastoreReady := true
@@ -286,6 +287,16 @@ func (c client) ensureClusterInformation(ctx context.Context, calicoVersion, clu
 					clusterInfo.Spec.ClusterType = strings.Join(allClusterTypes, ",")
 					updateNeeded = true
 				}
+			}
+		}
+
+		if cniVersion != "" {
+			// Only update the version if it's different from what we have.
+			if clusterInfo.Spec.CNIVersion != cniVersion {
+				clusterInfo.Spec.CNIVersion = cniVersion
+				updateNeeded = true
+			} else {
+				log.WithField("CNIVersion", clusterInfo.Spec.CalicoVersion).Debug("CNI version value already assigned")
 			}
 		}
 

@@ -53,7 +53,7 @@ type Interface interface {
 	// Most Calico deployment scenarios will automatically implicitly invoke this
 	// method and so a general consumer of this API can assume that the datastore
 	// is already initialized.
-	EnsureInitialized(ctx context.Context, calicoVersion, clusterType string) error
+	EnsureInitialized(ctx context.Context, calicoVersion, clusterType, cniVersion string) error
 }
 
 // Compile-time assertion that our client implements its interface.
