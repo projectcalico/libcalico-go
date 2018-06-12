@@ -854,6 +854,7 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 				Spec: apiv3.BGPPeerSpec{
 					PeerIP:   "10.0.0.1",
 					ASNumber: numorstring.ASNumber(6513),
+					Passive:  true,
 				},
 			},
 		}

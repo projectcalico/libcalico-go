@@ -48,6 +48,8 @@ type BGPPeerSpec struct {
 	PeerIP string `json:"peerIP" validate:"omitempty,ip"`
 	// The AS Number of the peer.
 	ASNumber numorstring.ASNumber `json:"asNumber"`
+	// Passive specifies whether the peer is in passive mode
+	Passive bool `json:"passive,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

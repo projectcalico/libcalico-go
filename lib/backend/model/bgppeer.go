@@ -183,4 +183,7 @@ type BGPPeer struct {
 	// converts large uints to float e notation which breaks the BIRD
 	// configuration.
 	ASNum numorstring.ASNumber `json:"as_num,string"`
+
+	// Passive is the passive setting of the BGP peer.
+	Passive bool `json:"passive"`
 }

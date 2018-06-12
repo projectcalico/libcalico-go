@@ -48,6 +48,7 @@ var _ = testutils.E2eDatastoreDescribe("BGPPeer tests", testutils.DatastoreAll, 
 		Node:     "node2",
 		PeerIP:   "20.0.0.1",
 		ASNumber: numorstring.ASNumber(6511),
+		Passive:  true,
 	}
 
 	DescribeTable("BGPPeer e2e CRUD tests",

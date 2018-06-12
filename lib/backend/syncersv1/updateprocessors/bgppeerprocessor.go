@@ -64,8 +64,9 @@ func convertBGPPeerV2ToV1(kvp *model.KVPair) (*model.KVPair, error) {
 	return &model.KVPair{
 		Key: v1key,
 		Value: &model.BGPPeer{
-			PeerIP: *ip,
-			ASNum:  v3res.Spec.ASNumber,
+			PeerIP:  *ip,
+			ASNum:   v3res.Spec.ASNumber,
+			Passive: v3res.Spec.Passive,
 		},
 		Revision: kvp.Revision,
 	}, nil
