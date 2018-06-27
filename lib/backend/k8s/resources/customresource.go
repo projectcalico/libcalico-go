@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -238,7 +239,8 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 	// Attempt to convert the ListInterface to a Key.  If possible, the parameters
 	// indicate a fully qualified resource, and we'll need to use Get instead of
 	// List.
-	if key := c.listInterfaceToKey(list); key != nil {
+	key, isPrefix := c.listInterfaceToKey(list)
+	if key != nil && !isPrefix {
 		logContext.Debug("Performing List using Get")
 		if kvp, err := c.Get(ctx, key, revision); err != nil {
 			// The error will already be a Calico error type.  Ignore
@@ -295,6 +297,24 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 	for idx := 0; idx < items.Len(); idx++ {
 		res := items.Index(idx).Addr().Interface().(Resource)
 		if kvp, err := c.convertResourceToKVPair(res); err == nil {
+			if isPrefix {
+				// Only add if the prefix matches.
+				dp, err := model.KeyToDefaultPath(kvp.Key)
+				if err != nil {
+					logContext.WithError(err).WithField("Item", res).Warning("unable to process resource, skipping")
+					continue
+				}
+				parent, err := model.KeyToDefaultPath(key)
+				if err != nil {
+					logContext.WithError(err).WithField("Item", res).Warning("unable to process resource, skipping")
+					continue
+				}
+				if !strings.HasPrefix(dp, parent) {
+					// Not a match - skip this kvp.
+					continue
+				}
+				// The kvp matches the given prefix.
+			}
 			kvps = append(kvps, kvp)
 		} else {
 			logContext.WithError(err).WithField("Item", res).Warning("unable to process resource, skipping")
@@ -337,12 +357,12 @@ func (c *customK8sResourceClient) EnsureInitialized() error {
 	return nil
 }
 
-func (c *customK8sResourceClient) listInterfaceToKey(l model.ListInterface) model.Key {
+func (c *customK8sResourceClient) listInterfaceToKey(l model.ListInterface) (model.Key, bool) {
 	pl := l.(model.ResourceListOptions)
 	if pl.Name != "" {
-		return model.ResourceKey{Name: pl.Name, Kind: pl.Kind}
+		return model.ResourceKey{Name: pl.Name, Kind: pl.Kind}, pl.Prefix
 	}
-	return nil
+	return nil, false
 }
 
 func (c *customK8sResourceClient) keyToName(k model.Key) (string, error) {

@@ -145,12 +145,12 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 
 func (c *profileClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
 	log.Debug("Received List request on Profile type")
-	nl := list.(model.ResourceListOptions)
 	kvps := []*model.KVPair{}
 
 	// If a name is specified, then do an exact lookup.
-	if nl.Name != "" {
-		kvp, err := c.Get(ctx, model.ResourceKey{Name: nl.Name, Kind: nl.Kind}, revision)
+	key, isPrefix := c.listInterfaceToKey(list)
+	if key != nil && !isPrefix {
+		kvp, err := c.Get(ctx, key, revision)
 		if err != nil {
 			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
 				return nil, err
@@ -176,7 +176,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	// Otherwise, enumerate all.
 	namespaces, err := c.clientSet.CoreV1().Namespaces().List(metav1.ListOptions{ResourceVersion: nsRev})
 	if err != nil {
-		return nil, K8sErrorToCalico(err, nl)
+		return nil, K8sErrorToCalico(err, list)
 	}
 
 	// For each Namespace, return a profile.
@@ -186,6 +186,17 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 			log.Errorf("Unable to convert k8s Namespace to Calico Profile: Namespace=%s: %v", ns.Name, err)
 			continue
 		}
+
+		// If a prefixed lookup, check that the kvp matches.
+		if isPrefix {
+			prefix := key.(model.ResourceKey).Name
+			if !strings.HasPrefix(kvp.Key.(model.ResourceKey).Name, prefix) {
+				// Not a match - skip this kvp.
+				continue
+			}
+			// The kvp matches the given prefix.
+		}
+		log.Info("CD4: Adding: %s", kvp.Key.(model.ResourceKey).Name)
 		kvps = append(kvps, kvp)
 	}
 
@@ -194,7 +205,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	// TBD: narrow down to only to the required namespace
 	serviceaccounts, err = c.clientSet.CoreV1().ServiceAccounts(kapiv1.NamespaceAll).List(metav1.ListOptions{ResourceVersion: saRev})
 	if err != nil {
-		return nil, K8sErrorToCalico(err, nl)
+		return nil, K8sErrorToCalico(err, list)
 	}
 
 	for _, sa := range serviceaccounts.Items {
@@ -203,6 +214,17 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 			log.WithError(err).Errorf("Unable to convert k8s service account to Calico Profile: %s", sa.Name)
 			continue
 		}
+
+		// If a prefixed lookup, check that the kvp matches.
+		if isPrefix {
+			prefix := key.(model.ResourceKey).Name
+			if !strings.HasPrefix(kvp.Key.(model.ResourceKey).Name, prefix) {
+				// Not a match - skip this kvp.
+				continue
+			}
+			// The kvp matches the given prefix.
+		}
+
 		log.Debug("Converted k8s sa to Calico profile ", sa.Name)
 		kvps = append(kvps, kvp)
 	}
@@ -210,6 +232,14 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		KVPairs:  kvps,
 		Revision: c.JoinProfileRevisions(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
 	}, nil
+}
+
+func (c *profileClient) listInterfaceToKey(l model.ListInterface) (model.Key, bool) {
+	pl := l.(model.ResourceListOptions)
+	if pl.Name != "" {
+		return model.ResourceKey{Name: pl.Name, Kind: pl.Kind}, pl.Prefix
+	}
+	return nil, false
 }
 
 func (c *profileClient) EnsureInitialized() error {
