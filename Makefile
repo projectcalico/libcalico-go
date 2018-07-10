@@ -189,7 +189,7 @@ run-kubernetes-master: stop-kubernetes-master
 		-v  $(CURDIR):/manifests \
 		lachlanevenson/k8s-kubectl:${K8S_VERSION} \
 		--server=http://127.0.0.1:8080 \
-		apply -f manifests/test/crds.yaml
+		apply -f /manifests/test/crds.yaml
 
 	# Create a Node in the API for the tests to use.
 	docker run \
@@ -198,7 +198,7 @@ run-kubernetes-master: stop-kubernetes-master
 		-v  $(CURDIR):/manifests \
 		lachlanevenson/k8s-kubectl:${K8S_VERSION} \
 		--server=http://127.0.0.1:8080 \
-		apply -f manifests/test/mock-node.yaml
+		apply -f /manifests/test/mock-node.yaml
 
 	# Create Namespaces required by namespaced Calico `NetworkPolicy`
 	# tests from the manifests namespaces.yaml.
@@ -208,7 +208,7 @@ run-kubernetes-master: stop-kubernetes-master
 		-v  $(CURDIR):/manifests \
 		lachlanevenson/k8s-kubectl:${K8S_VERSION} \
 		--server=http://localhost:8080 \
-		apply -f manifests/test/namespaces.yaml
+		apply -f /manifests/test/namespaces.yaml
 
 ## Stop the local kubernetes master
 stop-kubernetes-master:
