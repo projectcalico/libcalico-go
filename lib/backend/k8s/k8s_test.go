@@ -1195,7 +1195,7 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		By("Deleting the Pod and expecting the wep to be deleted", func() {
 			var zero int64
 			policy := metav1.DeletePropagationBackground
-			err = c.ClientSet.CoreV1().Pods("default").Delete(pod.ObjectMeta.Name, &metav1.DeleteOptions{
+			err = c.clientSet.CoreV1().Pods("default").Delete(pod.ObjectMeta.Name, &metav1.DeleteOptions{
 				GracePeriodSeconds: &zero,
 				PropagationPolicy:  &policy,
 			})
@@ -1318,7 +1318,7 @@ var _ = Describe("Test Syncer API for Kubernetes backend", func() {
 		By("Deleting the Pod and expecting the wep to be deleted", func() {
 			var zero int64
 			policy := metav1.DeletePropagationBackground
-			err = c.ClientSet.CoreV1().Pods("default").Delete(pod.ObjectMeta.Name, &metav1.DeleteOptions{
+			err = c.clientSet.CoreV1().Pods("default").Delete(pod.ObjectMeta.Name, &metav1.DeleteOptions{
 				GracePeriodSeconds: &zero,
 				PropagationPolicy:  &policy,
 			})
