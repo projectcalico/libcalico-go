@@ -47,7 +47,7 @@ var _ = testutils.E2eDatastoreDescribe("Node tests", testutils.DatastoreEtcdV3, 
 	spec1 := apiv3.NodeSpec{
 		BGP: &apiv3.NodeBGPSpec{
 			IPv4Address:             "1.2.3.4",
-			RouteReflectorClusterID: "cluster1",
+			RouteReflectorClusterID: "10.0.0.0",
 		},
 		OrchRefs: []apiv3.OrchRef{
 			{
