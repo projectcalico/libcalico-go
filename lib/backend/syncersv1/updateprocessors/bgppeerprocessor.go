@@ -74,7 +74,7 @@ func convertBGPPeerV2ToV1(kvp *model.KVPair) (*model.KVPair, error) {
 	val := &model.BGPPeer{
 		Name:         v3res.Name,
 		ASNum:        v3res.Spec.ASNumber,
-		NodeSelector: v3res.Spec.NodeSelector,
+		NodeSelector: selector,
 		PeerSelector: v3res.Spec.PeerSelector,
 	}
 	if ip != nil {
