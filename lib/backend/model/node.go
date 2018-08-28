@@ -50,6 +50,9 @@ type Node struct {
 	BGPIPv6Net  *net.IPNet
 	BGPASNumber *numorstring.ASNumber
 	OrchRefs    []OrchRef `json:"orchRefs,omitempty"`
+
+	// Route reflector cluster ID.
+	ClusterID string
 }
 
 type OrchRef struct {

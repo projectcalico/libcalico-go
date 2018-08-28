@@ -16,11 +16,14 @@ package updateprocessors
 
 import (
 	"errors"
+	"fmt"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/backend/watchersyncer"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Create a new SyncerUpdateProcessor to sync IPPool data in v1 format for
@@ -42,31 +45,45 @@ func convertBGPPeerV2ToV1(kvp *model.KVPair) (*model.KVPair, error) {
 		return nil, errors.New("Value is not a valid BGPPeer resource value")
 	}
 
-	// Correct data types.  Handle the conversion.  Start with the v1 key.  The PeerIP and
-	// the Node are now in the Spec - if a Node is not specified then this is a global
-	// peer.
+	// Correct data types. Handle the conversion.
 	ip := cnet.ParseIP(v3res.Spec.PeerIP)
-	if ip == nil {
-		return nil, errors.New("PeerIP is not assigned or is malformed")
+	if ip == nil && v3res.Spec.PeerSelector == "" {
+		return nil, errors.New("Peer IP or selector is not assigned or is malformed")
 	}
-	var v1key model.Key
-	if node := v3res.Spec.Node; len(node) == 0 {
-		v1key = model.GlobalBGPPeerKey{
-			PeerIP: *ip,
-		}
-	} else {
-		v1key = model.NodeBGPPeerKey{
-			PeerIP:   *ip,
-			Nodename: node,
-		}
+
+	// Create the Key.
+	v1key := model.SelectorBGPPeerKey{
+		Name: v3res.Name,
+	}
+
+	// Determine the node selector to use. We convert old-style "Global" and
+	// per node peers into selector peers for simplicity.
+	selector := v3res.Spec.NodeSelector
+	if v3res.Spec.Node == "" && selector == "" {
+		// This is an old-style "Global" peer, which means
+		// select all nodes.
+		selector = "all()"
+		log.Infof("Converted global BGPPeer to selector - %s", selector)
+	} else if v3res.Spec.Node != "" {
+		// This peer selects a specific node. Use an exact selector
+		// to represent this.
+		selector = fmt.Sprintf("projectcalico.org/node == '%s'", v3res.Spec.Node)
+		log.Infof("Converted node-specific BGPPeer to selector - %s", selector)
+	}
+
+	val := &model.BGPPeer{
+		Name:         v3res.Name,
+		ASNum:        v3res.Spec.ASNumber,
+		NodeSelector: selector,
+		PeerSelector: v3res.Spec.PeerSelector,
+	}
+	if ip != nil {
+		val.PeerIP = *ip
 	}
 
 	return &model.KVPair{
-		Key: v1key,
-		Value: &model.BGPPeer{
-			PeerIP: *ip,
-			ASNum:  v3res.Spec.ASNumber,
-		},
+		Key:      v1key,
+		Value:    val,
 		Revision: kvp.Revision,
 	}, nil
 }
