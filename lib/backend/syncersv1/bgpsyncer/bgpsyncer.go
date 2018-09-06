@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Tigera, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,21 +22,18 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/watchersyncer"
 )
 
-// New creates a new BGP v1 Syncer.  Since only etcdv3 supports Watchers for all of
-// the required resource types, the WatcherSyncer will go into a polling loop for
-// KDD.  An optional node name may be supplied.  If set, the syncer only watches
-// the specified node rather than all nodes.
-func New(client api.Client, callbacks api.SyncerCallbacks, node string, watchAllNodes bool) api.Syncer {
-	// Create the set of ResourceTypes required for Felix.  Since the update processors
+// New creates a new BGP v1 Syncer.  An optional node name may be supplied for the node resource and
+// block affinity resource.  If non-empty, only the named node will be watched for each of those
+// resource types.  Otherwise, all nodes will be watched.
+func New(
+	client api.Client,
+	callbacks api.SyncerCallbacks,
+	filterNodeName string,
+	filterBlockAffNodeName string,
+) api.Syncer {
+	// Create the set of ResourceTypes required for BGP configuration.  Since the update processors
 	// also cache state, we need to create individual ones per syncer rather than create
 	// a common global set.
-	// For BGP we always only care about affinity blocks assigned to our own particuar node.
-	// However, depending on whether we are in full-mesh mode or not changes whether we want
-	// to watch all Node resources or just our own.
-	nodeToWatch := node
-	if watchAllNodes {
-		nodeToWatch = ""
-	}
 	resourceTypes := []watchersyncer.ResourceType{
 		{
 			ListInterface:   model.ResourceListOptions{Kind: apiv3.KindIPPool},
@@ -49,7 +46,7 @@ func New(client api.Client, callbacks api.SyncerCallbacks, node string, watchAll
 		{
 			ListInterface: model.ResourceListOptions{
 				Kind: apiv3.KindNode,
-				Name: nodeToWatch,
+				Name: filterNodeName,
 			},
 			UpdateProcessor: updateprocessors.NewBGPNodeUpdateProcessor(),
 		},
@@ -57,16 +54,9 @@ func New(client api.Client, callbacks api.SyncerCallbacks, node string, watchAll
 			ListInterface:   model.ResourceListOptions{Kind: apiv3.KindBGPPeer},
 			UpdateProcessor: updateprocessors.NewBGPPeerUpdateProcessor(),
 		},
-	}
-	// When this syncer is used (via confd) in calico/node, it needs to know the affinity blocks
-	// for that node so that it can set up the blackhole routes; in that case,
-	// node is non-empty.  When this syncer is used (also via confd) in
-	// calico/routereflector, it has no need for affinity block information, so we skip that
-	// here; in that case, node is empty.
-	if node != "" {
-		resourceTypes = append(resourceTypes, watchersyncer.ResourceType{
-			ListInterface: model.BlockAffinityListOptions{Host: node},
-		})
+		{
+			ListInterface: model.BlockAffinityListOptions{Host: filterBlockAffNodeName},
+		},
 	}
 
 	return watchersyncer.New(
