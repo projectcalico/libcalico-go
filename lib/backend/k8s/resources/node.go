@@ -23,7 +23,10 @@ import (
 	kapiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	knodeapiv1 "k8s.io/kubernetes/pkg/api/v1/node"
+	kutilnode "k8s.io/kubernetes/pkg/util/node"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -81,6 +84,11 @@ func (c *nodeClient) Update(ctx context.Context, kvp *model.KVPair) (*model.KVPa
 	if err != nil {
 		log.Errorf("Failed to parse returned Node after call to update %+v", newNode)
 		return nil, err
+	}
+
+	err = setNodeNetworkUnavailableFalse(c.clientSet, newNode)
+	if err != nil {
+		log.WithError(err).Info("Error updating NetworkUnavailable to False")
 	}
 
 	return newCalicoNode, nil
@@ -300,4 +308,21 @@ func getTunnelIp(n *kapiv1.Node) string {
 	tunIp[3]++
 
 	return tunIp.String()
+}
+
+// Set Kubernetes NodeNetworkUnavailable to false when starting
+// https://kubernetes.io/docs/concepts/architecture/nodes/#condition
+func setNodeNetworkUnavailableFalse(c *kubernetes.Clientset, node *kapiv1.Node) error {
+	_, condition := knodeapiv1.GetNodeCondition(&node.Status, kapiv1.NodeNetworkUnavailable)
+	if condition == nil || condition.Status != kapiv1.ConditionFalse {
+		log.Debug("Updating NetworkUnavailable to False")
+		return kutilnode.SetNodeCondition(c, types.NodeName(node.Name), kapiv1.NodeCondition{
+			Type:               kapiv1.NodeNetworkUnavailable,
+			Status:             kapiv1.ConditionFalse,
+			Reason:             "CalicoIsUp",
+			Message:            "Calico pod has set this",
+			LastTransitionTime: metav1.Now(),
+		})
+	}
+	return nil
 }

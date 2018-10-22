@@ -1,5 +1,5 @@
-hash: 15945432714a12a6889c810b136591540f5f089a0893f33040f6c5df49bc3a82
-updated: 2018-07-19T15:44:36.618139978-07:00
+hash: a8427dbe46eb3e380d06794674aa5ced0377e4dc9a4501ba11e88fe863d24249
+updated: 2018-10-24T10:19:38.572931402-04:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -18,7 +18,7 @@ imports:
   subpackages:
   - quantile
 - name: github.com/coreos/etcd
-  version: 33245c6b5b49130ca99280408fadfab01aac0e48
+  version: 420a452267a7ce45b3fcbed04d54030d69964fc1
   subpackages:
   - auth/authpb
   - client
@@ -427,4 +427,9 @@ imports:
   version: 6702109cc68eb6fe6350b83e14407c8d7309fd1a
 - name: k8s.io/gengo
   version: fdcf9f9480fdd5bf2b3c3df9bf4ecd22b25b87e2
+- name: k8s.io/kubernetes
+  version: 4ed3216f3ec431b140b1d899130a69fc671678f4
+  subpackages:
+  - pkg/api/v1/node
+  - pkg/util/node
 testImports: []

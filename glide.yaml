@@ -4,7 +4,7 @@ import:
 # The version of golang.org/x/sys that other dependencies use does not have
 # all the unix methods that the updated version of grpc requires.
 - package: github.com/coreos/etcd
-  version: v3.3.8
+  version: 420a452267a7ce45b3fcbed04d54030d69964fc1
   subpackages:
   - client
   - clientv3
@@ -84,3 +84,8 @@ import:
   - rest
   - tools/cache
   - tools/clientcmd
+- package: k8s.io/kubernetes
+  version: ^1.12.1
+  subpackages:
+  - pkg/api/v1/node
+  - pkg/util/node
