@@ -6,21 +6,26 @@ test: ut
 
 K8S_VERSION=v1.8.0-beta.1
 KUBECTL_VERSION=v1.7.3
-CALICO_BUILD?=calico/go-build
+GO_BUILD_VER=v0.17
+CALICO_BUILD=calico/go-build:$(GO_BUILD_VER)
 PACKAGE_NAME?=projectcalico/libcalico-go
 LOCAL_USER_ID?=$(shell id -u $$USER)
 
+DOCKER_GO_BUILD := mkdir -p .go-pkg-cache && \
+                   docker run --rm \
+                              --net=host \
+                              $(EXTRA_DOCKER_ARGS) \
+                              -e LOCAL_USER_ID=$(LOCAL_USER_ID) \
+                              -v $(HOME)/.glide:/home/user/.glide:rw \
+                              -v $(CURDIR):/go/src/github.com/$(PACKAGE_NAME):rw \
+                              -v $(CURDIR)/.go-pkg-cache:/go/pkg:rw \
+                              -w /go/src/github.com/$(PACKAGE_NAME) \
+                              $(CALICO_BUILD)
+
 ## Use this to populate the vendor directory after checking out the repository.
 vendor: glide.yaml
-	# To update upstream dependencies, delete the glide.lock file first.
-	# To build without Docker just run "glide install -strip-vendor"
-	docker run --rm \
-    -v $(CURDIR):/go/src/github.com/$(PACKAGE_NAME):rw \
-    -v $(HOME)/.glide:/home/user/.glide:rw \
-    -e LOCAL_USER_ID=$(LOCAL_USER_ID) \
-    $(CALICO_BUILD) /bin/sh -c ' \
-		  cd /go/src/github.com/$(PACKAGE_NAME) && \
-      glide install --strip-vendor'
+	mkdir -p $(HOME)/.glide
+	$(DOCKER_GO_BUILD) glide install --strip-vendor
 
 .PHONY: ut
 ## Run the UTs locally.  This requires a local etcd and local kubernetes master to be running.
