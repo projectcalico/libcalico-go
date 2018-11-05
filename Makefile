@@ -29,7 +29,7 @@ ut: vendor
 
 .PHONY: test-containerized
 ## Run the tests in a container. Useful for CI, Mac dev.
-test-containerized: vendor run-etcd run-kubernetes-master
+ci test-containerized: vendor run-etcd run-kubernetes-master
 	-mkdir -p .go-pkg-cache
 	docker run --rm --privileged --net=host \
     -e LOCAL_USER_ID=$(LOCAL_USER_ID) \
