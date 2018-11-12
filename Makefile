@@ -244,7 +244,7 @@ stop-etcd:
 ###############################################################################
 .PHONY: ci
 ## Run what CI runs
-ci: clean check-glide-warnings static-checks test build-libcalico-users
+ci: clean check-glide-warnings static-checks test
 
 # Branch to use when building repos. Default to the current branch.
 RELEASE_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
