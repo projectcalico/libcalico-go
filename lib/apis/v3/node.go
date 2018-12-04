@@ -37,6 +37,42 @@ type Node struct {
 	Spec NodeSpec `json:"spec,omitempty"`
 }
 
+// ApplyKddMeta determines the differences between the input metadata.labels
+//   section against the receiver Node and applies them
+// returns a bool indicating whether or not a change was found
+func (n *Node) ApplyKddMeta(newMeta metav1.ObjectMeta) bool {
+	// HACK: real solution is to fix apis/v3.newNode method
+	if n.ObjectMeta.Annotations == nil {
+		n.ObjectMeta.Annotations = make(map[string]string)
+	}
+	if n.ObjectMeta.Labels == nil {
+		n.ObjectMeta.Labels = make(map[string]string)
+	}
+
+	// get input resourceVersion
+	oldKddV, exists := n.ObjectMeta.Annotations["kdd.resourceVersion"]
+
+	// new resourceVersion is older than stored resourceVersion
+	if exists && (oldKddV >= newMeta.ResourceVersion) {
+		return false
+	}
+
+	// set new resourceVersion
+	n.ObjectMeta.Annotations["kdd.resourceVersion"] = newMeta.ResourceVersion
+
+	// only override labels if does not exist or changed
+	changed := false
+	for labelKey, labelValue := range newMeta.Labels {
+		kddKey := "kdd." + labelKey
+		if oldLabelValue, exists := n.ObjectMeta.Labels[kddKey]; exists && (oldLabelValue == labelValue) {
+			continue
+		}
+		n.ObjectMeta.Labels[kddKey] = labelValue
+		changed = true
+	}
+	return changed
+}
+
 // NodeSpec contains the specification for a Node resource.
 type NodeSpec struct {
 	// BGP configuration for this node.
