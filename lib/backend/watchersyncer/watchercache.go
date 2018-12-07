@@ -38,6 +38,7 @@ type watcherCache struct {
 	logger               *logrus.Entry
 	client               api.Client
 	watch                api.WatchInterface
+	watchStart           time.Time
 	resources            map[string]cacheEntry
 	oldResources         map[string]cacheEntry
 	results              chan<- interface{}
@@ -77,6 +78,7 @@ func (wc *watcherCache) run(ctx context.Context) {
 	wc.resyncAndCreateWatcher(ctx)
 
 	wc.logger.Debug("Starting main event processing loop")
+
 mainLoop:
 	for {
 		if wc.watch == nil {
@@ -114,11 +116,18 @@ mainLoop:
 				wc.results <- event.Error
 				if e, ok := event.Error.(cerrors.ErrorWatchTerminated); ok {
 					wc.logger.Debug("Received watch terminated error - recreate watcher")
+					watchDuration := time.Since(wc.watchStart)
+					watchWasTooShort := watchDuration.Nanoseconds() < (time.Second * 1).Nanoseconds()
 					if !e.ClosedByRemote {
 						// If the watcher was not closed by remote, reset the currentWatchRevision.  This will
 						// trigger a full resync rather than simply trying to watch from the last event
 						// revision.
 						wc.logger.Debug("Watch was not closed by remote - full resync required")
+						wc.currentWatchRevision = ""
+					} else if watchWasTooShort {
+						// If the watcher was too short, this probably indicates that
+						// the server rejected the watch because something was wrong with it, e.g. the revision was too old.
+						wc.logger.Debug("Watch was too short - full resync required")
 						wc.currentWatchRevision = ""
 					}
 					wc.resyncAndCreateWatcher(ctx)
@@ -219,6 +228,7 @@ func (wc *watcherCache) resyncAndCreateWatcher(ctx context.Context) {
 		// And now start watching from the revision returned by the List, or from a previous watch event
 		// (depending on whether we were performing a full resync).
 		w, err := wc.client.Watch(ctx, wc.resourceType.ListInterface, wc.currentWatchRevision)
+
 		if err != nil {
 			// Failed to create the watcher - we'll need to retry.
 			if _, ok := err.(cerrors.ErrorOperationNotSupported); ok {
@@ -247,6 +257,7 @@ func (wc *watcherCache) resyncAndCreateWatcher(ctx context.Context) {
 		// Store the watcher and exit back to the main event loop.
 		wc.logger.Debug("Resync completed, now watching for change events")
 		wc.watch = w
+		wc.watchStart = time.Now()
 		return
 	}
 }
