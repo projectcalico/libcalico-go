@@ -105,6 +105,68 @@ type testArgsClaimAff struct {
 
 var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
 
+	FDescribe("IPAM ReleaseIPs with duplicate IP can result in assigning an IP multiple times", func() {
+		c := testutils.CreateCleanClient(config)
+		ic := setupIPAMClient(c, true)
+
+		// The IP which we will cause a multiple assignment of
+		assignedIP := net.ParseIP("10.0.0.1")
+		pool := cnet.MustParseNetwork("10.0.0.0/24")
+		testutils.CreateNewIPPool(*c, "10.0.0.0/24", false, false, true)
+
+		Context("Setup duplicate oridinal in Unallocated list", func() {
+			// Assign the target IP
+			assignIPutil(ic, assignedIP, "host-a")
+
+			// Assign the rest of the IPs in the pool
+			ips, _, bulkAssignErr := ic.AutoAssign(client.AutoAssignArgs{
+				Num4:      255,
+				Hostname:  "host-1",
+				IPv4Pools: []cnet.IPNet{pool},
+			})
+
+			It("Should allocate most of the pool", func() {
+				Expect(bulkAssignErr).NotTo(HaveOccurred())
+				Expect(ips).NotTo(ContainElement(assignedIP))
+				Expect(len(ips)).To(Equal(255))
+			})
+
+			_, releaseErr := ic.ReleaseIPs([]cnet.IP{
+				cnet.IP{assignedIP},
+				cnet.IP{assignedIP},
+			})
+
+			It("Should double release successfully", func() {
+				Expect(releaseErr).NotTo(HaveOccurred())
+			})
+
+			// Reassign the IP - this will still leave ordinal 1 in the Unallocated list
+			// as release() will only remove the first instance it finds.
+			assignIPutil(ic, assignedIP, "host-a")
+
+			attrs, attrErr := ic.GetAssignmentAttributes(cnet.IP{assignedIP})
+			It("Should acknowledge 10.0.0.1 as assigned", func() {
+				Expect(attrErr).NotTo(HaveOccurred())
+				Expect(attrs).To(BeEmpty())
+			})
+		})
+
+		Context("Trigger the bug", func() {
+			ips, _, err := ic.AutoAssign(client.AutoAssignArgs{
+				Num4:      1,
+				Hostname:  "host-1",
+				IPv4Pools: []cnet.IPNet{pool},
+			})
+			It("Should double assign", func() {
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(ips)).To(Equal(1))
+				if ips[0].Equal(assignedIP) {
+					Fail(fmt.Sprintf("IP %s was assigned twice!", ips[0]))
+				}
+			})
+		})
+	})
+
 	// We're assigning one IP which should be from the only ipPool created at the time, second one
 	// should be from the same /26 block since they're both from the same host, then delete
 	// the ipPool and create a new ipPool, and AutoAssign 1 more IP for the same host - expect the
