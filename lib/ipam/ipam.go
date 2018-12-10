@@ -27,6 +27,7 @@ import (
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/names"
 	"github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/selector"
 )
 
 const (
@@ -205,7 +206,7 @@ func (c ipamClient) getBlockFromAffinity(ctx context.Context, aff *model.KVPair)
 // determinePools compares a list of requested pools with the enabled pools
 // and returns the intersect. If any requested pool does not exist, or is not enabled, an error is returned.
 // If no pools are requested, all enabled pools are returned.
-func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int) ([]v3.IPPool, error) {
+func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, node *model.Node) ([]v3.IPPool, error) {
 	enabledPools, err := c.pools.GetEnabledPools(version)
 	if err != nil {
 		log.WithError(err).Errorf("Error reading configured pools")
@@ -226,10 +227,19 @@ func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int) (
 
 		// Make sure each requested pool exists
 		for _, rp := range requestedPoolNets {
-			if pool, ok := pm[rp.String()]; !ok {
+			pool, ok := pm[rp.String()]
+			if !ok {
 				// The requested pool doesn't exist.
 				return nil, fmt.Errorf("the given pool (%s) does not exist, or is not enabled", rp.IPNet.String())
-			} else {
+			} else if len(pool.Spec.NodeSelector) == 0 || node == nil {
+				// No nodeSelector specified
+				enabledPools = append(enabledPools, pool)
+			} else if sel, err := selector.Parse(pool.Spec.NodeSelector); err != nil {
+				// Invalid selector syntax
+				log.WithError(err).WithField("selector", pool.Spec.NodeSelector).Error("failed to parse selector")
+				return nil, err
+			} else if sel.Evaluate(node.Labels) {
+				// Node's labels match pool's selector
 				enabledPools = append(enabledPools, pool)
 			}
 		}
@@ -239,8 +249,15 @@ func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int) (
 }
 
 func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, attrs map[string]string, requestedPools []net.IPNet, version int, host string, maxNumBlocks int) ([]net.IP, error) {
+	// Retrieve node for given hostname to use for ip pool node selection
+	node, err := c.client.Get(ctx, model.NodeKey{Hostname: host}, "")
+	if err != nil {
+		log.WithError(err).WithField("host", host).Error("failed to get node for host")
+		return nil, err
+	}
+
 	// Start by sanitizing the requestedPools.
-	pools, err := c.determinePools(requestedPools, version)
+	pools, err := c.determinePools(requestedPools, version, node.Value.(*model.Node))
 	if err != nil {
 		return nil, err
 	}
