@@ -43,9 +43,10 @@ type ipPoolAccessor struct {
 }
 
 type pool struct {
-	cidr      string
-	blockSize int
-	enabled   bool
+	cidr         string
+	blockSize    int
+	enabled      bool
+	nodeSelector string
 }
 
 func (i *ipPoolAccessor) GetEnabledPools(ipVersion int) ([]v3.IPPool, error) {
@@ -65,7 +66,7 @@ func (i *ipPoolAccessor) GetEnabledPools(ipVersion int) ([]v3.IPPool, error) {
 	for _, p := range sorted {
 		c := cnet.MustParseCIDR(p)
 		if c.Version() == ipVersion {
-			pool := v3.IPPool{Spec: v3.IPPoolSpec{CIDR: p}}
+			pool := v3.IPPool{Spec: v3.IPPoolSpec{CIDR: p, NodeSelector: i.pools[p].nodeSelector}}
 			if i.pools[p].blockSize == 0 {
 				if ipVersion == 4 {
 					pool.Spec.BlockSize = 26
@@ -114,7 +115,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 	Context("Measuring allocation performance", func() {
 		hostname := "host-perf"
 
-		var pool20, pool32, pool26 []cnet.IPNet
+		var pool20, pool32, pool26, pool20Sel, pool32Sel, pool26Sel []cnet.IPNet
 		// Create many pools
 		for i := 0; i < 100; i++ {
 			cidr := fmt.Sprintf("10.%d.0.0/16", i)
@@ -134,8 +135,26 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 			pool20 = append(pool20, cnet.MustParseCIDR(cidr))
 		}
 
+		for i := 0; i < 100; i++ {
+			cidr := fmt.Sprintf("13.%d.0.0/16", i)
+			ipPools.pools[cidr] = pool{enabled: true, blockSize: 26, nodeSelector: `foo == "bar"`}
+			pool26Sel = append(pool26Sel, cnet.MustParseCIDR(cidr))
+		}
+
+		for i := 0; i < 100; i++ {
+			cidr := fmt.Sprintf("14.%d.0.0/16", i)
+			ipPools.pools[cidr] = pool{enabled: true, blockSize: 32, nodeSelector: `foo == "bar"`}
+			pool32Sel = append(pool32Sel, cnet.MustParseCIDR(cidr))
+		}
+
+		for i := 0; i < 50; i++ {
+			cidr := fmt.Sprintf("15.%d.0.0/16", i)
+			ipPools.pools[cidr] = pool{enabled: true, blockSize: 20, nodeSelector: `foo == "bar"`}
+			pool20Sel = append(pool20Sel, cnet.MustParseCIDR(cidr))
+		}
+
 		BeforeEach(func() {
-			applyNode(bc, hostname, nil)
+			applyNode(bc, hostname, map[string]string{"foo": "bar"})
 		})
 
 		AfterEach(func() {
@@ -144,6 +163,14 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 
 		Measure("It should be able to allocate a single address quickly - blocksize 32", func(b Benchmarker) {
 			runtime := b.Time("runtime", func() {
+				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool32, Hostname: hostname})
+				Expect(outErr).NotTo(HaveOccurred())
+				Expect(len(v4)).To(Equal(1))
+			})
+
+			Expect(runtime.Seconds()).Should(BeNumerically("<", 1))
+
+			runtime = b.Time("selector runtime", func() {
 				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool32, Hostname: hostname})
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
@@ -557,40 +584,40 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 		},
 
 		// Test 1a: AutoAssign 1 IPv4, 1 IPv6 with tiny block - expect one of each to be returned.
-		Entry("1 v4 1 v6 - tiny block", "testHost", true, []pool{{"192.168.1.0/24", 32, true}, {"fd80:24e2:f998:72d6::/120", 128, true}}, "192.168.1.0/24", 1, 1, 1, 1, 0, nil),
+		Entry("1 v4 1 v6 - tiny block", "testHost", true, []pool{{"192.168.1.0/24", 32, true, ""}, {"fd80:24e2:f998:72d6::/120", 128, true, ""}}, "192.168.1.0/24", 1, 1, 1, 1, 0, nil),
 
 		// Test 1b: AutoAssign 1 IPv4, 1 IPv6 with massive block - expect one of each to be returned.
-		Entry("1 v4 1 v6 - big block", "testHost", true, []pool{{"192.168.0.0/16", 20, true}, {"fd80:24e2:f998:72d6::/110", 116, true}}, "192.168.0.0/16", 1, 1, 1, 1, 0, nil),
+		Entry("1 v4 1 v6 - big block", "testHost", true, []pool{{"192.168.0.0/16", 20, true, ""}, {"fd80:24e2:f998:72d6::/110", 116, true, ""}}, "192.168.0.0/16", 1, 1, 1, 1, 0, nil),
 
 		// Test 1c: AutoAssign 1 IPv4, 1 IPv6 with default block - expect one of each to be returned.
-		Entry("1 v4 1 v6 - default block", "testHost", true, []pool{{"192.168.1.0/24", 26, true}, {"fd80:24e2:f998:72d6::/120", 122, true}}, "192.168.1.0/24", 1, 1, 1, 1, 0, nil),
+		Entry("1 v4 1 v6 - default block", "testHost", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 1, 1, 1, 1, 0, nil),
 
 		// Test 2a: AutoAssign 256 IPv4, 256 IPv6 with default blocksize- expect 256 IPv4 + IPv6 addresses.
-		Entry("256 v4 256 v6", "testHost", true, []pool{{"192.168.1.0/24", 26, true}, {"fd80:24e2:f998:72d6::/120", 122, true}}, "192.168.1.0/24", 256, 256, 256, 256, 0, nil),
+		Entry("256 v4 256 v6", "testHost", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 256, 256, 256, 256, 0, nil),
 
 		// Test 2b: AutoAssign 256 IPv4, 256 IPv6 with small blocksize- expect 256 IPv4 + IPv6 addresses.
-		Entry("256 v4 256 v6 - small blocks", "testHost", true, []pool{{"192.168.1.0/24", 30, true}, {"fd80:24e2:f998:72d6::/120", 126, true}}, "192.168.1.0/24", 256, 256, 256, 256, 0, nil),
+		Entry("256 v4 256 v6 - small blocks", "testHost", true, []pool{{"192.168.1.0/24", 30, true, ""}, {"fd80:24e2:f998:72d6::/120", 126, true, ""}}, "192.168.1.0/24", 256, 256, 256, 256, 0, nil),
 
 		// Test 2a: AutoAssign 256 IPv4, 256 IPv6 with num blocks limit expect 64 IPv4 + IPv6 addresses.
-		Entry("256 v4 0 v6 block limit", "testHost", true, []pool{{"192.168.1.0/24", 26, true}, {"fd80:24e2:f998:72d6::/120", 122, true}}, "192.168.1.0/24", 256, 0, 64, 0, 1, ErrBlockLimit),
-		Entry("256 v4 0 v6 block limit 2", "testHost", true, []pool{{"192.168.1.0/24", 26, true}, {"fd80:24e2:f998:72d6::/120", 122, true}}, "192.168.1.0/24", 256, 0, 128, 0, 2, ErrBlockLimit),
-		Entry("0 v4 256 v6 block limit", "testHost", true, []pool{{"192.168.1.0/24", 26, true}, {"fd80:24e2:f998:72d6::/120", 122, true}}, "192.168.1.0/24", 0, 256, 0, 64, 1, ErrBlockLimit),
+		Entry("256 v4 0 v6 block limit", "testHost", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 256, 0, 64, 0, 1, ErrBlockLimit),
+		Entry("256 v4 0 v6 block limit 2", "testHost", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 256, 0, 128, 0, 2, ErrBlockLimit),
+		Entry("0 v4 256 v6 block limit", "testHost", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 0, 256, 0, 64, 1, ErrBlockLimit),
 
 		// Test 3: AutoAssign 257 IPv4, 0 IPv6 - expect 256 IPv4 addresses, no IPv6, and no error.
-		Entry("257 v4 0 v6", "testHost", true, []pool{{"192.168.1.0/24", 26, true}, {"fd80:24e2:f998:72d6::/120", 122, true}}, "192.168.1.0/24", 257, 0, 256, 0, 0, nil),
+		Entry("257 v4 0 v6", "testHost", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 257, 0, 256, 0, 0, nil),
 
 		// Test 4: AutoAssign 0 IPv4, 257 IPv6 - expect 256 IPv6 addresses, no IPv6, and no error.
-		Entry("0 v4 257 v6", "testHost", true, []pool{{"192.168.1.0/24", 26, true}, {"fd80:24e2:f998:72d6::/120", 122, true}}, "192.168.1.0/24", 0, 257, 0, 256, 0, nil),
+		Entry("0 v4 257 v6", "testHost", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 0, 257, 0, 256, 0, nil),
 
 		// Test 5: (use pool of size /25 so only two blocks are contained):
 		// - Assign 1 address on host A (Expect 1 address).
-		Entry("1 v4 0 v6 host-A", "host-A", true, []pool{{"10.0.0.0/25", 26, true}, {"fd80:24e2:f998:72d6::/121", 122, true}}, "10.0.0.0/25", 1, 0, 1, 0, 0, nil),
+		Entry("1 v4 0 v6 host-A", "host-A", true, []pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}}, "10.0.0.0/25", 1, 0, 1, 0, 0, nil),
 
 		// - Assign 1 address on host B (Expect 1 address, different block).
-		Entry("1 v4 0 v6 host-B", "host-B", false, []pool{{"10.0.0.0/25", 26, true}, {"fd80:24e2:f998:72d6::/121", 122, true}}, "10.0.0.0/25", 1, 0, 1, 0, 0, nil),
+		Entry("1 v4 0 v6 host-B", "host-B", false, []pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}}, "10.0.0.0/25", 1, 0, 1, 0, 0, nil),
 
 		// - Assign 64 more addresses on host A (Expect 63 addresses from host A's block, 1 address from host B's block).
-		Entry("64 v4 0 v6 host-A", "host-A", false, []pool{{"10.0.0.0/25", 26, true}, {"fd80:24e2:f998:72d6::/121", 122, true}}, "10.0.0.0/25", 64, 0, 64, 0, 0, nil),
+		Entry("64 v4 0 v6 host-A", "host-A", false, []pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}}, "10.0.0.0/25", 64, 0, 64, 0, 0, nil),
 	)
 
 	DescribeTable("AssignIP: requested IP vs returned error",
