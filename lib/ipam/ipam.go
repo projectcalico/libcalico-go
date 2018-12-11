@@ -206,7 +206,7 @@ func (c ipamClient) getBlockFromAffinity(ctx context.Context, aff *model.KVPair)
 // determinePools compares a list of requested pools with the enabled pools
 // and returns the intersect. If any requested pool does not exist, or is not enabled, an error is returned.
 // If no pools are requested, all enabled pools are returned.
-func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, node *model.KVPair) ([]v3.IPPool, error) {
+func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, nodeKV *model.KVPair) ([]v3.IPPool, error) {
 	enabledPools, err := c.pools.GetEnabledPools(version)
 	if err != nil {
 		log.WithError(err).Errorf("Error reading configured pools")
@@ -231,14 +231,17 @@ func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, n
 			if !ok {
 				// The requested pool doesn't exist.
 				return nil, fmt.Errorf("the given pool (%s) does not exist, or is not enabled", rp.IPNet.String())
-			} else if len(pool.Spec.NodeSelector) == 0 || node == nil {
+			} else if len(pool.Spec.NodeSelector) == 0 {
 				// No nodeSelector specified
 				enabledPools = append(enabledPools, pool)
+			} else if node, ok := nodeKV.Value.(*model.Node); !ok {
+				log.Warn("node is nil, passing...")
+				continue
 			} else if sel, err := selector.Parse(pool.Spec.NodeSelector); err != nil {
 				// Invalid selector syntax
 				log.WithError(err).WithField("selector", pool.Spec.NodeSelector).Error("failed to parse selector")
 				return nil, err
-			} else if sel.Evaluate(node.Value.(*model.Node).Labels) {
+			} else if sel.Evaluate(node.Labels) {
 				// Node's labels match pool's selector
 				enabledPools = append(enabledPools, pool)
 			}
@@ -253,6 +256,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 	node, err := c.client.Get(ctx, model.ResourceKey{Kind: v3.KindNode, Name: host}, "")
 	if err != nil {
 		log.WithError(err).WithField("host", host).Warn("failed to get node for host")
+		return nil, err
 	}
 
 	// Start by sanitizing the requestedPools.

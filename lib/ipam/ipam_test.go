@@ -112,6 +112,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 	})
 
 	Context("Measuring allocation performance", func() {
+		hostname := "host-perf"
+
 		var pool20, pool32, pool26 []cnet.IPNet
 		// Create many pools
 		for i := 0; i < 100; i++ {
@@ -132,9 +134,17 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 			pool20 = append(pool20, cnet.MustParseCIDR(cidr))
 		}
 
+		BeforeEach(func() {
+			applyNode(bc, hostname, nil)
+		})
+
+		AfterEach(func() {
+			deleteNode(bc, hostname)
+		})
+
 		Measure("It should be able to allocate a single address quickly - blocksize 32", func(b Benchmarker) {
 			runtime := b.Time("runtime", func() {
-				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool32})
+				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool32, Hostname: hostname})
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
 			})
@@ -144,7 +154,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 
 		Measure("It should be able to allocate a single address quickly - blocksize 26", func(b Benchmarker) {
 			runtime := b.Time("runtime", func() {
-				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool26})
+				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool26, Hostname: hostname})
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
 			})
@@ -154,7 +164,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 
 		Measure("It should be able to allocate a single address quickly - blocksize 20", func(b Benchmarker) {
 			runtime := b.Time("runtime", func() {
-				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool20})
+				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool20, Hostname: hostname})
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
 			})
@@ -164,7 +174,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 
 		Measure("It should be able to allocate a lot of addresses quickly", func(b Benchmarker) {
 			runtime := b.Time("runtime", func() {
-				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 64, IPv4Pools: pool20})
+				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 64, IPv4Pools: pool20, Hostname: hostname})
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(64))
 			})
@@ -174,7 +184,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 
 		Measure("It should be able to allocate and release addresses quickly", func(b Benchmarker) {
 			runtime := b.Time("runtime", func() {
-				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1})
+				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname})
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
 				v4, outErr = ic.ReleaseIPs(context.Background(), v4)
@@ -203,6 +213,9 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 			It("should auto-assign from the only available pool", func() {
 				bc.Clean()
 				deleteAllPools()
+
+				applyNode(bc, hostA, nil)
+				applyNode(bc, hostB, nil)
 				applyPool("10.0.0.0/24", true)
 
 				args := AutoAssignArgs{
@@ -276,9 +289,19 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 			Num6:     0,
 			Hostname: "test-host",
 		}
+
+		BeforeEach(func() {
+			applyNode(bc, args.Hostname, nil)
+		})
+
+		AfterEach(func() {
+			deleteNode(bc, args.Hostname)
+		})
+
 		// Call once in order to assign an IP address and create a block.
 		It("should have assigned an IP address with no error", func() {
 			deleteAllPools()
+
 			applyPool("10.0.0.0/24", true)
 			applyPool("20.0.0.0/24", true)
 
@@ -304,6 +327,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 		It("should get an IP from pool1 when explicitly requesting from that pool", func() {
 			bc.Clean()
 			deleteAllPools()
+
+			applyNode(bc, host, nil)
 			applyPool("10.0.0.0/24", true)
 			applyPool("20.0.0.0/24", true)
 
@@ -418,6 +443,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 			}
 			bc.Clean()
 			deleteAllPools()
+
+			applyNode(bc, host, nil)
 			applyPool(pool1.String(), true)
 			applyPool(pool2.String(), true)
 			applyPool(pool3.String(), false)
@@ -498,10 +525,14 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 
 	DescribeTable("AutoAssign: requested IPs vs returned IPs",
 		func(host string, cleanEnv bool, pools []pool, usePool string, inv4, inv6, expv4, expv6 int, blockLimit int, expError error) {
+
 			if cleanEnv {
 				bc.Clean()
 				deleteAllPools()
 			}
+			applyNode(bc, host, nil)
+			defer deleteNode(bc, host)
+
 			for _, v := range pools {
 				ipPools.pools[v.cidr] = pool{cidr: v.cidr, enabled: v.enabled, blockSize: v.blockSize}
 			}
@@ -572,6 +603,10 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 				bc.Clean()
 				deleteAllPools()
 			}
+
+			applyNode(bc, host, nil)
+			defer deleteNode(bc, host)
+
 			for _, v := range pool {
 				applyPool(v, true)
 			}
@@ -605,12 +640,17 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 	DescribeTable("ReleaseIPs: requested IPs to be released vs actual unallocated IPs",
 		func(inIP net.IP, cleanEnv bool, pool []string, assignIP net.IP, autoAssignNumIPv4 int, expUnallocatedIPs []cnet.IP, expError error) {
 			inIPs := []cnet.IP{{inIP}}
+			hostname := "host-release"
 
 			// If we cleaned the datastore then recreate the pools.
 			if cleanEnv {
 				bc.Clean()
 				deleteAllPools()
 			}
+
+			applyNode(bc, hostname, nil)
+			defer deleteNode(bc, hostname)
+
 			for _, v := range pool {
 				applyPool(v, true)
 			}
@@ -632,7 +672,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 
 			if autoAssignNumIPv4 != 0 {
 				assignedIPv4, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
-					Num4: autoAssignNumIPv4,
+					Num4:     autoAssignNumIPv4,
+					Hostname: hostname,
 				})
 				Expect(err).ToNot(HaveOccurred())
 				inIPs = assignedIPv4
@@ -687,6 +728,10 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 				bc.Clean()
 				deleteAllPools()
 			}
+
+			applyNode(bc, args.host, nil)
+			defer deleteNode(bc, args.host)
+
 			for _, v := range args.pool {
 				applyPool(v, true)
 			}
@@ -773,4 +818,20 @@ func deleteAllPools() {
 
 func applyPool(cidr string, enabled bool) {
 	ipPools.pools[cidr] = pool{enabled: enabled}
+}
+
+func applyNode(c bapi.Client, host string, labels map[string]string) {
+	c.Apply(context.Background(), &model.KVPair{
+		Key: model.ResourceKey{Name: host, Kind: v3.KindNode},
+		Value: model.Node{
+			Labels: labels,
+			OrchRefs: []model.OrchRef{
+				model.OrchRef{Orchestrator: "k8s", NodeName: host},
+			},
+		},
+	})
+}
+
+func deleteNode(c bapi.Client, host string) {
+	c.Delete(context.Background(), &model.ResourceKey{Name: host, Kind: v3.KindNode}, "")
 }
