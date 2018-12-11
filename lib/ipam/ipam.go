@@ -206,7 +206,7 @@ func (c ipamClient) getBlockFromAffinity(ctx context.Context, aff *model.KVPair)
 // determinePools compares a list of requested pools with the enabled pools
 // and returns the intersect. If any requested pool does not exist, or is not enabled, an error is returned.
 // If no pools are requested, all enabled pools are returned.
-func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, node *model.Node) ([]v3.IPPool, error) {
+func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, node *model.KVPair) ([]v3.IPPool, error) {
 	enabledPools, err := c.pools.GetEnabledPools(version)
 	if err != nil {
 		log.WithError(err).Errorf("Error reading configured pools")
@@ -238,7 +238,7 @@ func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, n
 				// Invalid selector syntax
 				log.WithError(err).WithField("selector", pool.Spec.NodeSelector).Error("failed to parse selector")
 				return nil, err
-			} else if sel.Evaluate(node.Labels) {
+			} else if sel.Evaluate(node.Value.(*model.Node).Labels) {
 				// Node's labels match pool's selector
 				enabledPools = append(enabledPools, pool)
 			}
@@ -250,14 +250,13 @@ func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, n
 
 func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, attrs map[string]string, requestedPools []net.IPNet, version int, host string, maxNumBlocks int) ([]net.IP, error) {
 	// Retrieve node for given hostname to use for ip pool node selection
-	node, err := c.client.Get(ctx, model.NodeKey{Hostname: host}, "")
+	node, err := c.client.Get(ctx, model.ResourceKey{Kind: v3.KindNode, Name: host}, "")
 	if err != nil {
-		log.WithError(err).WithField("host", host).Error("failed to get node for host")
-		return nil, err
+		log.WithError(err).WithField("host", host).Warn("failed to get node for host")
 	}
 
 	// Start by sanitizing the requestedPools.
-	pools, err := c.determinePools(requestedPools, version, node.Value.(*model.Node))
+	pools, err := c.determinePools(requestedPools, version, node)
 	if err != nil {
 		return nil, err
 	}
