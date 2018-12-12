@@ -447,7 +447,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 			})
 			Expect(outErr).NotTo(HaveOccurred())
 
-			// Expect all the IPs to be in pool2.
+			// Expect all the IPs to be from pool1.
 			for _, a := range v4 {
 				Expect(pool1.IPNet.Contains(a.IP)).To(BeTrue(), fmt.Sprintf("%s not in pool %s", a.IP, pool1))
 			}

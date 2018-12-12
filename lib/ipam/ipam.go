@@ -235,8 +235,8 @@ func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, n
 				// No nodeSelector specified
 				enabledPools = append(enabledPools, pool)
 			} else if node, ok := nodeKV.Value.(*model.Node); !ok {
-				log.Warn("node is nil, passing...")
-				continue
+				log.Error("node is nil, refusing to determinePools...")
+				return nil, errors.New("node is nil")
 			} else if sel, err := selector.Parse(pool.Spec.NodeSelector); err != nil {
 				// Invalid selector syntax
 				log.WithError(err).WithField("selector", pool.Spec.NodeSelector).Error("failed to parse selector")
@@ -255,7 +255,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 	// Retrieve node for given hostname to use for ip pool node selection
 	node, err := c.client.Get(ctx, model.ResourceKey{Kind: v3.KindNode, Name: host}, "")
 	if err != nil {
-		log.WithError(err).WithField("host", host).Warn("failed to get node for host")
+		log.WithError(err).WithField("node", host).Error("failed to get node for host")
 		return nil, err
 	}
 
