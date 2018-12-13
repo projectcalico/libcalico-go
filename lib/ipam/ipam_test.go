@@ -24,6 +24,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend"
@@ -32,7 +35,6 @@ import (
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
-	log "github.com/sirupsen/logrus"
 )
 
 // Implement an IP pools accessor for the IPAM client.  This is a "mock" version
@@ -428,7 +430,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 	})
 
 	Describe("IPAM AutoAssign using ip pool node selectors", func() {
-		It("should favor node ip pool with nodeSelector foo=bar", func() {
+		It("should only assign ips from the ip pool whose node selector matches the host's node labels", func() {
 			host := "host"
 			pool1 := cnet.MustParseNetwork("10.0.0.0/24")
 			pool2 := cnet.MustParseNetwork("20.0.0.0/24")
@@ -436,23 +438,24 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 			bc.Clean()
 			deleteAllPools()
 
-			applyNode(bc, host, nil)
+			applyNode(bc, host, map[string]string{"foo": "bar"})
 			applyPool(pool1.String(), true, `foo == "bar"`)
-			applyPool(pool2.String(), true, "")
+			applyPool(pool2.String(), true, `foo != "bar"`)
 
+			// Attempt to assign 300 ips but only the 256 ips from pool1 should be used.
 			v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{
-				Num4:     100,
+				Num4:     300,
 				Num6:     0,
 				Hostname: host,
 			})
 			Expect(outErr).NotTo(HaveOccurred())
+			Expect(len(v4)).To(Equal(256))
 
 			// Expect all the IPs to be from pool1.
 			for _, a := range v4 {
 				Expect(pool1.IPNet.Contains(a.IP)).To(BeTrue(), fmt.Sprintf("%s not in pool %s", a.IP, pool1))
 			}
 		})
-
 	})
 
 	Describe("IPAM AutoAssign from different pools - multi", func() {
@@ -852,11 +855,11 @@ func applyPool(cidr string, enabled bool, nodeSelector string) {
 func applyNode(c bapi.Client, host string, labels map[string]string) {
 	c.Apply(context.Background(), &model.KVPair{
 		Key: model.ResourceKey{Name: host, Kind: v3.KindNode},
-		Value: model.Node{
-			Labels: labels,
-			OrchRefs: []model.OrchRef{
-				model.OrchRef{Orchestrator: "k8s", NodeName: host},
-			},
+		Value: v3.Node{
+			ObjectMeta: metav1.ObjectMeta{Labels: labels},
+			Spec: v3.NodeSpec{OrchRefs: []v3.OrchRef{
+				v3.OrchRef{Orchestrator: "k8s", NodeName: host},
+			}},
 		},
 	})
 }

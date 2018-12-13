@@ -47,10 +47,11 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 		BlockSize: 26,
 	}
 	spec1_2 := apiv3.IPPoolSpec{
-		CIDR:        "1.2.3.0/24",
-		NATOutgoing: true,
-		IPIPMode:    apiv3.IPIPModeNever,
-		BlockSize:   26,
+		CIDR:         "1.2.3.0/24",
+		NATOutgoing:  true,
+		IPIPMode:     apiv3.IPIPModeNever,
+		BlockSize:    26,
+		NodeSelector: `foo == "bar"`,
 	}
 	spec2 := apiv3.IPPoolSpec{
 		CIDR:        "2001::/120",
