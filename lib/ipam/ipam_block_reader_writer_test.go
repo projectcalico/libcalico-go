@@ -179,15 +179,15 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 				wg := sync.WaitGroup{}
 				var testErr error
 
-				testhost := fmt.Sprintf("host-%d", j)
-				applyNode(bc, testhost, nil)
-				defer deleteNode(bc, testhost)
-
 				for i := 0; i < 32; i++ {
 					wg.Add(1)
 					j := i
 					go func() {
 						defer GinkgoRecover()
+
+						testhost := fmt.Sprintf("host-%d", j)
+						applyNode(bc, testhost, nil)
+						defer deleteNode(bc, testhost)
 
 						ips, err := ic.autoAssign(ctx, 1, &testhost, nil, nil, 4, testhost, 0)
 						if err != nil {
