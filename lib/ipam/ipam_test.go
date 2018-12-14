@@ -806,6 +806,62 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV3, 
 		// - Claim affinity to the same block again but for "host-B" this time - expect 0 claimed blocks, 4 failed and expect no error.
 		Entry("Claim affinity to the same block again but for Host-B this time", testArgsClaimAff{"10.0.0.0/24", "host-B", false, []string{"10.0.0.0/24", "fd80:24e2:f998:72d6::/120"}, net.IP{}, 0, 4, nil}),
 	)
+
+	DescribeTable("determinePools: filter enabled pools using given requested pools and input Calico Node",
+		func(pool1Enabled, pool2Enabled bool, pool1Selector, pool2Selector string, requestPool1, requestPool2 bool, expectation []string, expectErr bool) {
+			// Seed data
+			ipPools.pools = map[string]pool{
+				"10.0.0.0/24": pool{enabled: pool1Enabled, nodeSelector: pool1Selector},
+				"20.0.0.0/24": pool{enabled: pool2Enabled, nodeSelector: pool2Selector},
+			}
+			node := &v3.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}}
+
+			// Prep input data
+			reqPools := []cnet.IPNet{}
+			if requestPool1 {
+				cidr := cnet.MustParseCIDR("10.0.0.0/24")
+				reqPools = append(reqPools, cidr)
+			}
+			if requestPool2 {
+				cidr := cnet.MustParseCIDR("20.0.0.0/24")
+				reqPools = append(reqPools, cidr)
+			}
+
+			// Call determinePools
+			pools, err := ic.(*ipamClient).determinePools(reqPools, 4, node)
+
+			// Assert expectations
+			if expectErr {
+				Expect(err).To(HaveOccurred())
+			} else {
+				Expect(err).NotTo(HaveOccurred())
+			}
+			Expect(len(expectation)).To(Equal(len(pools)))
+			for _, pool := range pools {
+				Expect(expectation).Should(ContainElement(pool.Spec.CIDR))
+			}
+		},
+		Entry("Both pools enabled, none with node selector, no requested pools", true, true, "", "", false, false, []string{"10.0.0.0/24", "20.0.0.0/24"}, false),
+		Entry("Both pools enabled, none with node selector, pool1 requested", true, true, "", "", true, false, []string{"10.0.0.0/24"}, false),
+
+		Entry("Both pools enabled, pool1 matching selector, no requested pools", true, true, `foo == "bar"`, "", false, false, []string{"10.0.0.0/24", "20.0.0.0/24"}, false),
+		Entry("Both pools enabled, pool1 matching node selector, pool1 requested", true, true, `foo == "bar"`, "", true, false, []string{"10.0.0.0/24"}, false),
+
+		Entry("Both pools enabled, pool1 mismatching node selector, no requested pools", true, true, `foo != "bar"`, "", false, false, []string{"20.0.0.0/24"}, false),
+		Entry("Both pools enabled, pool1 mismatching node selector, pool1 requested", true, true, `foo != "bar"`, "", true, false, []string{}, false),
+
+		Entry("Both pools enabled, pool1 matching node selector, pool2 requested", true, true, `foo == "bar"`, "", false, true, []string{"20.0.0.0/24"}, false),
+
+		Entry("pool1 disabled, none with node selector, no requested pools", false, true, "", "", false, false, []string{"20.0.0.0/24"}, false),
+		Entry("pool1 disabled, none with node selector, pool1 requested", false, true, "", "", true, false, []string{}, true),
+		Entry("pool1 disabled, none with node selector, pool2 requested", false, true, "", "", false, true, []string{"20.0.0.0/24"}, false),
+
+		Entry("pool1 disabled, pool2 matching node selector, no requested pools", false, true, "", `foo == "bar"`, false, false, []string{"20.0.0.0/24"}, false),
+		Entry("pool1 disabled, pool2 matching node selector, pool2 requested", false, true, "", `foo == "bar"`, false, true, []string{"20.0.0.0/24"}, false),
+		Entry("pool1 disabled, pool2 mismatching node selector, no requested pools", false, true, "", `foo == "bar"`, false, false, []string{"20.0.0.0/24"}, false),
+		Entry("pool1 disabled, pool2 mismatching node selector, pool2 requested", false, true, "", `foo == "bar"`, false, false, []string{"20.0.0.0/24"}, false),
+	)
+
 })
 
 // assignIPutil is a utility function to help with assigning a single IP address to a hostname passed in.

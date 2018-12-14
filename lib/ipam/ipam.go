@@ -203,9 +203,10 @@ func (c ipamClient) getBlockFromAffinity(ctx context.Context, aff *model.KVPair)
 	return b, nil
 }
 
-// determinePools compares a list of requested pools with the enabled pools
-// and returns the intersect. If any requested pool does not exist, or is not enabled, an error is returned.
+// determinePools compares a list of requested pools with the enabled pools and returns the intersect.
+// If any requested pool does not exist, or is not enabled, an error is returned.
 // If no pools are requested, all enabled pools are returned.
+// Also applies selector logic on node labels to determine if the pool is a match.
 func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, node *v3.Node) ([]v3.IPPool, error) {
 	// Nil check input node object.
 	if node == nil {
@@ -220,6 +221,28 @@ func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, n
 		return nil, err
 	}
 	log.Debugf("enabled Pools: %v", enabledPools)
+	log.Debugf("requested IPPools: %v", requestedPoolNets)
+
+	// Build a map so we can lookup existing pools.
+	pm := map[string]v3.IPPool{}
+	for _, p := range enabledPools {
+		pm[p.Spec.CIDR] = p
+	}
+
+	// Empty the enabledpools and repopulate only the requested ones.
+	if len(requestedPoolNets) > 0 {
+		enabledPools = nil
+	}
+
+	// Make sure each requested pool exists
+	for _, rp := range requestedPoolNets {
+		if pool, ok := pm[rp.String()]; !ok {
+			// The requested pool doesn't exist.
+			return nil, fmt.Errorf("the given pool (%s) does not exist, or is not enabled", rp.IPNet.String())
+		} else {
+			enabledPools = append(enabledPools, pool)
+		}
+	}
 
 	// Filter enabledPools using node selector (if specified).
 	filteredEnabledPools := []v3.IPPool{}
@@ -236,34 +259,8 @@ func (c ipamClient) determinePools(requestedPoolNets []net.IPNet, version int, n
 		}
 		filteredEnabledPools = append(filteredEnabledPools, pool)
 	}
-	enabledPools = filteredEnabledPools
 
-	// No more logic to execute if no requested pool nets were passed in.
-	if len(requestedPoolNets) == 0 {
-		return enabledPools, nil
-	}
-	log.Debugf("requested IPPools: %v", requestedPoolNets)
-
-	// Build a map so we can lookup existing pools.
-	pm := map[string]v3.IPPool{}
-	for _, p := range enabledPools {
-		pm[p.Spec.CIDR] = p
-	}
-
-	// Empty the enabledpools and repopulate only the requested ones.
-	enabledPools = nil
-
-	// Make sure each requested pool exists
-	for _, rp := range requestedPoolNets {
-		if pool, ok := pm[rp.String()]; !ok {
-			// The requested pool doesn't exist.
-			return nil, fmt.Errorf("the given pool (%s) does not exist, or is not enabled", rp.IPNet.String())
-		} else {
-			enabledPools = append(enabledPools, pool)
-		}
-	}
-
-	return enabledPools, nil
+	return filteredEnabledPools, nil
 }
 
 func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, attrs map[string]string, requestedPools []net.IPNet, version int, host string, maxNumBlocks int) ([]net.IP, error) {
