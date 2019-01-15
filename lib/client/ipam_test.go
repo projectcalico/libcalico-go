@@ -105,7 +105,7 @@ type testArgsClaimAff struct {
 
 var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
 
-	FDescribe("IPAM ReleaseIPs with duplicate IP can result in assigning an IP multiple times", func() {
+	Describe("IPAM ReleaseIPs with duplicates in the request should be safe", func() {
 		c := testutils.CreateCleanClient(config)
 		ic := setupIPAMClient(c, true)
 
@@ -131,17 +131,17 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 				Expect(len(ips)).To(Equal(255))
 			})
 
+			// Releasing the same IP multiple times in a single request
+			// should be handled gracefully by the IPAM Block allocator
 			_, releaseErr := ic.ReleaseIPs([]cnet.IP{
 				cnet.IP{assignedIP},
 				cnet.IP{assignedIP},
 			})
 
-			It("Should double release successfully", func() {
+			It("Should release successfully", func() {
 				Expect(releaseErr).NotTo(HaveOccurred())
 			})
 
-			// Reassign the IP - this will still leave ordinal 1 in the Unallocated list
-			// as release() will only remove the first instance it finds.
 			assignIPutil(ic, assignedIP, "host-a")
 
 			attrs, attrErr := ic.GetAssignmentAttributes(cnet.IP{assignedIP})
@@ -152,17 +152,14 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, 
 		})
 
 		Context("Trigger the bug", func() {
-			ips, _, err := ic.AutoAssign(client.AutoAssignArgs{
+			v4, _, err := ic.AutoAssign(client.AutoAssignArgs{
 				Num4:      1,
 				Hostname:  "host-1",
 				IPv4Pools: []cnet.IPNet{pool},
 			})
-			It("Should double assign", func() {
+			It("Should fail to assign", func() {
 				Expect(err).NotTo(HaveOccurred())
-				Expect(len(ips)).To(Equal(1))
-				if ips[0].Equal(assignedIP) {
-					Fail(fmt.Sprintf("IP %s was assigned twice!", ips[0]))
-				}
+				Expect(len(v4)).To(Equal(0))
 			})
 		})
 	})
