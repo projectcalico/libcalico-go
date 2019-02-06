@@ -60,10 +60,24 @@ func convertGlobalNetworkSetV3ToV1(kvp *model.KVPair) (*model.KVPair, error) {
 		}
 		addrs = append(addrs, *ipNet)
 	}
+	var ips []cnet.IPNet
+	for _, cidrString := range v3res.Status.IPs {
+		_, ipNet, err := cnet.ParseCIDROrIP(cidrString)
+		if err != nil {
+			// Validation should prevent this.
+			log.WithError(err).WithFields(log.Fields{
+				"CIDR":       cidrString,
+				"networkSet": v3res.GetName(),
+			}).Warn("Invalid CIDR")
+			continue
+		}
+		ips = append(ips, *ipNet)
+	}
 
 	v1value := &model.NetworkSet{
 		Labels: v3res.GetLabels(),
 		Nets:   addrs,
+		IPs:    ips,
 	}
 
 	return &model.KVPair{
