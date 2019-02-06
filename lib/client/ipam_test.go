@@ -105,6 +105,65 @@ type testArgsClaimAff struct {
 
 var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreEtcdV2, func(config api.CalicoAPIConfig) {
 
+	Describe("IPAM ReleaseIPs with duplicates in the request should be safe", func() {
+		c := testutils.CreateCleanClient(config)
+		ic := setupIPAMClient(c, true)
+
+		// The IP which we will cause a multiple assignment of
+		assignedIP := net.ParseIP("10.0.0.1")
+		pool := cnet.MustParseNetwork("10.0.0.0/24")
+		testutils.CreateNewIPPool(*c, "10.0.0.0/24", false, false, true)
+
+		Context("Setup duplicate oridinal in Unallocated list", func() {
+			// Assign the target IP
+			assignIPutil(ic, assignedIP, "host-a")
+
+			// Assign the rest of the IPs in the pool
+			ips, _, bulkAssignErr := ic.AutoAssign(client.AutoAssignArgs{
+				Num4:      255,
+				Hostname:  "host-1",
+				IPv4Pools: []cnet.IPNet{pool},
+			})
+
+			It("Should allocate most of the pool", func() {
+				Expect(bulkAssignErr).NotTo(HaveOccurred())
+				Expect(ips).NotTo(ContainElement(assignedIP))
+				Expect(len(ips)).To(Equal(255))
+			})
+
+			// Releasing the same IP multiple times in a single request
+			// should be handled gracefully by the IPAM Block allocator
+			_, releaseErr := ic.ReleaseIPs([]cnet.IP{
+				cnet.IP{assignedIP},
+				cnet.IP{assignedIP},
+			})
+
+			It("Should release successfully", func() {
+				Expect(releaseErr).NotTo(HaveOccurred())
+			})
+
+			assignIPutil(ic, assignedIP, "host-a")
+
+			attrs, attrErr := ic.GetAssignmentAttributes(cnet.IP{assignedIP})
+			It("Should acknowledge 10.0.0.1 as assigned", func() {
+				Expect(attrErr).NotTo(HaveOccurred())
+				Expect(attrs).To(BeEmpty())
+			})
+		})
+
+		Context("Trigger the bug", func() {
+			v4, _, err := ic.AutoAssign(client.AutoAssignArgs{
+				Num4:      1,
+				Hostname:  "host-1",
+				IPv4Pools: []cnet.IPNet{pool},
+			})
+			It("Should fail to assign", func() {
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(v4)).To(Equal(0))
+			})
+		})
+	})
+
 	// We're assigning one IP which should be from the only ipPool created at the time, second one
 	// should be from the same /26 block since they're both from the same host, then delete
 	// the ipPool and create a new ipPool, and AutoAssign 1 more IP for the same host - expect the
