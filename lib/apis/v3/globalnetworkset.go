@@ -34,12 +34,20 @@ type GlobalNetworkSet struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of the NetworkSet.
 	Spec GlobalNetworkSetSpec `json:"spec,omitempty"`
+	// Status of the NetworkSet.
+	Status GlobalNetworkSetStatus `json:"status,omitempty"`
 }
 
 // GlobalNetworkSetSpec contains the specification for a NetworkSet resource.
 type GlobalNetworkSetSpec struct {
 	// The list of IP networks that belong to this set.
 	Nets []string `json:"nets,omitempty" validate:"omitempty,dive,cidr"`
+}
+
+// GlobalNetworkSetStatus contains the current status for a NetworkSet resource.
+type GlobalNetworkSetStatus struct {
+	// IPs inferred from specified domain names.
+	IPs []string `json:"ips,omitempty" validate:"omitempty,dive,cidr"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
