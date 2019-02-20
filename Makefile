@@ -241,7 +241,7 @@ stop-etcd:
 ###############################################################################
 .PHONY: ci
 ## Run what CI runs
-ci: clean check-glide-warnings static-checks test build-libcalico-users
+ci: clean check-glide-warnings static-checks test
 
 # The list of repos that use libcalico (that support being tests in this way)
 LIBCALICO_REPOS=cni-plugin calicoctl typha kube-controllers
