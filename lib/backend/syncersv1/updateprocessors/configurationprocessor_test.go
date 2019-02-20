@@ -214,7 +214,6 @@ var _ = Describe("Test the generic configuration update processor and the concre
 				Port:     65535,
 			},
 		}
-		res.Spec.ExternalNodesCIDRList = &[]string{"1.1.1.1", "2.2.2.2"}
 		res.Spec.IptablesNATOutgoingInterfaceFilter = "cali-123"
 		expected := map[string]interface{}{
 			"RouteRefreshInterval":               "12.345",
