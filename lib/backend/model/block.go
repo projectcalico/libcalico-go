@@ -64,9 +64,9 @@ type BlockListOptions struct {
 }
 
 func (options BlockListOptions) defaultPathRoot() string {
-	k := "/calico/ipam/v2/assignment/"
+	k := "/calico/ipam/v2/assignment"
 	if options.IPVersion != 0 {
-		k = k + fmt.Sprintf("ipv%d/", options.IPVersion)
+		k = k + fmt.Sprintf("/ipv%d/", options.IPVersion)
 	}
 	return k
 }
