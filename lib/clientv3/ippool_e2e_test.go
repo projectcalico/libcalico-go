@@ -67,7 +67,6 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 	spec2_1 := apiv3.IPPoolSpec{
 		CIDR:         "2001::/120",
 		IPIPMode:     apiv3.IPIPModeNever,
-		VXLANMode:    apiv3.VXLANModeNever,
 		BlockSize:    122,
 		NodeSelector: "all()",
 	}
