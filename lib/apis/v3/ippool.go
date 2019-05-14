@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Tigera, Inc. All rights reserved.
+// Copyright (c) 2017,2019 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,11 +45,11 @@ type IPPoolSpec struct {
 
 	// Contains configuration for VXLAN tunneling for this pool. If not specified,
 	// then this is defaulted to "Never" (i.e. VXLAN tunelling is disabled).
-	VXLANMode VXLANMode `json:"vxlanMode,omitempty" validate:"omitempty,vxlanMode"`
+	VXLANMode VXLANMode `json:"vxlanMode,omitempty" validate:"omitempty,vxlanMode" default:"Never"`
 
 	// Contains configuration for IPIP tunneling for this pool. If not specified,
 	// then this is defaulted to "Never" (i.e. IPIP tunelling is disabled).
-	IPIPMode IPIPMode `json:"ipipMode,omitempty" validate:"omitempty,ipIpMode"`
+	IPIPMode IPIPMode `json:"ipipMode,omitempty" validate:"omitempty,ipIpMode" default:"Never"`
 
 	// When nat-outgoing is true, packets sent from Calico networked containers in
 	// this pool to destinations outside of this pool will be masqueraded.
