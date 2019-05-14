@@ -16,7 +16,55 @@ package errors
 
 import (
 	"fmt"
+	"reflect"
+
+	"github.com/pkg/errors"
 )
+
+type ctxError struct {
+	err error
+}
+
+func (e *ctxError) Error() string {
+	return e.err.Error()
+}
+
+func (e *ctxError) Format(s fmt.State, verb rune) {
+	e.err.(fmt.Formatter).Format(s, verb)
+}
+
+// New returns a new error annoted with context
+func New(err error) error {
+	return &ctxError{errors.WithStack(err)}
+}
+
+func checkTypes(err error, tps ...error) bool {
+	for _, t := range tps {
+		if reflect.TypeOf(err) == reflect.TypeOf(t) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// HasType checks if err is of the same type as tp
+func HasType(err error, tp ...error) bool {
+	ce, ok := err.(*ctxError)
+	if !ok {
+		return checkTypes(err, tp...)
+	}
+	cause := errors.Cause(ce.err)
+	return checkTypes(cause, tp...)
+}
+
+// Unwrap returns the original error without any context
+func Unwrap(err error) error {
+	if ce, ok := err.(*ctxError); ok {
+		return errors.Cause(ce.err)
+	}
+	return err
+}
 
 // Error indicating a problem connecting to the backend.
 type ErrorDatastoreError struct {
@@ -147,6 +195,15 @@ func (e ErrorPartialFailure) Error() string {
 // UpdateErrorIdentifier modifies the supplied error to use the new resource
 // identifier.
 func UpdateErrorIdentifier(err error, id interface{}) error {
+	ce, ok := err.(*ctxError)
+	if !ok {
+		return updateErrorIdentifier(err, id)
+	}
+
+	return New(updateErrorIdentifier(errors.Cause(ce.err), id))
+}
+
+func updateErrorIdentifier(err error, id interface{}) error {
 	if err == nil {
 		return nil
 	}

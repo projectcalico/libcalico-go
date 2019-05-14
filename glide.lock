@@ -1,5 +1,5 @@
-hash: 2891ddfada4f6ba0c9c054ce182614ab74acc8c40b157be3b3de1a1b9bb0b46e
-updated: 2019-02-26T11:22:33.649680517-08:00
+hash: faa494415ab1be3bc5cb2e063fe1a332988f744e45e4b47fcfebb5ccb5d3e2cd
+updated: 2019-05-14T17:30:40.106902721-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -156,6 +156,8 @@ imports:
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
+- name: github.com/pkg/errors
+  version: 27936f6d90f9c8e1145f11ed52ffffbfdb9e0af7
 - name: github.com/projectcalico/go-json
   version: 6219dc7339ba20ee4c57df0a8baac62317d19cb1
   subpackages:

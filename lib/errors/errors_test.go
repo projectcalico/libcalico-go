@@ -15,6 +15,7 @@
 package errors_test
 
 import (
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
@@ -49,4 +50,76 @@ var _ = DescribeTable(
 		},
 		"operation apply is not supported on foo.bar.baz: cannot mix foobar with baz",
 	),
+	Entry(
+		"Operation not supported with reason - with context",
+		errors.New(errors.ErrorOperationNotSupported{
+			Operation:  "apply",
+			Identifier: "foo.bar.baz",
+			Reason:     "cannot mix foobar with baz",
+		}),
+		"operation apply is not supported on foo.bar.baz: cannot mix foobar with baz",
+	),
+	Entry(
+		"Operation not supported change id",
+		errors.UpdateErrorIdentifier(errors.ErrorOperationNotSupported{
+			Operation:  "apply",
+			Identifier: "foo.bar.baz",
+			Reason:     "cannot mix foobar with baz",
+		}, "NEWID"),
+		"operation apply is not supported on NEWID: cannot mix foobar with baz",
+	),
+	Entry(
+		"Operation not supported change id - with context",
+		errors.UpdateErrorIdentifier(errors.New(errors.ErrorOperationNotSupported{
+			Operation:  "apply",
+			Identifier: "foo.bar.baz",
+			Reason:     "cannot mix foobar with baz",
+		}), "NEWID"),
+		"operation apply is not supported on NEWID: cannot mix foobar with baz",
+	),
 )
+
+var _ = Describe("error type check", func() {
+	It("Should have the right type", func() {
+		Context("With context", func() {
+			err := errors.New(errors.ErrorResourceDoesNotExist{})
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
+		})
+		Context("Without context", func() {
+			err := errors.ErrorResourceDoesNotExist{}
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
+		})
+	})
+	It("Should not match wrong type", func() {
+		Context("With context", func() {
+			err := errors.New(errors.ErrorResourceDoesNotExist{})
+			Expect(errors.HasType(err, errors.ErrorDatastoreError{})).To(Equal(false))
+		})
+		Context("Without context", func() {
+			err := errors.ErrorResourceDoesNotExist{}
+			Expect(errors.HasType(err, errors.ErrorDatastoreError{})).To(Equal(false))
+		})
+	})
+	It("Should match one of the types", func() {
+		Context("With context", func() {
+			err := errors.New(errors.ErrorResourceDoesNotExist{})
+			Expect(errors.HasType(err,
+				errors.ErrorDatastoreError{}, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
+		})
+		Context("Without context", func() {
+			err := errors.ErrorResourceDoesNotExist{}
+			Expect(errors.HasType(err,
+				errors.ErrorDatastoreError{}, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
+		})
+	})
+	It("Should equal after unwrap", func() {
+		Context("With context", func() {
+			err := errors.New(errors.ErrorResourceDoesNotExist{})
+			Expect(errors.Unwrap(err)).To(Equal(errors.ErrorResourceDoesNotExist{}))
+		})
+		Context("Without context", func() {
+			err := errors.ErrorResourceDoesNotExist{}
+			Expect(errors.Unwrap(err)).To(Equal(errors.ErrorResourceDoesNotExist{}))
+		})
+	})
+})
