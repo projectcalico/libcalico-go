@@ -517,7 +517,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			By("Getting the current felix configuration - checking does not exist")
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Creating a non-VXLAN pool and verifying no felix configuration still and default VXLANMode set to Never")
 			pool, err := c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -530,7 +530,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			Expect(pool.Spec.VXLANMode).To(Equal(apiv3.VXLANModeNever))
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Attempting to create a VXLAN IPv6 pool and verifying no felix configuration still")
 			_, err = c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -541,10 +541,10 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 				},
 			}, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Creating an VXLANModeAlways pool and verifying global felix config is updated")
 			_, err = c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -564,7 +564,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			By("Getting the current felix configuration - checking does not exist")
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Creating a non-VXLAN pool and verifying no felix configuration still")
 			pool, err := c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -576,7 +576,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			Expect(err).NotTo(HaveOccurred())
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Updating the pool to enabled VXLAN and checking felix configuration is added")
 			pool.Spec.VXLANMode = apiv3.VXLANModeAlways
@@ -638,7 +638,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			By("Getting the current felix configuration - checking does not exist")
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Creating a non-IPIP pool and verifying no felix configuration still and default IPIPMode set to Never")
 			pool, err := c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -651,7 +651,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			Expect(pool.Spec.IPIPMode).To(Equal(apiv3.IPIPModeNever))
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Attempting to create an IPIP IPv6 pool and verifying no felix configuration still")
 			_, err = c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -662,10 +662,10 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 				},
 			}, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Creating an IPIPModeAlways pool and verifying global felix config is updated")
 			_, err = c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -685,7 +685,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			By("Getting the current felix configuration - checking does not exist")
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Creating an IPIPModeCrossSubnet pool and verifying global felix config is updated")
 			_, err = c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -705,7 +705,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			By("Getting the current felix configuration - checking does not exist")
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Creating a non-IPIP pool and verifying no felix configuration still")
 			pool, err := c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -717,7 +717,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			Expect(err).NotTo(HaveOccurred())
 			_, err = getGlobalSetting()
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceDoesNotExist{}))
+			Expect(errors.HasType(err, errors.ErrorResourceDoesNotExist{})).To(BeTrue())
 
 			By("Updating the pool to enabled IPIP and checking felix configuration is added")
 			pool.Spec.IPIPMode = apiv3.IPIPModeAlways
@@ -781,7 +781,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			pool.Spec.CIDR = "1.2.4.0/24"
 			_, err = c.IPPools().Update(ctx, pool, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("IPPool CIDR cannot be modified"))
 		})
 
@@ -803,7 +803,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 				},
 			}, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorResourceAlreadyExists{}))
+			Expect(errors.HasType(err, errors.ErrorResourceAlreadyExists{})).To(BeTrue())
 
 			By("Attempting to create a pool with the same CIDR")
 			_, err = c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -813,7 +813,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 				},
 			}, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("IPPool(ippool2) CIDR overlaps with IPPool(ippool1) CIDR 1.2.3.0/24"))
 
 			By("Attempting to create a pool with a larger overlapping CIDR")
@@ -824,7 +824,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 				},
 			}, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("IPPool(ippool3) CIDR overlaps with IPPool(ippool1) CIDR 1.2.3.0/24"))
 
 			By("Attempting to create a pool with a smaller overlapping CIDR")
@@ -835,7 +835,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 				},
 			}, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("IPPool(ippool4) CIDR overlaps with IPPool(ippool1) CIDR 1.2.3.0/24"))
 		})
 	})
@@ -868,7 +868,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 			pool.Spec.BlockSize = 26
 			_, err = c.IPPools().Update(ctx, pool, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("IPPool BlockSize cannot be modified"))
 		})
 
@@ -881,7 +881,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 				},
 			}, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("block size must be between"))
 
 			_, err = c.IPPools().Create(ctx, &apiv3.IPPool{
@@ -892,7 +892,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 				},
 			}, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("block size must be between"))
 		})
 
@@ -916,7 +916,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 				},
 			}, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("IPPool(ippool2) CIDR overlaps with IPPool(ippool1) CIDR 1.2.3.0/24"))
 
 			By("Attempting to create a pool half overlappping CIDR and a different block size")
@@ -927,7 +927,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests", testutils.DatastoreAll, f
 				},
 			}, options.SetOptions{})
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(BeAssignableToTypeOf(errors.ErrorValidation{}))
+			Expect(errors.HasType(err, errors.ErrorValidation{})).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("IPPool(ippool3) CIDR overlaps with IPPool(ippool1) CIDR 1.2.3.0/24"))
 		})
 	})

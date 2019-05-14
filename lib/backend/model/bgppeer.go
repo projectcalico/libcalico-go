@@ -39,10 +39,10 @@ type NodeBGPPeerKey struct {
 
 func (key NodeBGPPeerKey) defaultPath() (string, error) {
 	if key.PeerIP.IP == nil {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "peerIP"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "peerIP"})
 	}
 	if key.Nodename == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "node"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "node"})
 	}
 	e := fmt.Sprintf("/calico/bgp/v1/host/%s/peer_v%d/%s",
 		key.Nodename, key.PeerIP.Version(), key.PeerIP)
@@ -116,7 +116,7 @@ type GlobalBGPPeerKey struct {
 
 func (key GlobalBGPPeerKey) defaultPath() (string, error) {
 	if key.PeerIP.IP == nil {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "peerIP"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "peerIP"})
 	}
 	e := fmt.Sprintf("/calico/bgp/v1/global/peer_v%d/%s",
 		key.PeerIP.Version(), key.PeerIP)

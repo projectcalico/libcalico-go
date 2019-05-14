@@ -168,18 +168,18 @@ func (c *ipamConfigClient) Get(ctx context.Context, key model.Key, revision stri
 
 func (c *ipamConfigClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
 	log.Warn("Operation List is not supported on IPAMConfig type")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: list,
 		Operation:  "List",
-	}
+	})
 }
 
 func (c *ipamConfigClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	log.Warn("Operation Watch is not supported on IPAMConfig type")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: list,
 		Operation:  "Watch",
-	}
+	})
 }
 
 // EnsureInitialized is a no-op since the CRD should be

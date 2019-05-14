@@ -31,7 +31,7 @@ type BGPNodeKey struct {
 
 func (key BGPNodeKey) defaultPath() (string, error) {
 	if key.Host == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "host"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "host"})
 	}
 
 	k := "/calico/bgp/v1/host/" + key.Host

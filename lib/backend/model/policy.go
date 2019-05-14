@@ -37,7 +37,7 @@ type PolicyKey struct {
 
 func (key PolicyKey) defaultPath() (string, error) {
 	if key.Name == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 	}
 	e := fmt.Sprintf("/calico/v1/policy/tier/default/policy/%s",
 		escapeName(key.Name))

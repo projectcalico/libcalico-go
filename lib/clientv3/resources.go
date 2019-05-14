@@ -75,25 +75,25 @@ func (c *resources) Create(ctx context.Context, opts options.SetOptions, kind st
 		if len(in.GetObjectMeta().GetGenerateName()) != 0 {
 			generateNameMessage = " (GenerateName is not supported)"
 		}
-		return nil, cerrors.ErrorValidation{
+		return nil, cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{{
 				Name:   "Metadata.Name",
 				Reason: "field must be set for a Create request" + generateNameMessage,
 				Value:  in.GetObjectMeta().GetName(),
 			}},
-		}
+		})
 	}
 
 	// A ResourceVersion should never be specified on a Create.
 	if len(in.GetObjectMeta().GetResourceVersion()) != 0 {
 		logWithResource(in).Info("Rejecting Create request with non-empty resource version")
-		return nil, cerrors.ErrorValidation{
+		return nil, cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{{
 				Name:   "Metadata.ResourceVersion",
 				Reason: "field must not be set for a Create request",
 				Value:  in.GetObjectMeta().GetResourceVersion(),
 			}},
-		}
+		})
 	}
 	if err := c.checkNamespace(in.GetObjectMeta().GetNamespace(), kind); err != nil {
 		return nil, err
@@ -122,35 +122,35 @@ func (c *resources) Update(ctx context.Context, opts options.SetOptions, kind st
 	// A ResourceVersion should always be specified on an Update.
 	if len(in.GetObjectMeta().GetResourceVersion()) == 0 {
 		logWithResource(in).Info("Rejecting Update request with empty resource version")
-		return nil, cerrors.ErrorValidation{
+		return nil, cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{{
 				Name:   "Metadata.ResourceVersion",
 				Reason: "field must be set for an Update request",
 				Value:  in.GetObjectMeta().GetResourceVersion(),
 			}},
-		}
+		})
 	}
 	if err := c.checkNamespace(in.GetObjectMeta().GetNamespace(), kind); err != nil {
 		return nil, err
 	}
 	creationTimestamp := in.GetObjectMeta().GetCreationTimestamp()
 	if creationTimestamp.IsZero() {
-		return nil, cerrors.ErrorValidation{
+		return nil, cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{{
 				Name:   "Metadata.CreationTimestamp",
 				Reason: "field must be set for an Update request",
 				Value:  in.GetObjectMeta().GetCreationTimestamp(),
 			}},
-		}
+		})
 	}
 	if in.GetObjectMeta().GetUID() == "" {
-		return nil, cerrors.ErrorValidation{
+		return nil, cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{{
 				Name:   "Metadata.UID",
 				Reason: "field must be set for an Update request",
 				Value:  in.GetObjectMeta().GetUID(),
 			}},
-		}
+		})
 	}
 
 	// Convert the resource to a KVPair and pass that to the backend datastore, converting
@@ -308,12 +308,12 @@ func (c *resources) kvPairToResource(kvp *model.KVPair) resource {
 func (c *resources) checkNamespace(ns, kind string) error {
 
 	if namespace.IsNamespaced(kind) && len(ns) == 0 {
-		return cerrors.ErrorValidation{
+		return cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{{
 				Name:   "Metadata.Namespace",
 				Reason: "namespace is not specified on namespaced resource",
 			}},
-		}
+		})
 	}
 	return nil
 }

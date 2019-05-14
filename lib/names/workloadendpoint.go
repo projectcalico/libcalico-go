@@ -102,11 +102,11 @@ func (ids WorkloadEndpointIdentifiers) CalculateWorkloadEndpointName(allowPrefix
 			// This segment has no value associated with it.
 			if !allowPrefix {
 				// We are not allowing prefixes.  This is an error scenario
-				return "", cerrors.ErrorValidation{
+				return "", cerrors.New(cerrors.ErrorValidation{
 					ErroredFields: []cerrors.ErroredField{
 						{Name: s.field, Value: s.value, Reason: "field should be assigned"},
 					},
-				}
+				})
 			}
 
 			// We are allowing prefixes, so return the prefix that we have constructed thus far,
@@ -116,7 +116,7 @@ func (ids WorkloadEndpointIdentifiers) CalculateWorkloadEndpointName(allowPrefix
 
 		part, ef := escapeDashes(s)
 		if ef != nil {
-			return "", cerrors.ErrorValidation{ErroredFields: []cerrors.ErroredField{*ef}}
+			return "", cerrors.New(cerrors.ErrorValidation{ErroredFields: []cerrors.ErroredField{*ef}})
 		}
 		parts = append(parts, part)
 	}
@@ -137,11 +137,11 @@ func (ids WorkloadEndpointIdentifiers) getSegments() ([]segment, error) {
 
 	// Node is *always* required.
 	if len(node.value) == 0 {
-		return nil, cerrors.ErrorValidation{
+		return nil, cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{
 				{Name: node.field, Reason: "field should be assigned"},
 			},
-		}
+		})
 	}
 
 	// Extract the segment values based on the orchestrator.

@@ -522,12 +522,10 @@ func (m *migrationHelper) queryAndConvertV1ToV3Resources(
 	// Start by listing the results from the v1 client.
 	kvps, err := m.clientv1.List(listInterface)
 	if err != nil {
-		switch err.(type) {
-		case cerrors.ErrorResourceDoesNotExist, cerrors.ErrorOperationNotSupported:
+		if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}, cerrors.ErrorOperationNotSupported{}) {
 			return nil
-		default:
-			return err
 		}
+		return err
 	}
 
 	// Keep track of the converted names so that we can determine if we have any
@@ -600,7 +598,7 @@ func (m *migrationHelper) queryAndConvertGlobalBGPConfigV1ToV3(data *MigrationDa
 	log.Info("Converting BGP config -> BGPConfiguration(default)")
 	var setValue bool
 	if kvp, err := m.clientv1.Get(model.GlobalBGPConfigKey{Name: "AsNumber"}); err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+		if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			return err
 		}
 		log.Info("No global default ASNumber configured")
@@ -619,7 +617,7 @@ func (m *migrationHelper) queryAndConvertGlobalBGPConfigV1ToV3(data *MigrationDa
 	}
 
 	if kvp, err := m.clientv1.Get(model.GlobalBGPConfigKey{Name: "LogLevel"}); err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+		if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			return err
 		}
 		log.Info("No global BGP log level configured")
@@ -629,7 +627,7 @@ func (m *migrationHelper) queryAndConvertGlobalBGPConfigV1ToV3(data *MigrationDa
 	}
 
 	if kvp, err := m.clientv1.Get(model.GlobalBGPConfigKey{Name: "NodeMeshEnabled"}); err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+		if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			return err
 		}
 		log.Info("No global node to node mesh enabled setting configured")
@@ -660,12 +658,10 @@ func (m *migrationHelper) queryAndConvertV1ToV3Nodes(data *MigrationData) error 
 	// configured.
 	kvps, err := m.clientv1.List(model.HostConfigListOptions{Name: "IpInIpTunnelAddr"})
 	if err != nil {
-		switch err.(type) {
-		case cerrors.ErrorResourceDoesNotExist, cerrors.ErrorOperationNotSupported:
+		if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}, cerrors.ErrorOperationNotSupported{}) {
 			return nil
-		default:
-			return err
 		}
+		return err
 	}
 	addrs := map[string]string{}
 	for _, kvp := range kvps {
@@ -716,7 +712,7 @@ func (m *migrationHelper) ShouldMigrate() (bool, error) {
 		}
 		log.Debugf("ClusterInformation contained CalicoVersion '%s' and indicates migration is not needed", ci.Spec.CalicoVersion)
 		return false, nil
-	} else if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+	} else if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 		// The error indicates a problem with accessing the resource.
 		return false, fmt.Errorf("unable to query ClusterInformation to determine Calico version: %v", err)
 	}
@@ -725,7 +721,7 @@ func (m *migrationHelper) ShouldMigrate() (bool, error) {
 	// clientv1 version.  Grab the version from the clientv1.
 	v, err := m.getV1ClusterVersion()
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+		if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			log.Debugf("CalicoVersion does exist in the v1 or v3 data, no migration needed")
 			// The resource does not exist in the clientv1 (or in the clientv3)
 			// so no migration is needed because it seems that this is an
@@ -764,7 +760,7 @@ func (m *migrationHelper) CanMigrate() error {
 	m.status("Checking Calico version is suitable for migration")
 	v, err := m.getV1ClusterVersion()
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+		if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			m.statusBullet("no version found in the v1 API datastore")
 			return errors.New("unable to determine the Calico API version: no version information found - this may be " +
 				"due to a misconfiguration of the v1 API datastore access details")
@@ -950,7 +946,7 @@ func (m *migrationHelper) setReadyV3(ready bool) error {
 		return nil
 	}
 
-	if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+	if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 		// ClusterInformation could not be queried.
 		if ready {
 			m.statusBullet("failed to resume Calico networking in the v3 configuration (unable to query ClusterInformation)")
@@ -1147,7 +1143,7 @@ func (m *migrationHelper) applyToBackend(kvp *model.KVPair) error {
 		logCxt.Debug("Resource created")
 		return nil
 	}
-	if _, ok := err.(cerrors.ErrorResourceAlreadyExists); !ok {
+	if !cerrors.HasType(err, cerrors.ErrorResourceAlreadyExists{}) {
 		logCxt.WithError(err).Info("Failed to create resource")
 		return err
 	}
@@ -1168,7 +1164,7 @@ func (m *migrationHelper) applyToBackend(kvp *model.KVPair) error {
 			logCxt.Debug("Resource updated")
 			return nil
 		}
-		if _, ok := err.(cerrors.ErrorResourceUpdateConflict); !ok {
+		if !cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 			break
 		}
 

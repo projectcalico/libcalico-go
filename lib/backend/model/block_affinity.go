@@ -50,7 +50,7 @@ type BlockAffinity struct {
 
 func (key BlockAffinityKey) defaultPath() (string, error) {
 	if key.CIDR.IP == nil || key.Host == "" {
-		return "", errors.ErrorInsufficientIdentifiers{}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{})
 	}
 	c := strings.Replace(key.CIDR.String(), "/", "-", 1)
 	e := fmt.Sprintf("/calico/ipam/v2/host/%s/ipv%d/block/%s", key.Host, key.CIDR.Version(), c)

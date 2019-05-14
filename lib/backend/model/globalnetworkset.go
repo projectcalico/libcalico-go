@@ -37,7 +37,7 @@ type NetworkSetKey struct {
 
 func (key NetworkSetKey) defaultPath() (string, error) {
 	if key.Name == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 	}
 	e := fmt.Sprintf("/calico/v1/netset/%s", escapeName(key.Name))
 	return e, nil

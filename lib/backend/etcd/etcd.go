@@ -104,7 +104,7 @@ func (c *EtcdClient) EnsureInitialized() error {
 	if _, err := c.Create(kv); err == nil {
 		log.Info("Ready flag is now set")
 	} else {
-		if _, ok := err.(errors.ErrorResourceAlreadyExists); !ok {
+		if !errors.HasType(err, errors.ErrorResourceAlreadyExists{}) {
 			log.WithError(err).Warn("Failed to set ready flag")
 			return err
 		}
@@ -226,7 +226,7 @@ func (c *EtcdClient) Get(k model.Key) (*model.KVPair, error) {
 		// Older deployments with etcd may not have the Host metadata, so in the
 		// event that the key does not exist, just do a get on the directory to
 		// check it exists, and if so return an empty Metadata.
-		if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
+		if errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 			if _, ok := k.(model.HostMetadataKey); ok {
 				return c.getHostMetadataFromDirectory(k)
 			}
@@ -269,12 +269,10 @@ func (c *EtcdClient) defaultList(l model.ListInterface) ([]*model.KVPair, error)
 	if err != nil {
 		// If the root key does not exist - that's fine, return no list entries.
 		err = convertEtcdError(err, nil)
-		switch err.(type) {
-		case errors.ErrorResourceDoesNotExist:
+		if errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 			return []*model.KVPair{}, nil
-		default:
-			return nil, err
 		}
+		return nil, err
 	}
 
 	list := filterEtcdList(results.Node, l)
@@ -361,23 +359,23 @@ func convertEtcdError(err error, key model.Key) error {
 		switch err.(etcd.Error).Code {
 		case etcd.ErrorCodeTestFailed:
 			log.Debug("Test failed error")
-			return errors.ErrorResourceUpdateConflict{Identifier: key}
+			return errors.New(errors.ErrorResourceUpdateConflict{Identifier: key})
 		case etcd.ErrorCodeNodeExist:
 			log.Debug("Node exists error")
-			return errors.ErrorResourceAlreadyExists{Err: err, Identifier: key}
+			return errors.New(errors.ErrorResourceAlreadyExists{Err: err, Identifier: key})
 		case etcd.ErrorCodeKeyNotFound:
 			log.Debug("Key not found error")
-			return errors.ErrorResourceDoesNotExist{Err: err, Identifier: key}
+			return errors.New(errors.ErrorResourceDoesNotExist{Err: err, Identifier: key})
 		case etcd.ErrorCodeUnauthorized:
 			log.Debug("Unauthorized error")
-			return errors.ErrorConnectionUnauthorized{Err: err}
+			return errors.New(errors.ErrorConnectionUnauthorized{Err: err})
 		default:
 			log.Infof("Generic etcd error error: %v", err)
-			return errors.ErrorDatastoreError{Err: err, Identifier: key}
+			return errors.New(errors.ErrorDatastoreError{Err: err, Identifier: key})
 		}
 	default:
 		log.Infof("Unhandled error: %v", err)
-		return errors.ErrorDatastoreError{Err: err, Identifier: key}
+		return errors.New(errors.ErrorDatastoreError{Err: err, Identifier: key})
 	}
 }
 
@@ -415,12 +413,10 @@ func (c *EtcdClient) listHostMetadata(l model.HostMetadataListOptions) ([]*model
 		kv, err := c.Get(hmk)
 		if err != nil {
 			err = convertEtcdError(err, nil)
-			switch err.(type) {
-			case errors.ErrorResourceDoesNotExist:
+			if errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 				return []*model.KVPair{}, nil
-			default:
-				return nil, err
 			}
+			return nil, err
 		}
 
 		return []*model.KVPair{kv}, nil
@@ -435,12 +431,10 @@ func (c *EtcdClient) listHostMetadata(l model.HostMetadataListOptions) ([]*model
 		// If the root key does not exist - that's fine, return no list entries.
 		log.WithError(err).Info("Error enumerating host directories")
 		err = convertEtcdError(err, nil)
-		switch err.(type) {
-		case errors.ErrorResourceDoesNotExist:
+		if errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 			return []*model.KVPair{}, nil
-		default:
-			return nil, err
 		}
+		return nil, err
 	}
 
 	// TODO:  Since the host metadata is currently empty, we don't need
@@ -466,7 +460,7 @@ func (c *EtcdClient) ensureDirectory(dir string) error {
 	_, err := c.etcdKeysAPI.Set(context.Background(), dir, "", etcdCreateDirOpts)
 	if err != nil {
 		err = convertEtcdError(err, nil)
-		if _, ok := err.(errors.ErrorResourceAlreadyExists); !ok {
+		if !errors.HasType(err, errors.ErrorResourceAlreadyExists{}) {
 			return err
 		}
 	}

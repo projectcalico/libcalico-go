@@ -133,7 +133,7 @@ func (c ipamClient) getBlockFromAffinity(ctx context.Context, aff *model.KVPair)
 	logCtx.Info("Attempting to load block")
 	b, err := c.blockReaderWriter.queryBlock(ctx, cidr, "")
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+		if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			// The block referenced by the affinity doesn't exist. Try to create it.
 			logCtx.Info("The referenced block doesn't exist, trying to create it")
 			aff.Value.(*model.BlockAffinity).State = model.StatePending
@@ -345,7 +345,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 					// Not claimed by this host - ignore.
 				} else if _, ok := err.(errBlockNotEmpty); ok {
 					// Block isn't empty - ignore.
-				} else if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+				} else if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 					// Block does not exist - ignore.
 				} else {
 					logCtx.WithError(err).WithField("block", block).Warn("Error occurred releasing block, trying again")
@@ -387,7 +387,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 			b, err := c.getBlockFromAffinity(ctx, aff)
 			if err != nil {
 				// Couldn't get a block for this affinity.
-				if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 					logCtx.WithError(err).Debug("CAS error getting affine block - retry")
 					continue
 				}
@@ -398,7 +398,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 			// Assign IPs from the block.
 			newIPs, err = c.assignFromExistingBlock(ctx, b, num, handleID, attrs, host, true)
 			if err != nil {
-				if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 					logCtx.WithError(err).Debug("CAS error assigning from affine block - retry")
 					continue
 				}
@@ -453,7 +453,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 				// We found an unclaimed block - claim affinity for it.
 				pa, err := c.blockReaderWriter.getPendingAffinity(ctx, host, *subnet)
 				if err != nil {
-					if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+					if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 						logCtx.WithError(err).Debug("CAS error claiming pending affinity, retry")
 						continue
 					}
@@ -464,7 +464,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 				// We have an affinity - try to get the block.
 				b, err := c.getBlockFromAffinity(ctx, pa)
 				if err != nil {
-					if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+					if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 						logCtx.WithError(err).Debug("CAS error getting block, retry")
 						continue
 					} else if _, ok := err.(errBlockClaimConflict); ok {
@@ -483,7 +483,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 				numBlocksOwned++
 				newIPs, err := c.assignFromExistingBlock(ctx, b, rem, handleID, attrs, host, config.StrictAffinity)
 				if err != nil {
-					if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+					if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 						log.WithError(err).Debug("CAS Error assigning from new block - retry")
 						continue
 					}
@@ -545,7 +545,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 					logCtx.Infof("Attempting to assign IPs from non-affine block %s", blockCIDR.String())
 					newIPs, err := c.assignFromExistingBlock(ctx, b, rem, handleID, attrs, host, false)
 					if err != nil {
-						if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+						if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 							logCtx.WithError(err).Debug("CAS error assigning from non-affine block - retry")
 							continue
 						}
@@ -593,7 +593,7 @@ func (c ipamClient) AssignIP(ctx context.Context, args AssignIPArgs) error {
 	for i := 0; i < datastoreRetries; i++ {
 		obj, err := c.blockReaderWriter.queryBlock(ctx, blockCIDR, "")
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+			if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				log.WithError(err).Error("Error getting block")
 				return err
 			}
@@ -607,7 +607,7 @@ func (c ipamClient) AssignIP(ctx context.Context, args AssignIPArgs) error {
 
 			pa, err := c.blockReaderWriter.getPendingAffinity(ctx, hostname, blockCIDR)
 			if err != nil {
-				if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 					log.WithError(err).Debug("CAS error claiming affinity for block - retry")
 					continue
 				}
@@ -619,7 +619,7 @@ func (c ipamClient) AssignIP(ctx context.Context, args AssignIPArgs) error {
 				if _, ok := err.(*errBlockClaimConflict); ok {
 					log.Warningf("Someone else claimed block %s before us", blockCIDR.String())
 					continue
-				} else if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				} else if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 					log.WithError(err).Debug("CAS error claiming affine block - retry")
 					continue
 				}
@@ -646,7 +646,7 @@ func (c ipamClient) AssignIP(ctx context.Context, args AssignIPArgs) error {
 		// in the KVPair.
 		_, err = c.blockReaderWriter.updateBlock(ctx, obj)
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 				log.WithError(err).Debug("CAS error assigning IP - retry")
 				continue
 			}
@@ -729,7 +729,7 @@ func (c ipamClient) releaseIPsFromBlock(ctx context.Context, ips []net.IP, block
 		// Get allocation block for cidr.
 		obj, err := c.blockReaderWriter.queryBlock(ctx, blockCIDR, "")
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				// The block does not exist - all addresses must be unassigned.
 				return ips, nil
 			} else {
@@ -886,7 +886,7 @@ func (c ipamClient) ClaimAffinity(ctx context.Context, cidr net.IPNet, host stri
 			// First, claim a pending affinity.
 			pa, err := c.blockReaderWriter.getPendingAffinity(ctx, hostname, *blockCIDR)
 			if err != nil {
-				if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 					logCtx.WithError(err).Debug("CAS error getting pending affinity - retry")
 					continue
 				}
@@ -896,7 +896,7 @@ func (c ipamClient) ClaimAffinity(ctx context.Context, cidr net.IPNet, host stri
 			// Once we have the affinity, claim the block, which will confirm the affinity.
 			_, err = c.blockReaderWriter.claimAffineBlock(ctx, pa, *cfg)
 			if err != nil {
-				if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 					logCtx.WithError(err).Debug("CAS error claiming affine block - retry")
 					continue
 				} else if _, ok := err.(errBlockClaimConflict); ok {
@@ -951,9 +951,9 @@ func (c ipamClient) ReleaseAffinity(ctx context.Context, cidr net.IPNet, host st
 			if err != nil {
 				if _, ok := err.(errBlockClaimConflict); ok {
 					// Not claimed by this host - ignore.
-				} else if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+				} else if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 					// Block does not exist - ignore.
-				} else if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				} else if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 					logCtx.WithError(err).Debug("CAS error releasing block affinity - retry")
 					continue
 				} else {
@@ -1022,10 +1022,10 @@ func (c ipamClient) ReleasePoolAffinities(ctx context.Context, pool net.IPNet) e
 				if err != nil {
 					if _, ok := err.(errBlockClaimConflict); ok {
 						retry = true
-					} else if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+					} else if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 						logCtx.Debugf("No such block")
 						break
-					} else if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+					} else if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 						logCtx.WithError(err).Debug("CAS error releasing block affinity - retry")
 						continue
 					} else {
@@ -1070,12 +1070,12 @@ func (c ipamClient) RemoveIPAMHost(ctx context.Context, host string) error {
 		k := model.IPAMHostKey{Host: hostname}
 		kvp, err := c.client.Get(ctx, k, "")
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorOperationNotSupported); ok {
+			if cerrors.HasType(err, cerrors.ErrorOperationNotSupported{}) {
 				// KDD mode doesn't have this object - this is a no-op.
 				logCtx.Debugf("No need to remove IPAM host for this datastore")
 				return nil
 			}
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+			if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				logCtx.WithError(err).Errorf("Failed to get IPAM host")
 				return err
 			}
@@ -1089,13 +1089,13 @@ func (c ipamClient) RemoveIPAMHost(ctx context.Context, host string) error {
 		logCtx.Info("Deleting IPAM host tree from data store")
 		_, err = c.client.Delete(ctx, k, kvp.Revision)
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 				// We hit a compare-and-delete error - retry.
 				continue
 			}
 
 			// Return the error unless the resource does not exist.
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+			if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				logCtx.Errorf("Error removing IPAM host: %v", err)
 				return err
 			}
@@ -1183,7 +1183,7 @@ func (c ipamClient) releaseByHandle(ctx context.Context, handleID string, blockC
 		logCtx.Debug("Querying block so we can release IPs by handle")
 		obj, err := c.blockReaderWriter.queryBlock(ctx, blockCIDR, "")
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				// Block doesn't exist, so all addresses are already
 				// unallocated.  This can happen when a handle is
 				// overestimating the number of assigned addresses.
@@ -1208,13 +1208,13 @@ func (c ipamClient) releaseByHandle(ctx context.Context, handleID string, blockC
 			logCtx.Info("Deleting block because it is now empty and has no affinity")
 			err = c.blockReaderWriter.deleteBlock(ctx, obj)
 			if err != nil {
-				if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 					logCtx.Debug("CAD error deleting block - retry")
 					continue
 				}
 
 				// Return the error unless the resource does not exist.
-				if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+				if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 					logCtx.Errorf("Error deleting block: %v", err)
 					return err
 				}
@@ -1227,7 +1227,7 @@ func (c ipamClient) releaseByHandle(ctx context.Context, handleID string, blockC
 			logCtx.Debug("Updating block to release IPs")
 			_, err = c.blockReaderWriter.updateBlock(ctx, obj)
 			if err != nil {
-				if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 					// Comparison failed - retry.
 					logCtx.Warningf("CAS error for block, retry #%d: %v", i, err)
 					continue
@@ -1258,7 +1258,7 @@ func (c ipamClient) incrementHandle(ctx context.Context, handleID string, blockC
 	for i := 0; i < datastoreRetries; i++ {
 		obj, err = c.blockReaderWriter.queryHandle(ctx, handleID, "")
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				// Handle doesn't exist - create it.
 				log.Infof("Creating new handle: %s", handleID)
 				bh := model.IPAMHandle{
@@ -1324,10 +1324,10 @@ func (c ipamClient) decrementHandle(ctx context.Context, handleID string, blockC
 			log.Debugf("Deleting handle: %s", handleID)
 			if err = c.blockReaderWriter.deleteHandle(ctx, obj); err != nil {
 				if err != nil {
-					if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+					if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 						// Update conflict - retry.
 						continue
-					} else if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+					} else if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 						return err
 					}
 					// Already deleted.
@@ -1336,7 +1336,7 @@ func (c ipamClient) decrementHandle(ctx context.Context, handleID string, blockC
 		} else {
 			log.Debugf("Updating handle: %s", handleID)
 			if _, err = c.blockReaderWriter.updateHandle(ctx, obj); err != nil {
-				if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 					// Update conflict - retry.
 					continue
 				}
@@ -1377,7 +1377,7 @@ func (c ipamClient) GetAssignmentAttributes(ctx context.Context, addr net.IP) (m
 func (c ipamClient) GetIPAMConfig(ctx context.Context) (*IPAMConfig, error) {
 	obj, err := c.client.Get(ctx, model.IPAMConfigKey{}, "")
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+		if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			// IPAMConfig has not been explicitly set.  Return
 			// a default IPAM configuration.
 			return &IPAMConfig{AutoAllocateBlocks: true, StrictAffinity: false}, nil
@@ -1460,7 +1460,7 @@ func (c ipamClient) ensureConsistentAffinity(ctx context.Context, b *model.Alloc
 	logCtx.Debugf("Looking up node labels for host affinity")
 	node, err := c.client.Get(ctx, model.ResourceKey{Kind: v3.KindNode, Name: host}, "")
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+		if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			logCtx.WithError(err).WithField("node", host).Error("Failed to get node for host")
 			return err
 		}
@@ -1498,7 +1498,7 @@ func (c ipamClient) ensureConsistentAffinity(ctx context.Context, b *model.Alloc
 			// Not claimed by this host - ignore.
 		} else if _, ok := err.(errBlockNotEmpty); ok {
 			// Block isn't empty - ignore.
-		} else if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+		} else if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			// Block does not exist - ignore.
 		} else {
 			return err

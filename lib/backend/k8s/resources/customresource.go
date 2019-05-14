@@ -255,7 +255,7 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 			// The error will already be a Calico error type.  Ignore
 			// error that it doesn't exist - we'll return an empty
 			// list.
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+			if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				log.WithField("Resource", c.resource).WithError(err).Debug("Error listing resource")
 				return nil, err
 			}

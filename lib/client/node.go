@@ -83,7 +83,7 @@ func (h *nodes) Delete(metadata api.NodeMetadata) error {
 	// node name has been specified, otherwise we'd end up listing all
 	// endpoints across all nodes, and delete their config.
 	if metadata.Name == "" {
-		return errors.ErrorInsufficientIdentifiers{Name: "node"}
+		return errors.New(errors.ErrorInsufficientIdentifiers{Name: "node"})
 	}
 	log.Debugf("Deleting node: %s", metadata.Name)
 
@@ -92,7 +92,7 @@ func (h *nodes) Delete(metadata api.NodeMetadata) error {
 	err := h.RemoveBGPNode(metadata)
 	if err != nil {
 		log.Debugf("Error removing BGP Node data: %v", err)
-		if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
+		if errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 			return err
 		}
 	}
@@ -230,7 +230,7 @@ func (h *nodes) RemoveBGPNode(metadata api.NodeMetadata) error {
 	_, err := h.c.Backend.Delete(context.Background(), model.BGPNodeKey{Host: metadata.Name}, metadata.GetObjectMetadata().Revision)
 	if err != nil {
 		// Return the error unless the resource does not exist.
-		if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+		if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 			log.Errorf("Error removing BGP Node: %v", err)
 			return err
 		}

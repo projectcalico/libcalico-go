@@ -123,7 +123,7 @@ func (c *customK8sResourceClient) List(list model.ListInterface) ([]*model.KVPai
 			// The error will already be a Calico error type.  Ignore
 			// error that it doesn't exist - we'll return an empty
 			// list.
-			if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+			if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 				log.WithField("Resource", c.resource).WithError(err).Info("Error listing resource")
 				return nil, "", err
 			}

@@ -42,7 +42,7 @@ func (key GlobalBGPConfigKey) defaultPath() (string, error) {
 
 func (key GlobalBGPConfigKey) defaultDeletePath() (string, error) {
 	if key.Name == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 	}
 	e := fmt.Sprintf("/calico/bgp/v1/global/%s", key.Name)
 	return e, nil
@@ -102,10 +102,10 @@ func (key NodeBGPConfigKey) defaultPath() (string, error) {
 
 func (key NodeBGPConfigKey) defaultDeletePath() (string, error) {
 	if key.Nodename == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "node"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "node"})
 	}
 	if key.Name == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 	}
 	e := fmt.Sprintf("/calico/bgp/v1/host/%s/%s", key.Nodename, key.Name)
 	return e, nil

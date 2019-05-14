@@ -30,37 +30,37 @@ func K8sErrorToCalico(ke error, id interface{}) error {
 	}
 
 	if kerrors.IsAlreadyExists(ke) {
-		return errors.ErrorResourceAlreadyExists{
+		return errors.New(errors.ErrorResourceAlreadyExists{
 			Err:        ke,
 			Identifier: id,
-		}
+		})
 	}
 	if kerrors.IsNotFound(ke) {
-		return errors.ErrorResourceDoesNotExist{
+		return errors.New(errors.ErrorResourceDoesNotExist{
 			Err:        ke,
 			Identifier: id,
-		}
+		})
 	}
 	if kerrors.IsForbidden(ke) || kerrors.IsUnauthorized(ke) {
-		return errors.ErrorConnectionUnauthorized{
+		return errors.New(errors.ErrorConnectionUnauthorized{
 			Err: ke,
-		}
+		})
 	}
 	if kerrors.IsConflict(ke) {
 		// Treat precondition errors as not found.
 		if strings.Contains(ke.Error(), "UID in precondition") {
-			return errors.ErrorResourceDoesNotExist{
+			return errors.New(errors.ErrorResourceDoesNotExist{
 				Err:        ke,
 				Identifier: id,
-			}
+			})
 		}
-		return errors.ErrorResourceUpdateConflict{
+		return errors.New(errors.ErrorResourceUpdateConflict{
 			Err:        ke,
 			Identifier: id,
-		}
+		})
 	}
-	return errors.ErrorDatastoreError{
+	return errors.New(errors.ErrorDatastoreError{
 		Err:        ke,
 		Identifier: id,
-	}
+	})
 }

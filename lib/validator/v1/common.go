@@ -32,47 +32,47 @@ func ValidateMetadataIDsAssigned(rm unversioned.ResourceMetadata) error {
 	switch metadata := rm.(type) {
 	case api.BGPPeerMetadata:
 		if metadata.PeerIP.IP == nil {
-			return errors.ErrorInsufficientIdentifiers{Name: "peerIP"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "peerIP"})
 		}
 		if metadata.Scope == scope.Undefined ||
 			(metadata.Scope != scope.Global && metadata.Node == "") {
-			return errors.ErrorInsufficientIdentifiers{Name: "node"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "node"})
 		}
 	case api.HostEndpointMetadata:
 		if metadata.Node == "" {
-			return errors.ErrorInsufficientIdentifiers{Name: "node"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "node"})
 		}
 		if metadata.Name == "" {
-			return errors.ErrorInsufficientIdentifiers{Name: "name"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 		}
 	case api.IPPoolMetadata:
 		if metadata.CIDR.IP == nil {
-			return errors.ErrorInsufficientIdentifiers{Name: "cidr"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "cidr"})
 		}
 	case api.NodeMetadata:
 		if metadata.Name == "" {
-			return errors.ErrorInsufficientIdentifiers{Name: "name"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 		}
 	case api.PolicyMetadata:
 		if metadata.Name == "" {
-			return errors.ErrorInsufficientIdentifiers{Name: "name"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 		}
 	case api.ProfileMetadata:
 		if metadata.Name == "" {
-			return errors.ErrorInsufficientIdentifiers{Name: "name"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 		}
 	case api.WorkloadEndpointMetadata:
 		if metadata.Node == "" {
-			return errors.ErrorInsufficientIdentifiers{Name: "node"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "node"})
 		}
 		if metadata.Orchestrator == "" {
-			return errors.ErrorInsufficientIdentifiers{Name: "orchestrator"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "orchestrator"})
 		}
 		if metadata.Workload == "" {
-			return errors.ErrorInsufficientIdentifiers{Name: "workload"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "workload"})
 		}
 		if metadata.Name == "" {
-			return errors.ErrorInsufficientIdentifiers{Name: "name"}
+			return errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 		}
 	default:
 		log.Fatal(fmt.Errorf("Unexpected resource metadata: %s", metadata))

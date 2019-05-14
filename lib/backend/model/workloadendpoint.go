@@ -40,16 +40,16 @@ type WorkloadEndpointKey struct {
 
 func (key WorkloadEndpointKey) defaultPath() (string, error) {
 	if key.Hostname == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "node"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "node"})
 	}
 	if key.OrchestratorID == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "orchestrator"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "orchestrator"})
 	}
 	if key.WorkloadID == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "workload"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "workload"})
 	}
 	if key.EndpointID == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 	}
 	return fmt.Sprintf("/calico/v1/host/%s/workload/%s/%s/endpoint/%s",
 		key.Hostname, escapeName(key.OrchestratorID), escapeName(key.WorkloadID), escapeName(key.EndpointID)), nil
@@ -61,13 +61,13 @@ func (key WorkloadEndpointKey) defaultDeletePath() (string, error) {
 
 func (key WorkloadEndpointKey) defaultDeleteParentPaths() ([]string, error) {
 	if key.Hostname == "" {
-		return nil, errors.ErrorInsufficientIdentifiers{Name: "node"}
+		return nil, errors.New(errors.ErrorInsufficientIdentifiers{Name: "node"})
 	}
 	if key.OrchestratorID == "" {
-		return nil, errors.ErrorInsufficientIdentifiers{Name: "orchestrator"}
+		return nil, errors.New(errors.ErrorInsufficientIdentifiers{Name: "orchestrator"})
 	}
 	if key.WorkloadID == "" {
-		return nil, errors.ErrorInsufficientIdentifiers{Name: "workload"}
+		return nil, errors.New(errors.ErrorInsufficientIdentifiers{Name: "workload"})
 	}
 	workload := fmt.Sprintf("/calico/v1/host/%s/workload/%s/%s",
 		key.Hostname, escapeName(key.OrchestratorID), escapeName(key.WorkloadID))

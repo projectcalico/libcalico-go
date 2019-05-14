@@ -435,10 +435,10 @@ func (c *KubeClient) Create(ctx context.Context, d *model.KVPair) (*model.KVPair
 	client := c.getResourceClientFromKey(d.Key)
 	if client == nil {
 		log.Debug("Attempt to 'Create' using kubernetes backend is not supported.")
-		return nil, cerrors.ErrorOperationNotSupported{
+		return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 			Identifier: d.Key,
 			Operation:  "Create",
-		}
+		})
 	}
 	return client.Create(ctx, d)
 }
@@ -450,10 +450,10 @@ func (c *KubeClient) Update(ctx context.Context, d *model.KVPair) (*model.KVPair
 	client := c.getResourceClientFromKey(d.Key)
 	if client == nil {
 		log.Debug("Attempt to 'Update' using kubernetes backend is not supported.")
-		return nil, cerrors.ErrorOperationNotSupported{
+		return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 			Identifier: d.Key,
 			Operation:  "Update",
-		}
+		})
 	}
 	return client.Update(ctx, d)
 }
@@ -476,7 +476,7 @@ func (c *KubeClient) Apply(ctx context.Context, kvp *model.KVPair) (*model.KVPai
 		Value: kvp.Value,
 	})
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceAlreadyExists); !ok {
+		if !cerrors.HasType(err, cerrors.ErrorResourceAlreadyExists{}) {
 			logContext.Debug("Error applying resource (using Create)")
 			return nil, err
 		}
@@ -497,10 +497,10 @@ func (c *KubeClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model.K
 	client := c.getResourceClientFromKey(kvp.Key)
 	if client == nil {
 		log.Debug("Attempt to 'DeleteKVP' using kubernetes backend is not supported.")
-		return nil, cerrors.ErrorOperationNotSupported{
+		return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 			Identifier: kvp.Key,
 			Operation:  "Delete",
-		}
+		})
 	}
 	return client.DeleteKVP(ctx, kvp)
 }
@@ -511,10 +511,10 @@ func (c *KubeClient) Delete(ctx context.Context, k model.Key, revision string) (
 	client := c.getResourceClientFromKey(k)
 	if client == nil {
 		log.Debug("Attempt to 'Delete' using kubernetes backend is not supported.")
-		return nil, cerrors.ErrorOperationNotSupported{
+		return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 			Identifier: k,
 			Operation:  "Delete",
-		}
+		})
 	}
 	return client.Delete(ctx, k, revision, nil)
 }
@@ -525,10 +525,10 @@ func (c *KubeClient) Get(ctx context.Context, k model.Key, revision string) (*mo
 	client := c.getResourceClientFromKey(k)
 	if client == nil {
 		log.Debug("Attempt to 'Get' using kubernetes backend is not supported.")
-		return nil, cerrors.ErrorOperationNotSupported{
+		return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 			Identifier: k,
 			Operation:  "Get",
-		}
+		})
 	}
 	return client.Get(ctx, k, revision)
 }
@@ -540,10 +540,10 @@ func (c *KubeClient) List(ctx context.Context, l model.ListInterface, revision s
 	client := c.getResourceClientFromList(l)
 	if client == nil {
 		log.Info("Attempt to 'List' using kubernetes backend is not supported.")
-		return nil, cerrors.ErrorOperationNotSupported{
+		return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 			Identifier: l,
 			Operation:  "List",
-		}
+		})
 	}
 	return client.List(ctx, l, revision)
 }
@@ -555,10 +555,10 @@ func (c *KubeClient) Watch(ctx context.Context, l model.ListInterface, revision 
 	client := c.getResourceClientFromList(l)
 	if client == nil {
 		log.Debug("Attempt to 'Watch' using kubernetes backend is not supported.")
-		return nil, cerrors.ErrorOperationNotSupported{
+		return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 			Identifier: l,
 			Operation:  "Watch",
-		}
+		})
 	}
 	return client.Watch(ctx, l, revision)
 }

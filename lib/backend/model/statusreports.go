@@ -41,10 +41,10 @@ func (key ActiveStatusReportKey) defaultPath() (string, error) {
 
 func (key ActiveStatusReportKey) defaultDeletePath() (string, error) {
 	if key.Hostname == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "hostname"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "hostname"})
 	}
 	if key.RegionString == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "regionString"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "regionString"})
 	}
 	if strings.Contains(key.RegionString, "/") {
 		return "", ErrorSlashInRegionString(key.RegionString)
@@ -114,10 +114,10 @@ func (key LastStatusReportKey) defaultPath() (string, error) {
 
 func (key LastStatusReportKey) defaultDeletePath() (string, error) {
 	if key.Hostname == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "hostname"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "hostname"})
 	}
 	if key.RegionString == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "regionString"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "regionString"})
 	}
 	if strings.Contains(key.RegionString, "/") {
 		return "", ErrorSlashInRegionString(key.RegionString)

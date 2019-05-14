@@ -115,10 +115,14 @@ func (r nodes) Delete(ctx context.Context, name string, opts options.DeleteOptio
 			}
 		}
 	}
+
+	ignoreError := func(err error) bool {
+		return err == nil || errors.HasType(err, errors.ErrorResourceDoesNotExist{},
+			errors.ErrorOperationNotSupported{})
+	}
+
 	_, err = r.client.IPAM().ReleaseIPs(context.Background(), ips)
-	switch err.(type) {
-	case nil, errors.ErrorResourceDoesNotExist, errors.ErrorOperationNotSupported:
-	default:
+	if !ignoreError(err) {
 		return nil, err
 	}
 
@@ -129,18 +133,14 @@ func (r nodes) Delete(ctx context.Context, name string, opts options.DeleteOptio
 		}
 
 		_, err = r.client.WorkloadEndpoints().Delete(ctx, wep.Namespace, wep.Name, options.DeleteOptions{})
-		switch err.(type) {
-		case nil, errors.ErrorResourceDoesNotExist, errors.ErrorOperationNotSupported:
-		default:
+		if !ignoreError(err) {
 			return nil, err
 		}
 	}
 
 	// Remove the node from the IPAM data if it exists.
 	err = r.client.IPAM().RemoveIPAMHost(ctx, name)
-	switch err.(type) {
-	case nil, errors.ErrorResourceDoesNotExist, errors.ErrorOperationNotSupported:
-	default:
+	if !ignoreError(err) {
 		return nil, err
 	}
 
@@ -154,9 +154,7 @@ func (r nodes) Delete(ctx context.Context, name string, opts options.DeleteOptio
 			continue
 		}
 		_, err = r.client.BGPPeers().Delete(ctx, peer.Name, options.DeleteOptions{})
-		switch err.(type) {
-		case nil, errors.ErrorResourceDoesNotExist, errors.ErrorOperationNotSupported:
-		default:
+		if !ignoreError(err) {
 			return nil, err
 		}
 	}
@@ -164,17 +162,13 @@ func (r nodes) Delete(ctx context.Context, name string, opts options.DeleteOptio
 	// Delete felix configuration
 	nodeConfName := fmt.Sprintf("node.%s", name)
 	_, err = r.client.FelixConfigurations().Delete(ctx, nodeConfName, options.DeleteOptions{})
-	switch err.(type) {
-	case nil, errors.ErrorResourceDoesNotExist, errors.ErrorOperationNotSupported:
-	default:
+	if !ignoreError(err) {
 		return nil, err
 	}
 
 	// Delete bgp configuration
 	_, err = r.client.BGPConfigurations().Delete(ctx, nodeConfName, options.DeleteOptions{})
-	switch err.(type) {
-	case nil, errors.ErrorResourceDoesNotExist, errors.ErrorOperationNotSupported:
-	default:
+	if !ignoreError(err) {
 		return nil, err
 	}
 

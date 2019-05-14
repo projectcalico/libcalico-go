@@ -660,7 +660,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 				}
 
 				// Return that the object already exists.
-				return nil, cerrors.ErrorResourceAlreadyExists{}
+				return nil, cerrors.New(cerrors.ErrorResourceAlreadyExists{})
 			}
 
 			// Get function for the block. The first time, it should return nil to indicate nobody has the block. On subsequent calls,
@@ -672,7 +672,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 
 					if calls == 1 {
 						// First time the block doesn't exist yet.
-						return nil, cerrors.ErrorResourceDoesNotExist{}
+						return nil, cerrors.New(cerrors.ErrorResourceDoesNotExist{})
 					}
 					return bc.Get(ctx, k, r)
 				}(ctx, k, r)

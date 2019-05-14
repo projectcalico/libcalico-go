@@ -132,9 +132,9 @@ func (r bgpConfigurations) ValidateDefaultOnlyFields(res *apiv3.BGPConfiguration
 	}
 
 	if len(errFields) > 0 {
-		return cerrors.ErrorValidation{
+		return cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: errFields,
-		}
+		})
 	}
 
 	return nil

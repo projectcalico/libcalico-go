@@ -67,11 +67,11 @@ func (r ipPools) Create(ctx context.Context, res *apiv3.IPPool, opts options.Set
 	poolBlockSize := res.Spec.BlockSize
 	poolIP, poolCIDR, err := net.ParseCIDR(res.Spec.CIDR)
 	if err != nil {
-		return nil, cerrors.ErrorParsingDatastoreEntry{
+		return nil, cerrors.New(cerrors.ErrorParsingDatastoreEntry{
 			RawKey:   "CIDR",
 			RawValue: string(res.Spec.CIDR),
 			Err:      err,
-		}
+		})
 	}
 
 	ipVersion := 4
@@ -80,7 +80,7 @@ func (r ipPools) Create(ctx context.Context, res *apiv3.IPPool, opts options.Set
 	}
 
 	blocks, err := r.client.backend.List(ctx, model.BlockListOptions{IPVersion: ipVersion}, "")
-	if _, ok := err.(cerrors.ErrorOperationNotSupported); !ok && err != nil {
+	if !cerrors.HasType(err, cerrors.ErrorOperationNotSupported{}) && err != nil {
 		// There was an error and it wasn't OperationNotSupported - return it.
 		return nil, err
 	} else if err == nil {
@@ -90,13 +90,13 @@ func (r ipPools) Create(ctx context.Context, res *apiv3.IPPool, opts options.Set
 			ones, _ := k.CIDR.Mask.Size()
 			// Check if this block has a different size to the pool, and that it overlaps with the pool.
 			if ones != poolBlockSize && k.CIDR.IsNetOverlap(*poolCIDR) {
-				return nil, cerrors.ErrorValidation{
+				return nil, cerrors.New(cerrors.ErrorValidation{
 					ErroredFields: []cerrors.ErroredField{{
 						Name:   "IPPool.Spec.BlockSize",
 						Reason: "IPPool blocksSize conflicts with existing allocations that use a different blockSize",
 						Value:  res.Spec.BlockSize,
 					}},
-				}
+				})
 			}
 		}
 	}
@@ -216,7 +216,7 @@ func (r ipPools) Delete(ctx context.Context, name string, opts options.DeleteOpt
 
 		// Depending on the datastore, IPAM may not be supported.  If we get a not supported
 		// error, then continue.  Any other error, fail.
-		if _, ok := err.(cerrors.ErrorOperationNotSupported); !ok && err != nil {
+		if !cerrors.HasType(err, cerrors.ErrorOperationNotSupported{}) && err != nil {
 			return nil, err
 		}
 	}
@@ -264,13 +264,13 @@ func convertIpPoolFromStorage(pool *apiv3.IPPool) error {
 		// Get the IP address of the CIDR to find the IP version
 		ipAddr, _, err := cnet.ParseCIDR(pool.Spec.CIDR)
 		if err != nil {
-			return cerrors.ErrorValidation{
+			return cerrors.New(cerrors.ErrorValidation{
 				ErroredFields: []cerrors.ErroredField{{
 					Name:   "IPPool.Spec.CIDR",
 					Reason: "IPPool CIDR must be a valid subnet",
 					Value:  pool.Spec.CIDR,
 				}},
-			}
+			})
 		}
 
 		if ipAddr.Version() == 4 {
@@ -301,24 +301,24 @@ func (r ipPools) validateAndSetDefaults(ctx context.Context, new, old *apiv3.IPP
 
 	// Spec.CIDR field must not be empty.
 	if new.Spec.CIDR == "" {
-		return cerrors.ErrorValidation{
+		return cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{{
 				Name:   "IPPool.Spec.CIDR",
 				Reason: "IPPool CIDR must be specified",
 			}},
-		}
+		})
 	}
 
 	// Make sure the CIDR is parsable.
 	ipAddr, cidr, err := cnet.ParseCIDR(new.Spec.CIDR)
 	if err != nil {
-		return cerrors.ErrorValidation{
+		return cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{{
 				Name:   "IPPool.Spec.CIDR",
 				Reason: "IPPool CIDR must be a valid subnet",
 				Value:  new.Spec.CIDR,
 			}},
-		}
+		})
 	}
 
 	// Normalize the CIDR before persisting.
@@ -488,9 +488,9 @@ func (r ipPools) validateAndSetDefaults(ctx context.Context, new, old *apiv3.IPP
 
 	// Return the errors if we have one or more validation errors.
 	if len(errFields) > 0 {
-		return cerrors.ErrorValidation{
+		return cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: errFields,
-		}
+		})
 	}
 
 	return nil
@@ -509,7 +509,7 @@ func (c ipPools) maybeEnableIPIP(ctx context.Context, pool *apiv3.IPPool) error 
 	for i := 0; i < maxApplyRetries; i++ {
 		log.WithField("Retry", i).Debug("Checking global IPIP setting")
 		res, err := c.client.FelixConfigurations().Get(ctx, "default", options.GetOptions{})
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok && err != nil {
+		if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) && err != nil {
 			log.WithError(err).Debug("Error getting current FelixConfiguration resource")
 			return err
 		}
@@ -530,13 +530,13 @@ func (c ipPools) maybeEnableIPIP(ctx context.Context, pool *apiv3.IPPool) error 
 		res.Spec.IPIPEnabled = &ipEnabled
 		if res.ResourceVersion == "" {
 			res, err = c.client.FelixConfigurations().Create(ctx, res, options.SetOptions{})
-			if _, ok := err.(cerrors.ErrorResourceAlreadyExists); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceAlreadyExists{}) {
 				log.Debug("FelixConfiguration already exists - retry update")
 				continue
 			}
 		} else {
 			res, err = c.client.FelixConfigurations().Update(ctx, res, options.SetOptions{})
-			if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 				log.Debug("FelixConfiguration update conflict - retry update")
 				continue
 			}
@@ -569,7 +569,7 @@ func (c ipPools) maybeEnableVXLAN(ctx context.Context, pool *apiv3.IPPool) error
 	for i := 0; i < maxApplyRetries; i++ {
 		log.WithField("Retry", i).Debug("Checking global VXLAN setting")
 		res, err := c.client.FelixConfigurations().Get(ctx, "default", options.GetOptions{})
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok && err != nil {
+		if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) && err != nil {
 			log.WithError(err).Debug("Error getting current FelixConfiguration resource")
 			return err
 		}
@@ -590,13 +590,13 @@ func (c ipPools) maybeEnableVXLAN(ctx context.Context, pool *apiv3.IPPool) error
 		res.Spec.VXLANEnabled = &ipEnabled
 		if res.ResourceVersion == "" {
 			res, err = c.client.FelixConfigurations().Create(ctx, res, options.SetOptions{})
-			if _, ok := err.(cerrors.ErrorResourceAlreadyExists); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceAlreadyExists{}) {
 				log.Debug("FelixConfiguration already exists - retry update")
 				continue
 			}
 		} else {
 			res, err = c.client.FelixConfigurations().Update(ctx, res, options.SetOptions{})
-			if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 				log.Debug("FelixConfiguration update conflict - retry update")
 				continue
 			}

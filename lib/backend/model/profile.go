@@ -40,7 +40,7 @@ type ProfileKey struct {
 
 func (key ProfileKey) defaultPath() (string, error) {
 	if key.Name == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 	}
 	e := fmt.Sprintf("/calico/v1/policy/profile/%s", escapeName(key.Name))
 	return e, nil

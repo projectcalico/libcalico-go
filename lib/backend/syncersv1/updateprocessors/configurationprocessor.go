@@ -340,7 +340,7 @@ func (c *configUpdateProcessor) extractNode(key model.Key) (string, error) {
 	case strings.HasPrefix(k.Name, perNodeConfigNamePrefix):
 		return k.Name[len(perNodeConfigNamePrefix):], nil
 	default:
-		return "", cerrors.ErrorParsingDatastoreEntry{RawKey: k.Name}
+		return "", cerrors.New(cerrors.ErrorParsingDatastoreEntry{RawKey: k.Name})
 	}
 }
 

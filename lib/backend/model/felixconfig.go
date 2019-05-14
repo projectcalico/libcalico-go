@@ -62,7 +62,7 @@ type GlobalConfigKey struct {
 
 func (key GlobalConfigKey) defaultPath() (string, error) {
 	if key.Name == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 	}
 	e := fmt.Sprintf("/calico/v1/config/%s", key.Name)
 	return e, nil
@@ -119,10 +119,10 @@ type HostConfigKey struct {
 
 func (key HostConfigKey) defaultPath() (string, error) {
 	if key.Name == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 	}
 	if key.Hostname == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "node"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "node"})
 	}
 	e := fmt.Sprintf("/calico/v1/host/%s/config/%s", key.Hostname, key.Name)
 	return e, nil

@@ -80,9 +80,9 @@ func (_ BGPPeer) convertMetadataToKey(bpm apiv1.BGPPeerMetadata) (model.Key, err
 			Nodename: bpm.Node,
 		}, nil
 	} else {
-		return nil, errors.ErrorInsufficientIdentifiers{
+		return nil, errors.New(errors.ErrorInsufficientIdentifiers{
 			Name: "scope",
-		}
+		})
 	}
 }
 

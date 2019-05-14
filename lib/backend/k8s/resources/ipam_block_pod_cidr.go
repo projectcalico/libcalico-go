@@ -44,50 +44,50 @@ type podCIDRBlockClient struct {
 
 func (c *podCIDRBlockClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	log.Warn("Operation Create is not supported on block affinities when using host-local IPAM")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: kvp.Key,
 		Operation:  "Create",
-	}
+	})
 }
 
 func (c *podCIDRBlockClient) Update(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	log.Warn("Operation Update is not supported on block affinities when using host-local IPAM")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: kvp.Key,
 		Operation:  "Create",
-	}
+	})
 }
 
 func (c *podCIDRBlockClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	log.Warn("Operation DeleteKVP is not supported on block affinities when using host-local IPAM")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: kvp.Key,
 		Operation:  "DeleteKVP",
-	}
+	})
 }
 
 func (c *podCIDRBlockClient) Delete(ctx context.Context, key model.Key, revision string, uid *types.UID) (*model.KVPair, error) {
 	log.Warn("Operation Delete is not supported on block affinities when using host-local IPAM")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: key,
 		Operation:  "Delete",
-	}
+	})
 }
 
 func (c *podCIDRBlockClient) Get(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
 	log.Warn("Operation Get is not supported on block affinities when using host-local IPAM")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: key,
 		Operation:  "Get",
-	}
+	})
 }
 
 func (c *podCIDRBlockClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	log.Debug("Operation Watch is not supported on block affinities when using host-local IPAM")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: list,
 		Operation:  "Watch",
-	}
+	})
 }
 
 func (c *podCIDRBlockClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
@@ -104,7 +104,7 @@ func (c *podCIDRBlockClient) List(ctx context.Context, list model.ListInterface,
 		node, err := c.clientSet.CoreV1().Nodes().Get(bl.Host, metav1.GetOptions{ResourceVersion: revision})
 		if err != nil {
 			err = K8sErrorToCalico(err, list)
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+			if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				return nil, err
 			}
 			return kvpl, nil
@@ -139,7 +139,7 @@ func (c *podCIDRBlockClient) List(ctx context.Context, list model.ListInterface,
 		nodeList, err := c.clientSet.CoreV1().Nodes().List(metav1.ListOptions{ResourceVersion: revision})
 		if err != nil {
 			err = K8sErrorToCalico(err, list)
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+			if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				return nil, err
 			}
 			return kvpl, nil
@@ -172,10 +172,10 @@ func (c *podCIDRBlockClient) List(ctx context.Context, list model.ListInterface,
 	// Currently querying the affinity block is only used by the BGP syncer *and* we always
 	// query for a specific Node, so for now fail List requests for all nodes.
 	log.Warn("Operation List (all nodes or all IP versions) is not supported on block affinities when using host-local IPAM")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: list,
 		Operation:  "List",
-	}
+	})
 }
 
 func (c *podCIDRBlockClient) EnsureInitialized() error {

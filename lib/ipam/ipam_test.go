@@ -1573,7 +1573,7 @@ func getAffineBlocks(backend bapi.Client, host string) []cnet.IPNet {
 	opts := model.BlockAffinityListOptions{Host: host, IPVersion: 4}
 	datastoreObjs, err := backend.List(context.Background(), opts, "")
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+		if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			log.Printf("No affined blocks found")
 		} else {
 			Expect(err).NotTo(HaveOccurred(), "Error getting affine blocks: %v", err)

@@ -40,19 +40,19 @@ type WorkloadEndpointStatusKey struct {
 
 func (key WorkloadEndpointStatusKey) defaultPath() (string, error) {
 	if key.Hostname == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "hostname"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "hostname"})
 	}
 	if key.OrchestratorID == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "orchestrator"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "orchestrator"})
 	}
 	if key.WorkloadID == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "workload"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "workload"})
 	}
 	if key.EndpointID == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "endpoint"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "endpoint"})
 	}
 	if key.RegionString == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "regionString"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "regionString"})
 	}
 	if strings.Contains(key.RegionString, "/") {
 		return "", ErrorSlashInRegionString(key.RegionString)
@@ -68,16 +68,16 @@ func (key WorkloadEndpointStatusKey) defaultDeletePath() (string, error) {
 
 func (key WorkloadEndpointStatusKey) defaultDeleteParentPaths() ([]string, error) {
 	if key.Hostname == "" {
-		return nil, errors.ErrorInsufficientIdentifiers{Name: "hostname"}
+		return nil, errors.New(errors.ErrorInsufficientIdentifiers{Name: "hostname"})
 	}
 	if key.OrchestratorID == "" {
-		return nil, errors.ErrorInsufficientIdentifiers{Name: "orchestrator"}
+		return nil, errors.New(errors.ErrorInsufficientIdentifiers{Name: "orchestrator"})
 	}
 	if key.WorkloadID == "" {
-		return nil, errors.ErrorInsufficientIdentifiers{Name: "workload"}
+		return nil, errors.New(errors.ErrorInsufficientIdentifiers{Name: "workload"})
 	}
 	if key.RegionString == "" {
-		return nil, errors.ErrorInsufficientIdentifiers{Name: "regionString"}
+		return nil, errors.New(errors.ErrorInsufficientIdentifiers{Name: "regionString"})
 	}
 	if strings.Contains(key.RegionString, "/") {
 		return nil, ErrorSlashInRegionString(key.RegionString)

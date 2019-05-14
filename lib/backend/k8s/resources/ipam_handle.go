@@ -151,10 +151,10 @@ func (c *ipamHandleClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*m
 func (c *ipamHandleClient) Delete(ctx context.Context, key model.Key, revision string, uid *types.UID) (*model.KVPair, error) {
 	// Delete should not be used for handles, since we need the object UID for correctness.
 	log.Warn("Operation Delete is not supported on IPAMHandle type")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: key,
 		Operation:  "Delete",
-	}
+	})
 }
 
 func (c *ipamHandleClient) Get(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
@@ -174,7 +174,7 @@ func (c *ipamHandleClient) Get(ctx context.Context, key model.Key, revision stri
 		if _, err := c.DeleteKVP(ctx, v1kvp); err != nil {
 			return nil, err
 		}
-		return nil, cerrors.ErrorResourceDoesNotExist{fmt.Errorf("Resource was deleted"), key}
+		return nil, cerrors.New(cerrors.ErrorResourceDoesNotExist{fmt.Errorf("Resource was deleted"), key})
 	}
 
 	return v1kvp, nil
@@ -197,10 +197,10 @@ func (c *ipamHandleClient) List(ctx context.Context, list model.ListInterface, r
 
 func (c *ipamHandleClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	log.Warn("Operation Watch is not supported on IPAMHandle type")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: list,
 		Operation:  "Watch",
-	}
+	})
 }
 
 func (c *ipamHandleClient) EnsureInitialized() error {

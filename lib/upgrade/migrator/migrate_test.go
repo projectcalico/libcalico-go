@@ -17,6 +17,7 @@ package migrator
 import (
 	"context"
 	"errors"
+	"fmt"
 	gnet "net"
 
 	. "github.com/onsi/ginkgo"
@@ -78,6 +79,7 @@ func convertAndCheckResourcesConverted(client clients.V1ClientInterface, expecte
 	// Convert the data back to a set of resources.
 	mh := &migrationHelper{clientv1: client}
 	data, err := mh.queryAndConvertResources()
+	fmt.Printf("err = %+v\n", err)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(data.ConversionErrors).To(HaveLen(0))
 	By("Checking total conversion")

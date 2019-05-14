@@ -142,7 +142,7 @@ func (c *etcdV3Client) Create(ctx context.Context, d *model.KVPair) (*model.KVPa
 	).Commit()
 	if err != nil {
 		logCxt.WithError(err).Warning("Create failed")
-		return nil, cerrors.ErrorDatastoreError{Err: err}
+		return nil, cerrors.New(cerrors.ErrorDatastoreError{Err: err})
 	}
 
 	if !txnResp.Succeeded {
@@ -154,12 +154,12 @@ func (c *etcdV3Client) Create(ctx context.Context, d *model.KVPair) (*model.KVPa
 		if len(getResp.Kvs) != 0 {
 			existing, _ = etcdToKVPair(d.Key, getResp.Kvs[0])
 		}
-		return existing, cerrors.ErrorResourceAlreadyExists{Identifier: d.Key}
+		return existing, cerrors.New(cerrors.ErrorResourceAlreadyExists{Identifier: d.Key})
 	}
 
 	v, err := model.ParseValue(d.Key, []byte(value))
 	if err != nil {
-		return nil, cerrors.ErrorPartialFailure{Err: fmt.Errorf("Unexpected error parsing stored datastore entry '%v': %+v", value, err)}
+		return nil, cerrors.New(cerrors.ErrorPartialFailure{Err: fmt.Errorf("Unexpected error parsing stored datastore entry '%v': %+v", value, err)})
 	}
 	d.Value = v
 	d.Revision = strconv.FormatInt(txnResp.Header.Revision, 10)
@@ -202,7 +202,7 @@ func (c *etcdV3Client) Update(ctx context.Context, d *model.KVPair) (*model.KVPa
 
 	if err != nil {
 		logCxt.WithError(err).Warning("Update failed")
-		return nil, cerrors.ErrorDatastoreError{Err: err}
+		return nil, cerrors.New(cerrors.ErrorDatastoreError{Err: err})
 	}
 
 	// Etcd V3 does not return a error when compare condition fails we must verify the
@@ -212,12 +212,12 @@ func (c *etcdV3Client) Update(ctx context.Context, d *model.KVPair) (*model.KVPa
 		getResp := (*clientv3.GetResponse)(txnResp.Responses[0].GetResponseRange())
 		if len(getResp.Kvs) == 0 {
 			logCxt.Debug("Update transaction failed due to resource not existing")
-			return nil, cerrors.ErrorResourceDoesNotExist{Identifier: d.Key}
+			return nil, cerrors.New(cerrors.ErrorResourceDoesNotExist{Identifier: d.Key})
 		}
 
 		logCxt.Debug("Update transaction failed due to resource update conflict")
 		existing, _ := etcdToKVPair(d.Key, getResp.Kvs[0])
-		return existing, cerrors.ErrorResourceUpdateConflict{Identifier: d.Key}
+		return existing, cerrors.New(cerrors.ErrorResourceUpdateConflict{Identifier: d.Key})
 	}
 
 	v, err := model.ParseValue(d.Key, []byte(value))
@@ -250,7 +250,7 @@ func (c *etcdV3Client) Apply(ctx context.Context, d *model.KVPair) (*model.KVPai
 	resp, err := c.etcdClient.Put(ctx, key, value, putOpts...)
 	if err != nil {
 		logCxt.WithError(err).Warning("Apply failed")
-		return nil, cerrors.ErrorDatastoreError{Err: err}
+		return nil, cerrors.New(cerrors.ErrorDatastoreError{Err: err})
 	}
 
 	v, err := model.ParseValue(d.Key, []byte(value))
@@ -295,7 +295,7 @@ func (c *etcdV3Client) Delete(ctx context.Context, k model.Key, revision string)
 	).Commit()
 	if err != nil {
 		logCxt.WithError(err).Warning("Delete failed")
-		return nil, cerrors.ErrorDatastoreError{Err: err, Identifier: k}
+		return nil, cerrors.New(cerrors.ErrorDatastoreError{Err: err, Identifier: k})
 	}
 
 	// Transaction did not succeed - which means the ModifiedIndex check failed.  We can respond
@@ -306,20 +306,20 @@ func (c *etcdV3Client) Delete(ctx context.Context, k model.Key, revision string)
 		getResp := txnResp.Responses[0].GetResponseRange()
 		if len(getResp.Kvs) == 0 {
 			logCxt.Debug("Delete transaction failed due to resource not existing")
-			return nil, cerrors.ErrorResourceDoesNotExist{Identifier: k}
+			return nil, cerrors.New(cerrors.ErrorResourceDoesNotExist{Identifier: k})
 		}
 		latestValue, err := etcdToKVPair(k, getResp.Kvs[0])
 		if err != nil {
 			return nil, err
 		}
-		return latestValue, cerrors.ErrorResourceUpdateConflict{Identifier: k}
+		return latestValue, cerrors.New(cerrors.ErrorResourceUpdateConflict{Identifier: k})
 	}
 
 	// The delete response should have succeeded since the Get response did.
 	delResp := txnResp.Responses[0].GetResponseDeleteRange()
 	if delResp.Deleted == 0 {
 		logCxt.Debug("Delete transaction failed due to resource not existing")
-		return nil, cerrors.ErrorResourceDoesNotExist{Identifier: k}
+		return nil, cerrors.New(cerrors.ErrorResourceDoesNotExist{Identifier: k})
 	}
 
 	// Parse the deleted value.  Don't propagate the error in this case since the
@@ -353,11 +353,11 @@ func (c *etcdV3Client) Get(ctx context.Context, k model.Key, revision string) (*
 	resp, err := c.etcdClient.Get(ctx, key, ops...)
 	if err != nil {
 		logCxt.WithError(err).Debug("Error returned from etcdv3 client")
-		return nil, cerrors.ErrorDatastoreError{Err: err}
+		return nil, cerrors.New(cerrors.ErrorDatastoreError{Err: err})
 	}
 	if len(resp.Kvs) == 0 {
 		logCxt.Debug("No results returned from etcdv3 client")
-		return nil, cerrors.ErrorResourceDoesNotExist{Identifier: k}
+		return nil, cerrors.New(cerrors.ErrorResourceDoesNotExist{Identifier: k})
 	}
 
 	return etcdToKVPair(k, resp.Kvs[0])
@@ -386,7 +386,7 @@ func (c *etcdV3Client) List(ctx context.Context, l model.ListInterface, revision
 	resp, err := c.etcdClient.Get(ctx, key, ops...)
 	if err != nil {
 		logCxt.WithError(err).Debug("Error returned from etcdv3 client")
-		return nil, cerrors.ErrorDatastoreError{Err: err}
+		return nil, cerrors.New(cerrors.ErrorDatastoreError{Err: err})
 	}
 	logCxt.WithField("numResults", len(resp.Kvs)).Debug("Processing response from etcdv3")
 
@@ -448,7 +448,7 @@ func (c *etcdV3Client) Clean() error {
 	).Commit()
 
 	if err != nil {
-		return cerrors.ErrorDatastoreError{Err: err}
+		return cerrors.New(cerrors.ErrorDatastoreError{Err: err})
 	}
 	return nil
 }
@@ -461,7 +461,7 @@ func (c *etcdV3Client) IsClean() (bool, error) {
 	resp, err := c.etcdClient.Get(context.Background(), "/calico/", clientv3.WithPrefix())
 	if err != nil {
 		log.WithError(err).Debug("Error returned from etcdv3 client")
-		return false, cerrors.ErrorDatastoreError{Err: err}
+		return false, cerrors.New(cerrors.ErrorDatastoreError{Err: err})
 	}
 
 	// The datastore is clean if no results were enumerated.
@@ -476,7 +476,7 @@ func (c *etcdV3Client) getTTLOption(ctx context.Context, d *model.KVPair) ([]cli
 		resp, err := c.etcdClient.Lease.Grant(ctx, int64(d.TTL.Seconds()))
 		if err != nil {
 			log.WithError(err).Error("Failed to grant a lease")
-			return nil, cerrors.ErrorDatastoreError{Err: err}
+			return nil, cerrors.New(cerrors.ErrorDatastoreError{Err: err})
 		}
 
 		putOpts = append(putOpts, clientv3.WithLease(resp.ID))
@@ -492,18 +492,18 @@ func getKeyValueStrings(d *model.KVPair) (string, string, error) {
 	key, err := model.KeyToDefaultPath(d.Key)
 	if err != nil {
 		logCxt.WithError(err).Error("Failed to convert model-etcdKey to etcdv3 etcdKey")
-		return "", "", cerrors.ErrorDatastoreError{
+		return "", "", cerrors.New(cerrors.ErrorDatastoreError{
 			Err:        err,
 			Identifier: d.Key,
-		}
+		})
 	}
 	bytes, err := model.SerializeValue(d)
 	if err != nil {
 		logCxt.WithError(err).Error("Failed to serialize value")
-		return "", "", cerrors.ErrorDatastoreError{
+		return "", "", cerrors.New(cerrors.ErrorDatastoreError{
 			Err:        err,
 			Identifier: d.Key,
-		}
+		})
 	}
 
 	return key, string(bytes), nil
@@ -515,14 +515,14 @@ func parseRevision(revs string) (int64, error) {
 	rev, err := strconv.ParseInt(revs, 10, 64)
 	if err != nil {
 		log.WithField("Revision", revs).Debug("Unable to parse Revision")
-		return 0, cerrors.ErrorValidation{
+		return 0, cerrors.New(cerrors.ErrorValidation{
 			ErroredFields: []cerrors.ErroredField{
 				{
 					Name:  "ResourceVersion",
 					Value: revs,
 				},
 			},
-		}
+		})
 	}
 	return rev, nil
 }

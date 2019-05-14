@@ -27,8 +27,8 @@ var _ = DescribeTable("WorkloadEndpoint name construction, fully qualified names
 		if len(expectedErroredField) != 0 {
 			Expect(name).To(Equal(""))
 			Expect(err).To(HaveOccurred())
-			Expect(err.(cerrors.ErrorValidation).ErroredFields).To(HaveLen(1))
-			Expect(err.(cerrors.ErrorValidation).ErroredFields[0].Name).To(Equal(expectedErroredField))
+			Expect(cerrors.Unwrap(err).(cerrors.ErrorValidation).ErroredFields).To(HaveLen(1))
+			Expect(cerrors.Unwrap(err).(cerrors.ErrorValidation).ErroredFields[0].Name).To(Equal(expectedErroredField))
 		} else {
 			Expect(name).To(Equal(expectedName))
 		}
@@ -86,8 +86,8 @@ var _ = DescribeTable("WorkloadEndpoint name construction, name prefix",
 		if len(expectedErroredField) != 0 {
 			Expect(name).To(Equal(""))
 			Expect(err).To(HaveOccurred())
-			Expect(err.(cerrors.ErrorValidation).ErroredFields).To(HaveLen(1))
-			Expect(err.(cerrors.ErrorValidation).ErroredFields[0].Name).To(Equal(expectedErroredField))
+			Expect(cerrors.Unwrap(err).(cerrors.ErrorValidation).ErroredFields).To(HaveLen(1))
+			Expect(cerrors.Unwrap(err).(cerrors.ErrorValidation).ErroredFields[0].Name).To(Equal(expectedErroredField))
 		} else {
 			Expect(name).To(Equal(expectedName))
 		}
@@ -139,8 +139,8 @@ var _ = DescribeTable("WorkloadEndpoint name matching",
 		if len(expectedErroredField) != 0 {
 			Expect(valid).To(BeFalse())
 			Expect(err).To(HaveOccurred())
-			Expect(err.(cerrors.ErrorValidation).ErroredFields).To(HaveLen(1))
-			Expect(err.(cerrors.ErrorValidation).ErroredFields[0].Name).To(Equal(expectedErroredField))
+			Expect(cerrors.Unwrap(err).(cerrors.ErrorValidation).ErroredFields).To(HaveLen(1))
+			Expect(cerrors.Unwrap(err).(cerrors.ErrorValidation).ErroredFields[0].Name).To(Equal(expectedErroredField))
 		} else {
 			Expect(valid).To(Equal(expectValid))
 		}

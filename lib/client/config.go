@@ -378,7 +378,7 @@ func (c *config) setLogLevel(level string, felixKey, bgpKey model.Key) error {
 func (c *config) deleteConfig(key model.Key) error {
 	_, err := c.c.Backend.Delete(context.Background(), key, "")
 	if err != nil {
-		if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+		if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 			return err
 		}
 	}
@@ -390,7 +390,7 @@ func (c *config) deleteConfig(key model.Key) error {
 func (c *config) getValue(key model.Key) (*string, error) {
 	kv, err := c.c.Backend.Get(context.Background(), key, "")
 	if err != nil {
-		if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
+		if errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 			return nil, nil
 		} else {
 			return nil, err

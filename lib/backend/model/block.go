@@ -47,7 +47,7 @@ type BlockKey struct {
 
 func (key BlockKey) defaultPath() (string, error) {
 	if key.CIDR.IP == nil {
-		return "", errors.ErrorInsufficientIdentifiers{}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{})
 	}
 	c := strings.Replace(key.CIDR.String(), "/", "-", 1)
 	e := fmt.Sprintf("/calico/ipam/v2/assignment/ipv%d/block/%s", key.CIDR.Version(), c)

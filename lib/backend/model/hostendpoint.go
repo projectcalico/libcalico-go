@@ -38,10 +38,10 @@ type HostEndpointKey struct {
 
 func (key HostEndpointKey) defaultPath() (string, error) {
 	if key.Hostname == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "node"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "node"})
 	}
 	if key.EndpointID == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "name"})
 	}
 	e := fmt.Sprintf("/calico/v1/host/%s/endpoint/%s",
 		key.Hostname, escapeName(key.EndpointID))

@@ -79,10 +79,10 @@ func (c *networkPolicyClient) Create(ctx context.Context, kvp *model.KVPair) (*m
 	key := kvp.Key.(model.ResourceKey)
 	if strings.HasPrefix(key.Name, conversion.K8sNetworkPolicyNamePrefix) {
 		// We don't support Create of a Kubernetes NetworkPolicy.
-		return nil, cerrors.ErrorOperationNotSupported{
+		return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 			Identifier: kvp.Key,
 			Operation:  "Create",
-		}
+		})
 	}
 
 	kvp, err := c.crdClient.Create(ctx, kvp)
@@ -100,10 +100,10 @@ func (c *networkPolicyClient) Update(ctx context.Context, kvp *model.KVPair) (*m
 	key := kvp.Key.(model.ResourceKey)
 	if strings.HasPrefix(key.Name, conversion.K8sNetworkPolicyNamePrefix) {
 		// We don't support Update of a Kubernetes NetworkPolicy.
-		return nil, cerrors.ErrorOperationNotSupported{
+		return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 			Identifier: kvp.Key,
 			Operation:  "Update",
-		}
+		})
 	}
 
 	// The revision, if supplied, will be a combination of CRD and k8s-backed revisions.  Extract
@@ -124,10 +124,10 @@ func (c *networkPolicyClient) Update(ctx context.Context, kvp *model.KVPair) (*m
 }
 
 func (c *networkPolicyClient) Apply(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: kvp.Key,
 		Operation:  "Apply",
-	}
+	})
 }
 func (c *networkPolicyClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	return c.Delete(ctx, kvp.Key, kvp.Revision, kvp.UID)
@@ -138,10 +138,10 @@ func (c *networkPolicyClient) Delete(ctx context.Context, key model.Key, revisio
 	k := key.(model.ResourceKey)
 	if strings.HasPrefix(k.Name, conversion.K8sNetworkPolicyNamePrefix) {
 		// We don't support Delete of a Kubernetes NetworkPolicy.
-		return nil, cerrors.ErrorOperationNotSupported{
+		return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 			Identifier: key,
 			Operation:  "Delete",
-		}
+		})
 	}
 
 	// The revision, if supplied, will be a combination of CRD and k8s-backed revisions.  Extract
@@ -220,7 +220,7 @@ func (c *networkPolicyClient) List(ctx context.Context, list model.ListInterface
 		kvp, err := c.Get(ctx, model.ResourceKey{Name: l.Name, Namespace: l.Namespace, Kind: l.Kind}, revision)
 		if err != nil {
 			// Return empty slice of KVPair if the object doesn't exist, return the error otherwise.
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				return &model.KVPairList{
 					KVPairs:  []*model.KVPair{},
 					Revision: revision,

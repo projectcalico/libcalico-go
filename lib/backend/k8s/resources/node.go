@@ -61,10 +61,10 @@ type nodeClient struct {
 
 func (c *nodeClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	log.Warn("Operation Create is not supported on Node type")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: kvp.Key,
 		Operation:  "Create",
-	}
+	})
 }
 
 func (c *nodeClient) Update(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
@@ -101,10 +101,10 @@ func (c *nodeClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model.K
 
 func (c *nodeClient) Delete(ctx context.Context, key model.Key, revision string, uid *types.UID) (*model.KVPair, error) {
 	log.Warn("Operation Delete is not supported on Node type")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: key,
 		Operation:  "Delete",
-	}
+	})
 }
 
 func (c *nodeClient) Get(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
@@ -133,7 +133,7 @@ func (c *nodeClient) List(ctx context.Context, list model.ListInterface, revisio
 		// If the entry does not exist then we just return an empty list.
 		kvp, err := c.Get(ctx, model.ResourceKey{Name: nl.Name, Kind: apiv3.KindNode}, revision)
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+			if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				return nil, err
 			}
 			return &model.KVPairList{

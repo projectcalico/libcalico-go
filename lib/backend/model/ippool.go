@@ -38,7 +38,7 @@ type IPPoolKey struct {
 
 func (key IPPoolKey) defaultPath() (string, error) {
 	if key.CIDR.IP == nil {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "cidr"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "cidr"})
 	}
 	c := strings.Replace(key.CIDR.String(), "/", "-", 1)
 	e := fmt.Sprintf("/calico/v1/ipam/v%d/pool/%s", key.CIDR.Version(), c)

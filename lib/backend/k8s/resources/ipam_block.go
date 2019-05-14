@@ -199,10 +199,10 @@ func (c *ipamBlockClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*mo
 func (c *ipamBlockClient) Delete(ctx context.Context, key model.Key, revision string, uid *types.UID) (*model.KVPair, error) {
 	// Delete should not be used for blocks, since we need the object UID for correctness.
 	log.Warn("Operation Delete is not supported on IPAMBlock type - use DeleteKVP")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: key,
 		Operation:  "Delete",
-	}
+	})
 }
 
 func (c *ipamBlockClient) Get(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
@@ -226,7 +226,7 @@ func (c *ipamBlockClient) Get(ctx context.Context, key model.Key, revision strin
 		if _, err := c.DeleteKVP(ctx, v1kvp); err != nil {
 			return nil, err
 		}
-		return nil, cerrors.ErrorResourceDoesNotExist{fmt.Errorf("Resource was deleted"), key}
+		return nil, cerrors.New(cerrors.ErrorResourceDoesNotExist{fmt.Errorf("Resource was deleted"), key})
 	}
 
 	return v1kvp, nil

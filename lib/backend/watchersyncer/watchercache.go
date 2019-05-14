@@ -238,7 +238,7 @@ func (wc *watcherCache) resyncAndCreateWatcher(ctx context.Context) {
 		w, err := wc.client.Watch(ctx, wc.resourceType.ListInterface, wc.currentWatchRevision)
 		if err != nil {
 			// Failed to create the watcher - we'll need to retry.
-			if _, ok := err.(cerrors.ErrorOperationNotSupported); ok {
+			if cerrors.HasType(err, cerrors.ErrorOperationNotSupported{}) {
 				// Watch is not supported on this resource type, so pause for the watch poll interval.
 				// This loop effectively becomes a poll loop for this resource type.
 				wc.logger.Debug("Watch operation not supported")

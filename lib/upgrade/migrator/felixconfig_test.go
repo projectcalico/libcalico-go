@@ -173,7 +173,7 @@ func (fc fakeClientV1) Get(k model.Key) (*model.KVPair, error) {
 			return kvp, nil
 		}
 	}
-	return nil, cerrors.ErrorResourceDoesNotExist{Identifier: k}
+	return nil, cerrors.New(cerrors.ErrorResourceDoesNotExist{Identifier: k})
 }
 
 func (fc fakeClientV1) List(l model.ListInterface) ([]*model.KVPair, error) {

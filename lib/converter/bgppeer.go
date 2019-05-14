@@ -40,9 +40,9 @@ func (p BGPPeerConverter) ConvertMetadataToKey(m unversioned.ResourceMetadata) (
 			Nodename: pm.Node,
 		}, nil
 	} else {
-		return nil, errors.ErrorInsufficientIdentifiers{
+		return nil, errors.New(errors.ErrorInsufficientIdentifiers{
 			Name: "scope",
-		}
+		})
 	}
 }
 

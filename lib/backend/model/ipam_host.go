@@ -31,7 +31,7 @@ type IPAMHostKey struct {
 
 func (key IPAMHostKey) defaultPath() (string, error) {
 	if key.Host == "" {
-		return "", errors.ErrorInsufficientIdentifiers{Name: "host"}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{Name: "host"})
 	}
 
 	k := "/calico/ipam/v2/host/" + key.Host

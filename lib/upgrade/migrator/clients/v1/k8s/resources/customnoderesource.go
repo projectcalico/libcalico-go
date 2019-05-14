@@ -109,7 +109,7 @@ func (c *customK8sNodeResourceClient) Get(key model.Key) (*model.KVPair, error) 
 	}
 	if len(kvps) != 1 {
 		logContext.Warning("Failed to get resource: resource does not exist")
-		return nil, errors.ErrorResourceDoesNotExist{Identifier: key}
+		return nil, errors.New(errors.ErrorResourceDoesNotExist{Identifier: key})
 	}
 
 	return kvps[0], nil
@@ -140,7 +140,7 @@ func (c *customK8sNodeResourceClient) List(list model.ListInterface) ([]*model.K
 		node, err := c.ClientSet.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 		if err != nil {
 			err = K8sErrorToCalico(err, nodeName)
-			if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+			if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 				newLogContext.WithError(err).Error("Failed to list resources: unable to query node")
 				return nil, "", err
 			}
@@ -243,7 +243,7 @@ func (c *customK8sNodeResourceClient) applyResourceToAnnotation(node *apiv1.Node
 
 		// If this is an update conflict, indicate to the retryWrapper
 		// that we can retry the action.
-		if _, ok := err.(errors.ErrorResourceUpdateConflict); ok {
+		if errors.HasType(err, errors.ErrorResourceUpdateConflict{}) {
 			err = retryError{err: err}
 		}
 		return nil, err

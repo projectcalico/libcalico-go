@@ -250,7 +250,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(nk model.NodeKey, nv *model.Node) er
 				nv.BGPIPv4Addr = nil
 			}
 		}
-	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+	} else if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 		return err
 	}
 
@@ -263,7 +263,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(nk model.NodeKey, nv *model.Node) er
 				nv.BGPIPv4Net = nil
 			}
 		}
-	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+	} else if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 		return err
 	}
 
@@ -277,7 +277,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(nk model.NodeKey, nv *model.Node) er
 				nv.BGPIPv6Addr = nil
 			}
 		}
-	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+	} else if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 		return err
 	}
 
@@ -290,7 +290,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(nk model.NodeKey, nv *model.Node) er
 				nv.BGPIPv6Net = nil
 			}
 		}
-	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+	} else if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 		return err
 	}
 
@@ -304,7 +304,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(nk model.NodeKey, nv *model.Node) er
 				nv.BGPASNumber = &asn
 			}
 		}
-	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+	} else if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 		return err
 	}
 

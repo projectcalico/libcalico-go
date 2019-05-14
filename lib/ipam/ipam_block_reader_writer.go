@@ -47,7 +47,7 @@ func (rw blockReaderWriter) getAffineBlocks(ctx context.Context, host string, ve
 	opts := model.BlockAffinityListOptions{Host: host, IPVersion: ver}
 	datastoreObjs, err := rw.client.List(ctx, opts, "")
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+		if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			// The block path does not exist yet.  This is OK - it means
 			// there are no affine blocks.
 			return
@@ -111,7 +111,7 @@ func (rw blockReaderWriter) findUnclaimedBlock(ctx context.Context, host string,
 			log.Debugf("Getting block: %s", subnet.String())
 			_, err := rw.queryBlock(ctx, *subnet, "")
 			if err != nil {
-				if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+				if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 					log.Infof("Found free block: %+v", *subnet)
 					return subnet, nil
 				}
@@ -135,7 +135,7 @@ func (rw blockReaderWriter) getPendingAffinity(ctx context.Context, host string,
 	}
 	aff, err := rw.client.Create(ctx, &obj)
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceAlreadyExists); !ok {
+		if !cerrors.HasType(err, cerrors.ErrorResourceAlreadyExists{}) {
 			logCtx.WithError(err).Error("Failed to claim affinity")
 			return nil, err
 		}
@@ -184,7 +184,7 @@ func (rw blockReaderWriter) claimAffineBlock(ctx context.Context, aff *model.KVP
 	logCtx.Info("Attempting to create a new block")
 	kvp, err := rw.client.Create(ctx, &o)
 	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceAlreadyExists); ok {
+		if cerrors.HasType(err, cerrors.ErrorResourceAlreadyExists{}) {
 			// Block already exists, check affinity.
 			logCtx.Info("The block already exists, getting it from data store")
 			obj, err := rw.queryBlock(ctx, subnet, "")
@@ -309,7 +309,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(ctx context.Context, host strin
 		logCtx.Debug("Block is empty - delete it")
 		err := rw.deleteBlock(ctx, obj)
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+			if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				logCtx.WithError(err).Error("Error deleting block")
 				return err
 			}
@@ -336,7 +336,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(ctx context.Context, host strin
 	// We've removed / updated the block, so perform a compare-and-delete on the BlockAffinity.
 	if err := rw.deleteAffinity(ctx, aff); err != nil {
 		// Return the error unless the affinity didn't exist.
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+		if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 			logCtx.Errorf("Error deleting block affinity: %v", err)
 			return err
 		}

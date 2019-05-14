@@ -73,10 +73,10 @@ func (c *WorkloadEndpointClient) DeleteKVP(ctx context.Context, kvp *model.KVPai
 
 func (c *WorkloadEndpointClient) Delete(ctx context.Context, key model.Key, revision string, uid *types.UID) (*model.KVPair, error) {
 	log.Warn("Operation Delete is not supported on WorkloadEndpoint type")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: key,
 		Operation:  "Delete",
-	}
+	})
 }
 
 // patchPodIP PATCHes the Kubernetes Pod associated with the given KVPair with the IP address it contains.
@@ -96,7 +96,7 @@ func (c *WorkloadEndpointClient) patchPodIP(ctx context.Context, kvp *model.KVPa
 		return nil, err
 	}
 	if wepID.Pod == "" {
-		return nil, cerrors.ErrorInsufficientIdentifiers{Name: kvp.Key.(model.ResourceKey).Name}
+		return nil, cerrors.New(cerrors.ErrorInsufficientIdentifiers{Name: kvp.Key.(model.ResourceKey).Name})
 	}
 	// Write the IP address into an annotation.  This generates an event more quickly than
 	// waiting for kubelet to update the Status.PodIP field.
@@ -140,10 +140,10 @@ func (c *WorkloadEndpointClient) Get(ctx context.Context, key model.Key, revisio
 		return nil, err
 	}
 	if wepID.Pod == "" {
-		return nil, cerrors.ErrorResourceDoesNotExist{
+		return nil, cerrors.New(cerrors.ErrorResourceDoesNotExist{
 			Identifier: key,
 			Err:        errors.New("malformed WorkloadEndpoint name - unable to determine Pod name"),
-		}
+		})
 	}
 
 	pod, err := c.clientSet.CoreV1().Pods(k.Namespace).Get(wepID.Pod, metav1.GetOptions{ResourceVersion: revision})
@@ -153,7 +153,7 @@ func (c *WorkloadEndpointClient) Get(ctx context.Context, key model.Key, revisio
 
 	// Decide if this pod should be displayed.
 	if !c.converter.IsValidCalicoWorkloadEndpoint(pod) {
-		return nil, cerrors.ErrorResourceDoesNotExist{Identifier: k}
+		return nil, cerrors.New(cerrors.ErrorResourceDoesNotExist{Identifier: k})
 	}
 	return c.converter.PodToWorkloadEndpoint(pod)
 }
@@ -171,16 +171,14 @@ func (c *WorkloadEndpointClient) List(ctx context.Context, list model.ListInterf
 			Kind:      l.Kind,
 		}, revision)
 		if err != nil {
-			switch err.(type) {
 			// Return empty slice of KVPair if the object doesn't exist, return the error otherwise.
-			case cerrors.ErrorResourceDoesNotExist:
+			if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				return &model.KVPairList{
 					KVPairs:  []*model.KVPair{},
 					Revision: revision,
 				}, nil
-			default:
-				return nil, err
 			}
+			return nil, err
 		}
 
 		return &model.KVPairList{

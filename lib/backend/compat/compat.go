@@ -219,7 +219,7 @@ func (c *ModelAdaptor) Delete(ctx context.Context, k model.Key, rev string) (*mo
 }
 
 func (c *ModelAdaptor) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
-	return nil, errors.ErrorOperationNotSupported{Operation: "DeleteKVP", Identifier: kvp.Key}
+	return nil, errors.New(errors.ErrorOperationNotSupported{Operation: "DeleteKVP", Identifier: kvp.Key})
 }
 
 // Get an entry from the datastore.  This errors if the entry does not exist.
@@ -434,7 +434,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(ctx context.Context, nk model.NodeKe
 				nv.BGPIPv4Addr = nil
 			}
 		}
-	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+	} else if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 		return err
 	}
 
@@ -447,7 +447,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(ctx context.Context, nk model.NodeKe
 				nv.BGPIPv4Net = nil
 			}
 		}
-	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+	} else if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 		return err
 	}
 
@@ -461,7 +461,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(ctx context.Context, nk model.NodeKe
 				nv.BGPIPv6Addr = nil
 			}
 		}
-	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+	} else if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 		return err
 	}
 
@@ -474,7 +474,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(ctx context.Context, nk model.NodeKe
 				nv.BGPIPv6Net = nil
 			}
 		}
-	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+	} else if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 		return err
 	}
 
@@ -488,7 +488,7 @@ func (c *ModelAdaptor) getNodeSubcomponents(ctx context.Context, nk model.NodeKe
 				nv.BGPASNumber = &asn
 			}
 		}
-	} else if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+	} else if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 		return err
 	}
 
@@ -510,7 +510,7 @@ func (c *ModelAdaptor) applyOrDeleteSubcomponents(ctx context.Context, component
 				return err
 			}
 		} else if _, err := c.client.Delete(ctx, component.Key, component.Revision); err != nil {
-			if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+			if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 				return err
 			}
 		}

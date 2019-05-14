@@ -50,18 +50,18 @@ type profileClient struct {
 
 func (c *profileClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	log.Warn("Operation Create is not supported on Profile type")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: kvp.Key,
 		Operation:  "Create",
-	}
+	})
 }
 
 func (c *profileClient) Update(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	log.Warn("Operation Update is not supported on Profile type")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: kvp.Key,
 		Operation:  "Update",
-	}
+	})
 }
 
 func (c *profileClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
@@ -70,10 +70,10 @@ func (c *profileClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*mode
 
 func (c *profileClient) Delete(ctx context.Context, key model.Key, revision string, uid *types.UID) (*model.KVPair, error) {
 	log.Warn("Operation Delete is not supported on Profile type")
-	return nil, cerrors.ErrorOperationNotSupported{
+	return nil, cerrors.New(cerrors.ErrorOperationNotSupported{
 		Identifier: key,
 		Operation:  "Delete",
-	}
+	})
 }
 
 func (c *profileClient) getSaKv(sa *kapiv1.ServiceAccount) (*model.KVPair, error) {
@@ -159,7 +159,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	if nl.Name != "" {
 		kvp, err := c.Get(ctx, model.ResourceKey{Name: nl.Name, Kind: nl.Kind}, revision)
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+			if !cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				return nil, err
 			}
 			return &model.KVPairList{

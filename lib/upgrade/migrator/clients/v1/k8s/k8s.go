@@ -137,7 +137,7 @@ func (c *KubeClient) ensureClusterType() (bool, error) {
 	// any existing values to it.
 	ct, err := c.Get(k)
 	if err != nil {
-		if _, ok := err.(errors.ErrorResourceDoesNotExist); !ok {
+		if !errors.HasType(err, errors.ErrorResourceDoesNotExist{}) {
 			// Resource exists but we got another error.
 			return false, err
 		}
@@ -205,20 +205,20 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 // not exist. (Not implemented for KDD.)
 func (c *KubeClient) Update(d *model.KVPair) (*model.KVPair, error) {
 	log.Warn("Attempt to 'Update' using kubernetes backend is not supported.")
-	return nil, errors.ErrorOperationNotSupported{
+	return nil, errors.New(errors.ErrorOperationNotSupported{
 		Identifier: d.Key,
 		Operation:  "Update",
-	}
+	})
 }
 
 // Set an existing entry in the datastore.  This ignores whether an entry already
 // exists.
 func (c *KubeClient) Apply(d *model.KVPair) (*model.KVPair, error) {
 	log.Warn("Attempt to 'Apply' using kubernetes backend is not supported.")
-	return nil, errors.ErrorOperationNotSupported{
+	return nil, errors.New(errors.ErrorOperationNotSupported{
 		Identifier: d.Key,
 		Operation:  "Apply",
-	}
+	})
 }
 
 // Get an entry from the datastore.  This errors if the entry does not exist.
@@ -232,10 +232,10 @@ func (c *KubeClient) Get(k model.Key) (*model.KVPair, error) {
 	case model.GlobalBGPConfigKey:
 		return c.globalBgpConfigClient.Get(k)
 	default:
-		return nil, errors.ErrorOperationNotSupported{
+		return nil, errors.New(errors.ErrorOperationNotSupported{
 			Identifier: k,
 			Operation:  "Get",
-		}
+		})
 	}
 }
 
@@ -254,9 +254,9 @@ func (c *KubeClient) List(l model.ListInterface) ([]*model.KVPair, error) {
 		k, _, err := c.globalBgpConfigClient.List(l)
 		return k, err
 	default:
-		return nil, errors.ErrorOperationNotSupported{
+		return nil, errors.New(errors.ErrorOperationNotSupported{
 			Identifier: l,
 			Operation:  "List",
-		}
+		})
 	}
 }

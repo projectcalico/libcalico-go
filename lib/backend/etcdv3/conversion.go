@@ -106,11 +106,11 @@ func etcdToKVPair(key model.Key, ekv *mvccpb.KeyValue) (*model.KVPair, error) {
 			// empty values for some resource types.
 			return nil, ErrMissingValue
 		}
-		return nil, errors.ErrorParsingDatastoreEntry{
+		return nil, errors.New(errors.ErrorParsingDatastoreEntry{
 			RawKey:   string(ekv.Key),
 			RawValue: string(ekv.Value),
 			Err:      err,
-		}
+		})
 	}
 
 	return &model.KVPair{

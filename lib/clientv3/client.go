@@ -216,7 +216,7 @@ func (c client) ensureClusterInformation(ctx context.Context, calicoVersion, clu
 		clusterInfo, err := c.ClusterInformation().Get(ctx, globalClusterInfoName, options.GetOptions{})
 		if err != nil {
 			// Create the default config if it doesn't already exist.
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceDoesNotExist{}) {
 				newClusterInfo := v3.NewClusterInformation()
 				newClusterInfo.Name = globalClusterInfoName
 				newClusterInfo.Spec.CalicoVersion = calicoVersion
@@ -226,7 +226,7 @@ func (c client) ensureClusterInformation(ctx context.Context, calicoVersion, clu
 				newClusterInfo.Spec.DatastoreReady = &datastoreReady
 				_, err = c.ClusterInformation().Create(ctx, newClusterInfo, options.SetOptions{})
 				if err != nil {
-					if _, ok := err.(cerrors.ErrorResourceAlreadyExists); ok {
+					if cerrors.HasType(err, cerrors.ErrorResourceAlreadyExists{}) {
 						log.Info("Failed to create global ClusterInformation; another node got there first.")
 						time.Sleep(1 * time.Second)
 						continue
@@ -297,7 +297,7 @@ func (c client) ensureClusterInformation(ctx context.Context, calicoVersion, clu
 
 		if updateNeeded {
 			_, err = c.ClusterInformation().Update(ctx, clusterInfo, options.SetOptions{})
-			if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+			if cerrors.HasType(err, cerrors.ErrorResourceUpdateConflict{}) {
 				log.WithError(err).WithField("ClusterInformation", clusterInfo).Warning(
 					"Conflict while updating cluster information, may retry")
 				time.Sleep(1 * time.Second)

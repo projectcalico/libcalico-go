@@ -34,7 +34,7 @@ type IPAMHandleKey struct {
 
 func (key IPAMHandleKey) defaultPath() (string, error) {
 	if key.HandleID == "" {
-		return "", errors.ErrorInsufficientIdentifiers{}
+		return "", errors.New(errors.ErrorInsufficientIdentifiers{})
 	}
 	e := fmt.Sprintf("/calico/ipam/v2/handle/%s", key.HandleID)
 	return e, nil

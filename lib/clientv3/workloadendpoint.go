@@ -141,13 +141,13 @@ func (r workloadEndpoints) assignOrValidateName(res *apiv3.WorkloadEndpoint) err
 		return nil
 	}
 	if res.Name != expectedName {
-		return errors.ErrorValidation{
+		return errors.New(errors.ErrorValidation{
 			ErroredFields: []errors.ErroredField{{
 				Name:   "Name",
 				Value:  res.Name,
 				Reason: fmt.Sprintf("the WorkloadEndpoint name does not match the primary identifiers assigned in the Spec: expected name %s", expectedName),
 			}},
-		}
+		})
 	}
 	return nil
 }
