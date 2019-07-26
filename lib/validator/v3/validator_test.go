@@ -1273,6 +1273,10 @@ func init() {
 			ASNumber:     as61234,
 			PeerSelector: "has(mylabel)",
 		}, false),
+		Entry("should accept BGPPeerSpec with both NodeASNumber and PeerSelector", api.BGPPeerSpec{
+			NodeASNumber: as61234,
+			PeerSelector: "has(mylabel)",
+		}, true),
 		Entry("should accept BGPPeerSpec with NodeSelector and PeerSelector", api.BGPPeerSpec{
 			NodeSelector: "has(mylabel)",
 			PeerSelector: "has(mylabel)",
