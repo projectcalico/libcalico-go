@@ -51,6 +51,9 @@ type BGPPeerSpec struct {
 	// Selector for the nodes that should have this peering.  When this is set, the Node
 	// field must be empty.
 	NodeSelector string `json:"nodeSelector,omitempty" validate:"omitempty,selector"`
+	// The AS Number that all remote nodes which have this peering will have. Takes precedence
+	// over the remote Node's spec.bgp.asNumber and the global default AS Number.
+	NodeASNumber numorstring.ASNumber `json:"omitempty,nodeAsNumber" validate:"omitempty"`
 	// Selector for the remote nodes to peer with.  When this is set, the PeerIP and
 	// ASNumber fields must be empty.  For each peering between the local node and
 	// selected remote nodes, we configure an IPv4 peering if both ends have
