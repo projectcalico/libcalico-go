@@ -162,6 +162,9 @@ type FelixConfigurationSpec struct {
 	VXLANPort *int `json:"vxlanPort,omitempty"`
 	VXLANVNI  *int `json:"vxlanVNI,omitempty"`
 
+	// RouteProtocol specifies the protocol to use to mark routes managed by felix using the default interface.
+	RouteProtocol int `config:"int;0"`
+
 	// ReportingInterval is the interval at which Felix reports its status into the datastore or 0 to disable.
 	// Must be non-zero in OpenStack deployments. [Default: 30s]
 	ReportingInterval *metav1.Duration `json:"reportingInterval,omitempty" configv1timescale:"seconds" confignamev1:"ReportingIntervalSecs"`

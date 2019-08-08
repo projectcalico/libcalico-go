@@ -71,7 +71,7 @@ var _ = Describe("Test the generic configuration update processor and the concre
 		Kind: apiv3.KindBGPConfiguration,
 		Name: "node.bgpnode1",
 	}
-	numFelixConfigs := 68
+	numFelixConfigs := 69
 	numClusterConfigs := 4
 	numNodeClusterConfigs := 3
 	numBgpConfigs := 3
@@ -111,6 +111,8 @@ var _ = Describe("Test the generic configuration update processor and the concre
 			Value: apiv3.NewFelixConfiguration(),
 		})
 		Expect(err).NotTo(HaveOccurred())
+		expected := felixMappedNames
+		expected["RouteProtocol"] = "0"
 		// Explicitly pass in the "mapped" name values to check to ensure the names are mapped.
 		checkExpectedConfigs(
 			kvps,
@@ -127,12 +129,14 @@ var _ = Describe("Test the generic configuration update processor and the concre
 			Value: apiv3.NewFelixConfiguration(),
 		})
 		Expect(err).NotTo(HaveOccurred())
+		expected := felixMappedNames
+		expected["RouteProtocol"] = "0"
 		// Explicitly pass in the "mapped" name values to check to ensure the names are mapped.
 		checkExpectedConfigs(
 			kvps,
 			isGlobalFelixConfig,
 			numFelixConfigs,
-			felixMappedNames,
+			expected,
 		)
 	})
 
@@ -229,6 +233,7 @@ var _ = Describe("Test the generic configuration update processor and the concre
 			"FailsafeOutboundHostPorts":          "tcp:1234,udp:22,tcp:65535",
 			"ExternalNodesCIDRList":              "1.1.1.1,2.2.2.2",
 			"IptablesNATOutgoingInterfaceFilter": "cali-123",
+			"RouteProtocol":                      "0",
 		}
 		kvps, err := cc.Process(&model.KVPair{
 			Key:   perNodeFelixKey,
