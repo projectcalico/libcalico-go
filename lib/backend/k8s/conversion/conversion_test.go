@@ -1849,6 +1849,157 @@ var _ = Describe("Test NetworkPolicy conversion (k8s <= 1.7, no policyTypes)", f
 		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Types[0]).To(Equal(apiv3.PolicyTypeIngress))
 	})
 
+	It("should parse a basic DryRun NetworkPolicy to a Policy", func() {
+		port80 := intstr.FromInt(80)
+		np := networkingv1.NetworkPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test.policy",
+				Namespace: "default",
+				Annotations: map[string]string{
+					"projectcalico.org/DryRun": "true",
+				},
+			},
+			Spec: networkingv1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"label":  "value",
+						"label2": "value2",
+					},
+				},
+				Ingress: []networkingv1.NetworkPolicyIngressRule{
+					{
+						Ports: []networkingv1.NetworkPolicyPort{
+							{Port: &port80},
+						},
+						From: []networkingv1.NetworkPolicyPeer{
+							{
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"k":  "v",
+										"k2": "v2",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Parse the policy.
+		pol, err := c.K8sNetworkPolicyToCalico(&np)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Assert key fields are correct.
+		Expect(pol.Key.(model.ResourceKey).Name).To(Equal("knp.default.test.policy"))
+
+		// Assert value fields are correct.
+		Expect(int(*pol.Value.(*apiv3.NetworkPolicy).Spec.Order)).To(Equal(1000))
+		// Check the selector is correct, and that the matches are sorted.
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Selector).To(Equal(
+			"projectcalico.org/orchestrator == 'k8s' && label == 'value' && label2 == 'value2'"))
+		protoTCP := numorstring.ProtocolFromString("TCP")
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress).To(ConsistOf(
+			apiv3.Rule{
+				Action:   "Allow",
+				Protocol: &protoTCP, // Defaulted to TCP.
+				Source: apiv3.EntityRule{
+					Selector: "projectcalico.org/orchestrator == 'k8s' && k == 'v' && k2 == 'v2'",
+				},
+				Destination: apiv3.EntityRule{
+					Ports: []numorstring.Port{numorstring.SinglePort(80)},
+				},
+			},
+			apiv3.Rule{
+				Action: "Log",
+			},
+			apiv3.Rule{
+				Action: "Allow",
+			},
+		))
+
+		// There should be no Egress rule.
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Egress).To(HaveLen(0))
+
+		// Check that Types field exists and has only 'ingress'
+		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Types)).To(Equal(1))
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Types[0]).To(Equal(apiv3.PolicyTypeIngress))
+	})
+
+	It("should parse a basic LogNoRuleMatch NetworkPolicy to a Policy", func() {
+		port80 := intstr.FromInt(80)
+		np := networkingv1.NetworkPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test.policy",
+				Namespace: "default",
+				Annotations: map[string]string{
+					"projectcalico.org/LogNoRuleMatch": "true",
+				},
+			},
+			Spec: networkingv1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"label":  "value",
+						"label2": "value2",
+					},
+				},
+				Ingress: []networkingv1.NetworkPolicyIngressRule{
+					{
+						Ports: []networkingv1.NetworkPolicyPort{
+							{Port: &port80},
+						},
+						From: []networkingv1.NetworkPolicyPeer{
+							{
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"k":  "v",
+										"k2": "v2",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Parse the policy.
+		pol, err := c.K8sNetworkPolicyToCalico(&np)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Assert key fields are correct.
+		Expect(pol.Key.(model.ResourceKey).Name).To(Equal("knp.default.test.policy"))
+
+		// Assert value fields are correct.
+		Expect(int(*pol.Value.(*apiv3.NetworkPolicy).Spec.Order)).To(Equal(1000))
+		// Check the selector is correct, and that the matches are sorted.
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Selector).To(Equal(
+			"projectcalico.org/orchestrator == 'k8s' && label == 'value' && label2 == 'value2'"))
+		protoTCP := numorstring.ProtocolFromString("TCP")
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Ingress).To(ConsistOf(
+			apiv3.Rule{
+				Action:   "Allow",
+				Protocol: &protoTCP, // Defaulted to TCP.
+				Source: apiv3.EntityRule{
+					Selector: "projectcalico.org/orchestrator == 'k8s' && k == 'v' && k2 == 'v2'",
+				},
+				Destination: apiv3.EntityRule{
+					Ports: []numorstring.Port{numorstring.SinglePort(80)},
+				},
+			},
+			apiv3.Rule{
+				Action: "Log",
+			},
+		))
+
+		// There should be no Egress rule.
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Egress).To(HaveLen(0))
+
+		// Check that Types field exists and has only 'ingress'
+		Expect(len(pol.Value.(*apiv3.NetworkPolicy).Spec.Types)).To(Equal(1))
+		Expect(pol.Value.(*apiv3.NetworkPolicy).Spec.Types[0]).To(Equal(apiv3.PolicyTypeIngress))
+	})
+
 	It("should parse a NetworkPolicy with no rules", func() {
 		np := networkingv1.NetworkPolicy{
 			ObjectMeta: metav1.ObjectMeta{
