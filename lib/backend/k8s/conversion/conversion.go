@@ -370,6 +370,27 @@ func (c Converter) K8sNetworkPolicyToCalico(np *networkingv1.NetworkPolicy) (*mo
 		}
 	}
 
+	dryRun := np.Annotations["projectcalico.org/DryRun"] == "true"
+
+	// The environment variable determines the default, false unless specified
+	logNoRuleMatch := os.Getenv("LOGNORULEMATCH") == "true"
+	switch np.Annotations["projectcalico.org/LogNoRuleMatch"] {
+	case "true":
+		logNoRuleMatch = true
+	case "false":
+		logNoRuleMatch = false
+	}
+
+	if len(ingressRules) > 0 {
+		if logNoRuleMatch || dryRun {
+			ingressRules = append(ingressRules, apiv3.Rule{Action: apiv3.Log})
+		}
+		if dryRun {
+			// Allow all traffic
+			ingressRules = append(ingressRules, apiv3.Rule{Action: apiv3.Allow})
+		}
+	}
+
 	// Generate the egress rules list.
 	var egressRules []apiv3.Rule
 	for _, r := range np.Spec.Egress {
@@ -378,6 +399,15 @@ func (c Converter) K8sNetworkPolicyToCalico(np *networkingv1.NetworkPolicy) (*mo
 			log.WithError(err).Warn("dropping k8s rule that couldn't be converted")
 		} else {
 			egressRules = append(egressRules, rules...)
+		}
+	}
+
+	if len(egressRules) > 0 {
+		if logNoRuleMatch || dryRun {
+			egressRules = append(egressRules, apiv3.Rule{Action: apiv3.Log})
+		}
+		if dryRun {
+			egressRules = append(egressRules, apiv3.Rule{Action: apiv3.Allow})
 		}
 	}
 
