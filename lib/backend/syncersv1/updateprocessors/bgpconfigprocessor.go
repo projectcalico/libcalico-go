@@ -79,5 +79,5 @@ var svcExternalIpsToString = func(value interface{}) interface{} {
 		ipCidrs = append(ipCidrs, ipBlock.CIDR)
 	}
 
-	return ipCidrs
+	return strings.Join(ipCidrs, ",")
 }
