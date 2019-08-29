@@ -47,7 +47,7 @@ type BGPConfigurationSpec struct {
 	ASNumber *numorstring.ASNumber `json:"asNumber,omitempty" validate:"omitempty" confignamev1:"as_num"`
 	// ServiceExternalIPs are the CIDR blocks for service External IP's that confd
 	// will allow to be advertised.
-	ServiceExternalIPs []SvcExternalIPBlock `json:"serviceExternalIPs,omitempty" validate:"omitempty"`
+	ServiceExternalIPs []SvcExternalIPBlock `json:"serviceExternalIPs,omitempty" validate:"omitempty" confignamev1:"svc_external_ips"`
 }
 
 // SvcExternalIPBlock represents a single whitelisted CIDR External IP block.
