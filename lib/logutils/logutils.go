@@ -185,10 +185,10 @@ func (hook ContextHook) Fire(entry *log.Entry) error {
 // - using strings.LastIndex(): ~10x slower
 // - omitting the package:      no benefit
 func shouldSkipFrame(frame runtime.Frame) bool {
-	if (strings.HasSuffix(frame.File, "/hooks.go") ||
+	if strings.HasSuffix(frame.File, "/hooks.go") ||
 		strings.HasSuffix(frame.File, "/entry.go") ||
 		strings.HasSuffix(frame.File, "/logger.go") ||
-		strings.HasSuffix(frame.File, "/exported.go")) {
+		strings.HasSuffix(frame.File, "/exported.go") {
 		if strings.Contains(frame.File, "/logrus") {
 			return true
 		}
