@@ -48,12 +48,12 @@ type BGPConfigurationSpec struct {
 	// ServiceExternalIPs are the CIDR blocks for service Kubernetes External IPs.
 	// Kubernetes Service ExternalIPs will only be advertised if they are within
 	// one of these blocks.
-	ServiceExternalIPs []SvcExternalIPBlock `json:"serviceExternalIPs,omitempty" validate:"omitempty,net" confignamev1:"svc_external_ips"`
+	ServiceExternalIPs []SvcExternalIPBlock `json:"serviceExternalIPs,omitempty" validate:"omitempty" confignamev1:"svc_external_ips"`
 }
 
 // SvcExternalIPBlock represents a single whitelisted CIDR External IP block.
 type SvcExternalIPBlock struct {
-	CIDR string `json:"cidr,omitempty" validate:"omitempty"`
+	CIDR string `json:"cidr,omitempty" validate:"omitempty,net"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
