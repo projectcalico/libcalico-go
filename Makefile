@@ -194,7 +194,7 @@ run-kubernetes-master: stop-kubernetes-master
 		--net=host --name st-apiserver \
 		--detach \
 		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} \
-		/hyperkube apiserver \
+		/hyperkube kube-apiserver \
 			--bind-address=0.0.0.0 \
 			--insecure-bind-address=0.0.0.0 \
 	        	--etcd-servers=http://127.0.0.1:2379 \
@@ -211,7 +211,7 @@ run-kubernetes-master: stop-kubernetes-master
 		--net=host --name st-controller-manager \
 		--detach \
 		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} \
-		/hyperkube controller-manager \
+		/hyperkube kube-controller-manager \
                         --master=127.0.0.1:8080 \
                         --min-resync-period=3m \
                         --allocate-node-cidrs=true \
