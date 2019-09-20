@@ -9,7 +9,7 @@ test: vendor ut fv
 
 # Define some constants
 #######################
-K8S_VERSION      ?= v1.14.1
+K8S_VERSION      ?= v1.16.0
 ETCD_VERSION     ?= v3.3.7
 COREDNS_VERSION  ?= 1.5.2
 GO_BUILD_VER     ?= v0.23
