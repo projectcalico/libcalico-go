@@ -37,7 +37,6 @@ func convertNetworkPolicyV2ToV1Key(v3key model.ResourceKey) (model.Key, error) {
 	return model.PolicyKey{
 		Name: v3key.Namespace + "/" + v3key.Name,
 	}, nil
-
 }
 
 func convertNetworkPolicyV2ToV1Value(val interface{}) (interface{}, error) {
@@ -46,17 +45,26 @@ func convertNetworkPolicyV2ToV1Value(val interface{}) (interface{}, error) {
 		return nil, errors.New("Value is not a valid NetworkPolicy resource value")
 	}
 
-	// If this policy is namespaced, then add a namespace selector.
 	spec := v3res.Spec
 	selector := spec.Selector
-	if v3res.Namespace != "" {
-		nsSelector := fmt.Sprintf("%s == '%s'", apiv3.LabelNamespace, v3res.Namespace)
-		if selector == "" {
-			selector = nsSelector
-		} else {
-			selector = fmt.Sprintf("(%s) && %s", selector, nsSelector)
+
+	// If this policy has a Namespace, ServiceAccountSelector and/or a NamespaceSelector add any of those values as a logical AND
+	// to any pre-existing selectors.
+	appendSelectorClause := func(selector, field, label string) string {
+		if field != "" {
+			s := fmt.Sprintf("%s == '%s'", label, field)
+			if selector != "" {
+				selector = fmt.Sprintf("(%s) && %s", selector, s)
+			} else {
+				selector = s
+			}
 		}
+		return selector
 	}
+
+	// WIP: this needs to add the right prefix to these fields instead of using 'apiv3.LabelNamespace'
+	selector = appendSelectorClause(selector, v3res.Namespace, apiv3.LabelNamespace)
+	selector = appendSelectorClause(selector, spec.ServiceAccountSelector, apiv3.LabelServiceAccount)
 
 	v1value := &model.Policy{
 		Namespace:      v3res.Namespace,

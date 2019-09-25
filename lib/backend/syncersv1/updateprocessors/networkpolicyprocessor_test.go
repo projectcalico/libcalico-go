@@ -15,6 +15,8 @@
 package updateprocessors_test
 
 import (
+	"fmt"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -165,15 +167,15 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 			},
 		}
 		order := float64(101)
-		selector := "mylabel == selectme"
 
 		res.Name = name2
 		res.Namespace = ns2
 		res.Spec.Order = &order
 		res.Spec.Ingress = []apiv3.Rule{irule}
 		res.Spec.Egress = []apiv3.Rule{erule}
-		res.Spec.Selector = selector
+		res.Spec.Selector = "mylabel == selectme"
 		res.Spec.Types = []apiv3.PolicyType{apiv3.PolicyTypeIngress}
+		res.Spec.ServiceAccountSelector = "role == 'development'"
 		kvps, err = up.Process(&model.KVPair{
 			Key:      v3NetworkPolicyKey2,
 			Value:    res,
@@ -181,20 +183,24 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		namespacedSelector := "(" + selector + ") && projectcalico.org/namespace == '" + ns2 + "'"
+		expectedSelector := fmt.Sprintf("(((mylabel == selectme) && %s) && %s)",
+			fmt.Sprintf("%s == %s", apiv3.LabelNamespace, res.Namespace),
+			fmt.Sprintf("%s == %s", apiv3.LabelServiceAccount, res.Spec.ServiceAccountSelector))
+
 		v1irule := updateprocessors.RuleAPIV2ToBackend(irule, ns2)
 		v1erule := updateprocessors.RuleAPIV2ToBackend(erule, ns2)
 		Expect(kvps).To(Equal([]*model.KVPair{
 			{
 				Key: v1NetworkPolicyKey2,
 				Value: &model.Policy{
-					Namespace:      ns2,
-					Order:          &order,
-					InboundRules:   []model.Rule{v1irule},
-					OutboundRules:  []model.Rule{v1erule},
-					Selector:       namespacedSelector,
-					ApplyOnForward: true,
-					Types:          []string{"ingress"},
+					Namespace:              ns2,
+					Order:                  &order,
+					InboundRules:           []model.Rule{v1irule},
+					OutboundRules:          []model.Rule{v1erule},
+					Selector:               expectedSelector,
+					ApplyOnForward:         true,
+					Types:                  []string{"ingress"},
+					ServiceAccountSelector: "role == 'development'",
 				},
 				Revision: "1234",
 			},
@@ -377,5 +383,4 @@ var _ = Describe("Test the NetworkPolicy update processor + conversion", func() 
 		Entry("should handle a NetworkPolicy with no rule selectors", np1, expected1),
 		Entry("should handle a NetworkPolicy with an empty ns selector", np2, expected2),
 	)
-
 })

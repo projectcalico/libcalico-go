@@ -15,6 +15,8 @@
 package updateprocessors_test
 
 import (
+	"fmt"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -148,16 +150,18 @@ var _ = Describe("Test the GlobalNetworkPolicy update processor", func() {
 			},
 		}
 		order := float64(101)
-		selector := "calico/k8s_ns == selectme"
 
+		res.Namespace = "default"
 		res.Spec.Order = &order
 		res.Spec.Ingress = []apiv3.Rule{irule}
 		res.Spec.Egress = []apiv3.Rule{erule}
-		res.Spec.Selector = selector
+		res.Spec.Selector = "(((projectcalico.org/namespace == default) && projectcalico.org/serviceaccount == a == b) && projectcalico.org/namespace == c == d)"
 		res.Spec.DoNotTrack = true
 		res.Spec.PreDNAT = false
 		res.Spec.ApplyOnForward = true
 		res.Spec.Types = []apiv3.PolicyType{apiv3.PolicyTypeIngress}
+		res.Spec.ServiceAccountSelector = "role == 'development'"
+		res.Spec.NamespaceSelector = "name == 'testing'"
 		kvps, err = up.Process(&model.KVPair{
 			Key:      v3GlobalNetworkPolicyKey2,
 			Value:    res,
@@ -165,20 +169,28 @@ var _ = Describe("Test the GlobalNetworkPolicy update processor", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
+		expectedSelector := fmt.Sprintf("(((%s) && %s) && %s)",
+			fmt.Sprintf("%s == %s", apiv3.LabelNamespace, res.Namespace),
+			fmt.Sprintf("%s == %s", apiv3.LabelServiceAccount, res.Spec.ServiceAccountSelector),
+			fmt.Sprintf("%s == %s", apiv3.LabelNamespace, res.Spec.NamespaceSelector))
+
 		v1irule := updateprocessors.RuleAPIV2ToBackend(irule, "")
 		v1erule := updateprocessors.RuleAPIV2ToBackend(erule, "")
 		Expect(kvps).To(Equal([]*model.KVPair{
 			{
 				Key: v1GlobalNetworkPolicyKey2,
 				Value: &model.Policy{
-					Order:          &order,
-					InboundRules:   []model.Rule{v1irule},
-					OutboundRules:  []model.Rule{v1erule},
-					Selector:       selector,
-					DoNotTrack:     true,
-					PreDNAT:        false,
-					ApplyOnForward: true,
-					Types:          []string{"ingress"},
+					Namespace:              "default",
+					Order:                  &order,
+					InboundRules:           []model.Rule{v1irule},
+					OutboundRules:          []model.Rule{v1erule},
+					Selector:               expectedSelector,
+					DoNotTrack:             true,
+					PreDNAT:                false,
+					ApplyOnForward:         true,
+					Types:                  []string{"ingress"},
+					ServiceAccountSelector: "role == 'development'",
+					NamespaceSelector:      "name == 'testing'",
 				},
 				Revision: "1234",
 			},

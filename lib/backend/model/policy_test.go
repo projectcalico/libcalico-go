@@ -22,19 +22,20 @@ import (
 )
 
 var _ = Describe("Policy functions", func() {
-
 	It("Policy should stringify correctly", func() {
 		order := 10.5
 		p := model.Policy{
-			Order:          &order,
-			InboundRules:   []model.Rule{model.Rule{Action: "Deny"}},
-			OutboundRules:  []model.Rule{model.Rule{Action: "Allow"}},
-			Selector:       "apples=='oranges'",
-			DoNotTrack:     false,
-			PreDNAT:        true,
-			ApplyOnForward: true,
-			Types:          []string{"Ingress", "Egress"},
+			Order:                  &order,
+			InboundRules:           []model.Rule{model.Rule{Action: "Deny"}},
+			OutboundRules:          []model.Rule{model.Rule{Action: "Allow"}},
+			Selector:               "apples=='oranges'",
+			DoNotTrack:             false,
+			PreDNAT:                true,
+			ApplyOnForward:         true,
+			Types:                  []string{"Ingress", "Egress"},
+			ServiceAccountSelector: "role=='production'",
+			NamespaceSelector:      "name=='testing'",
 		}
-		Expect(p.String()).To(Equal("order:10.5,selector:\"apples=='oranges'\",inbound:Deny,outbound:Allow,untracked:false,pre_dnat:true,apply_on_forward:true,types:Ingress;Egress"))
+		Expect(p.String()).To(Equal(`order:10.5,selector:"apples=='oranges'",inbound:Deny,outbound:Allow,untracked:false,pre_dnat:true,apply_on_forward:true,types:Ingress;Egress,serviceAccountSelector:"ksa.role=='production'",namespaceSelector:"kns.name=='testing'"`))
 	})
 })
