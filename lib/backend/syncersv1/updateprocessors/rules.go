@@ -294,3 +294,16 @@ func convertStringsToNets(strs []string) []*cnet.IPNet {
 	}
 	return nets
 }
+
+// PrefixAndAppendSelector prefixes a new selector string with the given prefix and appends it to an existing selector string.
+func PrefixAndAppendSelector(currentSelector, newSelector, prefix string) string {
+	if newSelector != "" {
+		prefixedSelector := parseSelectorAttachPrefix(newSelector, prefix)
+		if currentSelector != "" {
+			currentSelector = fmt.Sprintf("(%s) && %s", currentSelector, prefixedSelector)
+		} else {
+			currentSelector = prefixedSelector
+		}
+	}
+	return currentSelector
+}

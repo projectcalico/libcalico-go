@@ -36,6 +36,6 @@ var _ = Describe("Policy functions", func() {
 			ServiceAccountSelector: "role=='production'",
 			NamespaceSelector:      "name=='testing'",
 		}
-		Expect(p.String()).To(Equal(`order:10.5,selector:"apples=='oranges'",inbound:Deny,outbound:Allow,untracked:false,pre_dnat:true,apply_on_forward:true,types:Ingress;Egress,serviceAccountSelector:"ksa.role=='production'",namespaceSelector:"kns.name=='testing'"`))
+		Expect(p.String()).To(Equal(`order:10.5,selector:"apples=='oranges'",inbound:Deny,outbound:Allow,untracked:false,pre_dnat:true,apply_on_forward:true,types:Ingress;Egress,serviceAccountSelector:"role=='production'",namespaceSelector:"name=='testing'"`))
 	})
 })

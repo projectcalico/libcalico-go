@@ -16,9 +16,9 @@ package updateprocessors
 
 import (
 	"errors"
-	"fmt"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/backend/watchersyncer"
 )
@@ -48,22 +48,8 @@ func convertGlobalNetworkPolicyV2ToV1Value(val interface{}) (interface{}, error)
 	spec := v3res.Spec
 	selector := spec.Selector
 
-	// If this policy has a Namespace and/or a NamespaceSelector add any of those values as a logical AND
-	// to any pre-existing selectors.
-	appendSelectorClause := func(selector, field, label string) string {
-		if field != "" {
-			s := fmt.Sprintf("%s == '%s'", label, field)
-			if selector != "" {
-				selector = fmt.Sprintf("(%s) && %s", selector, s)
-			} else {
-				selector = s
-			}
-		}
-		return selector
-	}
-
-	// WIP: this needs to add the right prefix to these fields instead of using 'apiv3.LabelNamespace'
-	selector = appendSelectorClause(selector, spec.NamespaceSelector, apiv3.LabelNamespace)
+	selector = PrefixAndAppendSelector(selector, spec.NamespaceSelector, conversion.NamespaceLabelPrefix)
+	selector = PrefixAndAppendSelector(selector, spec.ServiceAccountSelector, conversion.ServiceAccountLabelPrefix)
 
 	v1value := &model.Policy{
 		Namespace:      "", // Empty string used to signal a GlobalNetworkPolicy.

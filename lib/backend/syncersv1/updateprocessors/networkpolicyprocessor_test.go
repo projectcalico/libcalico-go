@@ -15,8 +15,6 @@
 package updateprocessors_test
 
 import (
-	"fmt"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -183,24 +181,19 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		expectedSelector := fmt.Sprintf("(((mylabel == selectme) && %s) && %s)",
-			fmt.Sprintf("%s == %s", apiv3.LabelNamespace, res.Namespace),
-			fmt.Sprintf("%s == %s", apiv3.LabelServiceAccount, res.Spec.ServiceAccountSelector))
-
 		v1irule := updateprocessors.RuleAPIV2ToBackend(irule, ns2)
 		v1erule := updateprocessors.RuleAPIV2ToBackend(erule, ns2)
 		Expect(kvps).To(Equal([]*model.KVPair{
 			{
 				Key: v1NetworkPolicyKey2,
 				Value: &model.Policy{
-					Namespace:              ns2,
-					Order:                  &order,
-					InboundRules:           []model.Rule{v1irule},
-					OutboundRules:          []model.Rule{v1erule},
-					Selector:               expectedSelector,
-					ApplyOnForward:         true,
-					Types:                  []string{"ingress"},
-					ServiceAccountSelector: "role == 'development'",
+					Namespace:      ns2,
+					Order:          &order,
+					InboundRules:   []model.Rule{v1irule},
+					OutboundRules:  []model.Rule{v1erule},
+					Selector:       "((mylabel == selectme) && projectcalico.org/namespace == 'namespace2') && pcsa.role == \"development\"",
+					ApplyOnForward: true,
+					Types:          []string{"ingress"},
 				},
 				Revision: "1234",
 			},

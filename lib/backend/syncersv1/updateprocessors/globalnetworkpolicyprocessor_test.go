@@ -15,8 +15,6 @@
 package updateprocessors_test
 
 import (
-	"fmt"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -155,7 +153,7 @@ var _ = Describe("Test the GlobalNetworkPolicy update processor", func() {
 		res.Spec.Order = &order
 		res.Spec.Ingress = []apiv3.Rule{irule}
 		res.Spec.Egress = []apiv3.Rule{erule}
-		res.Spec.Selector = "(((projectcalico.org/namespace == default) && projectcalico.org/serviceaccount == a == b) && projectcalico.org/namespace == c == d)"
+		res.Spec.Selector = "calico/k8s_ns == selectme"
 		res.Spec.DoNotTrack = true
 		res.Spec.PreDNAT = false
 		res.Spec.ApplyOnForward = true
@@ -169,28 +167,20 @@ var _ = Describe("Test the GlobalNetworkPolicy update processor", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		expectedSelector := fmt.Sprintf("(((%s) && %s) && %s)",
-			fmt.Sprintf("%s == %s", apiv3.LabelNamespace, res.Namespace),
-			fmt.Sprintf("%s == %s", apiv3.LabelServiceAccount, res.Spec.ServiceAccountSelector),
-			fmt.Sprintf("%s == %s", apiv3.LabelNamespace, res.Spec.NamespaceSelector))
-
 		v1irule := updateprocessors.RuleAPIV2ToBackend(irule, "")
 		v1erule := updateprocessors.RuleAPIV2ToBackend(erule, "")
 		Expect(kvps).To(Equal([]*model.KVPair{
 			{
 				Key: v1GlobalNetworkPolicyKey2,
 				Value: &model.Policy{
-					Namespace:              "default",
-					Order:                  &order,
-					InboundRules:           []model.Rule{v1irule},
-					OutboundRules:          []model.Rule{v1erule},
-					Selector:               expectedSelector,
-					DoNotTrack:             true,
-					PreDNAT:                false,
-					ApplyOnForward:         true,
-					Types:                  []string{"ingress"},
-					ServiceAccountSelector: "role == 'development'",
-					NamespaceSelector:      "name == 'testing'",
+					Order:          &order,
+					InboundRules:   []model.Rule{v1irule},
+					OutboundRules:  []model.Rule{v1erule},
+					Selector:       "((calico/k8s_ns == selectme) && pcns.name == \"testing\") && pcsa.role == \"development\"",
+					DoNotTrack:     true,
+					PreDNAT:        false,
+					ApplyOnForward: true,
+					Types:          []string{"ingress"},
 				},
 				Revision: "1234",
 			},

@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/backend/watchersyncer"
 )
@@ -48,23 +49,16 @@ func convertNetworkPolicyV2ToV1Value(val interface{}) (interface{}, error) {
 	spec := v3res.Spec
 	selector := spec.Selector
 
-	// If this policy has a Namespace, ServiceAccountSelector and/or a NamespaceSelector add any of those values as a logical AND
-	// to any pre-existing selectors.
-	appendSelectorClause := func(selector, field, label string) string {
-		if field != "" {
-			s := fmt.Sprintf("%s == '%s'", label, field)
-			if selector != "" {
-				selector = fmt.Sprintf("(%s) && %s", selector, s)
-			} else {
-				selector = s
-			}
+	if v3res.Namespace != "" {
+		nsSelector := fmt.Sprintf("%s == '%s'", apiv3.LabelNamespace, v3res.Namespace)
+		if selector == "" {
+			selector = nsSelector
+		} else {
+			selector = fmt.Sprintf("(%s) && %s", selector, nsSelector)
 		}
-		return selector
 	}
 
-	// WIP: this needs to add the right prefix to these fields instead of using 'apiv3.LabelNamespace'
-	selector = appendSelectorClause(selector, v3res.Namespace, apiv3.LabelNamespace)
-	selector = appendSelectorClause(selector, spec.ServiceAccountSelector, apiv3.LabelServiceAccount)
+	selector = PrefixAndAppendSelector(selector, spec.ServiceAccountSelector, conversion.ServiceAccountLabelPrefix)
 
 	v1value := &model.Policy{
 		Namespace:      v3res.Namespace,
