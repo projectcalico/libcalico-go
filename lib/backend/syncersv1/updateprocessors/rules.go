@@ -49,7 +49,7 @@ func entityRuleAPIV2TOBackend(er *apiv3.EntityRule, ns string) (nsSelector, sele
 	if er.NamespaceSelector != "" {
 		// A namespace selector was given - the rule applies to all namespaces
 		// which match this selector.
-		nsSelector = parseSelectorAttachPrefix(er.NamespaceSelector, conversion.NamespaceLabelPrefix)
+		nsSelector = ParseSelectorAttachPrefix(er.NamespaceSelector, conversion.NamespaceLabelPrefix)
 
 		// We treat "all()" as "select all namespaces". Since in the v1 data model "all()" will select
 		// all endpoints, translate this to an equivalent expressions which means select any workload that
@@ -192,21 +192,6 @@ func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 	return r
 }
 
-// parseSelectorAttachPrefix takes a v3 selector and returns the appropriate v1 representation
-// by prefixing the keys with the given prefix.
-// If prefix is `pcns.` then the selector changes from `k == 'v'` to `pcns.k == 'v'`.
-func parseSelectorAttachPrefix(s, prefix string) string {
-	parsedSelector, err := parser.Parse(s)
-	if err != nil {
-		log.WithError(err).Errorf("Failed to parse selector: %s (for prefix) %s", s, prefix)
-		return ""
-	}
-	parsedSelector.AcceptVisitor(parser.PrefixVisitor{Prefix: prefix})
-	updated := parsedSelector.String()
-	log.WithFields(log.Fields{"original": s, "updated": updated}).Debug("Updated selector")
-	return updated
-}
-
 // parseServiceAccounts takes a v3 service account match and returns the appropriate v1 representation
 // by converting the list of service account names into a set of service account with
 // key: "projectcalico.org/serviceaccount" in { 'sa-1', 'sa-2' } AND
@@ -214,7 +199,7 @@ func parseSelectorAttachPrefix(s, prefix string) string {
 func parseServiceAccounts(sam *apiv3.ServiceAccountMatch) string {
 	var updated string
 	if sam.Selector != "" {
-		updated = parseSelectorAttachPrefix(sam.Selector, conversion.ServiceAccountLabelPrefix)
+		updated = ParseSelectorAttachPrefix(sam.Selector, conversion.ServiceAccountLabelPrefix)
 	}
 	if len(sam.Names) == 0 {
 		return updated
@@ -293,17 +278,4 @@ func convertStringsToNets(strs []string) []*cnet.IPNet {
 		nets = append(nets, ipn)
 	}
 	return nets
-}
-
-// PrefixAndAppendSelector prefixes a new selector string with the given prefix and appends it to an existing selector string.
-func PrefixAndAppendSelector(currentSelector, newSelector, prefix string) string {
-	if newSelector != "" {
-		prefixedSelector := parseSelectorAttachPrefix(newSelector, prefix)
-		if currentSelector != "" {
-			currentSelector = fmt.Sprintf("(%s) && %s", currentSelector, prefixedSelector)
-		} else {
-			currentSelector = prefixedSelector
-		}
-	}
-	return currentSelector
 }
