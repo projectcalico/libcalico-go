@@ -89,7 +89,7 @@ type NetworkPolicySpec struct {
 	Types []PolicyType `json:"types,omitempty" validate:"omitempty,dive,policyType"`
 
 	// ServiceAccountSelector is an optional field for an expression used to select a pod based on service accounts.
-	ServiceAccountSelector string `json:"serviceAccountSelector,omitempty"`
+	ServiceAccountSelector string `json:"serviceAccountSelector,omitempty" validate:"selector"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

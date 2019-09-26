@@ -171,7 +171,7 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 		res.Spec.Order = &order
 		res.Spec.Ingress = []apiv3.Rule{irule}
 		res.Spec.Egress = []apiv3.Rule{erule}
-		res.Spec.Selector = "mylabel == selectme"
+		res.Spec.Selector = "mylabel == 'selectme'"
 		res.Spec.Types = []apiv3.PolicyType{apiv3.PolicyTypeIngress}
 		res.Spec.ServiceAccountSelector = "role == 'development'"
 		kvps, err = up.Process(&model.KVPair{
@@ -191,7 +191,7 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 					Order:          &order,
 					InboundRules:   []model.Rule{v1irule},
 					OutboundRules:  []model.Rule{v1erule},
-					Selector:       "((mylabel == selectme) && projectcalico.org/namespace == 'namespace2') && pcsa.role == \"development\"",
+					Selector:       "((mylabel == 'selectme') && projectcalico.org/namespace == 'namespace2') && pcsa.role == \"development\"",
 					ApplyOnForward: true,
 					Types:          []string{"ingress"},
 				},

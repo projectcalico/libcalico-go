@@ -118,10 +118,10 @@ type GlobalNetworkPolicySpec struct {
 	ApplyOnForward bool `json:"applyOnForward,omitempty"`
 
 	// ServiceAccountSelector is an optional field for an expression used to select a pod based on service accounts.
-	ServiceAccountSelector string `json:"serviceAccountSelector,omitempty"`
+	ServiceAccountSelector string `json:"serviceAccountSelector,omitempty" validate:"selector"`
 
 	// NamespaceSelector is an optional field for an expression used to select a pod based on namespaces.
-	NamespaceSelector string `json:"namespaceSelector,omitempty"`
+	NamespaceSelector string `json:"namespaceSelector,omitempty" validate"selector"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

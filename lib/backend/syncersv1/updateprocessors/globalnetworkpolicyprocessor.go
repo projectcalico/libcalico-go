@@ -16,6 +16,7 @@ package updateprocessors
 
 import (
 	"errors"
+	"strings"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
@@ -48,7 +49,12 @@ func convertGlobalNetworkPolicyV2ToV1Value(val interface{}) (interface{}, error)
 	spec := v3res.Spec
 	selector := spec.Selector
 
-	selector = PrefixAndAppendSelector(selector, spec.NamespaceSelector, conversion.NamespaceLabelPrefix)
+	nsSelector := spec.NamespaceSelector
+	if nsSelector != "" {
+		nsSelector = strings.Replace(nsSelector, "all()", "has(projectcalico.org/namespace)", -1)
+		selector = PrefixAndAppendSelector(selector, nsSelector, conversion.NamespaceLabelPrefix)
+	}
+
 	selector = PrefixAndAppendSelector(selector, spec.ServiceAccountSelector, conversion.ServiceAccountLabelPrefix)
 
 	v1value := &model.Policy{

@@ -89,18 +89,16 @@ func (options PolicyListOptions) KeyFromDefaultPath(path string) Key {
 }
 
 type Policy struct {
-	Namespace              string            `json:"namespace,omitempty" validate:"omitempty"`
-	Order                  *float64          `json:"order,omitempty" validate:"omitempty"`
-	InboundRules           []Rule            `json:"inbound_rules,omitempty" validate:"omitempty,dive"`
-	OutboundRules          []Rule            `json:"outbound_rules,omitempty" validate:"omitempty,dive"`
-	Selector               string            `json:"selector" validate:"selector"`
-	DoNotTrack             bool              `json:"untracked,omitempty"`
-	Annotations            map[string]string `json:"annotations,omitempty"`
-	PreDNAT                bool              `json:"pre_dnat,omitempty"`
-	ApplyOnForward         bool              `json:"apply_on_forward,omitempty"`
-	Types                  []string          `json:"types,omitempty"`
-	ServiceAccountSelector string            `json:"serviceAccountSelector,omitempty" validate:"serviceAccountSelector"`
-	NamespaceSelector      string            `json:"namespaceSelector,omitempty" validate:"namespaceSelector"`
+	Namespace      string            `json:"namespace,omitempty" validate:"omitempty"`
+	Order          *float64          `json:"order,omitempty" validate:"omitempty"`
+	InboundRules   []Rule            `json:"inbound_rules,omitempty" validate:"omitempty,dive"`
+	OutboundRules  []Rule            `json:"outbound_rules,omitempty" validate:"omitempty,dive"`
+	Selector       string            `json:"selector" validate:"selector"`
+	DoNotTrack     bool              `json:"untracked,omitempty"`
+	Annotations    map[string]string `json:"annotations,omitempty"`
+	PreDNAT        bool              `json:"pre_dnat,omitempty"`
+	ApplyOnForward bool              `json:"apply_on_forward,omitempty"`
+	Types          []string          `json:"types,omitempty"`
 }
 
 func (p Policy) String() string {
@@ -123,7 +121,5 @@ func (p Policy) String() string {
 	parts = append(parts, fmt.Sprintf("pre_dnat:%v", p.PreDNAT))
 	parts = append(parts, fmt.Sprintf("apply_on_forward:%v", p.ApplyOnForward))
 	parts = append(parts, fmt.Sprintf("types:%v", strings.Join(p.Types, ";")))
-	parts = append(parts, fmt.Sprintf("serviceAccountSelector:%#v", p.ServiceAccountSelector))
-	parts = append(parts, fmt.Sprintf("namespaceSelector:%#v", p.NamespaceSelector))
 	return strings.Join(parts, ",")
 }
