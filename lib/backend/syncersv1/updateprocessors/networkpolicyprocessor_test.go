@@ -32,11 +32,6 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
 
-func mustParseCIDR(cidr string) *cnet.IPNet {
-	ipn := cnet.MustParseCIDR(cidr)
-	return &ipn
-}
-
 var _ = Describe("Test the NetworkPolicy update processor", func() {
 	name1 := "name1"
 	name2 := "name2"
@@ -88,87 +83,9 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 		By("adding another NetworkPolicy with a full configuration")
 		res = apiv3.NewNetworkPolicy()
 
-		v4 := 4
-		itype := 1
-		intype := 3
-		icode := 4
-		incode := 6
-		iproto := numorstring.ProtocolFromString("TCP")
-		inproto := numorstring.ProtocolFromString("UDP")
-		port80 := numorstring.SinglePort(uint16(80))
-		port443 := numorstring.SinglePort(uint16(443))
-		irule := apiv3.Rule{
-			Action:    apiv3.Allow,
-			IPVersion: &v4,
-			Protocol:  &iproto,
-			ICMP: &apiv3.ICMPFields{
-				Type: &itype,
-				Code: &icode,
-			},
-			NotProtocol: &inproto,
-			NotICMP: &apiv3.ICMPFields{
-				Type: &intype,
-				Code: &incode,
-			},
-			Source: apiv3.EntityRule{
-				Nets:        []string{"10.100.10.1"},
-				Selector:    "mylabel = value1",
-				Ports:       []numorstring.Port{port80},
-				NotNets:     []string{"192.168.40.1"},
-				NotSelector: "has(label1)",
-				NotPorts:    []numorstring.Port{port443},
-			},
-			Destination: apiv3.EntityRule{
-				Nets:        []string{"10.100.1.1"},
-				Selector:    "",
-				Ports:       []numorstring.Port{port443},
-				NotNets:     []string{"192.168.80.1"},
-				NotSelector: "has(label2)",
-				NotPorts:    []numorstring.Port{port80},
-			},
-		}
-
-		etype := 2
-		entype := 7
-		ecode := 5
-		encode := 8
-		eproto := numorstring.ProtocolFromInt(uint8(30))
-		enproto := numorstring.ProtocolFromInt(uint8(62))
-		erule := apiv3.Rule{
-			Action:    apiv3.Allow,
-			IPVersion: &v4,
-			Protocol:  &eproto,
-			ICMP: &apiv3.ICMPFields{
-				Type: &etype,
-				Code: &ecode,
-			},
-			NotProtocol: &enproto,
-			NotICMP: &apiv3.ICMPFields{
-				Type: &entype,
-				Code: &encode,
-			},
-			Source: apiv3.EntityRule{
-				Nets:        []string{"10.100.1.1"},
-				Selector:    "pcns.namespacelabel1 == 'value1'",
-				Ports:       []numorstring.Port{port443},
-				NotNets:     []string{"192.168.80.1"},
-				NotSelector: "has(label2)",
-				NotPorts:    []numorstring.Port{port80},
-			},
-			Destination: apiv3.EntityRule{
-				Nets:        []string{"10.100.10.1"},
-				Selector:    "pcns.namespacelabel2 == 'value2'",
-				Ports:       []numorstring.Port{port80},
-				NotNets:     []string{"192.168.40.1"},
-				NotSelector: "has(label1)",
-				NotPorts:    []numorstring.Port{port443},
-			},
-		}
-		order := float64(101)
-
 		res.Name = name2
 		res.Namespace = ns2
-		res.Spec.Order = &order
+		res.Spec.Order = &defaultOrder
 		res.Spec.Ingress = []apiv3.Rule{irule}
 		res.Spec.Egress = []apiv3.Rule{erule}
 		res.Spec.Selector = "mylabel == 'selectme'"
@@ -188,7 +105,7 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 				Key: v1NetworkPolicyKey2,
 				Value: &model.Policy{
 					Namespace:      ns2,
-					Order:          &order,
+					Order:          &defaultOrder,
 					InboundRules:   []model.Rule{v1irule},
 					OutboundRules:  []model.Rule{v1erule},
 					Selector:       "((mylabel == 'selectme') && projectcalico.org/namespace == 'namespace2') && pcsa.role == \"development\"",
@@ -289,14 +206,12 @@ var np1 = networkingv1.NetworkPolicy{
 
 // expected1 is the expected v1 KVPair representation of np1 from above.
 var tcp = numorstring.ProtocolFromStringV1("tcp")
-var port80 = numorstring.SinglePort(uint16(80))
-var order float64 = 1000.0
 var expected1 = []*model.KVPair{
 	&model.KVPair{
 		Key: model.PolicyKey{Name: "default/knp.default.test.policy"},
 		Value: &model.Policy{
 			Namespace:      "default",
-			Order:          &order,
+			Order:          &defaultOrder,
 			Selector:       "(projectcalico.org/orchestrator == 'k8s') && projectcalico.org/namespace == 'default'",
 			Types:          []string{"egress"},
 			ApplyOnForward: true,
@@ -338,7 +253,7 @@ var expected2 = []*model.KVPair{
 		Key: model.PolicyKey{Name: "default/knp.default.test.policy"},
 		Value: &model.Policy{
 			Namespace:      "default",
-			Order:          &order,
+			Order:          &defaultOrder,
 			Selector:       "(projectcalico.org/orchestrator == 'k8s') && projectcalico.org/namespace == 'default'",
 			Types:          []string{"ingress"},
 			ApplyOnForward: true,

@@ -40,10 +40,12 @@ func ParseSelectorAttachPrefix(s, prefix string) string {
 func PrefixAndAppendSelector(currentSelector, newSelector, prefix string) string {
 	if newSelector != "" {
 		prefixedSelector := ParseSelectorAttachPrefix(newSelector, prefix)
-		if currentSelector != "" {
-			currentSelector = fmt.Sprintf("(%s) && %s", currentSelector, prefixedSelector)
-		} else {
-			currentSelector = prefixedSelector
+		if prefixedSelector != "" {
+			if currentSelector != "" {
+				currentSelector = fmt.Sprintf("(%s) && %s", currentSelector, prefixedSelector)
+			} else {
+				currentSelector = prefixedSelector
+			}
 		}
 	}
 	return currentSelector

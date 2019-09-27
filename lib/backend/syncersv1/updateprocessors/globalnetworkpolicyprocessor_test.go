@@ -22,226 +22,136 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/backend/syncersv1/updateprocessors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
-	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
 
 var _ = Describe("Test the GlobalNetworkPolicy update processor", func() {
-	name1 := "name1"
-	name2 := "name2"
+	emptyGNPKey := model.ResourceKey{Kind: apiv3.KindGlobalNetworkPolicy, Name: "empty"}
+	emptyGNP := apiv3.NewGlobalNetworkPolicy()
 
-	v3GlobalNetworkPolicyKey1 := model.ResourceKey{
-		Kind: apiv3.KindGlobalNetworkPolicy,
-		Name: name1,
-	}
-	v3GlobalNetworkPolicyKey2 := model.ResourceKey{
-		Kind: apiv3.KindGlobalNetworkPolicy,
-		Name: name2,
-	}
-	v1GlobalNetworkPolicyKey1 := model.PolicyKey{
-		Name: name1,
-	}
-	v1GlobalNetworkPolicyKey2 := model.PolicyKey{
-		Name: name2,
-	}
+	minimalGNPKey := model.ResourceKey{Kind: apiv3.KindGlobalNetworkPolicy, Name: "minimal"}
+	minimalGNP := apiv3.NewGlobalNetworkPolicy()
+	minimalGNP.Spec.PreDNAT = true
+	minimalGNP.Spec.ApplyOnForward = true
 
-	It("should handle conversion of valid GlobalNetworkPolicys", func() {
+	simpleGNPKey := model.ResourceKey{Kind: apiv3.KindGlobalNetworkPolicy, Name: "simple"}
+	simpleGNP := apiv3.NewGlobalNetworkPolicy()
+	simpleGNP.Namespace = "default"
+	simpleGNP.Spec.Order = &order
+	simpleGNP.Spec.Ingress = []apiv3.Rule{irule}
+	simpleGNP.Spec.Egress = []apiv3.Rule{erule}
+	simpleGNP.Spec.Selector = "calico/k8s_ns == selectme"
+	simpleGNP.Spec.DoNotTrack = true
+	simpleGNP.Spec.PreDNAT = false
+	simpleGNP.Spec.ApplyOnForward = true
+	simpleGNP.Spec.Types = []apiv3.PolicyType{apiv3.PolicyTypeIngress}
+
+	// GlobalNetworkPolicies with valid and invalid ServiceAccountSelectors
+	validSASelectorKey := model.ResourceKey{Kind: apiv3.KindGlobalNetworkPolicy, Name: "validSASelector"}
+	validSASelector := simpleGNP.DeepCopy()
+	validSASelector.Spec.ServiceAccountSelector = "role == 'development'"
+
+	invalidSASelectorKey := model.ResourceKey{Kind: apiv3.KindGlobalNetworkPolicy, Name: "invalidSASelector"}
+	invalidSASelector := simpleGNP.DeepCopy()
+	invalidSASelector.Spec.ServiceAccountSelector = "role 'development'"
+
+	// GlobalNetworkPolicies with valid and invalid NamespaceSelectors
+	validNSSelectorKey := model.ResourceKey{Kind: apiv3.KindGlobalNetworkPolicy, Name: "validNSSelector"}
+	validNSSelector := simpleGNP.DeepCopy()
+	validNSSelector.Spec.NamespaceSelector = "name == 'testing'"
+
+	invalidNSSelectorKey := model.ResourceKey{Kind: apiv3.KindGlobalNetworkPolicy, Name: "invalidNSSelector"}
+	invalidNSSelector := simpleGNP.DeepCopy()
+	invalidNSSelector.Spec.NamespaceSelector = "name 'testing'"
+
+	// V3 model.KVPair Revision
+	rev := "1234"
+
+	Context("test processing of a valid GlobalNetworkPolicy from V3 to V1", func() {
 		up := updateprocessors.NewGlobalNetworkPolicyUpdateProcessor()
 
-		By("converting a GlobalNetworkPolicy with minimum configuration")
-		res := apiv3.NewGlobalNetworkPolicy()
-		res.Spec.PreDNAT = true
-		res.Spec.ApplyOnForward = true
+		It("should accept a GlobalNetworkPolicy with minimum configuration", func() {
+			kvps, err := up.Process(&model.KVPair{Key: minimalGNPKey, Value: minimalGNP, Revision: rev})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(kvps).To(HaveLen(1))
 
-		kvps, err := up.Process(&model.KVPair{
-			Key:      v3GlobalNetworkPolicyKey1,
-			Value:    res,
-			Revision: "abcde",
-		})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(kvps).To(HaveLen(1))
-		Expect(kvps[0]).To(Equal(&model.KVPair{
-			Key: v1GlobalNetworkPolicyKey1,
-			Value: &model.Policy{
-				PreDNAT:        true,
-				ApplyOnForward: true,
-			},
-			Revision: "abcde",
-		}))
-
-		By("adding another GlobalNetworkPolicy with a full configuration")
-		res = apiv3.NewGlobalNetworkPolicy()
-
-		v4 := 4
-		itype := 1
-		intype := 3
-		icode := 4
-		incode := 6
-		iproto := numorstring.ProtocolFromString("TCP")
-		inproto := numorstring.ProtocolFromString("UDP")
-		port80 := numorstring.SinglePort(uint16(80))
-		port443 := numorstring.SinglePort(uint16(443))
-		irule := apiv3.Rule{
-			Action:    apiv3.Allow,
-			IPVersion: &v4,
-			Protocol:  &iproto,
-			ICMP: &apiv3.ICMPFields{
-				Type: &itype,
-				Code: &icode,
-			},
-			NotProtocol: &inproto,
-			NotICMP: &apiv3.ICMPFields{
-				Type: &intype,
-				Code: &incode,
-			},
-			Source: apiv3.EntityRule{
-				Nets:        []string{"10.100.10.1"},
-				Selector:    "calico/k8s_ns == selector1",
-				Ports:       []numorstring.Port{port80},
-				NotNets:     []string{"192.168.40.1"},
-				NotSelector: "has(label1)",
-				NotPorts:    []numorstring.Port{port443},
-			},
-			Destination: apiv3.EntityRule{
-				Nets:        []string{"10.100.1.1"},
-				Selector:    "calico/k8s_ns == selector2",
-				Ports:       []numorstring.Port{port443},
-				NotNets:     []string{"192.168.80.1"},
-				NotSelector: "has(label2)",
-				NotPorts:    []numorstring.Port{port80},
-			},
-		}
-
-		etype := 2
-		entype := 7
-		ecode := 5
-		encode := 8
-		eproto := numorstring.ProtocolFromInt(uint8(30))
-		enproto := numorstring.ProtocolFromInt(uint8(62))
-		erule := apiv3.Rule{
-			Action:    apiv3.Allow,
-			IPVersion: &v4,
-			Protocol:  &eproto,
-			ICMP: &apiv3.ICMPFields{
-				Type: &etype,
-				Code: &ecode,
-			},
-			NotProtocol: &enproto,
-			NotICMP: &apiv3.ICMPFields{
-				Type: &entype,
-				Code: &encode,
-			},
-			Source: apiv3.EntityRule{
-				Nets:        []string{"10.100.1.1"},
-				Selector:    "calico/k8s_ns == selector2",
-				Ports:       []numorstring.Port{port443},
-				NotNets:     []string{"192.168.80.1"},
-				NotSelector: "has(label2)",
-				NotPorts:    []numorstring.Port{port80},
-			},
-			Destination: apiv3.EntityRule{
-				Nets:        []string{"10.100.10.1"},
-				Selector:    "calico/k8s_ns == selector1",
-				Ports:       []numorstring.Port{port80},
-				NotNets:     []string{"192.168.40.1"},
-				NotSelector: "has(label1)",
-				NotPorts:    []numorstring.Port{port443},
-			},
-		}
-		order := float64(101)
-
-		res.Namespace = "default"
-		res.Spec.Order = &order
-		res.Spec.Ingress = []apiv3.Rule{irule}
-		res.Spec.Egress = []apiv3.Rule{erule}
-		res.Spec.Selector = "calico/k8s_ns == selectme"
-		res.Spec.DoNotTrack = true
-		res.Spec.PreDNAT = false
-		res.Spec.ApplyOnForward = true
-		res.Spec.Types = []apiv3.PolicyType{apiv3.PolicyTypeIngress}
-		res.Spec.ServiceAccountSelector = "role == 'development'"
-		res.Spec.NamespaceSelector = "name == 'testing'"
-		kvps, err = up.Process(&model.KVPair{
-			Key:      v3GlobalNetworkPolicyKey2,
-			Value:    res,
-			Revision: "1234",
-		})
-		Expect(err).NotTo(HaveOccurred())
-
-		v1irule := updateprocessors.RuleAPIV2ToBackend(irule, "")
-		v1erule := updateprocessors.RuleAPIV2ToBackend(erule, "")
-		Expect(kvps).To(Equal([]*model.KVPair{
-			{
-				Key: v1GlobalNetworkPolicyKey2,
+			v1Key := model.PolicyKey{Name: "minimal"}
+			Expect(kvps[0]).To(Equal(&model.KVPair{
+				Key: v1Key,
 				Value: &model.Policy{
-					Order:          &order,
-					InboundRules:   []model.Rule{v1irule},
-					OutboundRules:  []model.Rule{v1erule},
-					Selector:       "((calico/k8s_ns == selectme) && pcns.name == \"testing\") && pcsa.role == \"development\"",
-					DoNotTrack:     true,
-					PreDNAT:        false,
+					PreDNAT:        true,
 					ApplyOnForward: true,
-					Types:          []string{"ingress"},
 				},
-				Revision: "1234",
-			},
-		}))
-
-		By("deleting the first network policy")
-		kvps, err = up.Process(&model.KVPair{
-			Key:   v3GlobalNetworkPolicyKey1,
-			Value: nil,
+				Revision: rev,
+			}))
 		})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(kvps).To(Equal([]*model.KVPair{
-			{
-				Key:   v1GlobalNetworkPolicyKey1,
-				Value: nil,
-			},
-		}))
-	})
 
-	It("should fail to convert an invalid resource", func() {
-		up := updateprocessors.NewGlobalNetworkPolicyUpdateProcessor()
+		It("should accept a GlobalNetworkPolicy with a simple configuration", func() {
+			kvps, err := up.Process(&model.KVPair{Key: simpleGNPKey, Value: simpleGNP, Revision: rev})
+			Expect(err).NotTo(HaveOccurred())
 
-		By("trying to convert with the wrong key type")
-		res := apiv3.NewGlobalNetworkPolicy()
+			policy := NewSimplePolicy()
+			v1Key := model.PolicyKey{Name: "simple"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: rev}}))
 
-		_, err := up.Process(&model.KVPair{
-			Key: model.GlobalBGPPeerKey{
-				PeerIP: cnet.MustParseIP("1.2.3.4"),
-			},
-			Value:    res,
-			Revision: "abcde",
+			By("should be able to delete the simple network policy")
+			kvps, err = up.Process(&model.KVPair{Key: simpleGNPKey, Value: nil})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: nil}}))
 		})
-		Expect(err).To(HaveOccurred())
 
-		By("trying to convert with the wrong value type")
-		wres := apiv3.NewHostEndpoint()
-
-		kvps, err := up.Process(&model.KVPair{
-			Key:      v3GlobalNetworkPolicyKey1,
-			Value:    wres,
-			Revision: "abcde",
+		It("should NOT accept a GlobalNetworkPolicy with the wrong Key type", func() {
+			_, err := up.Process(&model.KVPair{
+				Key:      model.GlobalBGPPeerKey{PeerIP: cnet.MustParseIP("1.2.3.4")},
+				Value:    emptyGNP,
+				Revision: "abcde",
+			})
+			Expect(err).To(HaveOccurred())
 		})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(kvps).To(Equal([]*model.KVPair{
-			{
-				Key:   v1GlobalNetworkPolicyKey1,
-				Value: nil,
-			},
-		}))
 
-		By("trying to convert without enough information to create a v1 key")
-		eres := apiv3.NewGlobalNetworkPolicy()
-		v3GlobalNetworkPolicyKeyEmpty := model.ResourceKey{
-			Kind: apiv3.KindGlobalNetworkPolicy,
-		}
+		It("should NOT accept a GlobalNetworkPolicy with the wrong Value type", func() {
+			kvps, err := up.Process(&model.KVPair{Key: emptyGNPKey, Value: apiv3.NewHostEndpoint(), Revision: rev})
+			Expect(err).NotTo(HaveOccurred())
 
-		_, err = up.Process(&model.KVPair{
-			Key:      v3GlobalNetworkPolicyKeyEmpty,
-			Value:    eres,
-			Revision: "abcde",
+			v1Key := model.PolicyKey{Name: "empty"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: nil}}))
 		})
-		Expect(err).To(HaveOccurred())
+
+		It("should accept a GlobalNetworkPolicy with a ServiceAccountSelector", func() {
+			kvps, err := up.Process(&model.KVPair{Key: validSASelectorKey, Value: validSASelector, Revision: rev})
+			Expect(err).NotTo(HaveOccurred())
+
+			policy := NewSimplePolicy()
+			policy.Selector = `(calico/k8s_ns == selectme) && pcsa.role == "development"`
+			v1Key := model.PolicyKey{Name: "validSASelector"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: rev}}))
+		})
+
+		It("should NOT add an invalid ServiceAccountSelector to the GNP's Selector field", func() {
+			kvps, err := up.Process(&model.KVPair{Key: invalidSASelectorKey, Value: invalidSASelector, Revision: rev})
+			Expect(err).NotTo(HaveOccurred())
+
+			policy := NewSimplePolicy()
+			v1Key := model.PolicyKey{Name: "invalidSASelector"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: rev}}))
+		})
+
+		It("should accept a GlobalNetworkPolicy with a NamespaceSelector", func() {
+			kvps, err := up.Process(&model.KVPair{Key: validNSSelectorKey, Value: validNSSelector, Revision: rev})
+			Expect(err).NotTo(HaveOccurred())
+
+			policy := NewSimplePolicy()
+			policy.Selector = `(calico/k8s_ns == selectme) && pcns.name == "testing"`
+			v1Key := model.PolicyKey{Name: "validNSSelector"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: rev}}))
+		})
+
+		It("should NOT add an invalid NamespaceSelector to the GNP's Selector field", func() {
+			kvps, err := up.Process(&model.KVPair{Key: invalidNSSelectorKey, Value: invalidNSSelector, Revision: rev})
+			Expect(err).NotTo(HaveOccurred())
+
+			policy := NewSimplePolicy()
+			v1Key := model.PolicyKey{Name: "invalidNSSelector"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: rev}}))
+		})
 	})
 })
