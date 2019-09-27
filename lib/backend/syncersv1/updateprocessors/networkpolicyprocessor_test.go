@@ -15,6 +15,8 @@
 package updateprocessors_test
 
 import (
+	"fmt"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -33,147 +35,108 @@ import (
 )
 
 var _ = Describe("Test the NetworkPolicy update processor", func() {
-	name1 := "name1"
-	name2 := "name2"
 	ns1 := "namespace1"
 	ns2 := "namespace2"
 
-	v3NetworkPolicyKey1 := model.ResourceKey{
-		Kind:      apiv3.KindNetworkPolicy,
-		Name:      name1,
-		Namespace: ns1,
-	}
-	v3NetworkPolicyKey2 := model.ResourceKey{
-		Kind:      apiv3.KindNetworkPolicy,
-		Name:      name2,
-		Namespace: ns2,
-	}
-	v1NetworkPolicyKey1 := model.PolicyKey{
-		Name: ns1 + "/" + name1,
-	}
-	v1NetworkPolicyKey2 := model.PolicyKey{
-		Name: ns2 + "/" + name2,
-	}
+	emptyNPKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "empty", Namespace: ns1}
+	emptyNP := apiv3.NewNetworkPolicy()
 
-	It("should handle conversion of valid NetworkPolicys", func() {
+	minimalNPKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "minimal", Namespace: ns1}
+	minimalNP := apiv3.NewNetworkPolicy()
+	minimalNP.Name = "minimal"
+	minimalNP.Namespace = ns1
+
+	fullNPKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "simple", Namespace: ns2}
+	fullNP := apiv3.NewNetworkPolicy()
+	fullNP.Name = "full"
+	fullNP.Namespace = ns2
+	fullNP.Spec.Order = &Order
+	fullNP.Spec.Ingress = []apiv3.Rule{TestIngressRule}
+	fullNP.Spec.Egress = []apiv3.Rule{TestEgressRule}
+	fullNP.Spec.Selector = "mylabel == 'selectme'"
+	fullNP.Spec.Types = []apiv3.PolicyType{apiv3.PolicyTypeIngress}
+
+	// NetworkPolicies with valid and invalid ServiceAccountSelectors
+	validSASelectorKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "validSASelector", Namespace: ns2}
+	validSASelector := fullNP.DeepCopy()
+	validSASelector.Spec.ServiceAccountSelector = "role == 'development'"
+
+	invalidSASelectorKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "invalidSASelector", Namespace: ns2}
+	invalidSASelector := fullNP.DeepCopy()
+	invalidSASelector.Spec.ServiceAccountSelector = "role 'development'"
+
+	Context("test processing of a valid NetworkPolicy from V3 to V1", func() {
 		up := updateprocessors.NewNetworkPolicyUpdateProcessor()
 
-		By("converting a NetworkPolicy with minimum configuration")
-		res := apiv3.NewNetworkPolicy()
-		res.Name = name1
-		res.Namespace = ns1
+		It("should accept a NetworkPolicy with a minimal configuration", func() {
+			kvps, err := up.Process(&model.KVPair{Key: minimalNPKey, Value: minimalNP, Revision: TestRev})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(kvps).To(HaveLen(1))
 
-		kvps, err := up.Process(&model.KVPair{
-			Key:      v3NetworkPolicyKey1,
-			Value:    res,
-			Revision: "abcde",
-		})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(kvps).To(HaveLen(1))
-		Expect(kvps[0]).To(Equal(&model.KVPair{
-			Key: v1NetworkPolicyKey1,
-			Value: &model.Policy{
-				Namespace:      ns1,
-				Selector:       "projectcalico.org/namespace == 'namespace1'",
-				ApplyOnForward: true,
-			},
-			Revision: "abcde",
-		}))
-
-		By("adding another NetworkPolicy with a full configuration")
-		res = apiv3.NewNetworkPolicy()
-
-		res.Name = name2
-		res.Namespace = ns2
-		res.Spec.Order = &defaultOrder
-		res.Spec.Ingress = []apiv3.Rule{irule}
-		res.Spec.Egress = []apiv3.Rule{erule}
-		res.Spec.Selector = "mylabel == 'selectme'"
-		res.Spec.Types = []apiv3.PolicyType{apiv3.PolicyTypeIngress}
-		res.Spec.ServiceAccountSelector = "role == 'development'"
-		kvps, err = up.Process(&model.KVPair{
-			Key:      v3NetworkPolicyKey2,
-			Value:    res,
-			Revision: "1234",
-		})
-		Expect(err).NotTo(HaveOccurred())
-
-		v1irule := updateprocessors.RuleAPIV2ToBackend(irule, ns2)
-		v1erule := updateprocessors.RuleAPIV2ToBackend(erule, ns2)
-		Expect(kvps).To(Equal([]*model.KVPair{
-			{
-				Key: v1NetworkPolicyKey2,
+			v1Key := model.PolicyKey{Name: ns1 + "/minimal"}
+			Expect(kvps[0]).To(Equal(&model.KVPair{
+				Key: v1Key,
 				Value: &model.Policy{
-					Namespace:      ns2,
-					Order:          &defaultOrder,
-					InboundRules:   []model.Rule{v1irule},
-					OutboundRules:  []model.Rule{v1erule},
-					Selector:       "((mylabel == 'selectme') && projectcalico.org/namespace == 'namespace2') && pcsa.role == \"development\"",
+					Namespace:      ns1,
+					Selector:       "projectcalico.org/namespace == 'namespace1'",
 					ApplyOnForward: true,
-					Types:          []string{"ingress"},
 				},
-				Revision: "1234",
-			},
-		}))
-
-		By("deleting the first network policy")
-
-		kvps, err = up.Process(&model.KVPair{
-			Key:   v3NetworkPolicyKey1,
-			Value: nil,
+				Revision: TestRev,
+			}))
 		})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(kvps).To(Equal([]*model.KVPair{
-			{
-				Key:   v1NetworkPolicyKey1,
-				Value: nil,
-			},
-		}))
-	})
 
-	It("should fail to convert an invalid resource", func() {
-		up := updateprocessors.NewNetworkPolicyUpdateProcessor()
+		It("should accept a NetworkPolicy with a full configuration", func() {
+			kvps, err := up.Process(&model.KVPair{Key: fullNPKey, Value: fullNP, Revision: TestRev})
+			Expect(err).NotTo(HaveOccurred())
 
-		By("trying to convert with the wrong key type")
-		res := apiv3.NewNetworkPolicy()
+			policy := NewCompleteNP(ns2)
+			policy.Selector = fmt.Sprintf("(mylabel == 'selectme') && projectcalico.org/namespace == '%s'", ns2)
 
-		_, err := up.Process(&model.KVPair{
-			Key: model.GlobalBGPPeerKey{
-				PeerIP: cnet.MustParseIP("1.2.3.4"),
-			},
-			Value:    res,
-			Revision: "abcde",
+			v1Key := model.PolicyKey{Name: ns2 + "/simple"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: TestRev}}))
+
+			By("should be able to delete the simple network policy")
+			kvps, err = up.Process(&model.KVPair{Key: fullNPKey, Value: nil})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: nil}}))
 		})
-		Expect(err).To(HaveOccurred())
 
-		By("trying to convert with the wrong value type")
-		wres := apiv3.NewHostEndpoint()
-
-		kvps, err := up.Process(&model.KVPair{
-			Key:      v3NetworkPolicyKey1,
-			Value:    wres,
-			Revision: "abcde",
+		It("should NOT accept a NetworkPolicy with the wrong Key type", func() {
+			_, err := up.Process(&model.KVPair{
+				Key:      model.GlobalBGPPeerKey{PeerIP: cnet.MustParseIP("1.2.3.4")},
+				Value:    emptyNP,
+				Revision: "abcde",
+			})
+			Expect(err).To(HaveOccurred())
 		})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(kvps).To(Equal([]*model.KVPair{
-			{
-				Key:   v1NetworkPolicyKey1,
-				Value: nil,
-			},
-		}))
 
-		By("trying to convert without enough information to create a v1 key")
-		eres := apiv3.NewNetworkPolicy()
-		v3NetworkPolicyKeyEmpty := model.ResourceKey{
-			Kind: apiv3.KindNetworkPolicy,
-		}
+		It("should NOT accept a NetworkPolicy with the wrong Value type", func() {
+			kvps, err := up.Process(&model.KVPair{Key: emptyNPKey, Value: apiv3.NewHostEndpoint(), Revision: TestRev})
+			Expect(err).NotTo(HaveOccurred())
 
-		_, err = up.Process(&model.KVPair{
-			Key:      v3NetworkPolicyKeyEmpty,
-			Value:    eres,
-			Revision: "abcde",
+			v1Key := model.PolicyKey{Name: ns1 + "/empty"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: nil}}))
 		})
-		Expect(err).To(HaveOccurred())
+
+		It("should accept a NetworkPolicy with a ServiceAccountSelector", func() {
+			kvps, err := up.Process(&model.KVPair{Key: validSASelectorKey, Value: validSASelector, Revision: TestRev})
+			Expect(err).NotTo(HaveOccurred())
+
+			policy := NewCompleteNP(ns2)
+			policy.Selector = `((mylabel == 'selectme') && projectcalico.org/namespace == 'namespace2') && pcsa.role == "development"`
+			v1Key := model.PolicyKey{Name: ns2 + "/validSASelector"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: TestRev}}))
+		})
+
+		It("should NOT add an invalid ServiceAccountSelector to the NP's Selector field", func() {
+			kvps, err := up.Process(&model.KVPair{Key: invalidSASelectorKey, Value: invalidSASelector, Revision: TestRev})
+			Expect(err).NotTo(HaveOccurred())
+
+			policy := NewCompleteNP(ns2)
+			policy.Selector = `(mylabel == 'selectme') && projectcalico.org/namespace == 'namespace2'`
+			v1Key := model.PolicyKey{Name: ns2 + "/invalidSASelector"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: TestRev}}))
+		})
 	})
 })
 
@@ -211,7 +174,7 @@ var expected1 = []*model.KVPair{
 		Key: model.PolicyKey{Name: "default/knp.default.test.policy"},
 		Value: &model.Policy{
 			Namespace:      "default",
-			Order:          &defaultOrder,
+			Order:          &DefaultPolicyOrder,
 			Selector:       "(projectcalico.org/orchestrator == 'k8s') && projectcalico.org/namespace == 'default'",
 			Types:          []string{"egress"},
 			ApplyOnForward: true,
@@ -221,7 +184,7 @@ var expected1 = []*model.KVPair{
 					Protocol:    &tcp,
 					SrcSelector: "",
 					DstSelector: "",
-					DstPorts:    []numorstring.Port{port80},
+					DstPorts:    []numorstring.Port{Port80},
 				},
 			},
 		},
@@ -253,7 +216,7 @@ var expected2 = []*model.KVPair{
 		Key: model.PolicyKey{Name: "default/knp.default.test.policy"},
 		Value: &model.Policy{
 			Namespace:      "default",
-			Order:          &defaultOrder,
+			Order:          &DefaultPolicyOrder,
 			Selector:       "(projectcalico.org/orchestrator == 'k8s') && projectcalico.org/namespace == 'default'",
 			Types:          []string{"ingress"},
 			ApplyOnForward: true,
