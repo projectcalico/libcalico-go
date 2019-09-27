@@ -51,8 +51,8 @@ func convertGlobalNetworkPolicyV2ToV1Value(val interface{}) (interface{}, error)
 
 	nsSelector := spec.NamespaceSelector
 	if nsSelector != "" {
-		nsSelector = strings.Replace(nsSelector, "all()", "has(projectcalico.org/namespace)", -1)
 		selector = PrefixAndAppendSelector(selector, nsSelector, conversion.NamespaceLabelPrefix)
+		selector = strings.Replace(selector, "all()", "has(projectcalico.org/namespace)", -1)
 	}
 
 	selector = PrefixAndAppendSelector(selector, spec.ServiceAccountSelector, conversion.ServiceAccountLabelPrefix)
