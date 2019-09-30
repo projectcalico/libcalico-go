@@ -49,7 +49,7 @@ func entityRuleAPIV2TOBackend(er *apiv3.EntityRule, ns string) (nsSelector, sele
 	if er.NamespaceSelector != "" {
 		// A namespace selector was given - the rule applies to all namespaces
 		// which match this selector.
-		nsSelector = ParseSelectorAttachPrefix(er.NamespaceSelector, conversion.NamespaceLabelPrefix)
+		nsSelector = parseSelectorAttachPrefix(er.NamespaceSelector, conversion.NamespaceLabelPrefix)
 
 		// We treat "all()" as "select all namespaces". Since in the v1 data model "all()" will select
 		// all endpoints, translate this to an equivalent expressions which means select any workload that
@@ -199,7 +199,7 @@ func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 func parseServiceAccounts(sam *apiv3.ServiceAccountMatch) string {
 	var updated string
 	if sam.Selector != "" {
-		updated = ParseSelectorAttachPrefix(sam.Selector, conversion.ServiceAccountLabelPrefix)
+		updated = parseSelectorAttachPrefix(sam.Selector, conversion.ServiceAccountLabelPrefix)
 	}
 	if len(sam.Names) == 0 {
 		return updated

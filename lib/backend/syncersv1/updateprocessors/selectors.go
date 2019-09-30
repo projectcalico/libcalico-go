@@ -21,10 +21,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// ParseSelectorAttachPrefix takes a v3 selector and returns the appropriate v1 representation
+// parseSelectorAttachPrefix takes a v3 selector and returns the appropriate v1 representation
 // by prefixing the keys with the given prefix.
 // If prefix is `pcns.` then the selector changes from `k == 'v'` to `pcns.k == 'v'`.
-func ParseSelectorAttachPrefix(s, prefix string) string {
+func parseSelectorAttachPrefix(s, prefix string) string {
 	parsedSelector, err := parser.Parse(s)
 	if err != nil {
 		log.WithError(err).Errorf("Failed to parse selector: %s (for prefix) %s", s, prefix)
@@ -36,10 +36,10 @@ func ParseSelectorAttachPrefix(s, prefix string) string {
 	return updated
 }
 
-// PrefixAndAppendSelector prefixes a new selector string with the given prefix and appends it to an existing selector string.
-func PrefixAndAppendSelector(currentSelector, newSelector, prefix string) string {
+// prefixAndAppendSelector prefixes a new selector string with the given prefix and appends it to an existing selector string.
+func prefixAndAppendSelector(currentSelector, newSelector, prefix string) string {
 	if newSelector != "" {
-		prefixedSelector := ParseSelectorAttachPrefix(newSelector, prefix)
+		prefixedSelector := parseSelectorAttachPrefix(newSelector, prefix)
 		if prefixedSelector != "" {
 			if currentSelector != "" {
 				currentSelector = fmt.Sprintf("(%s) && %s", currentSelector, prefixedSelector)

@@ -84,17 +84,17 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		Expect(rulev1.NotICMPCode).To(Equal(&incode))
 		Expect(rulev1.NotICMPType).To(Equal(&intype))
 
-		Expect(rulev1.SrcNets).To(Equal([]*cnet.IPNet{MustParseCIDR("10.100.10.1/32")}))
+		Expect(rulev1.SrcNets).To(Equal([]*cnet.IPNet{mustParseCIDR("10.100.10.1/32")}))
 		Expect(rulev1.SrcSelector).To(Equal("(projectcalico.org/namespace == 'namespace2') && (mylabel = value1)"))
 		Expect(rulev1.SrcPorts).To(Equal([]numorstring.Port{port80}))
-		Expect(rulev1.DstNets).To(Equal([]*cnet.IPNet{MustParseCIDR("10.100.1.1/32")}))
+		Expect(rulev1.DstNets).To(Equal([]*cnet.IPNet{mustParseCIDR("10.100.1.1/32")}))
 		Expect(rulev1.DstSelector).To(Equal("projectcalico.org/namespace == 'namespace2'"))
 		Expect(rulev1.DstPorts).To(Equal([]numorstring.Port{port443}))
 
-		Expect(rulev1.NotSrcNets).To(Equal([]*cnet.IPNet{MustParseCIDR("192.168.40.1/32")}))
+		Expect(rulev1.NotSrcNets).To(Equal([]*cnet.IPNet{mustParseCIDR("192.168.40.1/32")}))
 		Expect(rulev1.NotSrcSelector).To(Equal("has(label1)"))
 		Expect(rulev1.NotSrcPorts).To(Equal([]numorstring.Port{port443}))
-		Expect(rulev1.NotDstNets).To(Equal([]*cnet.IPNet{MustParseCIDR("192.168.80.1/32")}))
+		Expect(rulev1.NotDstNets).To(Equal([]*cnet.IPNet{mustParseCIDR("192.168.80.1/32")}))
 		Expect(rulev1.NotDstSelector).To(Equal("has(label2)"))
 		Expect(rulev1.NotDstPorts).To(Equal([]numorstring.Port{port80}))
 
@@ -159,17 +159,17 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		Expect(rulev1.NotICMPCode).To(Equal(&encode))
 		Expect(rulev1.NotICMPType).To(Equal(&entype))
 
-		Expect(rulev1.SrcNets).To(Equal([]*cnet.IPNet{MustParseCIDR("10.100.1.1/32")}))
+		Expect(rulev1.SrcNets).To(Equal([]*cnet.IPNet{mustParseCIDR("10.100.1.1/32")}))
 		Expect(rulev1.SrcSelector).To(Equal("pcns.namespacelabel1 == \"value1\""))
 		Expect(rulev1.SrcPorts).To(Equal([]numorstring.Port{port443}))
-		Expect(rulev1.DstNets).To(Equal([]*cnet.IPNet{MustParseCIDR("10.100.10.1/32")}))
+		Expect(rulev1.DstNets).To(Equal([]*cnet.IPNet{mustParseCIDR("10.100.10.1/32")}))
 		Expect(rulev1.DstSelector).To(Equal("pcns.namespacelabel2 == \"value2\""))
 		Expect(rulev1.DstPorts).To(Equal([]numorstring.Port{port80}))
 
-		Expect(rulev1.NotSrcNets).To(Equal([]*cnet.IPNet{MustParseCIDR("192.168.80.1/32")}))
+		Expect(rulev1.NotSrcNets).To(Equal([]*cnet.IPNet{mustParseCIDR("192.168.80.1/32")}))
 		Expect(rulev1.NotSrcSelector).To(Equal("has(label2)"))
 		Expect(rulev1.NotSrcPorts).To(Equal([]numorstring.Port{port80}))
-		Expect(rulev1.NotDstNets).To(Equal([]*cnet.IPNet{MustParseCIDR("192.168.40.1/32")}))
+		Expect(rulev1.NotDstNets).To(Equal([]*cnet.IPNet{mustParseCIDR("192.168.40.1/32")}))
 		Expect(rulev1.NotDstSelector).To(Equal("has(label1)"))
 		Expect(rulev1.NotDstPorts).To(Equal([]numorstring.Port{port443}))
 
@@ -197,17 +197,17 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		Expect(rulev1.NotICMPCode).To(Equal(&incode))
 		Expect(rulev1.NotICMPType).To(Equal(&intype))
 
-		Expect(rulev1.SrcNets).To(Equal([]*cnet.IPNet{MustParseCIDR("10.100.10.1/32")}))
+		Expect(rulev1.SrcNets).To(Equal([]*cnet.IPNet{mustParseCIDR("10.100.10.1/32")}))
 		Expect(rulev1.SrcSelector).To(Equal("(projectcalico.org/namespace == 'namespace1') && (mylabel = value1)"))
 		Expect(rulev1.SrcPorts).To(Equal([]numorstring.Port{port80}))
-		Expect(rulev1.DstNets).To(Equal([]*cnet.IPNet{MustParseCIDR("10.100.1.1/32")}))
+		Expect(rulev1.DstNets).To(Equal([]*cnet.IPNet{mustParseCIDR("10.100.1.1/32")}))
 		Expect(rulev1.DstSelector).To(Equal("projectcalico.org/namespace == 'namespace1'"))
 		Expect(rulev1.DstPorts).To(Equal([]numorstring.Port{port443}))
 
-		Expect(rulev1.NotSrcNets).To(Equal([]*cnet.IPNet{MustParseCIDR("192.168.40.1/32")}))
+		Expect(rulev1.NotSrcNets).To(Equal([]*cnet.IPNet{mustParseCIDR("192.168.40.1/32")}))
 		Expect(rulev1.NotSrcSelector).To(Equal("has(label1)"))
 		Expect(rulev1.NotSrcPorts).To(Equal([]numorstring.Port{port443}))
-		Expect(rulev1.NotDstNets).To(Equal([]*cnet.IPNet{MustParseCIDR("192.168.80.1/32")}))
+		Expect(rulev1.NotDstNets).To(Equal([]*cnet.IPNet{mustParseCIDR("192.168.80.1/32")}))
 		Expect(rulev1.NotDstSelector).To(Equal("has(label2)"))
 		Expect(rulev1.NotDstPorts).To(Equal([]numorstring.Port{port80}))
 
@@ -230,18 +230,18 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		Expect(rulev1.NotICMPCode).To(Equal(&encode))
 		Expect(rulev1.NotICMPType).To(Equal(&entype))
 
-		Expect(rulev1.SrcNets).To(Equal([]*cnet.IPNet{MustParseCIDR("10.100.1.1/32")}))
+		Expect(rulev1.SrcNets).To(Equal([]*cnet.IPNet{mustParseCIDR("10.100.1.1/32")}))
 		// Make sure that the pcns prefix prevented the namespace from making it into the selector.
 		Expect(rulev1.SrcSelector).To(Equal("pcns.namespacelabel1 == \"value1\""))
 		Expect(rulev1.SrcPorts).To(Equal([]numorstring.Port{port443}))
-		Expect(rulev1.DstNets).To(Equal([]*cnet.IPNet{MustParseCIDR("10.100.10.1/32")}))
+		Expect(rulev1.DstNets).To(Equal([]*cnet.IPNet{mustParseCIDR("10.100.10.1/32")}))
 		Expect(rulev1.DstSelector).To(Equal("pcns.namespacelabel2 == \"value2\""))
 		Expect(rulev1.DstPorts).To(Equal([]numorstring.Port{port80}))
 
-		Expect(rulev1.NotSrcNets).To(Equal([]*cnet.IPNet{MustParseCIDR("192.168.80.1/32")}))
+		Expect(rulev1.NotSrcNets).To(Equal([]*cnet.IPNet{mustParseCIDR("192.168.80.1/32")}))
 		Expect(rulev1.NotSrcSelector).To(Equal("has(label2)"))
 		Expect(rulev1.NotSrcPorts).To(Equal([]numorstring.Port{port80}))
-		Expect(rulev1.NotDstNets).To(Equal([]*cnet.IPNet{MustParseCIDR("192.168.40.1/32")}))
+		Expect(rulev1.NotDstNets).To(Equal([]*cnet.IPNet{mustParseCIDR("192.168.40.1/32")}))
 		Expect(rulev1.NotDstSelector).To(Equal("has(label1)"))
 		Expect(rulev1.NotDstPorts).To(Equal([]numorstring.Port{port443}))
 

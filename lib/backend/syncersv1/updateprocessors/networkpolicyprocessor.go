@@ -58,7 +58,7 @@ func convertNetworkPolicyV2ToV1Value(val interface{}) (interface{}, error) {
 		}
 	}
 
-	selector = PrefixAndAppendSelector(selector, spec.ServiceAccountSelector, conversion.ServiceAccountLabelPrefix)
+	selector = prefixAndAppendSelector(selector, spec.ServiceAccountSelector, conversion.ServiceAccountLabelPrefix)
 
 	v1value := &model.Policy{
 		Namespace:      v3res.Namespace,
