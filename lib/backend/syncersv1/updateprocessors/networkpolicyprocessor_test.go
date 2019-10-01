@@ -37,7 +37,7 @@ import (
 var _ = Describe("Test the NetworkPolicy update processor", func() {
 	ns1 := "namespace1"
 	ns2 := "namespace2"
-	selector := "mylabel == 'selectme'"
+	selector := `mylabel == 'selectme'`
 
 	emptyNPKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "empty", Namespace: ns1}
 	emptyNP := apiv3.NewNetworkPolicy()

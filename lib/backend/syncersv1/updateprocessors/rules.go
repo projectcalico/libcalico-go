@@ -160,17 +160,17 @@ func RuleAPIV2ToBackend(ar apiv3.Rule, ns string) model.Rule {
 		NotICMPCode: notICMPCode,
 		NotICMPType: notICMPType,
 
-		SrcNets:     convertStringsToNets(ar.Source.Nets),
+		SrcNets:     ConvertStringsToNets(ar.Source.Nets),
 		SrcSelector: sourceSelector,
 		SrcPorts:    ar.Source.Ports,
-		DstNets:     normalizeIPNets(ar.Destination.Nets),
+		DstNets:     NormalizeIPNets(ar.Destination.Nets),
 		DstSelector: destSelector,
 		DstPorts:    ar.Destination.Ports,
 
-		NotSrcNets:     convertStringsToNets(ar.Source.NotNets),
+		NotSrcNets:     ConvertStringsToNets(ar.Source.NotNets),
 		NotSrcSelector: ar.Source.NotSelector,
 		NotSrcPorts:    ar.Source.NotPorts,
-		NotDstNets:     normalizeIPNets(ar.Destination.NotNets),
+		NotDstNets:     NormalizeIPNets(ar.Destination.NotNets),
 		NotDstSelector: ar.Destination.NotSelector,
 		NotDstPorts:    ar.Destination.NotPorts,
 
@@ -246,9 +246,9 @@ func normalizeIPNet(n string) *cnet.IPNet {
 	return ipn.Network()
 }
 
-// normalizeIPNets converts an []*IPNet to a slice of networks by ensuring the IP addresses
+// NormalizeIPNets converts an []*IPNet to a slice of networks by ensuring the IP addresses
 // are correctly masked.
-func normalizeIPNets(nets []string) []*cnet.IPNet {
+func NormalizeIPNets(nets []string) []*cnet.IPNet {
 	if len(nets) == 0 {
 		return nil
 	}
@@ -268,7 +268,7 @@ func ruleActionAPIV2ToBackend(action apiv3.Action) string {
 	return strings.ToLower(string(action))
 }
 
-func convertStringsToNets(strs []string) []*cnet.IPNet {
+func ConvertStringsToNets(strs []string) []*cnet.IPNet {
 	var nets []*cnet.IPNet
 	for _, str := range strs {
 		_, ipn, err := cnet.ParseCIDROrIP(str)

@@ -5,35 +5,64 @@ import (
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/backend/syncersv1/updateprocessors"
+	up "github.com/projectcalico/libcalico-go/lib/backend/syncersv1/updateprocessors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
 
-// Ingress rule for a simple GNP.
+var srcSelector string = "mylabel == selector1"
+var dstSelector string = "mylabel == selector2"
+var notSrcSelector string = "has(label1)"
+var notDstSelector string = "has(label2)"
+
+// Ingress rule for a simple policy.
 var v4 = 4
 var itype = 1
 var intype = 3
 var icode = 4
 var incode = 6
-var ProtocolTCP = numorstring.ProtocolFromString("TCP")
-var ProtocolUDP = numorstring.ProtocolFromString("UDP")
+var ProtocolTCP = numorstring.ProtocolFromString("tcp")
+var ProtocolUDP = numorstring.ProtocolFromString("udp")
 var Port80 = numorstring.SinglePort(uint16(80))
 var Port443 = numorstring.SinglePort(uint16(443))
 
-var testIngressRule = apiv3.Rule{
-	Action:    apiv3.Allow,
-	IPVersion: &v4,
-	Protocol:  &ProtocolTCP,
-	ICMP: &apiv3.ICMPFields{
-		Type: &itype,
-		Code: &icode,
-	},
+var v1TestIngressRule = model.Rule{
+	Action:      "allow",
+	IPVersion:   &v4,
+	Protocol:    &ProtocolTCP,
 	NotProtocol: &ProtocolUDP,
-	NotICMP: &apiv3.ICMPFields{
-		Type: &intype,
-		Code: &incode,
-	},
+	ICMPType:    &itype,
+	ICMPCode:    &icode,
+	NotICMPType: &intype,
+	NotICMPCode: &incode,
+
+	SrcNets:     up.ConvertStringsToNets([]string{"10.100.10.1"}),
+	SrcSelector: "mylabel == selector1",
+	SrcPorts:    []numorstring.Port{Port80},
+	DstNets:     up.NormalizeIPNets([]string{"10.100.1.1"}),
+	DstSelector: "mylabel == selector2",
+	DstPorts:    []numorstring.Port{Port443},
+
+	NotSrcNets:     up.ConvertStringsToNets([]string{"192.168.40.1"}),
+	NotSrcSelector: "has(label1)",
+	NotSrcPorts:    []numorstring.Port{Port443},
+	NotDstNets:     up.NormalizeIPNets([]string{"192.168.80.1"}),
+	NotDstSelector: "has(label2)",
+	NotDstPorts:    []numorstring.Port{Port80},
+
+	OriginalSrcSelector:    "mylabel == selector1",
+	OriginalDstSelector:    "mylabel == selector2",
+	OriginalNotSrcSelector: "has(label1)",
+	OriginalNotDstSelector: "has(label2)",
+}
+
+var v3TestIngressRule = apiv3.Rule{
+	Action:      apiv3.Allow,
+	IPVersion:   &v4,
+	Protocol:    &ProtocolTCP,
+	ICMP:        &apiv3.ICMPFields{Type: &itype, Code: &icode},
+	NotProtocol: &ProtocolUDP,
+	NotICMP:     &apiv3.ICMPFields{Type: &intype, Code: &incode},
 	Source: apiv3.EntityRule{
 		Nets:        []string{"10.100.10.1"},
 		Selector:    "mylabel == selector1",
@@ -60,7 +89,37 @@ var encode = 8
 var eproto = numorstring.ProtocolFromInt(uint8(30))
 var enproto = numorstring.ProtocolFromInt(uint8(62))
 
-var testEgressRule = apiv3.Rule{
+var v1TestEgressRule = model.Rule{
+	Action:      "allow",
+	IPVersion:   &v4,
+	Protocol:    &eproto,
+	ICMPCode:    &ecode,
+	ICMPType:    &etype,
+	NotProtocol: &enproto,
+	NotICMPCode: &encode,
+	NotICMPType: &entype,
+
+	SrcNets:     up.ConvertStringsToNets([]string{"10.100.1.1"}),
+	SrcSelector: "mylabel == selector2",
+	SrcPorts:    []numorstring.Port{Port443},
+	DstNets:     up.NormalizeIPNets([]string{"10.100.10.1"}),
+	DstSelector: "mylabel == selector1",
+	DstPorts:    []numorstring.Port{Port80},
+
+	NotSrcNets:     up.ConvertStringsToNets([]string{"192.168.80.1"}),
+	NotSrcSelector: "has(label2)",
+	NotSrcPorts:    []numorstring.Port{Port80},
+	NotDstNets:     up.NormalizeIPNets([]string{"192.168.40.1"}),
+	NotDstSelector: "has(label1)",
+	NotDstPorts:    []numorstring.Port{Port443},
+
+	OriginalSrcSelector:    "mylabel == selector2",
+	OriginalDstSelector:    "mylabel == selector1",
+	OriginalNotSrcSelector: "has(label2)",
+	OriginalNotDstSelector: "has(label1)",
+}
+
+var v3TestEgressRule = apiv3.Rule{
 	Action:    apiv3.Allow,
 	IPVersion: &v4,
 	Protocol:  &eproto,
@@ -104,14 +163,11 @@ func mustParseCIDR(cidr string) *cnet.IPNet {
 
 // fullGNPv1 returns a v1 GNP with all fields filled out.
 func fullGNPv1() (p model.Policy) {
-	v1IR := updateprocessors.RuleAPIV2ToBackend(testIngressRule, "")
-	v1ER := updateprocessors.RuleAPIV2ToBackend(testEgressRule, "")
-
 	return model.Policy{
 		Order:          &testPolicyOrder101,
 		DoNotTrack:     true,
-		InboundRules:   []model.Rule{v1IR},
-		OutboundRules:  []model.Rule{v1ER},
+		InboundRules:   []model.Rule{v1TestIngressRule},
+		OutboundRules:  []model.Rule{v1TestEgressRule},
 		PreDNAT:        false,
 		ApplyOnForward: true,
 		Types:          []string{"ingress", "egress"},
@@ -123,8 +179,8 @@ func fullGNPv3(namespace, selector string) *apiv3.GlobalNetworkPolicy {
 	fullGNP := apiv3.NewGlobalNetworkPolicy()
 	fullGNP.Namespace = namespace
 	fullGNP.Spec.Order = &testPolicyOrder101
-	fullGNP.Spec.Ingress = []apiv3.Rule{testIngressRule}
-	fullGNP.Spec.Egress = []apiv3.Rule{testEgressRule}
+	fullGNP.Spec.Ingress = []apiv3.Rule{v3TestIngressRule}
+	fullGNP.Spec.Egress = []apiv3.Rule{v3TestEgressRule}
 	fullGNP.Spec.Selector = selector
 	fullGNP.Spec.DoNotTrack = true
 	fullGNP.Spec.PreDNAT = false
@@ -135,15 +191,20 @@ func fullGNPv3(namespace, selector string) *apiv3.GlobalNetworkPolicy {
 
 // fullNPv1 returns a v1 NP with all fields filled out.
 func fullNPv1(namespace string) (p model.Policy) {
-	v1IR := updateprocessors.RuleAPIV2ToBackend(testIngressRule, namespace)
-	v1ER := updateprocessors.RuleAPIV2ToBackend(testEgressRule, namespace)
+	ir := v1TestIngressRule
+	or := v1TestEgressRule
+	if namespace != "" {
+		ir.SrcSelector = fmt.Sprintf("(projectcalico.org/namespace == '%s') && (%s)", namespace, ir.SrcSelector)
+		ir.DstSelector = fmt.Sprintf("(projectcalico.org/namespace == '%s') && (%s)", namespace, ir.DstSelector)
+		or.SrcSelector = fmt.Sprintf("(projectcalico.org/namespace == '%s') && (%s)", namespace, or.SrcSelector)
+		or.DstSelector = fmt.Sprintf("(projectcalico.org/namespace == '%s') && (%s)", namespace, or.DstSelector)
+	}
 
-	fmt.Printf("\n\n\n\n%+v\n\n\n", v1IR)
 	return model.Policy{
 		Namespace:      namespace,
 		Order:          &testPolicyOrder101,
-		InboundRules:   []model.Rule{v1IR},
-		OutboundRules:  []model.Rule{v1ER},
+		InboundRules:   []model.Rule{ir},
+		OutboundRules:  []model.Rule{or},
 		ApplyOnForward: true,
 		Types:          []string{"ingress", "egress"},
 	}
@@ -155,8 +216,8 @@ func fullNPv3(name, namespace, selector string) *apiv3.NetworkPolicy {
 	fullNP.Name = name
 	fullNP.Namespace = namespace
 	fullNP.Spec.Order = &testPolicyOrder101
-	fullNP.Spec.Ingress = []apiv3.Rule{testIngressRule}
-	fullNP.Spec.Egress = []apiv3.Rule{testEgressRule}
+	fullNP.Spec.Ingress = []apiv3.Rule{v3TestIngressRule}
+	fullNP.Spec.Egress = []apiv3.Rule{v3TestEgressRule}
 	fullNP.Spec.Selector = selector
 	fullNP.Spec.Types = []apiv3.PolicyType{apiv3.PolicyTypeIngress, apiv3.PolicyTypeEgress}
 
