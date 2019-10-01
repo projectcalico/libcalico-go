@@ -21,7 +21,7 @@ LIBCALICO-GO_PKG  = github.com/projectcalico/libcalico-go
 TOP_SRC_DIR       = lib
 MY_UID           := $(shell id -u)
 GINKGO_ARGS      := -mod=vendor
-EXTRA_DOCKER_ARGS := -e GO111MODULE=on -e GOPROXY=https://proxy.golang.org/,direct
+EXTRA_DOCKER_ARGS := -e GO111MODULE=on
 
 # Volume-mount gopath into the build container to cache go module's packages. If the environment is using multiple
 # comma-separated directories for gopath, use the first one, as that is the default one used by go modules.
