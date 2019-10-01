@@ -15,7 +15,7 @@ var dstSelector string = "mylabel == selector2"
 var notSrcSelector string = "has(label1)"
 var notDstSelector string = "has(label2)"
 
-// Ingress rule for a simple policy.
+// v1 and v3 ingress rule.
 var v4 = 4
 var itype = 1
 var intype = 3
@@ -81,7 +81,7 @@ var v3TestIngressRule = apiv3.Rule{
 	},
 }
 
-// Egress rule for a simple GNP.
+// v1 and v3 egress rule.
 var etype = 2
 var entype = 7
 var ecode = 5
