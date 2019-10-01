@@ -51,7 +51,6 @@ func convertNetworkPolicyV2ToV1Value(val interface{}) (interface{}, error) {
 
 	if v3res.Namespace != "" {
 		nsSelector := fmt.Sprintf("%s == '%s'", apiv3.LabelNamespace, v3res.Namespace)
-		nsSelector = strings.Replace(nsSelector, "all()", "has(projectcalico.org/namespace)", -1)
 		if selector == "" {
 			selector = nsSelector
 		} else {

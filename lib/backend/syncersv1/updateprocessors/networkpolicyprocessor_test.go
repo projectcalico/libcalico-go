@@ -50,7 +50,7 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 	fullNPKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "full", Namespace: ns2}
 	fullNP := fullNPv3("full", ns2, selector)
 
-	// NetworkPolicies with validm, invalid and 'all()' ServiceAccountSelectors
+	// NetworkPolicies with valid, invalid and 'all()' ServiceAccountSelectors.
 	validSASelectorKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "valid-sa-selector", Namespace: ns2}
 	validSASelector := fullNPv3("valid-sa-selector", ns2, selector)
 	validSASelector.Spec.ServiceAccountSelector = "role == 'development'"
