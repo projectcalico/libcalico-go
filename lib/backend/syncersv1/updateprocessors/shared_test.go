@@ -23,7 +23,7 @@ var icode = 4
 var incode = 6
 var ProtocolTCP = numorstring.ProtocolFromString("tcp")
 var ProtocolUDP = numorstring.ProtocolFromString("udp")
-var Port80 = numorstring.SinglePort(uint16(80))
+var port80 = numorstring.SinglePort(uint16(80))
 var Port443 = numorstring.SinglePort(uint16(443))
 
 var v1TestIngressRule = model.Rule{
@@ -38,7 +38,7 @@ var v1TestIngressRule = model.Rule{
 
 	SrcNets:     up.ConvertStringsToNets([]string{"10.100.10.1"}),
 	SrcSelector: "mylabel == selector1",
-	SrcPorts:    []numorstring.Port{Port80},
+	SrcPorts:    []numorstring.Port{port80},
 	DstNets:     up.NormalizeIPNets([]string{"10.100.1.1"}),
 	DstSelector: "mylabel == selector2",
 	DstPorts:    []numorstring.Port{Port443},
@@ -48,7 +48,7 @@ var v1TestIngressRule = model.Rule{
 	NotSrcPorts:    []numorstring.Port{Port443},
 	NotDstNets:     up.NormalizeIPNets([]string{"192.168.80.1"}),
 	NotDstSelector: "has(label2)",
-	NotDstPorts:    []numorstring.Port{Port80},
+	NotDstPorts:    []numorstring.Port{port80},
 
 	OriginalSrcSelector:    "mylabel == selector1",
 	OriginalDstSelector:    "mylabel == selector2",
@@ -66,7 +66,7 @@ var v3TestIngressRule = apiv3.Rule{
 	Source: apiv3.EntityRule{
 		Nets:        []string{"10.100.10.1"},
 		Selector:    "mylabel == selector1",
-		Ports:       []numorstring.Port{Port80},
+		Ports:       []numorstring.Port{port80},
 		NotNets:     []string{"192.168.40.1"},
 		NotSelector: "has(label1)",
 		NotPorts:    []numorstring.Port{Port443},
@@ -77,7 +77,7 @@ var v3TestIngressRule = apiv3.Rule{
 		Ports:       []numorstring.Port{Port443},
 		NotNets:     []string{"192.168.80.1"},
 		NotSelector: "has(label2)",
-		NotPorts:    []numorstring.Port{Port80},
+		NotPorts:    []numorstring.Port{port80},
 	},
 }
 
@@ -104,11 +104,11 @@ var v1TestEgressRule = model.Rule{
 	SrcPorts:    []numorstring.Port{Port443},
 	DstNets:     up.NormalizeIPNets([]string{"10.100.10.1"}),
 	DstSelector: "mylabel == selector1",
-	DstPorts:    []numorstring.Port{Port80},
+	DstPorts:    []numorstring.Port{port80},
 
 	NotSrcNets:     up.ConvertStringsToNets([]string{"192.168.80.1"}),
 	NotSrcSelector: "has(label2)",
-	NotSrcPorts:    []numorstring.Port{Port80},
+	NotSrcPorts:    []numorstring.Port{port80},
 	NotDstNets:     up.NormalizeIPNets([]string{"192.168.40.1"}),
 	NotDstSelector: "has(label1)",
 	NotDstPorts:    []numorstring.Port{Port443},
@@ -138,12 +138,12 @@ var v3TestEgressRule = apiv3.Rule{
 		Ports:       []numorstring.Port{Port443},
 		NotNets:     []string{"192.168.80.1"},
 		NotSelector: "has(label2)",
-		NotPorts:    []numorstring.Port{Port80},
+		NotPorts:    []numorstring.Port{port80},
 	},
 	Destination: apiv3.EntityRule{
 		Nets:        []string{"10.100.10.1"},
 		Selector:    "mylabel == selector1",
-		Ports:       []numorstring.Port{Port80},
+		Ports:       []numorstring.Port{port80},
 		NotNets:     []string{"192.168.40.1"},
 		NotSelector: "has(label1)",
 		NotPorts:    []numorstring.Port{Port443},

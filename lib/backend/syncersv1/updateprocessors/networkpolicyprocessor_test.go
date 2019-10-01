@@ -50,7 +50,7 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 	fullNPKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "full", Namespace: ns2}
 	fullNP := fullNPv3("full", ns2, selector)
 
-	// NetworkPolicies with valid and invalid ServiceAccountSelectors
+	// NetworkPolicies with validm, invalid and 'all()' ServiceAccountSelectors
 	validSASelectorKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "valid-sa-selector", Namespace: ns2}
 	validSASelector := fullNPv3("valid-sa-selector", ns2, selector)
 	validSASelector.Spec.ServiceAccountSelector = "role == 'development'"
@@ -58,6 +58,10 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 	invalidSASelectorKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "invalid-sa-selector", Namespace: ns2}
 	invalidSASelector := fullNPv3("invalid-sa-selector", ns2, selector)
 	invalidSASelector.Spec.ServiceAccountSelector = "role 'development'"
+
+	allSASelectorKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "all-sa-selector", Namespace: ns2}
+	allSASelector := fullNPv3("all-sa-selector", ns2, selector)
+	allSASelector.Spec.ServiceAccountSelector = "all()"
 
 	Context("test processing of a valid NetworkPolicy from V3 to V1", func() {
 		up := updateprocessors.NewNetworkPolicyUpdateProcessor()
@@ -131,6 +135,17 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 			v1Key := model.PolicyKey{Name: ns2 + "/invalid-sa-selector"}
 			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: testRev}}))
 		})
+
+		It("should accept a NetworkPolicy with 'all()' as the ServiceAccountSelector", func() {
+			kvps, err := up.Process(&model.KVPair{Key: allSASelectorKey, Value: allSASelector, Revision: testRev})
+			Expect(err).NotTo(HaveOccurred())
+
+			policy := fullNPv1(ns2)
+			policy.Selector = `((mylabel == 'selectme') && projectcalico.org/namespace == 'namespace2') && all()`
+			v1Key := model.PolicyKey{Name: ns2 + "/all-sa-selector"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: testRev}}))
+		})
+
 	})
 })
 
@@ -178,7 +193,7 @@ var expected1 = []*model.KVPair{
 					Protocol:    &tcp,
 					SrcSelector: "",
 					DstSelector: "",
-					DstPorts:    []numorstring.Port{Port80},
+					DstPorts:    []numorstring.Port{port80},
 				},
 			},
 		},
