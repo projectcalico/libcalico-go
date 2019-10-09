@@ -359,10 +359,12 @@ func (c Converter) K8sNetworkPolicyToCalico(np *networkingv1.NetworkPolicy) (*mo
 	// This order might change in future.
 	order := float64(1000.0)
 
+	_, isLogRule := np.Annotations["projectcalico.org/log-rule"]
+
 	// Generate the ingress rules list.
 	var ingressRules []apiv3.Rule
 	for _, r := range np.Spec.Ingress {
-		rules, err := c.k8sRuleToCalico(r.From, r.Ports, np.Namespace, true)
+		rules, err := c.k8sRuleToCalico(r.From, r.Ports, np.Namespace, true, isLogRule)
 		if err != nil {
 			log.WithError(err).Warn("dropping k8s rule that couldn't be converted.")
 		} else {
@@ -373,7 +375,7 @@ func (c Converter) K8sNetworkPolicyToCalico(np *networkingv1.NetworkPolicy) (*mo
 	// Generate the egress rules list.
 	var egressRules []apiv3.Rule
 	for _, r := range np.Spec.Egress {
-		rules, err := c.k8sRuleToCalico(r.To, r.Ports, np.Namespace, false)
+		rules, err := c.k8sRuleToCalico(r.To, r.Ports, np.Namespace, false, isLogRule)
 		if err != nil {
 			log.WithError(err).Warn("dropping k8s rule that couldn't be converted")
 		} else {
@@ -392,11 +394,22 @@ func (c Converter) K8sNetworkPolicyToCalico(np *networkingv1.NetworkPolicy) (*mo
 			egress = true
 		}
 	}
+
+	logRule := apiv3.Rule{
+		Action: "Log",
+	}
+
 	types := []apiv3.PolicyType{}
 	if ingress {
+		if isLogRule && len(np.Spec.Ingress) < 1 {
+			ingressRules = append(ingressRules, logRule)
+		}
 		types = append(types, apiv3.PolicyTypeIngress)
 	}
 	if egress {
+		if isLogRule && len(np.Spec.Egress) < 1 {
+			egressRules = append(egressRules, logRule)
+		}
 		types = append(types, apiv3.PolicyTypeEgress)
 	} else if len(egressRules) > 0 {
 		// Egress was introduced at the same time as policyTypes.  It shouldn't be possible to
@@ -492,7 +505,7 @@ func (c Converter) k8sSelectorToCalico(s *metav1.LabelSelector, selectorType sel
 	return strings.Join(selectors, " && ")
 }
 
-func (c Converter) k8sRuleToCalico(rPeers []networkingv1.NetworkPolicyPeer, rPorts []networkingv1.NetworkPolicyPort, ns string, ingress bool) ([]apiv3.Rule, error) {
+func (c Converter) k8sRuleToCalico(rPeers []networkingv1.NetworkPolicyPeer, rPorts []networkingv1.NetworkPolicyPort, ns string, ingress bool, isLogRule bool) ([]apiv3.Rule, error) {
 	rules := []apiv3.Rule{}
 	peers := []*networkingv1.NetworkPolicyPeer{}
 	ports := []*networkingv1.NetworkPolicyPort{}
@@ -577,6 +590,22 @@ func (c Converter) k8sRuleToCalico(rPeers []networkingv1.NetworkPolicyPeer, rPor
 		for _, peer := range peers {
 			selector, nsSelector, nets, notNets := c.k8sPeerToCalicoFields(peer, ns)
 			if ingress {
+				if isLogRule {
+					// Build inbound log rule and append to list.
+					rules = append(rules, apiv3.Rule{
+						Action:   "Log",
+						Protocol: protocol,
+						Source: apiv3.EntityRule{
+							Selector:          selector,
+							NamespaceSelector: nsSelector,
+							Nets:              nets,
+							NotNets:           notNets,
+						},
+						Destination: apiv3.EntityRule{
+							Ports: calicoPorts,
+						},
+					})
+				}
 				// Build inbound rule and append to list.
 				rules = append(rules, apiv3.Rule{
 					Action:   "Allow",
@@ -592,6 +621,20 @@ func (c Converter) k8sRuleToCalico(rPeers []networkingv1.NetworkPolicyPeer, rPor
 					},
 				})
 			} else {
+				if isLogRule {
+					// Build outbound log rule and append to list.
+					rules = append(rules, apiv3.Rule{
+						Action:   "Log",
+						Protocol: protocol,
+						Destination: apiv3.EntityRule{
+							Ports:             calicoPorts,
+							Selector:          selector,
+							NamespaceSelector: nsSelector,
+							Nets:              nets,
+							NotNets:           notNets,
+						},
+					})
+				}
 				// Build outbound rule and append to list.
 				rules = append(rules, apiv3.Rule{
 					Action:   "Allow",
