@@ -28,6 +28,8 @@ import (
 	"github.com/coreos/etcd/pkg/srv"
 	"github.com/coreos/etcd/pkg/transport"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -40,6 +42,51 @@ var (
 	keepaliveTime    = 30 * time.Second
 	keepaliveTimeout = 10 * time.Second
 )
+
+type (
+	unaryInterceptor struct {
+		metadata map[string]string
+	}
+
+	streamInterceptor struct {
+		metadata map[string]string
+	}
+)
+
+func (ui *unaryInterceptor) UnaryClientInterceptor(
+	ctx context.Context,
+	method string,
+	req interface{},
+	reply interface{},
+	cc *grpc.ClientConn,
+	invoker grpc.UnaryInvoker,
+	opts ...grpc.CallOption,
+) error {
+	for k, v := range ui.metadata {
+		k = strings.ToLower(k)
+		// FIXME(prozlach): Do we want to handle here `...-bin` field names?
+		// https://github.com/grpc/grpc-go/blob/da2bec01b99dc0ba64a2f7cee08d1d71e79132c4/Documentation/grpc-metadata.md#storing-binary-data-in-metadata
+		ctx = metadata.AppendToOutgoingContext(ctx, k, v)
+	}
+	return invoker(ctx, method, req, reply, cc, opts...)
+}
+
+func (si *streamInterceptor) StreamClientInterceptor(
+	ctx context.Context,
+	desc *grpc.StreamDesc,
+	cc *grpc.ClientConn,
+	method string,
+	streamer grpc.Streamer,
+	opts ...grpc.CallOption,
+) (grpc.ClientStream, error) {
+	for k, v := range si.metadata {
+		k = strings.ToLower(k)
+		// FIXME(prozlach): Do we want to handle here `...-bin` field names?
+		// https://github.com/grpc/grpc-go/blob/da2bec01b99dc0ba64a2f7cee08d1d71e79132c4/Documentation/grpc-metadata.md#storing-binary-data-in-metadata
+		ctx = metadata.AppendToOutgoingContext(ctx, k, v)
+	}
+	return streamer(ctx, desc, cc, method, opts...)
+}
 
 type etcdV3Client struct {
 	etcdClient *clientv3.Client
@@ -111,6 +158,20 @@ func NewEtcdV3Client(config *apiconfig.EtcdConfig) (api.Client, error) {
 		DialTimeout:          clientTimeout,
 		DialKeepAliveTime:    keepaliveTime,
 		DialKeepAliveTimeout: keepaliveTimeout,
+	}
+
+	if len(config.EtcdCustomGRPCMetadata) > 0 {
+		ui := unaryInterceptor{
+			metadata: config.EtcdCustomGRPCMetadata,
+		}
+		si := streamInterceptor{
+			metadata: config.EtcdCustomGRPCMetadata,
+		}
+
+		cfg.DialOptions = []grpc.DialOption{
+			grpc.WithUnaryInterceptor(ui.UnaryClientInterceptor),
+			grpc.WithStreamInterceptor(si.StreamClientInterceptor),
+		}
 	}
 
 	// Plumb through the username and password if both are configured.
