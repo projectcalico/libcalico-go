@@ -1034,6 +1034,12 @@ func validateNetworkPolicy(structLevel validator.StructLevel) {
 			}
 		}
 	}
+
+	if spec.Selector == "" && spec.ServiceAccountSelector == "" {
+		//At least one of such fields should be specified
+		structLevel.ReportError(reflect.ValueOf(spec),
+			"NetworkPolicySpec", "", reason("One of following fields should be specified: Selector, ServiceAccountSelector"), "")
+	}
 }
 
 func validateNetworkSet(structLevel validator.StructLevel) {
@@ -1143,6 +1149,12 @@ func validateGlobalNetworkPolicy(structLevel validator.StructLevel) {
 				structLevel.ReportError(v, f, "", reason("not allowed in egress rules"), "")
 			}
 		}
+	}
+
+	if spec.Selector == "" && spec.NamespaceSelector == "" && spec.ServiceAccountSelector == "" {
+		//At least one of such fields should be specified
+		structLevel.ReportError(reflect.ValueOf(spec),
+			"GlobalNetworkPolicySpec", "", reason("One of following fields should be specified: Selector, NamespaceSelector, ServiceAccountSelector"), "")
 	}
 }
 
