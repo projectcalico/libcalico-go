@@ -1,49 +1,15 @@
-# Shortcut targets
-default: test
+PACKAGE_NAME=github.com/projectcalico/libcalico-go
+GO_BUILD_VER=v0.27
 
-## Build binary
-all: test
+MAKE_BRANCH?=$(GO_BUILD_VER)
+MAKE_REPO?=https://raw.githubusercontent.com/projectcalico/go-build/$(MAKE_BRANCH)/Makefile.common
 
-## Run the tests
-test: vendor ut fv
+get_common:=$(shell wget -nc -nv $(MAKE_REPO) -O Makefile.common)
+include Makefile.common
 
-# Define some constants
-#######################
 K8S_VERSION      ?= v1.16.0
-ETCD_VERSION     ?= v3.3.7
-COREDNS_VERSION  ?= 1.5.2
-GO_BUILD_VER     ?= v0.26
-CALICO_BUILD     ?= calico/go-build:$(GO_BUILD_VER)
-PACKAGE_NAME     ?= github.com/projectcalico/libcalico-go
-LOCAL_USER_ID    ?= $(shell id -u $$USER)
 BINDIR           ?= bin
-TOP_SRC_DIR       = lib
-MY_UID           := $(shell id -u)
 GINKGO_ARGS      := -mod=vendor
-
-# Volume-mount gopath into the build container to cache go module's packages. If the environment is using multiple
-# comma-separated directories for gopath, use the first one, as that is the default one used by go modules.
-ifneq ($(GOPATH),)
-	# If the environment is using multiple comma-separated directories for gopath, use the first one, as that
-	# is the default one used by go modules.
-	GOMOD_CACHE = $(shell echo $(GOPATH) | cut -d':' -f1)/pkg/mod
-else
-	# If gopath is empty, default to $(HOME)/go.
-	GOMOD_CACHE = $(HOME)/go/pkg/mod
-endif
-
-EXTRA_DOCKER_ARGS += -e GO111MODULE=on -v $(GOMOD_CACHE):/go/pkg/mod:rw
-
-DOCKER_RUN := mkdir -p .go-pkg-cache $(GOMOD_CACHE) && \
-	docker run --rm \
-		--net=host \
-		$(EXTRA_DOCKER_ARGS) \
-		-e LOCAL_USER_ID=$(LOCAL_USER_ID) \
-		-e GOCACHE=/go-cache \
-		-e GOPATH=/go \
-		-v $(CURDIR):/go/src/$(PACKAGE_NAME):rw \
-		-v $(CURDIR)/.go-pkg-cache:/go-cache:rw \
-		-w /go/src/$(PACKAGE_NAME)
 
 DOCKER_GO_BUILD := $(DOCKER_RUN) $(CALICO_BUILD)
 
@@ -66,7 +32,7 @@ clean:
 # Building the binary
 ###############################################################################
 # Build the vendor directory.
-vendor: go.mod go.sum
+vendor: mod-download
 	$(DOCKER_GO_BUILD) go mod vendor
 
 GENERATED_FILES:=./lib/apis/v3/zz_generated.deepcopy.go \
@@ -100,8 +66,7 @@ $(BINDIR)/deepcopy-gen: vendor
 ###############################################################################
 # Static checks
 ###############################################################################
-.PHONY: static-checks
-static-checks: check-format check-gen-files
+LOCAL_CHECKS = goimports check-gen-files
 
 .PHONY: check-gen-files
 check-gen-files: $(GENERATED_FILES)
@@ -116,17 +81,6 @@ check-format: vendor
 	else \
 	  echo "All files in ./lib are goimported"; \
 	fi
-
-.PHONY: goimports go-fmt format-code
-# Format the code using goimports.  Depends on the vendor directory because goimports needs
-# to be able to resolve the imports.
-goimports go-fmt format-code fix: vendor
-	$(DOCKER_GO_BUILD) goimports -w lib
-
-.PHONY: install-git-hooks
-## Install Git hooks
-install-git-hooks:
-	./install-git-hooks
 
 ###############################################################################
 # Tests
@@ -270,6 +224,9 @@ run-coredns: stop-coredns
 
 stop-coredns:
 	-docker rm -f coredns
+
+st:
+	@echo "No STs available"
 
 ###############################################################################
 # CI

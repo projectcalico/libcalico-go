@@ -1,6 +1,6 @@
 module github.com/projectcalico/libcalico-go
 
-go 1.12
+go 1.13
 
 require (
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
@@ -49,7 +49,7 @@ require (
 	gopkg.in/tchap/go-patricia.v2 v2.2.6
 	k8s.io/api v0.0.0-20190620084959-7cf5895f2711
 	k8s.io/apimachinery v0.0.0-20190612205821-1799e75a0719
-	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/client-go v0.0.0-20190620085101-78d2af792bab
 	k8s.io/code-generator v0.0.0-20190814140513-6483f25b1faf
 )
 
