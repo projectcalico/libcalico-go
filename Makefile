@@ -77,6 +77,8 @@ $(BINDIR)/deepcopy-gen: vendor
 ###############################################################################
 # Static checks
 ###############################################################################
+# TODO: re-enable all linters
+LINT_ARGS += --disable gosimple,unused,structcheck,errcheck,deadcode,varcheck,ineffassign,staticcheck,govet
 LOCAL_CHECKS = goimports check-gen-files
 
 .PHONY: check-gen-files
