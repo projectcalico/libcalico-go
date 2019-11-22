@@ -2,7 +2,9 @@ PACKAGE_NAME=github.com/projectcalico/libcalico-go
 GO_BUILD_VER=v0.27
 
 ###############################################################################
-# Download and include Makefile.common before anything else
+# Download and include Makefile.common
+#   Additions to EXTRA_DOCKER_ARGS need to happen before the include since
+#   that variable is evaluated when we declare DOCKER_RUN and siblings.
 ###############################################################################
 MAKE_BRANCH?=$(GO_BUILD_VER)
 MAKE_REPO?=https://raw.githubusercontent.com/projectcalico/go-build/$(MAKE_BRANCH)
