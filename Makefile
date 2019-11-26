@@ -20,9 +20,13 @@ include Makefile.common
 
 ###############################################################################
 
-K8S_VERSION      ?= v1.16.0
-BINDIR           ?= bin
-GINKGO_ARGS      := -mod=vendor
+K8S_VERSION	?= v1.16.0
+BINDIR		?= bin
+
+# CI already specifies -mod=vendor and go doesn't allow an option to be passed in twice.
+ifneq ($(CI),true)
+	BUILD_ARGS	:= -mod=vendor
+endif
 
 # Create a list of files upon which the generated file depends, skip the generated file itself
 UPGRADE_SRCS := $(filter-out ./lib/upgrade/migrator/clients/v1/k8s/custom/zz_generated.deepcopy.go, \
@@ -56,7 +60,7 @@ gen-files:
 	$(MAKE) $(GENERATED_FILES)
 
 $(BINDIR)/deepcopy-gen: vendor
-	$(DOCKER_GO_BUILD) sh -c 'go build -mod=vendor -o $@ $(PACKAGE_NAME)/vendor/k8s.io/code-generator/cmd/deepcopy-gen'
+	$(DOCKER_GO_BUILD) sh -c 'go build $(BUILD_ARGS) -o $@ $(PACKAGE_NAME)/vendor/k8s.io/code-generator/cmd/deepcopy-gen'
 
 ./lib/upgrade/migrator/clients/v1/k8s/custom/zz_generated.deepcopy.go: $(UPGRADE_SRCS) $(BINDIR)/deepcopy-gen
 	$(DOCKER_GO_BUILD) sh -c '$(BINDIR)/deepcopy-gen \
@@ -110,14 +114,14 @@ GINKGO_FOCUS?=.*
 ## Run the fast set of unit tests in a container.
 ut: vendor
 	$(DOCKER_RUN) --privileged $(CALICO_BUILD) \
-		sh -c 'cd /go/src/$(PACKAGE_NAME) && ginkgo -r --skipPackage vendor -skip "\[Datastore\]" -focus="$(GINKGO_FOCUS)" $(GINKGO_ARGS) $(WHAT)'
+		sh -c 'cd /go/src/$(PACKAGE_NAME) && ginkgo -r --skipPackage vendor -skip "\[Datastore\]" -focus="$(GINKGO_FOCUS)" $(BUILD_ARGS) $(WHAT)'
 
 .PHONY:fv
 ## Run functional tests against a real datastore in a container.
 fv: vendor run-etcd run-etcd-tls run-kubernetes-master run-coredns
 	$(DOCKER_RUN) --privileged --dns \
 		$(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' coredns) \
-		$(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && ginkgo -r --skipPackage vendor -focus "$(GINKGO_FOCUS).*\[Datastore\]|\[Datastore\].*$(GINKGO_FOCUS)" $(GINKGO_ARGS) $(WHAT)'
+		$(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && ginkgo -r --skipPackage vendor -focus "$(GINKGO_FOCUS).*\[Datastore\]|\[Datastore\].*$(GINKGO_FOCUS)" $(BUILD_ARGS) $(WHAT)'
 	$(MAKE) stop-etcd-tls
 
 ## Run etcd, with tls enabled, as a container (calico-etcd-tls)
