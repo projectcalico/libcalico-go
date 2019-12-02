@@ -16,6 +16,7 @@ package watchersyncer
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -50,7 +51,8 @@ type watcherCache struct {
 var (
 	ListRetryInterval = 1000 * time.Millisecond
 	WatchPollInterval = 5000 * time.Millisecond
-	ErrorThreshold    = 15
+	errorThreshold    = 15
+	errorThresholdMtx sync.Mutex
 )
 
 // cacheEntry is an entry in our cache.  It groups the a key with the last known
@@ -134,7 +136,7 @@ mainLoop:
 					wc.onError()
 				}
 
-				if wc.errors > ErrorThreshold {
+				if wc.errors > GetErrorThreshold() {
 					// Trigger a full resync if we're past the error threshold.
 					wc.currentWatchRevision = ""
 					wc.resyncAndCreateWatcher(ctx)
@@ -428,9 +430,23 @@ func (wc *watcherCache) markAsValid(resourceKey string) {
 // exceeds the error threshold.  See finishResync() for how the watcherCache goes back to in-sync.
 func (wc *watcherCache) onError() {
 	wc.errors++
-	if wc.hasSynced && wc.errors > ErrorThreshold {
-		wc.logger.WithFields(logrus.Fields{"errors": wc.errors, "threshold": ErrorThreshold}).Debugf("Exceeded error threshold")
+	threshold := GetErrorThreshold()
+	if wc.hasSynced && wc.errors > threshold {
+		wc.logger.WithFields(logrus.Fields{"errors": wc.errors, "threshold": threshold}).Debugf("Exceeded error threshold")
 		wc.hasSynced = false
 		wc.results <- api.WaitForDatastore
 	}
+}
+
+func GetErrorThreshold() int {
+	errorThresholdMtx.Lock()
+	val := errorThreshold
+	errorThresholdMtx.Unlock()
+	return val
+}
+
+func SetErrorThreshold(val int) {
+	errorThresholdMtx.Lock()
+	errorThreshold = val
+	errorThresholdMtx.Unlock()
 }

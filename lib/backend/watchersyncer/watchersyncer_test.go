@@ -119,10 +119,10 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 	It("should return WaitForDatastore on multiple consecutive watch errors", func() {
 		By("Sending errors to trigger a WaitForDatastore status update")
 
-		defaultThreshold := watchersyncer.ErrorThreshold
-		watchersyncer.ErrorThreshold = 6
+		defaultThreshold := watchersyncer.GetErrorThreshold()
+		watchersyncer.SetErrorThreshold(6)
 		defer func() {
-			watchersyncer.ErrorThreshold = defaultThreshold
+			watchersyncer.SetErrorThreshold(defaultThreshold)
 		}()
 
 		rs := newWatcherSyncerTester([]watchersyncer.ResourceType{r1})
@@ -133,7 +133,8 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 
 		rs.clientWatchResponse(r1, genError)
 		rs.ExpectStatusUnchanged()
-		for i := 0; i < watchersyncer.ErrorThreshold-1; i++ {
+		n := watchersyncer.GetErrorThreshold()
+		for i := 0; i < n; i++ {
 			rs.clientListResponse(r1, genError)
 			rs.ExpectStatusUnchanged()
 		}
@@ -154,7 +155,8 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		rs.clientWatchResponse(r1, nil)
 
 		// Watch is set but is now returning a generic WatchErrors
-		for i := 0; i < watchersyncer.ErrorThreshold; i++ {
+		n = watchersyncer.GetErrorThreshold()
+		for i := 0; i < n; i++ {
 			rs.sendEvent(r1, genWatchError)
 			rs.ExpectStatusUnchanged()
 		}
@@ -173,10 +175,10 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		defer setWatchIntervals(watchersyncer.ListRetryInterval, watchersyncer.WatchPollInterval)
 		setWatchIntervals(500*time.Millisecond, 2000*time.Millisecond)
 
-		defaultThreshold := watchersyncer.ErrorThreshold
-		watchersyncer.ErrorThreshold = 3
+		defaultThreshold := watchersyncer.GetErrorThreshold()
+		watchersyncer.SetErrorThreshold(3)
 		defer func() {
-			watchersyncer.ErrorThreshold = defaultThreshold
+			watchersyncer.SetErrorThreshold(defaultThreshold)
 		}()
 
 		// All of the events should have been consumed within a time frame dictated by the
@@ -208,7 +210,8 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		rs.ExpectStatusUpdate(api.ResyncInProgress)
 		rs.clientWatchResponse(r1, genError)
 
-		for i := 0; i < watchersyncer.ErrorThreshold; i++ {
+		n := watchersyncer.GetErrorThreshold()
+		for i := 0; i < n; i++ {
 			rs.clientListResponse(r1, genError)
 		}
 
@@ -272,10 +275,10 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 	})
 
 	It("Should handle reconnection and syncing when the watcher sends a watch terminated error", func() {
-		defaultThreshold := watchersyncer.ErrorThreshold
-		watchersyncer.ErrorThreshold = 0
+		defaultThreshold := watchersyncer.GetErrorThreshold()
+		watchersyncer.SetErrorThreshold(0)
 		defer func() {
-			watchersyncer.ErrorThreshold = defaultThreshold
+			watchersyncer.SetErrorThreshold(defaultThreshold)
 		}()
 
 		rs := newWatcherSyncerTester([]watchersyncer.ResourceType{r1, r2, r3})
@@ -305,10 +308,10 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 	})
 
 	It("Should not return WaitForDatastore on multiple watch errors due to ClosedByRemote exceeding error threshold", func() {
-		defaultThreshold := watchersyncer.ErrorThreshold
-		watchersyncer.ErrorThreshold = 0
+		defaultThreshold := watchersyncer.GetErrorThreshold()
+		watchersyncer.SetErrorThreshold(0)
 		defer func() {
-			watchersyncer.ErrorThreshold = defaultThreshold
+			watchersyncer.SetErrorThreshold(defaultThreshold)
 		}()
 
 		rs := newWatcherSyncerTester([]watchersyncer.ResourceType{r1})
