@@ -134,7 +134,7 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		rs.clientWatchResponse(r1, genError)
 		rs.ExpectStatusUnchanged()
 		n := watchersyncer.GetErrorThreshold()
-		for i := 0; i < n; i++ {
+		for i := 0; i < n-1; i++ {
 			rs.clientListResponse(r1, genError)
 			rs.ExpectStatusUnchanged()
 		}
