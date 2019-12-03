@@ -328,8 +328,9 @@ var _ = Describe("Test Pod conversion", func() {
 				},
 			},
 			Status: kapiv1.PodStatus{
-				PodIP:  "192.168.0.1",
-				PodIPs: []kapiv1.PodIP{{IP: "192.168.0.1"}, {IP: "fd5f:8067::1"}},
+				PodIP: "192.168.0.1",
+				// TODO; PodIPs is only used in k8s version > 1.15.0
+				// PodIPs: []kapiv1.PodIP{{IP: "192.168.0.1"}, {IP: "fd5f:8067::1"}},
 			},
 		}
 
@@ -337,9 +338,9 @@ var _ = Describe("Test Pod conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		// Check both IPs were converted.
-		Expect(len(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks)).To(Equal(2))
+		Expect(len(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks)).To(Equal(1))
 		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks[0]).To(Equal("192.168.0.1/32"))
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks[1]).To(Equal("fd5f:8067::1/128"))
+		//Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks[1]).To(Equal("fd5f:8067::1/128"))
 	})
 
 	It("should look in the calico annotation for the IP", func() {

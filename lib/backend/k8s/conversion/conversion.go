@@ -182,12 +182,15 @@ func (c Converter) HasIPAddress(pod *kapiv1.Pod) bool {
 // present, or the calico podIP annotation.
 func (c Converter) getPodIPs(pod *kapiv1.Pod) ([]*cnet.IPNet, error) {
 	var podIPs []string
-	if ips := pod.Status.PodIPs; len(ips) != 0 {
-		log.WithField("ips", ips).Debug("PodIPs field filled in")
-		for _, ip := range ips {
-			podIPs = append(podIPs, ip.IP)
-		}
-	} else if ip := pod.Status.PodIP; ip != "" {
+	// TODO: PodIPs is only present in k8s version > 1.15.0
+	//
+	//if ips := pod.Status.PodIPs; len(ips) != 0 {
+	//	log.WithField("ips", ips).Debug("PodIPs field filled in")
+	//	for _, ip := range ips {
+	//		podIPs = append(podIPs, ip.IP)
+	//	}
+	//} else if ip := pod.Status.PodIP; ip != "" {
+	if ip := pod.Status.PodIP; ip != "" {
 		log.WithField("ip", ip).Debug("PodIP field filled in")
 		podIPs = append(podIPs, ip)
 	} else if ips := pod.Annotations[AnnotationPodIPs]; ips != "" {
