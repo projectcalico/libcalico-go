@@ -159,10 +159,8 @@ imports:
   version: 6219dc7339ba20ee4c57df0a8baac62317d19cb1
   subpackages:
   - json
-- name: github.com/projectcalico/go-yaml
-  version: 955bc3e451ef0c9df8b9113bf2e341139cdafab2
 - name: github.com/projectcalico/go-yaml-wrapper
-  version: 598e54215bee41a19677faa4f0c32acd2a87eb56
+  version: 090425220c545f6d179db17af395f5aac30b6926
 - name: github.com/prometheus/client_golang
   version: 5cec1d0429b02e4323e042eb04dafdb079ddf568
   subpackages:
@@ -303,7 +301,7 @@ imports:
 - name: gopkg.in/tomb.v1
   version: dd632973f1e7218eb1089048e0798ec9ae7dceb8
 - name: gopkg.in/yaml.v2
-  version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
+  version: f90ceb4f409096b60e2e9076b38b304b8246e5fa
 - name: k8s.io/api
   version: 7cf5895f2711098d7d9527db0a4a49fb0dff7de2
   subpackages:
