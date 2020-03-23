@@ -87,7 +87,8 @@ var _ = testutils.E2eDatastoreDescribe("BGPConfiguration tests", testutils.Datas
 
 			be, err := backend.NewClient(config)
 			Expect(err).NotTo(HaveOccurred())
-			be.Clean()
+			err = be.Clean()
+			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the BGPConfiguration before it is created")
 			_, outError := c.BGPConfigurations().Update(ctx, &apiv3.BGPConfiguration{
@@ -338,7 +339,8 @@ var _ = testutils.E2eDatastoreDescribe("BGPConfiguration tests", testutils.Datas
 
 			be, err := backend.NewClient(config)
 			Expect(err).NotTo(HaveOccurred())
-			be.Clean()
+			err = be.Clean()
+			Expect(err).NotTo(HaveOccurred())
 
 			By("Listing BGPConfigurations with the latest resource version and checking for two results with name1/specDebug and name2/specDebug")
 			outList, outError := c.BGPConfigurations().List(ctx, options.ListOptions{})
@@ -355,6 +357,7 @@ var _ = testutils.E2eDatastoreDescribe("BGPConfiguration tests", testutils.Datas
 				},
 				options.SetOptions{},
 			)
+			Expect(err).NotTo(HaveOccurred())
 			rev1 := outRes1.ResourceVersion
 
 			By("Configuring a BGPConfiguration name2/specDebug and storing the response")
@@ -487,7 +490,8 @@ var _ = testutils.E2eDatastoreDescribe("BGPConfiguration tests", testutils.Datas
 			})
 
 			By("Cleaning the datastore and expecting deletion events for each configured resource (tests prefix deletes results in individual events for each key)")
-			be.Clean()
+			err = be.Clean()
+			Expect(err).NotTo(HaveOccurred())
 			testWatcher4.ExpectEvents(apiv3.KindBGPConfiguration, []watch.Event{
 				{
 					Type:     watch.Deleted,

@@ -1401,9 +1401,17 @@ func (c ipamClient) GetIPAMConfig(ctx context.Context) (*IPAMConfig, error) {
 // SetIPAMConfig sets global IPAM configuration.  This can only
 // be done when there are no allocated blocks and IP addresses.
 func (c ipamClient) SetIPAMConfig(ctx context.Context, cfg IPAMConfig) error {
-	current, err := c.GetIPAMConfig(ctx)
+	current := new(IPAMConfig)
+	obj, err := c.client.Get(ctx, model.IPAMConfigKey{}, "")
 	if err != nil {
-		return err
+		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+			// IPAMConfig has not been explicitly set.  Return
+			// a default IPAM configuration.
+			current = &IPAMConfig{AutoAllocateBlocks: true, StrictAffinity: false}
+		} else {
+			log.Errorf("Error getting IPAMConfig: %+v", err)
+			return err
+		}
 	}
 
 	if *current == cfg {
@@ -1423,11 +1431,14 @@ func (c ipamClient) SetIPAMConfig(ctx context.Context, cfg IPAMConfig) error {
 	}
 
 	// Write to datastore.
-	obj := model.KVPair{
+	nObj := model.KVPair{
 		Key:   model.IPAMConfigKey{},
 		Value: c.convertIPAMConfigToBackend(&cfg),
 	}
-	_, err = c.client.Apply(ctx, &obj)
+	if obj != nil {
+		nObj.Revision = obj.Revision
+	}
+	_, err = c.client.Apply(ctx, &nObj)
 	if err != nil {
 		log.Errorf("Error applying IPAMConfig: %v", err)
 		return err

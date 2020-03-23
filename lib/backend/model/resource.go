@@ -121,7 +121,28 @@ func init() {
 	registerResourceInfo(
 		apiv3.KindKubeControllersConfiguration,
 		"kubecontrollersconfigurations",
-		reflect.TypeOf(apiv3.KubeControllersConfiguration{}))
+		reflect.TypeOf(apiv3.KubeControllersConfiguration{}),
+	)
+	registerResourceInfo(
+		apiv3.KindBlockAffinity,
+		"blockaffinities",
+		reflect.TypeOf(apiv3.BlockAffinity{}),
+	)
+	registerResourceInfo(
+		apiv3.KindIPAMBlock,
+		"ipamblocks",
+		reflect.TypeOf(apiv3.IPAMBlock{}),
+	)
+	registerResourceInfo(
+		apiv3.KindIPAMHandle,
+		"ipamhandles",
+		reflect.TypeOf(apiv3.IPAMHandle{}),
+	)
+	registerResourceInfo(
+		apiv3.KindIPAMConfig,
+		"ipamconfigs",
+		reflect.TypeOf(apiv3.IPAMConfig{}),
+	)
 }
 
 type ResourceKey struct {

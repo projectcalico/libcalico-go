@@ -22,8 +22,10 @@ import (
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	log "github.com/sirupsen/logrus"
 
+	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/converter"
 	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
@@ -118,4 +120,113 @@ func etcdToKVPair(key model.Key, ekv *mvccpb.KeyValue) (*model.KVPair, error) {
 		Value:    v,
 		Revision: strconv.FormatInt(ekv.ModRevision, 10),
 	}, nil
+}
+
+// isV3IPAMResource returns true if the given key is for an IPAM object using the
+// v3 API.
+func isV3IPAMResource(k model.Key) bool {
+	rkey, ok := k.(model.ResourceKey)
+	if !ok {
+		return false
+	}
+	return isKindV3IPAM(rkey.Kind)
+}
+
+// isV3IPAMList returns true if the given list interface is for an IPAM object
+// using the v3 API.
+func isV3IPAMList(l model.ListInterface) bool {
+	rlo, ok := l.(model.ResourceListOptions)
+	if !ok {
+		return false
+	}
+	return isKindV3IPAM(rlo.Kind)
+}
+
+// isKindV3IPAM returns true if the given Kind is for an IPAM object using the
+// v3 API.
+func isKindV3IPAM(kind string) bool {
+	switch kind {
+	case apiv3.KindBlockAffinity:
+		return true
+	case apiv3.KindIPAMBlock:
+		return true
+	case apiv3.KindIPAMConfig:
+		return true
+	case apiv3.KindIPAMHandle:
+		return true
+	default:
+		return false
+	}
+}
+
+// ipamConverter is an interface that allows conversion between v3 and v1 IPAM
+// objects
+type ipamConverter interface {
+	ToV1(kvpv3 *model.KVPair) (*model.KVPair, error)
+	ToV3(kvpv1 *model.KVPair) *model.KVPair
+	ToV1ListInterface(l model.ResourceListOptions) (model.ListInterface, error)
+	ToV1Key(k model.Key) (model.Key, error)
+}
+
+// kindToIPAMConverter returns the appropriate converter for the given v3 Kind
+func kindToIPAMConverter(kind string) ipamConverter {
+	switch kind {
+	case apiv3.KindBlockAffinity:
+		return converter.BlockAffinityConverter{}
+	case apiv3.KindIPAMBlock:
+		return converter.IPAMBlockConverter{}
+	case apiv3.KindIPAMConfig:
+		return converter.IPAMConfigConverter{}
+	case apiv3.KindIPAMHandle:
+		return converter.IPAMHandleConverter{}
+	default:
+		panic("wasn't a v3 IPAM resource")
+	}
+}
+
+// convertIPAMToV1 converts a v3 IPAM resource to its v1 equivalent.
+func convertIPAMToV1(kvp *model.KVPair) (*model.KVPair, error) {
+	rkey := kvp.Key.(model.ResourceKey)
+	c := kindToIPAMConverter(rkey.Kind)
+	return c.ToV1(kvp)
+}
+
+// concertIPAMToV3 converts a v1 IPAM resource to its v3 equivalent
+func convertIPAMToV3(kvp *model.KVPair) *model.KVPair {
+	// Makes this safe to call on results even if there are errors
+	if kvp == nil {
+		return kvp
+	}
+	switch kvp.Key.(type) {
+	case model.BlockAffinityKey:
+		c := converter.BlockAffinityConverter{}
+		return c.ToV3(kvp)
+	case model.BlockKey:
+		c := converter.IPAMBlockConverter{}
+		return c.ToV3(kvp)
+	case model.IPAMConfigKey:
+		c := converter.IPAMConfigConverter{}
+		return c.ToV3(kvp)
+	case model.IPAMHandleKey:
+		c := converter.IPAMHandleConverter{}
+		return c.ToV3(kvp)
+	default:
+		log.WithField("key", kvp.Key).Panic("wasn't a v1 IPAM resource")
+		panic("unhittable!")
+	}
+}
+
+// convertIPAMKeyToV1 converts a v3 IPAM key to the equivalent v1 key
+func convertIPAMKeyToV1(k model.Key) (model.Key, error) {
+	rkey := k.(model.ResourceKey)
+	c := kindToIPAMConverter(rkey.Kind)
+	return c.ToV1Key(k)
+}
+
+// convertIPAMListInterfaceToV1 converts a v3 IPAM list interface to the equivalent
+// v1 list interface
+func convertIPAMListInterfaceToV1(l model.ListInterface) (model.ListInterface, error) {
+	rlo := l.(model.ResourceListOptions)
+	c := kindToIPAMConverter(rlo.Kind)
+	return c.ToV1ListInterface(rlo)
 }

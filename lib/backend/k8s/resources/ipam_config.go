@@ -27,6 +27,7 @@ import (
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/converter"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 )
 
@@ -52,6 +53,24 @@ func NewIPAMConfigClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourc
 			resourceKind: apiv3.KindIPAMConfig}}
 }
 
+// NewV3IPAMConfigClient returns a resource client that accepts IPAMConfig resources
+// in V3 format, as opposed to the NewIPAMConfigClient that accepts V1 resources.
+func NewV3IPAMConfigClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceClient {
+	return &customK8sResourceClient{
+		clientSet:       c,
+		restClient:      r,
+		name:            IPAMConfigCRDName,
+		resource:        IPAMConfigResourceName,
+		description:     "Calico IPAM configuration",
+		k8sResourceType: reflect.TypeOf(apiv3.IPAMConfig{}),
+		k8sResourceTypeMeta: metav1.TypeMeta{
+			Kind:       apiv3.KindIPAMConfig,
+			APIVersion: apiv3.GroupVersionCurrent,
+		},
+		k8sListType:  reflect.TypeOf(apiv3.IPAMConfigList{}),
+		resourceKind: apiv3.KindIPAMConfig}
+}
+
 // ipamConfigClient implements the api.Client interface for IPAMConfig objects. It
 // handles the translation between v1 objects understood by the IPAM codebase in lib/ipam,
 // and the CRDs which are used to actually store the data in the Kubernetes API.
@@ -61,55 +80,15 @@ type ipamConfigClient struct {
 	rc customK8sResourceClient
 }
 
-// toV1 converts the given v3 CRD KVPair into a v1 model representation
-// which can be passed to the IPAM code.
-func (c ipamConfigClient) toV1(kvpv3 *model.KVPair) (*model.KVPair, error) {
-	v3obj := kvpv3.Value.(*apiv3.IPAMConfig)
-	return &model.KVPair{
-		Key: model.IPAMConfigKey{},
-		Value: &model.IPAMConfig{
-			StrictAffinity:     v3obj.Spec.StrictAffinity,
-			AutoAllocateBlocks: v3obj.Spec.AutoAllocateBlocks,
-		},
-		Revision: kvpv3.Revision,
-		UID:      &kvpv3.Value.(*apiv3.IPAMConfig).UID,
-	}, nil
-}
-
-// toV3 takes the given v1 KVPair and converts it into a v3 representation, suitable
-// for writing as a CRD to the Kubernetes API.
-func (c ipamConfigClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
-	v1obj := kvpv1.Value.(*model.IPAMConfig)
-	return &model.KVPair{
-		Key: model.ResourceKey{
-			Name: model.IPAMConfigGlobalName,
-			Kind: apiv3.KindIPAMConfig,
-		},
-		Value: &apiv3.IPAMConfig{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       apiv3.KindIPAMConfig,
-				APIVersion: "crd.projectcalico.org/v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            model.IPAMConfigGlobalName,
-				ResourceVersion: kvpv1.Revision,
-			},
-			Spec: apiv3.IPAMConfigSpec{
-				StrictAffinity:     v1obj.StrictAffinity,
-				AutoAllocateBlocks: v1obj.AutoAllocateBlocks,
-			},
-		},
-		Revision: kvpv1.Revision,
-	}
-}
+var ipamConfigConverter = converter.IPAMConfigConverter{}
 
 func (c *ipamConfigClient) Create(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	log.Debug("Received Create request on IPAMConfig type")
-	nkvp, err := c.rc.Create(ctx, c.toV3(kvp))
+	nkvp, err := c.rc.Create(ctx, ipamConfigConverter.ToV3(kvp))
 	if err != nil {
 		return nil, err
 	}
-	kvp, err = c.toV1(nkvp)
+	kvp, err = ipamConfigConverter.ToV1(nkvp)
 	if err != nil {
 		return nil, err
 	}
@@ -118,11 +97,11 @@ func (c *ipamConfigClient) Create(ctx context.Context, kvp *model.KVPair) (*mode
 
 func (c *ipamConfigClient) Update(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	log.Debug("Received Update request on IPAMConfig type")
-	nkvp, err := c.rc.Update(ctx, c.toV3(kvp))
+	nkvp, err := c.rc.Update(ctx, ipamConfigConverter.ToV3(kvp))
 	if err != nil {
 		return nil, err
 	}
-	kvp, err = c.toV1(nkvp)
+	kvp, err = ipamConfigConverter.ToV1(nkvp)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +121,7 @@ func (c *ipamConfigClient) Delete(ctx context.Context, key model.Key, revision s
 	if err != nil {
 		return nil, err
 	}
-	v1nkvp, err := c.toV1(kvp)
+	v1nkvp, err := ipamConfigConverter.ToV1(kvp)
 	if err != nil {
 		return nil, err
 	}
@@ -157,9 +136,10 @@ func (c *ipamConfigClient) Get(ctx context.Context, key model.Key, revision stri
 	}
 	kvp, err := c.rc.Get(ctx, k, revision)
 	if err != nil {
+		log.WithError(err).Debug("get request on IPAMConfig type had error")
 		return nil, err
 	}
-	v1kvp, err := c.toV1(kvp)
+	v1kvp, err := ipamConfigConverter.ToV1(kvp)
 	if err != nil {
 		return nil, err
 	}

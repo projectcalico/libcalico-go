@@ -62,5 +62,21 @@ type Interface interface {
 	EnsureInitialized(ctx context.Context, calicoVersion, clusterType string) error
 }
 
-// Compile-time assertion that our client implements its interface.
+// LowLevelIPAMClient allows interacting with the LowLevelIPAMInterface. It's a separate interface
+// from the main client for backward compatibility, since some test code that doesn't need to care
+// about this new interface implements the main Interface.  Code that needs access to this interface
+// from the main Interface, can do a type assertion, e.g.
+//
+// llIPAM := client.(LowLevelIPAMClient).LowLevelIPAM()
+//
+type LowLevelIPAMClient interface {
+	// LowLevelIPAM returns an interface for interacting with low-level IPAM data directly.
+	// This interface should not be used for ordinary IPAM operations: use the IPAM interface instead.
+	// The low level interface gives unsafe access to the direct data objects, and incorrect use
+	// could put the datastore in an inconsistent state.
+	LowLevelIPAM() LowLevelIPAMInterface
+}
+
+// Compile-time assertion that our client implements its interface(s).
 var _ Interface = (*client)(nil)
+var _ LowLevelIPAMClient = (*client)(nil)

@@ -133,6 +133,23 @@ func (c *etcdV3Client) Create(ctx context.Context, d *model.KVPair) (*model.KVPa
 	logCxt := log.WithFields(log.Fields{"model-etcdKey": d.Key, "value": d.Value, "ttl": d.TTL, "rev": d.Revision})
 	logCxt.Debug("Processing Create request")
 
+	// IPAM objects can be written either in V1 format via the backend API, or V3
+	// format using the v3 Client interface LowLevelIPAM.  If we get a V3 IPAM
+	// resource, convert it to V1 before continuing, so that these APIs are backed
+	// by a consistent set of keys in etcd.
+	needsConversion := isV3IPAMResource(d.Key)
+	if needsConversion {
+		var err error
+		d, err = convertIPAMToV1(d)
+		if err != nil {
+			logCxt.WithError(err).Error("Failed to convert v3 IPAM resource to etcd backend format")
+			return nil, cerrors.ErrorDatastoreError{
+				Err:        err,
+				Identifier: d.Key,
+			}
+		}
+	}
+
 	key, value, err := getKeyValueStrings(d)
 	if err != nil {
 		return nil, err
@@ -168,6 +185,9 @@ func (c *etcdV3Client) Create(ctx context.Context, d *model.KVPair) (*model.KVPa
 		if len(getResp.Kvs) != 0 {
 			existing, _ = etcdToKVPair(d.Key, getResp.Kvs[0])
 		}
+		if needsConversion {
+			existing = convertIPAMToV3(existing)
+		}
 		return existing, cerrors.ErrorResourceAlreadyExists{Identifier: d.Key}
 	}
 
@@ -177,6 +197,9 @@ func (c *etcdV3Client) Create(ctx context.Context, d *model.KVPair) (*model.KVPa
 	}
 	d.Value = v
 	d.Revision = strconv.FormatInt(txnResp.Header.Revision, 10)
+	if needsConversion {
+		d = convertIPAMToV3(d)
+	}
 
 	return d, nil
 }
@@ -187,6 +210,10 @@ func (c *etcdV3Client) Create(ctx context.Context, d *model.KVPair) (*model.KVPa
 func (c *etcdV3Client) Update(ctx context.Context, d *model.KVPair) (*model.KVPair, error) {
 	logCxt := log.WithFields(log.Fields{"model-etcdKey": d.Key, "value": d.Value, "ttl": d.TTL, "rev": d.Revision})
 	logCxt.Debug("Processing Update request")
+
+	// No IPAM conversion needed because we don't support Updating IPAM objects
+	// on the v3 API.
+
 	key, value, err := getKeyValueStrings(d)
 	if err != nil {
 		return nil, err
@@ -238,7 +265,6 @@ func (c *etcdV3Client) Update(ctx context.Context, d *model.KVPair) (*model.KVPa
 	cerrors.PanicIfErrored(err, "Unexpected error parsing stored datastore entry: %v", value)
 	d.Value = v
 	d.Revision = strconv.FormatInt(txnResp.Header.Revision, 10)
-
 	return d, nil
 }
 
@@ -250,6 +276,9 @@ func (c *etcdV3Client) Update(ctx context.Context, d *model.KVPair) (*model.KVPa
 func (c *etcdV3Client) Apply(ctx context.Context, d *model.KVPair) (*model.KVPair, error) {
 	logCxt := log.WithFields(log.Fields{"etcdKey": d.Key, "value": d.Value, "ttl": d.TTL, "rev": d.Revision})
 	logCxt.Debug("Processing Apply request")
+
+	// Don't need to do any IPAM conversion, because Apply is only available on the v1 client.
+
 	key, value, err := getKeyValueStrings(d)
 	if err != nil {
 		return nil, err
@@ -283,6 +312,7 @@ func (c *etcdV3Client) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model
 func (c *etcdV3Client) Delete(ctx context.Context, k model.Key, revision string) (*model.KVPair, error) {
 	logCxt := log.WithFields(log.Fields{"model-etcdKey": k, "rev": revision})
 	logCxt.Debug("Processing Delete request")
+
 	key, err := model.KeyToDefaultDeletePath(k)
 	if err != nil {
 		return nil, err
@@ -347,6 +377,22 @@ func (c *etcdV3Client) Get(ctx context.Context, k model.Key, revision string) (*
 	logCxt := log.WithFields(log.Fields{"model-etcdKey": k, "rev": revision})
 	logCxt.Debug("Processing Get request")
 
+	// IPAM objects can be written either in V1 format via the backend API, or V3
+	// format using the v3 Client interface LowLevelIPAM.  If we get a V3 IPAM
+	// resource, convert it to V1 before continuing, so that these APIs are backed
+	// by a consistent set of keys in etcd.
+	needsConversion := isV3IPAMResource(k)
+	if needsConversion {
+		knew, err := convertIPAMKeyToV1(k)
+		if err != nil {
+			return nil, cerrors.ErrorOperationNotSupported{
+				Operation:  "Get",
+				Identifier: k,
+				Reason:     err.Error(),
+			}
+		}
+		k = knew
+	}
 	key, err := model.KeyToDefaultPath(k)
 	if err != nil {
 		logCxt.Error("Unable to convert model.Key to an etcdv3 etcdKey")
@@ -374,7 +420,11 @@ func (c *etcdV3Client) Get(ctx context.Context, k model.Key, revision string) (*
 		return nil, cerrors.ErrorResourceDoesNotExist{Identifier: k}
 	}
 
-	return etcdToKVPair(k, resp.Kvs[0])
+	out, err := etcdToKVPair(k, resp.Kvs[0])
+	if needsConversion {
+		out = convertIPAMToV3(out)
+	}
+	return out, err
 }
 
 // List entries in the datastore.  This may return an empty list of there are
@@ -382,6 +432,23 @@ func (c *etcdV3Client) Get(ctx context.Context, k model.Key, revision string) (*
 func (c *etcdV3Client) List(ctx context.Context, l model.ListInterface, revision string) (*model.KVPairList, error) {
 	logCxt := log.WithFields(log.Fields{"list-interface": l, "rev": revision})
 	logCxt.Debug("Processing List request")
+
+	// IPAM objects can be written either in V1 format via the backend API, or V3
+	// format using the v3 Client interface LowLevelIPAM.  If we get a V3 IPAM
+	// resource, convert it to V1 before continuing, so that these APIs are backed
+	// by a consistent set of keys in etcd.
+	needsConversion := isV3IPAMList(l)
+	if needsConversion {
+		lnew, err := convertIPAMListInterfaceToV1(l)
+		if err != nil {
+			return nil, cerrors.ErrorOperationNotSupported{
+				Operation:  "List",
+				Identifier: l,
+				Reason:     err.Error(),
+			}
+		}
+		l = lnew
+	}
 
 	// To list entries, we enumerate from the common root based on the supplied IDs, and then filter the results.
 	key, ops := calculateListKeyAndOptions(logCxt, l)
@@ -408,6 +475,9 @@ func (c *etcdV3Client) List(ctx context.Context, l model.ListInterface, revision
 	list := []*model.KVPair{}
 	for _, p := range resp.Kvs {
 		if kv := convertListResponse(p, l); kv != nil {
+			if needsConversion {
+				kv = convertIPAMToV3(kv)
+			}
 			list = append(list, kv)
 		}
 	}

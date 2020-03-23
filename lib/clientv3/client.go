@@ -150,6 +150,10 @@ func (c client) KubeControllersConfiguration() KubeControllersConfigurationInter
 	return kubeControllersConfiguration{client: c}
 }
 
+func (c client) LowLevelIPAM() LowLevelIPAMInterface {
+	return llIPAM{client: c}
+}
+
 type poolAccessor struct {
 	client *client
 }

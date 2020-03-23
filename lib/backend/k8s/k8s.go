@@ -221,6 +221,34 @@ func NewKubeClient(ca *apiconfig.CalicoAPIConfigSpec) (api.Client, error) {
 		resources.NewKubeControllersConfigClient(cs, crdClientV1),
 	)
 
+	// Note that IPAM objects get registered twice: once for the LowLevelIPAM
+	// interface that uses the V3 API, and once for the lib/ipam code that uses
+	// the V1 API.  This block is the LowLevelIPAM registration.
+	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.ResourceKey{}),
+		reflect.TypeOf(model.ResourceListOptions{}),
+		apiv3.KindBlockAffinity,
+		resources.NewV3BlockAffinityClient(cs, crdClientV1),
+	)
+	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.ResourceKey{}),
+		reflect.TypeOf(model.ResourceListOptions{}),
+		apiv3.KindIPAMBlock,
+		resources.NewV3IPAMBlockClient(cs, crdClientV1),
+	)
+	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.ResourceKey{}),
+		reflect.TypeOf(model.ResourceListOptions{}),
+		apiv3.KindIPAMHandle,
+		resources.NewV3IPAMHandleClient(cs, crdClientV1),
+	)
+	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.ResourceKey{}),
+		reflect.TypeOf(model.ResourceListOptions{}),
+		apiv3.KindIPAMConfig,
+		resources.NewV3IPAMConfigClient(cs, crdClientV1),
+	)
+
 	if ca.K8sUsePodCIDR {
 		// Using host-local IPAM. Use Kubernetes pod CIDRs to back IPAM.
 		log.Debug("Calico is configured to use host-local IPAM")
@@ -344,7 +372,6 @@ func (c *KubeClient) Clean() error {
 	// Cleanup IPAM resources that have slightly different backend semantics.
 	for _, li := range []model.ListInterface{
 		model.BlockListOptions{},
-		model.BlockAffinityListOptions{},
 		model.BlockAffinityListOptions{},
 		model.IPAMHandleListOptions{},
 	} {
