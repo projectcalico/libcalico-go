@@ -90,8 +90,9 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 			// Kubernetes will have a profile for each of the namespaces that is configured.
 			// We expect:  default, kube-system, kube-public, namespace-1, namespace-2
 			if config.Spec.DatastoreType == apiconfig.Kubernetes {
-				// Add one for the node resource.
-				expectedCacheSize += 1
+				// Add one for the node resource, and one for the default-allow
+				// profile.
+				expectedCacheSize += 2
 
 				// Add resources for the namespaces we expect in the cluster.
 				for _, ns := range []string{"default", "kube-public", "kube-system", "namespace-1", "namespace-2", "kube-node-lease"} {

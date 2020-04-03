@@ -473,6 +473,11 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 			Expect(err).NotTo(HaveOccurred())
 		})
 
+		By("getting the 'allow' Profile", func() {
+			_, err := c.Get(ctx, model.ResourceKey{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, "")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
 		// Expect corresponding Profile updates over the syncer for this Namespace.
 		By("Checking the correct entries are in our cache", func() {
 			expectedName := "kns.test-syncer-namespace-no-default-deny"
@@ -2207,6 +2212,11 @@ var _ = testutils.E2eDatastoreDescribe("Test Watch support", testutils.Datastore
 			defer watch.Stop()
 			event := ExpectAddedEvent(watch.ResultChan())
 			Expect(event.New.Key.String()).To(Equal("Profile(ksa.default.test-sa-1)"))
+		})
+		It("rejects the 'allow' profile", func() {
+			_, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, "")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("Unsupported operation for resource name: projectcalico-allow-all"))
 		})
 		It("supports watching all profiles", func() {
 			watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, "")

@@ -33,6 +33,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/resources"
 )
 
 func NewProfileClient(c *kubernetes.Clientset) K8sResourceClient {
@@ -128,6 +129,9 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 	rk := key.(model.ResourceKey)
 	if rk.Name == "" {
 		return nil, fmt.Errorf("Profile key missing name: %+v", rk)
+	} else if rk.Name == resources.AllowProfileName {
+		// The "allow" profile is hard-coded; don't need to query the datastore.
+		return resources.AllowProfile(), nil
 	}
 
 	nsRev, saRev, err := c.SplitProfileRevision(revision)
@@ -153,7 +157,9 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 func (c *profileClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
 	log.Debug("Received List request on Profile type")
 	nl := list.(model.ResourceListOptions)
-	kvps := []*model.KVPair{}
+
+	// Always put the built-in allow-all profile into the list.
+	kvps := []*model.KVPair{resources.AllowProfile()}
 
 	// If a name is specified, then do an exact lookup.
 	if nl.Name != "" {
@@ -240,7 +246,12 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 	if len(rlo.Name) != 0 {
 		log.WithField("name", rlo.Name).Debug("Watching a single profile")
 		var err error
-		if strings.HasPrefix(rlo.Name, conversion.NamespaceProfileNamePrefix) {
+
+		// If the profile is the built-in allow-all profile we return an error
+		// since it isn't created due to a namespace or serviceaccount.
+		if rlo.Name == resources.AllowProfileName {
+			return nil, fmt.Errorf("Unsupported operation for resource name: %s", resources.AllowProfileName)
+		} else if strings.HasPrefix(rlo.Name, conversion.NamespaceProfileNamePrefix) {
 			watchSA = false
 			ns, err = c.ProfileNameToNamespace(rlo.Name)
 			if err != nil {

@@ -250,6 +250,44 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			_, outError = c.Profiles().Get(ctx, name2, options.GetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(ContainSubstring("resource does not exist: Profile(" + name2 + ") with error:"))
+			By("Creating Profile (projectcalico-allow-all) and expecting an error")
+			res = apiv3.NewProfile()
+			res.Name = "projectcalico-allow-all"
+			res.Spec = apiv3.ProfileSpec{
+				Ingress: []apiv3.Rule{{Action: apiv3.Allow}},
+				Egress:  []apiv3.Rule{{Action: apiv3.Allow}},
+			}
+			_, outError = c.Profiles().Create(ctx, res, options.SetOptions{})
+			Expect(outError).To(HaveOccurred())
+			Expect(outError.Error()).To(ContainSubstring("projectcalico-allow-all already exists"))
+
+			By("Getting Profile (projectcalico-allow-all)")
+			res, outError = c.Profiles().Get(ctx, "projectcalico-allow-all", options.GetOptions{})
+			Expect(outError).NotTo(HaveOccurred())
+			expectedSpec := apiv3.ProfileSpec{
+				Ingress: []apiv3.Rule{{Action: apiv3.Allow}},
+				Egress:  []apiv3.Rule{{Action: apiv3.Allow}},
+			}
+
+			Expect(res.Name).To(Equal("projectcalico-allow-all"))
+			Expect(res.Namespace).To(BeEmpty())
+			Expect(res.Spec.Ingress).Should(ConsistOf(expectedSpec.Ingress))
+			Expect(res.Spec.Egress).Should(ConsistOf(expectedSpec.Egress))
+
+			By("Updating Profile (projectcalico-allow-all) and expecting an error")
+			// Add required fields.
+			res.ResourceVersion = "fakerv"
+			res.CreationTimestamp = metav1.Now()
+			res.UID = "uid"
+
+			_, outError = c.Profiles().Update(ctx, res, options.SetOptions{})
+			Expect(outError).To(HaveOccurred())
+			Expect(outError.Error()).To(ContainSubstring("Cannot modify a built-in profile"))
+
+			By("Deleting Profile (projectcalico-allow-all) and expecting an error")
+			_, outError = c.Profiles().Delete(ctx, "projectcalico-allow-all", options.DeleteOptions{})
+			Expect(outError).To(HaveOccurred())
+			Expect(outError.Error()).To(ContainSubstring("Cannot delete built-in profile"))
 		},
 
 		// Test 1: Pass two fully populated ProfileSpecs and expect the series of operations to succeed.
