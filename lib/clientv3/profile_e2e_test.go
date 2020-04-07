@@ -287,7 +287,7 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			By("Deleting Profile (projectcalico-allow-all) and expecting an error")
 			_, outError = c.Profiles().Delete(ctx, "projectcalico-allow-all", options.DeleteOptions{})
 			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(ContainSubstring("Cannot delete built-in profile"))
+			Expect(outError.Error()).To(ContainSubstring("Cannot delete a built-in profile"))
 		},
 
 		// Test 1: Pass two fully populated ProfileSpecs and expect the series of operations to succeed.

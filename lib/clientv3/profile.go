@@ -18,7 +18,9 @@ import (
 	"context"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	cresources "github.com/projectcalico/libcalico-go/lib/resources"
 	validator "github.com/projectcalico/libcalico-go/lib/validator/v3"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 )
@@ -41,6 +43,14 @@ type profiles struct {
 // Create takes the representation of a Profile and creates it.  Returns the stored
 // representation of the Profile, and an error, if there is any.
 func (r profiles) Create(ctx context.Context, res *apiv3.Profile, opts options.SetOptions) (*apiv3.Profile, error) {
+	if res.Name == cresources.AllowProfileName {
+		return nil, cerrors.ErrorOperationNotSupported{
+			Operation:  "Create",
+			Identifier: cresources.AllowProfileName,
+			Reason:     "projectcalico-allow-all already exists",
+		}
+	}
+
 	if err := validator.Validate(res); err != nil {
 		return nil, err
 	}
@@ -55,6 +65,14 @@ func (r profiles) Create(ctx context.Context, res *apiv3.Profile, opts options.S
 // Update takes the representation of a Profile and updates it. Returns the stored
 // representation of the Profile, and an error, if there is any.
 func (r profiles) Update(ctx context.Context, res *apiv3.Profile, opts options.SetOptions) (*apiv3.Profile, error) {
+	if res.Name == cresources.AllowProfileName {
+		return nil, cerrors.ErrorOperationNotSupported{
+			Operation:  "Update",
+			Identifier: cresources.AllowProfileName,
+			Reason:     "Cannot modify a built-in profile",
+		}
+	}
+
 	if err := validator.Validate(res); err != nil {
 		return nil, err
 	}
@@ -68,6 +86,13 @@ func (r profiles) Update(ctx context.Context, res *apiv3.Profile, opts options.S
 
 // Delete takes name of the Profile and deletes it. Returns an error if one occurs.
 func (r profiles) Delete(ctx context.Context, name string, opts options.DeleteOptions) (*apiv3.Profile, error) {
+	if name == cresources.AllowProfileName {
+		return nil, cerrors.ErrorOperationNotSupported{
+			Operation:  "Delete",
+			Identifier: cresources.AllowProfileName,
+			Reason:     "Cannot delete a built-in profile",
+		}
+	}
 	out, err := r.client.resources.Delete(ctx, opts, apiv3.KindProfile, noNamespace, name)
 	if out != nil {
 		return out.(*apiv3.Profile), err

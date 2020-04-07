@@ -135,14 +135,6 @@ func (c *etcdV3Client) Create(ctx context.Context, d *model.KVPair) (*model.KVPa
 	logCxt := log.WithFields(log.Fields{"model-etcdKey": d.Key, "value": d.Value, "ttl": d.TTL, "rev": d.Revision})
 	logCxt.Debug("Processing Create request")
 
-	// Can't create the static allow-all profile.
-	if d.Key.String() == allowProfileName {
-		return nil, cerrors.ErrorOperationNotSupported{
-			Operation:  "Create",
-			Identifier: allowProfileName,
-			Reason:     "projectcalico-allow-all already exists",
-		}
-	}
 	key, value, err := getKeyValueStrings(d)
 	if err != nil {
 		return nil, err
@@ -198,14 +190,6 @@ func (c *etcdV3Client) Update(ctx context.Context, d *model.KVPair) (*model.KVPa
 	logCxt := log.WithFields(log.Fields{"model-etcdKey": d.Key, "value": d.Value, "ttl": d.TTL, "rev": d.Revision})
 	logCxt.Debug("Processing Update request")
 
-	// Can't update the static allow-all profile.
-	if d.Key.String() == allowProfileName {
-		return nil, cerrors.ErrorOperationNotSupported{
-			Operation:  "Update",
-			Identifier: allowProfileName,
-			Reason:     "Cannot modify a built-in profile",
-		}
-	}
 	key, value, err := getKeyValueStrings(d)
 	if err != nil {
 		return nil, err
@@ -302,15 +286,6 @@ func (c *etcdV3Client) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model
 func (c *etcdV3Client) Delete(ctx context.Context, k model.Key, revision string) (*model.KVPair, error) {
 	logCxt := log.WithFields(log.Fields{"model-etcdKey": k, "rev": revision})
 	logCxt.Debug("Processing Delete request")
-
-	// Can't delete the static allow-all profile.
-	if k.String() == allowProfileName {
-		return nil, cerrors.ErrorOperationNotSupported{
-			Operation:  "Delete",
-			Identifier: allowProfileName,
-			Reason:     "Cannot delete built-in profile",
-		}
-	}
 
 	key, err := model.KeyToDefaultDeletePath(k)
 	if err != nil {
