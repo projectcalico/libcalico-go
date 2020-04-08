@@ -513,7 +513,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 
 	It("should handle the static allow-all Profile", func() {
 
-		By("being existing in our cache", func() {
+		By("existing in our cache", func() {
 			expectedName := "projectcalico-allow-all"
 			Eventually(cb.GetSyncerValuePresentFunc(model.ProfileRulesKey{ProfileKey: model.ProfileKey{expectedName}}), slowCheck...).Should(BeTrue())
 		})
