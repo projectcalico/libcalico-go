@@ -100,6 +100,20 @@ var (
 			},
 		},
 	}
+	calicoAllowProfileSpec = apiv3.ProfileSpec{
+		Ingress: []apiv3.Rule{
+			{
+				Action: "Allow",
+			},
+		},
+		Egress: []apiv3.Rule{
+			{
+				Action: "Allow",
+			},
+		},
+	}
+
+	allowAllProfileKey = model.ResourceKey{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}
 
 	// Use a back-off set of intervals for testing deletion of a namespace
 	// which can sometimes be slow.
@@ -494,6 +508,86 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 			expectedName := "kns.test-syncer-namespace-no-default-deny"
 			Eventually(cb.GetSyncerValuePresentFunc(model.ProfileRulesKey{ProfileKey: model.ProfileKey{expectedName}}), slowCheck...).Should(BeFalse())
 			Eventually(cb.GetSyncerValuePresentFunc(model.ProfileLabelsKey{ProfileKey: model.ProfileKey{expectedName}})).Should(BeFalse())
+		})
+	})
+
+	It("should handle the static allow-all Profile", func() {
+
+		By("being existing in our cache", func() {
+			expectedName := "projectcalico-allow-all"
+			Eventually(cb.GetSyncerValuePresentFunc(model.ProfileRulesKey{ProfileKey: model.ProfileKey{expectedName}}), slowCheck...).Should(BeTrue())
+		})
+
+		By("getting the profile with no rv or rv <= 1  should return the profile", func() {
+			revs := []string{"", "0", "1"}
+			for _, rev := range revs {
+				kvp, err := c.Get(ctx, allowAllProfileKey, rev)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(kvp).NotTo(BeNil())
+
+				profile := kvp.Value.(*apiv3.Profile)
+				Expect(profile.Spec).Should(Equal(calicoAllowProfileSpec))
+			}
+		})
+
+		By("getting the profile with rv > 1 should return an error", func() {
+			_, err := c.Get(ctx, allowAllProfileKey, "2")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("resource does not exist: projectcalico-allow-all"))
+		})
+
+		By("listing all profiles with no rv or rv <= 1 should include the profile", func() {
+			revs := []string{"", "0", "1"}
+			for _, rev := range revs {
+				kvps, err := c.List(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, rev)
+				Expect(err).NotTo(HaveOccurred())
+
+				var found bool
+				for _, kvp := range kvps.KVPairs {
+					if kvp.Key == allowAllProfileKey {
+						found = true
+						Expect(kvp.Value.(*apiv3.Profile).Spec).Should(Equal(calicoAllowProfileSpec))
+					}
+				}
+				Expect(found).To(BeTrue())
+			}
+		})
+
+		By("listing all profiles with rv > 1 should not include the profile", func() {
+			kvps, err := c.List(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, "2")
+			Expect(err).NotTo(HaveOccurred())
+
+			var found bool
+			for _, kvp := range kvps.KVPairs {
+				if kvp.Key == allowAllProfileKey {
+					found = true
+				}
+			}
+			Expect(found).To(BeFalse())
+		})
+
+		By("creating the profile returns an error", func() {
+			kvp, err := c.Get(ctx, allowAllProfileKey, "")
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = c.Create(ctx, kvp)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Create is not supported on Profile(projectcalico-allow-all)"))
+		})
+
+		By("updating the profile returns an error", func() {
+			kvp, err := c.Get(ctx, allowAllProfileKey, "")
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = c.Update(ctx, kvp)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Update is not supported on Profile(projectcalico-allow-all)"))
+		})
+
+		By("deleting the profile returns an error", func() {
+			_, err := c.Delete(ctx, allowAllProfileKey, "")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Delete is not supported on Profile(projectcalico-allow-all)"))
 		})
 	})
 
