@@ -137,6 +137,11 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 		if len(revision) == 0 || revision == "0" || revision == "1" {
 			return resources.AllowProfile(), nil
 		}
+
+		return nil, cerrors.ErrorResourceDoesNotExist{
+			Identifier: resources.AllowProfileName,
+			Err:        errors.New("this built-in resource has rv = 1"),
+		}
 	}
 
 	nsRev, saRev, err := c.SplitProfileRevision(revision)
