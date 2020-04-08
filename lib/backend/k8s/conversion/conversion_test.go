@@ -2702,10 +2702,6 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		Expect(nsRev).To(Equal("1234"))
 		Expect(saRev).To(Equal(""))
 
-		By("failing to convert an invalid combined version")
-		_, _, err = c.SplitProfileRevision("1234")
-		Expect(err).To(HaveOccurred())
-
 		_, _, err = c.SplitProfileRevision("1234/5678/1313")
 		Expect(err).To(HaveOccurred())
 	})
