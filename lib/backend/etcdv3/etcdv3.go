@@ -441,22 +441,11 @@ func getAllowAllProfile(key string, revision string) *model.KVPair {
 	// Either we are getting all profiles or getting the allow-all profile
 	// specifically.
 	if key == "/calico/resources/v3/projectcalico.org/profiles/" || key == "/calico/resources/v3/projectcalico.org/profiles/projectcalico-allow-all" {
-		var includeProfile bool
-
 		// If there is no rev at all, we are returning all resources so include the allow-all.
 		// If the rev=0 we also return all resources so include that profile.
 		// If rev=1 we also include the profile; any rev > 1 excludes the profile.
-		if len(revision) == 0 {
-			includeProfile = true
-		} else {
-			rev, err := parseRevision(revision)
-			if err == nil && (rev == 0 || rev == 1) {
-				includeProfile = true
-			}
-		}
-
-		if includeProfile {
-			log.Debug("Added static 'projectcalico-allow-all' profile to response from etcdv3")
+		if len(revision) == 0 || revision == "0" || revision == "1" {
+			log.Debug("Adding static 'projectcalico-allow-all' profile to response from etcdv3")
 			return resources.AllowProfile()
 		}
 	}
