@@ -839,12 +839,14 @@ func (c Converter) SplitProfileRevision(rev string) (nsRev string, saRev string,
 	}
 
 	revs := strings.Split(rev, "/")
-	if len(revs) != 2 {
+	if len(revs) > 2 {
 		err = fmt.Errorf("ResourceVersion is not valid: %s", rev)
 		return
 	}
-
+	// ListAndWatch() can send 'ResourceVersion: "0"' as ListOptions.
 	nsRev = revs[0]
-	saRev = revs[1]
+	if len(revs) == 2 {
+		saRev = revs[1]
+	}
 	return
 }
