@@ -87,12 +87,21 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 			syncTester.ExpectStatusUpdate(api.ResyncInProgress)
 			syncTester.ExpectStatusUpdate(api.InSync)
 
+			// Add one for the default-allow profile that is always there.
+			expectedCacheSize += 1
+			syncTester.ExpectData(model.KVPair{
+				Key: model.ProfileRulesKey{ProfileKey: model.ProfileKey{Name: "projectcalico-allow-all"}},
+				Value: &model.ProfileRules{
+					InboundRules:  []model.Rule{{Action: "allow"}},
+					OutboundRules: []model.Rule{{Action: "allow"}},
+				},
+			})
+
 			// Kubernetes will have a profile for each of the namespaces that is configured.
 			// We expect:  default, kube-system, kube-public, namespace-1, namespace-2
 			if config.Spec.DatastoreType == apiconfig.Kubernetes {
-				// Add one for the node resource, and one for the default-allow
-				// profile.
-				expectedCacheSize += 2
+				// Add one for the node resource.
+				expectedCacheSize += 1
 
 				// Add resources for the namespaces we expect in the cluster.
 				for _, ns := range []string{"default", "kube-public", "kube-system", "namespace-1", "namespace-2", "kube-node-lease"} {
@@ -136,6 +145,7 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 					expectedCacheSize += 4
 				}
 			}
+
 			syncTester.ExpectCacheSize(expectedCacheSize)
 
 			var node *apiv3.Node

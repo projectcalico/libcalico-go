@@ -130,8 +130,13 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 	if rk.Name == "" {
 		return nil, fmt.Errorf("Profile key missing name: %+v", rk)
 	} else if rk.Name == resources.AllowProfileName {
+		// If there is no rev at all, we are returning all resources so include the allow-all.
+		// If the rev=0 we also return all resources so include that profile.
+		// If rev=1 we also include the profile; any rev > 1 excludes the profile.
 		// The "allow" profile is hard-coded; don't need to query the datastore.
-		return resources.AllowProfile(), nil
+		if len(revision) == 0 || revision == "0" || revision == "1" {
+			return resources.AllowProfile(), nil
+		}
 	}
 
 	nsRev, saRev, err := c.SplitProfileRevision(revision)
@@ -158,8 +163,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	log.Debug("Received List request on Profile type")
 	nl := list.(model.ResourceListOptions)
 
-	// Always put the built-in allow-all profile into the list.
-	kvps := []*model.KVPair{resources.AllowProfile()}
+	kvps := []*model.KVPair{}
 
 	// If a name is specified, then do an exact lookup.
 	if nl.Name != "" {
@@ -179,6 +183,14 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 			KVPairs:  kvps,
 			Revision: revision,
 		}, nil
+	}
+
+	// If there is no rev at all, we are returning all resources so include the allow-all.
+	// If the rev=0 we also return all resources so include that profile.
+	// If rev=1 we also include the profile; any rev > 1 excludes the profile.
+	// The "allow" profile is hard-coded; don't need to query the datastore.
+	if len(revision) == 0 || revision == "0" || revision == "1" {
+		kvps = []*model.KVPair{resources.AllowProfile()}
 	}
 
 	nsRev, saRev, err := c.SplitProfileRevision(revision)

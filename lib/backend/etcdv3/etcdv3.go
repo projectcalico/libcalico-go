@@ -351,16 +351,17 @@ func (c *etcdV3Client) Get(ctx context.Context, k model.Key, revision string) (*
 	logCxt := log.WithFields(log.Fields{"model-etcdKey": k, "rev": revision})
 	logCxt.Debug("Processing Get request")
 
-	// Handle the static allow-all profile.
-	if k.String() == allowProfileName {
-		return resources.AllowProfile(), nil
-	}
 	key, err := model.KeyToDefaultPath(k)
 	if err != nil {
 		logCxt.Error("Unable to convert model.Key to an etcdv3 etcdKey")
 		return nil, err
 	}
 	logCxt = logCxt.WithField("etcdv3-etcdKey", key)
+
+	// Handle the static allow-all profile.
+	if kvp := getAllowAllProfile(key, revision); kvp != nil {
+		return kvp, nil
+	}
 
 	ops := []clientv3.OpOption{}
 	if len(revision) != 0 {
@@ -420,10 +421,47 @@ func (c *etcdV3Client) List(ctx context.Context, l model.ListInterface, revision
 		}
 	}
 
+	// If we're listing profiles, we need to handle the statically defined
+	// allow-all profile in the resources package.
+	// Add the allow-all profile to our kvpairs list if needed.
+	if kvp := getAllowAllProfile(key, revision); kvp != nil {
+		list = append(list, kvp)
+	}
+
 	return &model.KVPairList{
 		KVPairs:  list,
 		Revision: strconv.FormatInt(resp.Header.Revision, 10),
 	}, nil
+}
+
+// getAllowAllProfile checks whether the statically defined allow-all profile
+// should be returned in the get/list result. If so, its kvpair is returned
+// otherwise it returns nil.
+func getAllowAllProfile(key string, revision string) *model.KVPair {
+	// Either we are getting all profiles or getting the allow-all profile
+	// specifically.
+	if key == "/calico/resources/v3/projectcalico.org/profiles/" || key == "/calico/resources/v3/projectcalico.org/profiles/projectcalico-allow-all" {
+		var includeProfile bool
+
+		// If there is no rev at all, we are returning all resources so include the allow-all.
+		// If the rev=0 we also return all resources so include that profile.
+		// If rev=1 we also include the profile; any rev > 1 excludes the profile.
+		if len(revision) == 0 {
+			includeProfile = true
+		} else {
+			rev, err := parseRevision(revision)
+			if err == nil && (rev == 0 || rev == 1) {
+				includeProfile = true
+			}
+		}
+
+		if includeProfile {
+			log.Debug("Added static 'projectcalico-allow-all' profile to response from etcdv3")
+			return resources.AllowProfile()
+		}
+	}
+
+	return nil
 }
 
 func calculateListKeyAndOptions(logCxt *log.Entry, l model.ListInterface) (string, []clientv3.OpOption) {
