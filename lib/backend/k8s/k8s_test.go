@@ -518,7 +518,13 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 			Eventually(cb.GetSyncerValuePresentFunc(model.ProfileRulesKey{ProfileKey: model.ProfileKey{expectedName}}), slowCheck...).Should(BeTrue())
 		})
 
-		By("getting the profile with no rv or rv <= 1  should return the profile", func() {
+		It("watching the 'allow' profile returns an error", func() {
+			_, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, "")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("Unsupported operation for resource name: projectcalico-allow-all"))
+		})
+
+		By("getting the profile with no rv or rv <= 1 should return the profile", func() {
 			revs := []string{"", "0", "1"}
 			for _, rev := range revs {
 				kvp, err := c.Get(ctx, allowAllProfileKey, rev)
@@ -2306,11 +2312,6 @@ var _ = testutils.E2eDatastoreDescribe("Test Watch support", testutils.Datastore
 			defer watch.Stop()
 			event := ExpectAddedEvent(watch.ResultChan())
 			Expect(event.New.Key.String()).To(Equal("Profile(ksa.default.test-sa-1)"))
-		})
-		It("rejects the 'allow' profile", func() {
-			_, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, "")
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(Equal("Unsupported operation for resource name: projectcalico-allow-all"))
 		})
 		It("supports watching all profiles", func() {
 			watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, "")
