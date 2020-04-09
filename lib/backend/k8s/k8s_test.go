@@ -518,7 +518,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 			Eventually(cb.GetSyncerValuePresentFunc(model.ProfileRulesKey{ProfileKey: model.ProfileKey{expectedName}}), slowCheck...).Should(BeTrue())
 		})
 
-		It("watching the 'allow' profile returns an error", func() {
+		By("watching the 'allow' profile returns an error", func() {
 			_, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, "")
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal("Unsupported operation for resource name: projectcalico-allow-all"))
