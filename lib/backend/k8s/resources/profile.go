@@ -130,10 +130,8 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 	if rk.Name == "" {
 		return nil, fmt.Errorf("Profile key missing name: %+v", rk)
 	} else if rk.Name == resources.AllowProfileName {
-		// If there is no rev at all, we are returning all resources so include the allow-all.
-		// If the rev=0 we also return all resources so include that profile.
-		// If rev=1 we also include the profile; any rev > 1 excludes the profile.
-		// The "allow" profile is hard-coded; don't need to query the datastore.
+		// If there is no revision or the revision matches the allow-all
+		// profile's, return it.
 		if len(revision) == 0 || revision == "0" || revision == "1" {
 			return resources.AllowProfile(), nil
 		}
@@ -190,10 +188,12 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		}, nil
 	}
 
-	// If there is no rev at all, we are returning all resources so include the allow-all.
-	// If the rev=0 we also return all resources so include that profile.
-	// If rev=1 we also include the profile; any rev > 1 excludes the profile.
-	// The "allow" profile is hard-coded; don't need to query the datastore.
+	// Add the allow-all profile to the result if:
+	// - there is no rv
+	// - rv=0
+	// - rv=1: the rv matches the allow-all profile's rv. Note this differs from
+	// the watch behavior where if rv matches the resource, no events are
+	// sent for it.
 	if len(revision) == 0 || revision == "0" || revision == "1" {
 		kvps = []*model.KVPair{resources.AllowProfile()}
 	}
@@ -259,15 +259,30 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 	ns := kapiv1.NamespaceAll
 	sa := ""
 
+	// Whether we should return the allow-all profile.
+	var includeAllowAll bool
+
 	// Watch a specific profile.
 	if len(rlo.Name) != 0 {
 		log.WithField("name", rlo.Name).Debug("Watching a single profile")
 		var err error
 
-		// If the profile is the built-in allow-all profile we return an error
-		// since it isn't created due to a namespace or serviceaccount.
+		// If we're watching the allow-all profile by name, then we should
+		// include it in the watch if the revision matches it exactly, if there
+		// is no revision, or if revision is "0". If the revision is >= 1 no
+		// event will be sent.
+		//
 		if rlo.Name == resources.AllowProfileName {
-			return nil, fmt.Errorf("Unsupported operation for resource name: %s", resources.AllowProfileName)
+			if revision == "" || revision == "0" {
+				log.WithField("rv", revision).Debug("Revision includes allow-all profile")
+				includeAllowAll = true
+			}
+
+			log.WithField("rv", revision).Debug("Creating watch on allow-all profile")
+			// Exit with a new profileWatcher now and use fake watches in place
+			// of real ns and sa watchers. This profile watcher will never get any
+			// events because no events will occur for the static allow-all profile.
+			return newProfileWatcher(ctx, api.NewFake(), api.NewFake(), includeAllowAll), nil
 		} else if strings.HasPrefix(rlo.Name, conversion.NamespaceProfileNamePrefix) {
 			watchSA = false
 			ns, err = c.ProfileNameToNamespace(rlo.Name)
@@ -285,6 +300,11 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		} else {
 			return nil, fmt.Errorf("Unsupported prefix for resource name: %s", rlo.Name)
 		}
+	} else if revision == "" || revision == "0" {
+		// If watching all profiles, include the allow-all profile if no revision
+		// or revision is 0.
+		log.WithField("rv", revision).Debug("Include allow-all profile in watch")
+		includeAllowAll = true
 	}
 
 	nsRev, saRev, err := c.SplitProfileRevision(revision)
@@ -331,10 +351,10 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 	}
 	saWatcher := newK8sWatcherConverter(ctx, "Profile-SA", converterSA, saWatch)
 
-	return newProfileWatcher(ctx, nsWatcher, saWatcher), nil
+	return newProfileWatcher(ctx, nsWatcher, saWatcher, includeAllowAll), nil
 }
 
-func newProfileWatcher(ctx context.Context, k8sWatchNS, k8sWatchSA api.WatchInterface) api.WatchInterface {
+func newProfileWatcher(ctx context.Context, k8sWatchNS, k8sWatchSA api.WatchInterface, sendAllowAllEvent bool) api.WatchInterface {
 	ctx, cancel := context.WithCancel(ctx)
 	wc := &profileWatcher{
 		k8sNSWatch: k8sWatchNS,
@@ -344,7 +364,7 @@ func newProfileWatcher(ctx context.Context, k8sWatchNS, k8sWatchSA api.WatchInte
 		resultChan: make(chan api.WatchEvent, resultsBufSize),
 		Converter:  conversion.Converter{},
 	}
-	go wc.processProfileEvents()
+	go wc.processProfileEvents(sendAllowAllEvent)
 	return wc
 }
 
@@ -389,8 +409,9 @@ func (pw *profileWatcher) HasTerminated() bool {
 }
 
 // Loop to process the events stream from the underlying k8s Watcher and convert them to
-// backend KVPs.
-func (pw *profileWatcher) processProfileEvents() {
+// backend KVPs. If sendAllowAllEvent is true, we send an ADDED event for the
+// allow-all profile.
+func (pw *profileWatcher) processProfileEvents(sendAllowAllEvent bool) {
 	log.Debug("Watcher process started for profile.")
 	defer func() {
 		log.Debug("Profile watcher process terminated")
@@ -398,6 +419,18 @@ func (pw *profileWatcher) processProfileEvents() {
 		close(pw.resultChan)
 		atomic.AddUint32(&pw.terminated, 1)
 	}()
+
+	// Before kicking off any watches on ns and sa, send an ADDED event for the
+	// allow-all profile if our watch should include an event for this synthetic
+	// resource.
+	if sendAllowAllEvent {
+		e := api.WatchEvent{
+			Type: api.WatchAdded,
+			New:  resources.AllowProfile(),
+		}
+		log.Debug("Sending an ADDED watch event for the allow-all profile")
+		pw.resultChan <- e
+	}
 
 	for {
 		var ok bool
