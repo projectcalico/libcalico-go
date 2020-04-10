@@ -194,7 +194,6 @@ func (c *etcdV3Client) Create(ctx context.Context, d *model.KVPair) (*model.KVPa
 func (c *etcdV3Client) Update(ctx context.Context, d *model.KVPair) (*model.KVPair, error) {
 	logCxt := log.WithFields(log.Fields{"model-etcdKey": d.Key, "value": d.Value, "ttl": d.TTL, "rev": d.Revision})
 	logCxt.Debug("Processing Update request")
-
 	key, value, err := getKeyValueStrings(d)
 	if err != nil {
 		return nil, err
@@ -291,7 +290,6 @@ func (c *etcdV3Client) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model
 func (c *etcdV3Client) Delete(ctx context.Context, k model.Key, revision string) (*model.KVPair, error) {
 	logCxt := log.WithFields(log.Fields{"model-etcdKey": k, "rev": revision})
 	logCxt.Debug("Processing Delete request")
-
 	key, err := model.KeyToDefaultDeletePath(k)
 	if err != nil {
 		return nil, err

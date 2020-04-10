@@ -106,7 +106,6 @@ func (wc *watcher) watchLoop() {
 		"etcdv3-etcdKey": key,
 		"rev":            wc.initialRev,
 	})
-
 	logCxt.Debug("Starting etcdv3 watch")
 	wch := wc.client.etcdClient.Watch(wc.ctx, key, opts...)
 	for wres := range wch {
