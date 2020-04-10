@@ -513,7 +513,6 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 			for i := 0; i < 10; i++ {
 				select {
 				case e := <-c:
-
 					if e.Type == api.WatchAdded &&
 						e.Old == nil &&
 						e.New.Key == allowAllProfileKey {

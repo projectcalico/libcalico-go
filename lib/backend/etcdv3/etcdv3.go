@@ -43,6 +43,11 @@ var (
 	allowProfileName = fmt.Sprintf("Profile(%s)", resources.AllowProfileName)
 )
 
+const (
+	profilesKey        = "/calico/resources/v3/projectcalico.org/profiles/"
+	allowAllProfileKey = "/calico/resources/v3/projectcalico.org/profiles/projectcalico-allow-all"
+)
+
 type etcdV3Client struct {
 	etcdClient *clientv3.Client
 }
@@ -360,6 +365,7 @@ func (c *etcdV3Client) Get(ctx context.Context, k model.Key, revision string) (*
 
 	// Handle the static allow-all profile.
 	if kvp := getAllowAllProfile(key, revision); kvp != nil {
+		logCxt.Debug("Returning allow-all profile for get")
 		return kvp, nil
 	}
 
@@ -440,12 +446,11 @@ func (c *etcdV3Client) List(ctx context.Context, l model.ListInterface, revision
 func getAllowAllProfile(key string, revision string) *model.KVPair {
 	// Either we are getting all profiles or getting the allow-all profile
 	// specifically.
-	if key == "/calico/resources/v3/projectcalico.org/profiles/" || key == "/calico/resources/v3/projectcalico.org/profiles/projectcalico-allow-all" {
+	if key == profilesKey || key == allowAllProfileKey {
 		// If there is no rev at all, we are returning all resources so include the allow-all.
 		// If the rev=0 we also return all resources so include that profile.
 		// If rev=1 we also include the profile; any rev > 1 excludes the profile.
 		if len(revision) == 0 || revision == "0" || revision == "1" {
-			log.Debug("Adding static 'projectcalico-allow-all' profile to response from etcdv3")
 			return resources.AllowProfile()
 		}
 	}

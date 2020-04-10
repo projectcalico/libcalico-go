@@ -201,7 +201,7 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			Expect(res).To(MatchResource(apiv3.KindProfile, testutils.ExpectNoNamespace, name1, spec2))
 			Expect(res.ResourceVersion).To(Equal(rv1_2))
 
-			By("Listing Profiles with the original resource version and checking for 2 results, including name1/spec1")
+			By("Listing Profiles with the original resource version and checking for 1 result, including name1/spec1")
 			outList, outError = c.Profiles().List(ctx, options.ListOptions{ResourceVersion: rv1_1})
 			Expect(outError).NotTo(HaveOccurred())
 
@@ -211,7 +211,7 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 				testutils.Resource(apiv3.KindProfile, testutils.ExpectNoNamespace, name1, spec1),
 			))
 
-			By("Listing Profiles with the latest resource version and checking for two results with name1/spec2 and name2/spec2")
+			By("Listing Profiles with the latest resource version and checking for 3 results including name1/spec2 and name2/spec2")
 			outList, outError = c.Profiles().List(ctx, options.ListOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(outList.Items).To(ConsistOf(
@@ -278,32 +278,17 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(ContainSubstring("projectcalico-allow-all already exists"))
 
-			By("Getting Profile (projectcalico-allow-all), with no rv, should return the resource")
-			res, outError = c.Profiles().Get(ctx, allowAllName, options.GetOptions{})
-			Expect(outError).NotTo(HaveOccurred())
+			By("Getting Profile (projectcalico-allow-all) with no rv or rv <= 1, should return the resource")
+			rvs := []string{"", "0", "1"}
+			for _, rv := range rvs {
+				res, outError = c.Profiles().Get(ctx, allowAllName, options.GetOptions{ResourceVersion: rv})
+				Expect(outError).NotTo(HaveOccurred())
 
-			Expect(res.Name).To(Equal(allowAllName))
-			Expect(res.Namespace).To(BeEmpty())
-			Expect(res.Spec.Ingress).Should(ConsistOf(allowAllSpec.Ingress))
-			Expect(res.Spec.Egress).Should(ConsistOf(allowAllSpec.Egress))
-
-			By("Getting Profile (projectcalico-allow-all), with rv=0, should return the resource")
-			res, outError = c.Profiles().Get(ctx, allowAllName, options.GetOptions{})
-			Expect(outError).NotTo(HaveOccurred())
-
-			Expect(res.Name).To(Equal(allowAllName))
-			Expect(res.Namespace).To(BeEmpty())
-			Expect(res.Spec.Ingress).Should(ConsistOf(allowAllSpec.Ingress))
-			Expect(res.Spec.Egress).Should(ConsistOf(allowAllSpec.Egress))
-
-			By("Getting Profile (projectcalico-allow-all), with rv=1, should return the resource")
-			res, outError = c.Profiles().Get(ctx, allowAllName, options.GetOptions{})
-			Expect(outError).NotTo(HaveOccurred())
-
-			Expect(res.Name).To(Equal(allowAllName))
-			Expect(res.Namespace).To(BeEmpty())
-			Expect(res.Spec.Ingress).Should(ConsistOf(allowAllSpec.Ingress))
-			Expect(res.Spec.Egress).Should(ConsistOf(allowAllSpec.Egress))
+				Expect(res.Name).To(Equal(allowAllName))
+				Expect(res.Namespace).To(BeEmpty())
+				Expect(res.Spec.Ingress).Should(ConsistOf(allowAllSpec.Ingress))
+				Expect(res.Spec.Egress).Should(ConsistOf(allowAllSpec.Egress))
+			}
 
 			By("Getting Profile (projectcalico-allow-all) with an rv higher than its value and expecting an error")
 			_, outError = c.Profiles().Get(ctx, allowAllName, options.GetOptions{ResourceVersion: "2"})
@@ -311,22 +296,17 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			Expect(outError.Error()).To(ContainSubstring("resource does not exist: Profile(projectcalico-allow-all)"))
 
 			By("Listing all the Profiles, with rv=0, should return the allow-all profile")
-			outList, outError = c.Profiles().List(ctx, options.ListOptions{ResourceVersion: "0"})
-			Expect(outError).NotTo(HaveOccurred())
+			rvs = []string{"", "0", "1"}
+			for _, rv := range rvs {
+				outList, outError = c.Profiles().List(ctx, options.ListOptions{ResourceVersion: rv})
+				Expect(outError).NotTo(HaveOccurred())
 
-			Expect(outList.Items).To(ConsistOf(
-				testutils.Resource(apiv3.KindProfile, testutils.ExpectNoNamespace, allowAllName, allowAllSpec),
-			))
+				Expect(outList.Items).To(ConsistOf(
+					testutils.Resource(apiv3.KindProfile, testutils.ExpectNoNamespace, allowAllName, allowAllSpec),
+				))
+			}
 
-			By("Listing all the Profiles, with rv=1, should return the allow-all profile")
-			outList, outError = c.Profiles().List(ctx, options.ListOptions{ResourceVersion: "1"})
-			Expect(outError).NotTo(HaveOccurred())
-
-			Expect(outList.Items).To(ConsistOf(
-				testutils.Resource(apiv3.KindProfile, testutils.ExpectNoNamespace, allowAllName, allowAllSpec),
-			))
-
-			By("Listing all the Profiles, with rv > 1, should return an empty list")
+			By("Listing all the Profiles, with rv=2, should return an empty list")
 			outList, outError = c.Profiles().List(ctx, options.ListOptions{ResourceVersion: "2"})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(outList.Items).To(BeEmpty())
@@ -370,6 +350,23 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 
 			rev0 := outList.ResourceVersion
 
+			allowAllProfile, outError := c.Profiles().Get(ctx, allowAllName, options.GetOptions{})
+			Expect(outError).NotTo(HaveOccurred())
+
+			By("Starting a watcher with no revision")
+			w, err := c.Profiles().Watch(ctx, options.ListOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			testWatcher := testutils.NewTestResourceWatch(config.Spec.DatastoreType, w)
+
+			By("Checking for 1 ADDED events for the allow-all profile")
+			testWatcher.ExpectEvents(apiv3.KindProfile, []watch.Event{
+				{
+					Type:   watch.Added,
+					Object: allowAllProfile,
+				},
+			})
+			testWatcher.Stop()
+
 			By("Configuring a Profile name1/spec1 and storing the response")
 			outRes1, err := c.Profiles().Create(
 				ctx,
@@ -391,8 +388,30 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 				options.SetOptions{},
 			)
 
+			By("Starting a watcher with no revision")
+			w, err = c.Profiles().Watch(ctx, options.ListOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			testWatcher = testutils.NewTestResourceWatch(config.Spec.DatastoreType, w)
+
+			By("Checking for 3 ADDED events for the 2 profiles above and the allow-all profile")
+			testWatcher.ExpectEvents(apiv3.KindProfile, []watch.Event{
+				{
+					Type:   watch.Added,
+					Object: outRes1,
+				},
+				{
+					Type:   watch.Added,
+					Object: outRes2,
+				},
+				{
+					Type:   watch.Added,
+					Object: allowAllProfile,
+				},
+			})
+			testWatcher.Stop()
+
 			By("Starting a watcher from revision rev1 - this should skip the first creation")
-			w, err := c.Profiles().Watch(ctx, options.ListOptions{ResourceVersion: rev1})
+			w, err = c.Profiles().Watch(ctx, options.ListOptions{ResourceVersion: rev1})
 			Expect(err).NotTo(HaveOccurred())
 			testWatcher1 := testutils.NewTestResourceWatch(config.Spec.DatastoreType, w)
 			defer testWatcher1.Stop()
