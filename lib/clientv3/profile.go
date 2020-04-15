@@ -16,6 +16,7 @@ package clientv3
 
 import (
 	"context"
+	"fmt"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
@@ -47,7 +48,7 @@ func (r profiles) Create(ctx context.Context, res *apiv3.Profile, opts options.S
 		return nil, cerrors.ErrorOperationNotSupported{
 			Operation:  "Create",
 			Identifier: cresources.AllowProfileName,
-			Reason:     "projectcalico-allow-all already exists",
+			Reason:     fmt.Sprintf("%v already exists", cresources.AllowProfileName),
 		}
 	}
 
