@@ -319,12 +319,13 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 
 			_, outError = c.Profiles().Update(ctx, res, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(ContainSubstring("The profile 'projectcalico-allow-all' is a default provided by Calico and cannot be deleted"))
+
+			Expect(outError.Error()).To(ContainSubstring("The profile \"projectcalico-allow-all\" is a default provided by Calico and cannot be updated"))
 
 			By("Deleting Profile (projectcalico-allow-all) and expecting an error")
 			_, outError = c.Profiles().Delete(ctx, allowAllName, options.DeleteOptions{})
 			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(ContainSubstring("The profile 'projectcalico-allow-all' is a default provided by Calico and cannot be updated"))
+			Expect(outError.Error()).To(ContainSubstring("The profile \"projectcalico-allow-all\" is a default provided by Calico and cannot be deleted"))
 		},
 
 		// Test 1: Pass two fully populated ProfileSpecs and expect the series of operations to succeed.
