@@ -40,7 +40,6 @@ var (
 	clientTimeout    = 10 * time.Second
 	keepaliveTime    = 30 * time.Second
 	keepaliveTimeout = 10 * time.Second
-	allowProfileName = fmt.Sprintf("Profile(%s)", resources.AllowProfileName)
 )
 
 const (
