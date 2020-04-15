@@ -48,7 +48,7 @@ func (r profiles) Create(ctx context.Context, res *apiv3.Profile, opts options.S
 		return nil, cerrors.ErrorOperationNotSupported{
 			Operation:  "Create",
 			Identifier: cresources.AllowProfileName,
-			Reason:     fmt.Sprintf("%v already exists", cresources.AllowProfileName),
+			Reason:     fmt.Sprintf("%v already exists. The profile %q is default provided by Calico", cresources.AllowProfileName, cresources.AllowProfileName),
 		}
 	}
 
@@ -70,7 +70,7 @@ func (r profiles) Update(ctx context.Context, res *apiv3.Profile, opts options.S
 		return nil, cerrors.ErrorOperationNotSupported{
 			Operation:  "Update",
 			Identifier: cresources.AllowProfileName,
-			Reason:     "Cannot modify a built-in profile",
+			Reason:     fmt.Sprintf("The profile %q is a default provided by Calico and cannot be updated", cresources.AllowProfileName),
 		}
 	}
 
@@ -91,7 +91,7 @@ func (r profiles) Delete(ctx context.Context, name string, opts options.DeleteOp
 		return nil, cerrors.ErrorOperationNotSupported{
 			Operation:  "Delete",
 			Identifier: cresources.AllowProfileName,
-			Reason:     "Cannot delete a built-in profile",
+			Reason:     fmt.Sprintf("The profile %q is a default provided by Calico and cannot be deleted", cresources.AllowProfileName),
 		}
 	}
 	out, err := r.client.resources.Delete(ctx, opts, apiv3.KindProfile, noNamespace, name)
