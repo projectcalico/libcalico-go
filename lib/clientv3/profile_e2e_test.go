@@ -502,14 +502,14 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			allowAllRes, err := c.Profiles().Get(ctx, allowAllName, options.GetOptions{})
 			Expect(err).NotTo(HaveOccurred())
 
-			testWatcher3.ExpectEventsAnyOrder(apiv3.KindProfile, []watch.Event{
-				{
-					Type:   watch.Added,
-					Object: allowAllRes,
-				},
+			testWatcher3.ExpectEvents(apiv3.KindProfile, []watch.Event{
 				{
 					Type:   watch.Added,
 					Object: outRes3,
+				},
+				{
+					Type:   watch.Added,
+					Object: allowAllRes,
 				},
 			})
 			testWatcher3.Stop()
@@ -529,11 +529,7 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			Expect(err).NotTo(HaveOccurred())
 			testWatcher4 := testutils.NewTestResourceWatch(config.Spec.DatastoreType, w)
 			defer testWatcher4.Stop()
-			testWatcher4.ExpectEventsAnyOrder(apiv3.KindProfile, []watch.Event{
-				{
-					Type:   watch.Added,
-					Object: allowAllRes,
-				},
+			testWatcher4.ExpectEvents(apiv3.KindProfile, []watch.Event{
 				{
 					Type:   watch.Added,
 					Object: outRes1,
@@ -541,6 +537,10 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 				{
 					Type:   watch.Added,
 					Object: outRes3,
+				},
+				{
+					Type:   watch.Added,
+					Object: allowAllRes,
 				},
 			})
 
