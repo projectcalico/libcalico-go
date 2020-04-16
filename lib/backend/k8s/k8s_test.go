@@ -525,11 +525,6 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 			return found
 		}
 
-		expectAllowAllEvent := func(c <-chan api.WatchEvent) {
-			found := findAllowAllProfileEvent(c)
-			Expect(found).To(BeTrue())
-		}
-
 		expectNoAllowAllEvent := func(c <-chan api.WatchEvent) {
 			found := findAllowAllProfileEvent(c)
 			Expect(found).To(BeFalse())
@@ -540,141 +535,58 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 			Eventually(cb.GetSyncerValuePresentFunc(model.ProfileRulesKey{ProfileKey: model.ProfileKey{expectedName}}), slowCheck...).Should(BeTrue())
 		})
 
-		Context("watching all profiles", func() {
-			By("watching all profiles with no rv returns an ADDED event for the allow-all profile", func() {
-				watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, "")
-				Expect(err).NotTo(HaveOccurred())
-				defer watch.Stop()
-
-				expectAllowAllEvent(watch.ResultChan())
-			})
-
-			By("watching all profiles with rv=0 returns an ADDED event for the allow-all profile", func() {
-				watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, "")
-				Expect(err).NotTo(HaveOccurred())
-				defer watch.Stop()
-
-				expectAllowAllEvent(watch.ResultChan())
-			})
-
-			By("watching all profiles with rv=1 does not return an ADDED event for the allow-all profile", func() {
-				watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, "1")
+		By("watching all profiles with any rv does not return an event for the allow-all profile", func() {
+			rvs := []string{"", "0", "1", "2"}
+			for _, rv := range rvs {
+				watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, rv)
 				Expect(err).NotTo(HaveOccurred())
 				defer watch.Stop()
 
 				expectNoAllowAllEvent(watch.ResultChan())
-			})
-
-			By("watching all profiles with rv>1 does not return an ADDED event for the allow-all profile", func() {
-				watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, "2")
-				Expect(err).NotTo(HaveOccurred())
-				defer watch.Stop()
-
-				// We will get events for other profiles but not the allow-all
-				// profile.
-				expectNoAllowAllEvent(watch.ResultChan())
-			})
+			}
 		})
 
-		Context("watching the allow-all profile", func() {
-
-			expectNoEvents := func(c <-chan api.WatchEvent) {
+		By("watching the allow-all profile with any rv does not return an event", func() {
+			rvs := []string{"", "0", "1", "2"}
+			for _, rv := range rvs {
+				watch, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, rv)
+				Expect(err).NotTo(HaveOccurred())
+				defer watch.Stop()
 				select {
-				case e := <-c:
+				case e := <-watch.ResultChan():
 					Fail(fmt.Sprintf("expected no events but got: %+v", e))
 				case <-time.After(2 * time.Second):
 				}
 			}
+		})
 
-			expectOnlyAllowAllEvent := func(c <-chan api.WatchEvent) {
-				event := ExpectAddedEvent(c)
-				Expect(event.New.Key).To(Equal(allowAllProfileKey))
-				Expect(event.Type).To(Equal(api.WatchAdded))
+		By("getting the profile with any rv should return the profile", func() {
+			rvs := []string{"", "0", "1", "2"}
+			for _, rv := range rvs {
+				kvp, err := c.Get(ctx, allowAllProfileKey, rv)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(kvp).NotTo(BeNil())
 
-				// There should be no more events.
-				expectNoEvents(c)
+				profile := kvp.Value.(*apiv3.Profile)
+				Expect(profile.Spec).Should(Equal(calicoAllowProfileSpec))
 			}
-
-			By("watching the allow-all profile with no rv returns an ADDED event for it", func() {
-				watch, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, "")
-				Expect(err).NotTo(HaveOccurred())
-				defer watch.Stop()
-				expectOnlyAllowAllEvent(watch.ResultChan())
-			})
-
-			By("watching the allow-all profile with rv=0 returns an ADDED event for it", func() {
-				watch, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, "")
-				Expect(err).NotTo(HaveOccurred())
-				defer watch.Stop()
-				expectOnlyAllowAllEvent(watch.ResultChan())
-			})
-
-			By("watching the allow-all profile with rv=1 does not return any event for it", func() {
-				watch, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, "1")
-				Expect(err).NotTo(HaveOccurred())
-				defer watch.Stop()
-				expectNoEvents(watch.ResultChan())
-			})
-
-			By("watching the allow-all profile with rv>1 does not return any event for it", func() {
-				watch, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, "2")
-				Expect(err).NotTo(HaveOccurred())
-				defer watch.Stop()
-				expectNoEvents(watch.ResultChan())
-			})
 		})
 
-		Context("getting the profile", func() {
-			By("getting the profile with no rv or rv <= 1 should return the profile", func() {
-				revs := []string{"", "0", "1"}
-				for _, rev := range revs {
-					kvp, err := c.Get(ctx, allowAllProfileKey, rev)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(kvp).NotTo(BeNil())
-
-					profile := kvp.Value.(*apiv3.Profile)
-					Expect(profile.Spec).Should(Equal(calicoAllowProfileSpec))
-				}
-			})
-
-			By("getting the profile with rv > 1 should return an error", func() {
-				_, err := c.Get(ctx, allowAllProfileKey, "2")
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("resource does not exist: projectcalico-allow-all"))
-			})
-
-		})
-
-		Context("listing all profiles", func() {
-			By("listing all profiles with no rv or rv <= 1 should include the profile", func() {
-				revs := []string{"", "0", "1"}
-				for _, rev := range revs {
-					kvps, err := c.List(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, rev)
-					Expect(err).NotTo(HaveOccurred())
-
-					var found bool
-					for _, kvp := range kvps.KVPairs {
-						if kvp.Key == allowAllProfileKey {
-							found = true
-							Expect(kvp.Value.(*apiv3.Profile).Spec).Should(Equal(calicoAllowProfileSpec))
-						}
-					}
-					Expect(found).To(BeTrue())
-				}
-			})
-
-			By("listing all profiles with rv > 1 should not include the profile", func() {
-				kvps, err := c.List(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, "2")
+		By("listing all profiles with any rv should include the profile", func() {
+			rvs := []string{"", "0", "1", "2"}
+			for _, rv := range rvs {
+				kvps, err := c.List(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, rv)
 				Expect(err).NotTo(HaveOccurred())
 
 				var found bool
 				for _, kvp := range kvps.KVPairs {
 					if kvp.Key == allowAllProfileKey {
 						found = true
+						Expect(kvp.Value.(*apiv3.Profile).Spec).Should(Equal(calicoAllowProfileSpec))
 					}
 				}
-				Expect(found).To(BeFalse())
-			})
+				Expect(found).To(BeTrue())
+			}
 		})
 
 		By("creating the profile returns an error", func() {

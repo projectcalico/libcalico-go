@@ -201,13 +201,14 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			Expect(res).To(MatchResource(apiv3.KindProfile, testutils.ExpectNoNamespace, name1, spec2))
 			Expect(res.ResourceVersion).To(Equal(rv1_2))
 
-			By("Listing Profiles with the original resource version and checking for 1 result, including name1/spec1")
+			By("Listing Profiles with the original resource version and checking for 2 results, including name1/spec1")
 			outList, outError = c.Profiles().List(ctx, options.ListOptions{ResourceVersion: rv1_1})
 			Expect(outError).NotTo(HaveOccurred())
 
 			// We're specifying an rv that is outside of the allow-all profile's
 			// pseudo rv.
 			Expect(outList.Items).To(ConsistOf(
+				testutils.Resource(apiv3.KindProfile, testutils.ExpectNoNamespace, allowAllName, allowAllSpec),
 				testutils.Resource(apiv3.KindProfile, testutils.ExpectNoNamespace, name1, spec1),
 			))
 
@@ -278,8 +279,8 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(ContainSubstring("projectcalico-allow-all already exists"))
 
-			By("Getting Profile (projectcalico-allow-all) with no rv or rv <= 1, should return the resource")
-			rvs := []string{"", "0", "1"}
+			By("Getting Profile (projectcalico-allow-all) with any rv should return the resource")
+			rvs := []string{"", "0", "1", "2"}
 			for _, rv := range rvs {
 				res, outError = c.Profiles().Get(ctx, allowAllName, options.GetOptions{ResourceVersion: rv})
 				Expect(outError).NotTo(HaveOccurred())
@@ -290,13 +291,8 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 				Expect(res.Spec.Egress).Should(ConsistOf(allowAllSpec.Egress))
 			}
 
-			By("Getting Profile (projectcalico-allow-all) with an rv higher than its value and expecting an error")
-			_, outError = c.Profiles().Get(ctx, allowAllName, options.GetOptions{ResourceVersion: "2"})
-			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(ContainSubstring("resource does not exist: Profile(projectcalico-allow-all)"))
-
-			By("Listing all the Profiles, with rv=0, should return the allow-all profile")
-			rvs = []string{"", "0", "1"}
+			By("Listing all Profiles with any rv should return the allow-all profile")
+			rvs = []string{"", "0", "1", "2"}
 			for _, rv := range rvs {
 				outList, outError = c.Profiles().List(ctx, options.ListOptions{ResourceVersion: rv})
 				Expect(outError).NotTo(HaveOccurred())
@@ -305,11 +301,6 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 					testutils.Resource(apiv3.KindProfile, testutils.ExpectNoNamespace, allowAllName, allowAllSpec),
 				))
 			}
-
-			By("Listing all the Profiles, with rv=2, should return an empty list")
-			outList, outError = c.Profiles().List(ctx, options.ListOptions{ResourceVersion: "2"})
-			Expect(outError).NotTo(HaveOccurred())
-			Expect(outList.Items).To(BeEmpty())
 
 			By("Updating Profile (projectcalico-allow-all) and expecting an error")
 			// Fill in some fields to pass validation.
@@ -341,32 +332,19 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			Expect(err).NotTo(HaveOccurred())
 			be.Clean()
 
-			By("Listing Profiles with the latest resource version and checking for 1 result")
+			By("Listing Profiles with the latest resource version and checking for no results")
 			outList, outError := c.Profiles().List(ctx, options.ListOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(outList.Items).To(HaveLen(1))
 			Expect(outList.Items[0].ResourceVersion).To(Equal("1"))
 			Expect(outList.Items[0].Spec.Ingress).To(ConsistOf(allowAllSpec.Ingress))
 			Expect(outList.Items[0].Spec.Egress).To(ConsistOf(allowAllSpec.Egress))
-
 			rev0 := outList.ResourceVersion
-
-			allowAllProfile, outError := c.Profiles().Get(ctx, allowAllName, options.GetOptions{})
-			Expect(outError).NotTo(HaveOccurred())
 
 			By("Starting a watcher with no revision")
 			w, err := c.Profiles().Watch(ctx, options.ListOptions{})
 			Expect(err).NotTo(HaveOccurred())
 			testWatcher := testutils.NewTestResourceWatch(config.Spec.DatastoreType, w)
-
-			By("Checking for 1 ADDED events for the allow-all profile")
-			testWatcher.ExpectEvents(apiv3.KindProfile, []watch.Event{
-				{
-					Type:   watch.Added,
-					Object: allowAllProfile,
-				},
-			})
-			testWatcher.Stop()
 
 			By("Configuring a Profile name1/spec1 and storing the response")
 			outRes1, err := c.Profiles().Create(
@@ -394,7 +372,7 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			Expect(err).NotTo(HaveOccurred())
 			testWatcher = testutils.NewTestResourceWatch(config.Spec.DatastoreType, w)
 
-			By("Checking for 3 ADDED events for the 2 profiles above and the allow-all profile")
+			By("Checking for 2 ADDED events for the 2 profiles above but not the allow-all profile")
 			testWatcher.ExpectEvents(apiv3.KindProfile, []watch.Event{
 				{
 					Type:   watch.Added,
@@ -403,10 +381,6 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 				{
 					Type:   watch.Added,
 					Object: outRes2,
-				},
-				{
-					Type:   watch.Added,
-					Object: allowAllProfile,
 				},
 			})
 			testWatcher.Stop()
@@ -499,17 +473,12 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			testWatcher3 := testutils.NewTestResourceWatch(config.Spec.DatastoreType, w)
 			defer testWatcher3.Stop()
 
-			allowAllRes, err := c.Profiles().Get(ctx, allowAllName, options.GetOptions{})
 			Expect(err).NotTo(HaveOccurred())
 
 			testWatcher3.ExpectEvents(apiv3.KindProfile, []watch.Event{
 				{
 					Type:   watch.Added,
 					Object: outRes3,
-				},
-				{
-					Type:   watch.Added,
-					Object: allowAllRes,
 				},
 			})
 			testWatcher3.Stop()
@@ -537,10 +506,6 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 				{
 					Type:   watch.Added,
 					Object: outRes3,
-				},
-				{
-					Type:   watch.Added,
-					Object: allowAllRes,
 				},
 			})
 

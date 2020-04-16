@@ -30,6 +30,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
+	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
@@ -37,9 +38,10 @@ import (
 )
 
 var (
-	clientTimeout    = 10 * time.Second
-	keepaliveTime    = 30 * time.Second
-	keepaliveTimeout = 10 * time.Second
+	clientTimeout              = 10 * time.Second
+	keepaliveTime              = 30 * time.Second
+	keepaliveTimeout           = 10 * time.Second
+	allowAllProfileResourceKey = model.ResourceKey{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}
 )
 
 const (
@@ -360,10 +362,10 @@ func (c *etcdV3Client) Get(ctx context.Context, k model.Key, revision string) (*
 	}
 	logCxt = logCxt.WithField("etcdv3-etcdKey", key)
 
-	// Handle the static allow-all profile.
-	if kvp := getAllowAllProfile(key, revision); kvp != nil {
+	// Handle the static allow-all profile. Always return the default profile.
+	if key == profilesKey || key == allowAllProfileKey {
 		logCxt.Debug("Returning allow-all profile for get")
-		return kvp, nil
+		return resources.AllowProfile(), nil
 	}
 
 	ops := []clientv3.OpOption{}
@@ -426,33 +428,15 @@ func (c *etcdV3Client) List(ctx context.Context, l model.ListInterface, revision
 
 	// If we're listing profiles, we need to handle the statically defined
 	// allow-all profile in the resources package.
-	// Add the allow-all profile to our kvpairs list if needed.
-	if kvp := getAllowAllProfile(key, revision); kvp != nil {
-		list = append(list, kvp)
+	// We always include the default profile.
+	if key == profilesKey || key == allowAllProfileKey {
+		list = append(list, resources.AllowProfile())
 	}
 
 	return &model.KVPairList{
 		KVPairs:  list,
 		Revision: strconv.FormatInt(resp.Header.Revision, 10),
 	}, nil
-}
-
-// getAllowAllProfile checks whether the statically defined allow-all profile
-// should be returned in the get/list result. If so, its kvpair is returned
-// otherwise it returns nil.
-func getAllowAllProfile(key string, revision string) *model.KVPair {
-	// Either we are getting all profiles or getting the allow-all profile
-	// specifically.
-	if key == profilesKey || key == allowAllProfileKey {
-		// If there is no rev at all, we are returning all resources so include the allow-all.
-		// If the rev=0 we also return all resources so include that profile.
-		// If rev=1 we also include the profile; any rev > 1 excludes the profile.
-		if len(revision) == 0 || revision == "0" || revision == "1" {
-			return resources.AllowProfile()
-		}
-	}
-
-	return nil
 }
 
 func calculateListKeyAndOptions(logCxt *log.Entry, l model.ListInterface) (string, []clientv3.OpOption) {
