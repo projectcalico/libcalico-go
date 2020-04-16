@@ -336,7 +336,7 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			outList, outError := c.Profiles().List(ctx, options.ListOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(outList.Items).To(HaveLen(1))
-			Expect(outList.Items[0].ResourceVersion).To(Equal("1"))
+			Expect(outList.Items[0].ResourceVersion).To(Equal("0"))
 			Expect(outList.Items[0].Spec.Ingress).To(ConsistOf(allowAllSpec.Ingress))
 			Expect(outList.Items[0].Spec.Egress).To(ConsistOf(allowAllSpec.Egress))
 			rev0 := outList.ResourceVersion

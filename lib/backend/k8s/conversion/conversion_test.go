@@ -2566,6 +2566,11 @@ var _ = Describe("Test Namespace conversion", func() {
 		Expect(crdRev).To(Equal(""))
 		Expect(k8sRev).To(Equal(""))
 
+		crdRev, k8sRev, err = c.SplitNetworkPolicyRevision("0")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(crdRev).To(Equal(""))
+		Expect(k8sRev).To(Equal(""))
+
 		crdRev, k8sRev, err = c.SplitNetworkPolicyRevision("/")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(crdRev).To(Equal(""))
@@ -2585,6 +2590,10 @@ var _ = Describe("Test Namespace conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(crdRev).To(Equal("1234"))
 		Expect(k8sRev).To(Equal(""))
+
+		By("failing to convert an invalid combined version")
+		_, _, err = c.SplitNetworkPolicyRevision("1234")
+		Expect(err).To(HaveOccurred())
 
 		_, _, err = c.SplitNetworkPolicyRevision("1234/5678/1313")
 		Expect(err).To(HaveOccurred())
@@ -2701,6 +2710,10 @@ var _ = Describe("Test ServiceAccount conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(nsRev).To(Equal("1234"))
 		Expect(saRev).To(Equal(""))
+
+		By("failing to convert an invalid combined version")
+		_, _, err = c.SplitProfileRevision("1234")
+		Expect(err).To(HaveOccurred())
 
 		_, _, err = c.SplitProfileRevision("1234/5678/1313")
 		Expect(err).To(HaveOccurred())

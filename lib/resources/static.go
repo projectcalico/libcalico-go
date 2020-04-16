@@ -47,6 +47,6 @@ func AllowProfile() *model.KVPair {
 			Kind: v3.KindProfile,
 		},
 		Value:    profile,
-		Revision: "1",
+		Revision: "0",
 	}
 }

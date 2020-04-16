@@ -536,7 +536,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		})
 
 		By("watching all profiles with any rv does not return an event for the allow-all profile", func() {
-			rvs := []string{"", "0", "1", "2"}
+			rvs := []string{"", "0"}
 			for _, rv := range rvs {
 				watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, rv)
 				Expect(err).NotTo(HaveOccurred())
@@ -547,7 +547,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		})
 
 		By("watching the allow-all profile with any rv does not return an event", func() {
-			rvs := []string{"", "0", "1", "2"}
+			rvs := []string{"", "0"}
 			for _, rv := range rvs {
 				watch, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, rv)
 				Expect(err).NotTo(HaveOccurred())
@@ -561,7 +561,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		})
 
 		By("getting the profile with any rv should return the profile", func() {
-			rvs := []string{"", "0", "1", "2"}
+			rvs := []string{"", "0"}
 			for _, rv := range rvs {
 				kvp, err := c.Get(ctx, allowAllProfileKey, rv)
 				Expect(err).NotTo(HaveOccurred())
@@ -573,7 +573,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		})
 
 		By("listing all profiles with any rv should include the profile", func() {
-			rvs := []string{"", "0", "1", "2"}
+			rvs := []string{"", "0"}
 			for _, rv := range rvs {
 				kvps, err := c.List(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, rv)
 				Expect(err).NotTo(HaveOccurred())
