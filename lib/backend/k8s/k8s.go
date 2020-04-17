@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 
@@ -72,53 +73,10 @@ type KubeClient struct {
 }
 
 func NewKubeClient(ca *apiconfig.CalicoAPIConfigSpec) (api.Client, error) {
-	// Use the kubernetes client code to load the kubeconfig file and combine it with the overrides.
-	configOverrides := &clientcmd.ConfigOverrides{}
-	var overridesMap = []struct {
-		variable *string
-		value    string
-	}{
-		{&configOverrides.ClusterInfo.Server, ca.K8sAPIEndpoint},
-		{&configOverrides.AuthInfo.ClientCertificate, ca.K8sCertFile},
-		{&configOverrides.AuthInfo.ClientKey, ca.K8sKeyFile},
-		{&configOverrides.ClusterInfo.CertificateAuthority, ca.K8sCAFile},
-		{&configOverrides.AuthInfo.Token, ca.K8sAPIToken},
-	}
-
-	// Set an explicit path to the kubeconfig if one
-	// was provided.
-	loadingRules := clientcmd.ClientConfigLoadingRules{}
-	if ca.Kubeconfig != "" {
-		loadingRules.ExplicitPath = ca.Kubeconfig
-	}
-
-	// Using the override map above, populate any non-empty values.
-	for _, override := range overridesMap {
-		if override.value != "" {
-			*override.variable = override.value
-		}
-	}
-	if ca.K8sInsecureSkipTLSVerify {
-		configOverrides.ClusterInfo.InsecureSkipTLSVerify = true
-	}
-
-	// A kubeconfig file was provided.  Use it to load a config, passing through
-	// any overrides.
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&loadingRules, configOverrides).ClientConfig()
+	config, cs, err := CreateKubernetesClientset(ca)
 	if err != nil {
-		return nil, resources.K8sErrorToCalico(err, nil)
+		return nil, err
 	}
-
-	// Create the clientset. We increase the burst so that the IPAM code performs
-	// efficiently. The IPAM code can create bursts of requests to the API, so
-	// in order to keep pod creation times sensible we allow a higher request rate.
-	config.Burst = 100
-	cs, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, resources.K8sErrorToCalico(err, nil)
-	}
-	log.Debugf("Created k8s ClientSet: %+v", cs)
 
 	crdClientV1, err := buildCRDClientV1(*config)
 	if err != nil {
@@ -261,6 +219,67 @@ func NewKubeClient(ca *apiconfig.CalicoAPIConfigSpec) (api.Client, error) {
 	return kubeClient, nil
 }
 
+func CreateKubernetesClientset(ca *apiconfig.CalicoAPIConfigSpec) (*rest.Config, *kubernetes.Clientset, error) {
+	// Use the kubernetes client code to load the kubeconfig file and combine it with the overrides.
+	configOverrides := &clientcmd.ConfigOverrides{}
+	var overridesMap = []struct {
+		variable *string
+		value    string
+	}{
+		{&configOverrides.ClusterInfo.Server, ca.K8sAPIEndpoint},
+		{&configOverrides.AuthInfo.ClientCertificate, ca.K8sCertFile},
+		{&configOverrides.AuthInfo.ClientKey, ca.K8sKeyFile},
+		{&configOverrides.ClusterInfo.CertificateAuthority, ca.K8sCAFile},
+		{&configOverrides.AuthInfo.Token, ca.K8sAPIToken},
+	}
+
+	// Set an explicit path to the kubeconfig if one
+	// was provided.
+	loadingRules := clientcmd.ClientConfigLoadingRules{}
+	if ca.Kubeconfig != "" {
+		loadingRules.ExplicitPath = ca.Kubeconfig
+	}
+
+	// Using the override map above, populate any non-empty values.
+	for _, override := range overridesMap {
+		if override.value != "" {
+			*override.variable = override.value
+		}
+	}
+	if ca.K8sInsecureSkipTLSVerify {
+		configOverrides.ClusterInfo.InsecureSkipTLSVerify = true
+	}
+
+	// A kubeconfig file was provided.  Use it to load a config, passing through
+	// any overrides.
+	var config *rest.Config
+	var err error
+	if ca.KubeconfigInline != "" {
+		var clientConfig clientcmd.ClientConfig
+		clientConfig, err = clientcmd.NewClientConfigFromBytes([]byte(ca.KubeconfigInline))
+		if err != nil {
+			return nil, nil, resources.K8sErrorToCalico(err, nil)
+		}
+		config, err = clientConfig.ClientConfig()
+	} else {
+		config, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&loadingRules, configOverrides).ClientConfig()
+	}
+	if err != nil {
+		return nil, nil, resources.K8sErrorToCalico(err, nil)
+	}
+
+	// Create the clientset. We increase the burst so that the IPAM code performs
+	// efficiently. The IPAM code can create bursts of requests to the API, so
+	// in order to keep pod creation times sensible we allow a higher request rate.
+	config.Burst = 100
+	cs, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, nil, resources.K8sErrorToCalico(err, nil)
+	}
+	return config, cs, nil
+}
+
 // registerResourceClient registers a specific resource client with the associated
 // key and list types (and for v3 resources with the resource kind - since these share
 // a common key and list type).
@@ -319,8 +338,8 @@ func (c *KubeClient) Clean() error {
 		apiv3.KindClusterInformation,
 		apiv3.KindFelixConfiguration,
 		apiv3.KindGlobalNetworkPolicy,
-		apiv3.KindGlobalNetworkSet,
 		apiv3.KindNetworkPolicy,
+		apiv3.KindGlobalNetworkSet,
 		apiv3.KindNetworkSet,
 		apiv3.KindIPPool,
 		apiv3.KindHostEndpoint,
@@ -378,6 +397,14 @@ func (c *KubeClient) Clean() error {
 	return nil
 }
 
+// Close the underlying client
+func (c *KubeClient) Close() error {
+	log.Debugf("Closing client - NOOP")
+	return nil
+}
+
+var addToSchemeOnce sync.Once
+
 // buildCRDClientV1 builds a RESTClient configured to interact with Calico CustomResourceDefinitions
 func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 	// Generate config using the base config.
@@ -394,47 +421,55 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 		return nil, err
 	}
 
-	// We also need to register resources.
-	schemeBuilder := runtime.NewSchemeBuilder(
-		func(scheme *runtime.Scheme) error {
-			scheme.AddKnownTypes(
-				*cfg.GroupVersion,
-				&apiv3.FelixConfiguration{},
-				&apiv3.FelixConfigurationList{},
-				&apiv3.IPPool{},
-				&apiv3.IPPoolList{},
-				&apiv3.BGPPeer{},
-				&apiv3.BGPPeerList{},
-				&apiv3.BGPConfiguration{},
-				&apiv3.BGPConfigurationList{},
-				&apiv3.ClusterInformation{},
-				&apiv3.ClusterInformationList{},
-				&apiv3.GlobalNetworkSet{},
-				&apiv3.GlobalNetworkSetList{},
-				&apiv3.GlobalNetworkPolicy{},
-				&apiv3.GlobalNetworkPolicyList{},
-				&apiv3.NetworkPolicy{},
-				&apiv3.NetworkPolicyList{},
-				&apiv3.NetworkSet{},
-				&apiv3.NetworkSetList{},
-				&apiv3.HostEndpoint{},
-				&apiv3.HostEndpointList{},
-				&apiv3.BlockAffinity{},
-				&apiv3.BlockAffinityList{},
-				&apiv3.IPAMBlock{},
-				&apiv3.IPAMBlockList{},
-				&apiv3.IPAMHandle{},
-				&apiv3.IPAMHandleList{},
-				&apiv3.IPAMConfig{},
-				&apiv3.IPAMConfigList{},
-				&apiv3.KubeControllersConfiguration{},
-				&apiv3.KubeControllersConfigurationList{},
-			)
-			return nil
-		})
+	// We're operating on the pkg level scheme.Scheme, so make sure that multiple
+	// calls to this function don't do this simultaneously, which can cause crashes
+	// due to concurrent access to underlying maps.  For good measure, use a once
+	// since this really only needs to happen one time.
+	addToSchemeOnce.Do(func() {
+		// We also need to register resources.
+		schemeBuilder := runtime.NewSchemeBuilder(
+			func(scheme *runtime.Scheme) error {
+				scheme.AddKnownTypes(
+					*cfg.GroupVersion,
+					&apiv3.FelixConfiguration{},
+					&apiv3.FelixConfigurationList{},
+					&apiv3.IPPool{},
+					&apiv3.IPPoolList{},
+					&apiv3.BGPPeer{},
+					&apiv3.BGPPeerList{},
+					&apiv3.BGPConfiguration{},
+					&apiv3.BGPConfigurationList{},
+					&apiv3.ClusterInformation{},
+					&apiv3.ClusterInformationList{},
+					&apiv3.GlobalNetworkSet{},
+					&apiv3.GlobalNetworkSetList{},
+					&apiv3.GlobalNetworkPolicy{},
+					&apiv3.GlobalNetworkPolicyList{},
+					&apiv3.NetworkPolicy{},
+					&apiv3.NetworkPolicyList{},
+					&apiv3.NetworkSet{},
+					&apiv3.NetworkSetList{},
+					&apiv3.HostEndpoint{},
+					&apiv3.HostEndpointList{},
+					&apiv3.BlockAffinity{},
+					&apiv3.BlockAffinityList{},
+					&apiv3.IPAMBlock{},
+					&apiv3.IPAMBlockList{},
+					&apiv3.IPAMHandle{},
+					&apiv3.IPAMHandleList{},
+					&apiv3.IPAMConfig{},
+					&apiv3.IPAMConfigList{},
+					&apiv3.KubeControllersConfiguration{},
+					&apiv3.KubeControllersConfigurationList{},
+				)
+				return nil
+			})
 
-	schemeBuilder.AddToScheme(scheme.Scheme)
-
+		err := schemeBuilder.AddToScheme(scheme.Scheme)
+		if err != nil {
+			log.WithError(err).Fatal("failed to add calico resources to scheme")
+		}
+	})
 	return cli, nil
 }
 

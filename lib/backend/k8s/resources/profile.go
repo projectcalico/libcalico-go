@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2020 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ import (
 func NewProfileClient(c *kubernetes.Clientset) K8sResourceClient {
 	return &profileClient{
 		clientSet: c,
-		Converter: conversion.Converter{},
+		Converter: conversion.NewConverter(),
 	}
 }
 
@@ -329,7 +329,7 @@ func newProfileWatcher(ctx context.Context, k8sWatchNS, k8sWatchSA api.WatchInte
 		context:    ctx,
 		cancel:     cancel,
 		resultChan: make(chan api.WatchEvent, resultsBufSize),
-		Converter:  conversion.Converter{},
+		Converter:  conversion.NewConverter(),
 	}
 	go wc.processProfileEvents()
 	return wc
