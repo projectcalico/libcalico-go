@@ -16,7 +16,6 @@ package etcdv3
 
 import (
 	"context"
-	goerrors "errors"
 	"strconv"
 	"sync/atomic"
 
@@ -25,7 +24,6 @@ import (
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
 const (
@@ -92,8 +90,8 @@ func (wc *watcher) watchLoop() {
 		// No initial revision supplied, so perform a list of current configuration
 		// which will also get the current revision we will start our watch from.
 		if err := wc.listCurrent(); err != nil {
+			// Error considered as terminating error, hence terminate watcher.
 			log.Errorf("failed to list current with latest state: %v", err)
-			wc.sendError(err, true)
 			return
 		}
 	}
@@ -113,7 +111,6 @@ func (wc *watcher) watchLoop() {
 			// A watch channel error is a terminating event, so exit the loop.
 			err := wres.Err()
 			log.WithError(err).Error("Watch channel error")
-			wc.sendError(err, true)
 			return
 		}
 		for _, e := range wres.Events {
@@ -123,15 +120,13 @@ func (wc *watcher) watchLoop() {
 			if ae, err := convertWatchEvent(e, wc.list); ae != nil {
 				wc.sendEvent(ae)
 			} else if err != nil {
-				wc.sendError(err, false)
+				wc.sendError(err)
 			}
 		}
 	}
 
 	// If we exit the loop, it means the watcher has closed for some reason.
-	// Bubble this up as a watch termination error.
 	log.Warn("etcdv3 watch channel closed")
-	wc.sendError(goerrors.New("etcdv3 watch channel closed"), true)
 }
 
 // listCurrent retrieves the existing entries and sends an event for each listed
@@ -177,19 +172,13 @@ func (wc *watcher) terminateWatcher() {
 }
 
 // sendError packages up the error as an event and sends it in the results channel.
-func (wc *watcher) sendError(err error, terminating bool) {
+func (wc *watcher) sendError(err error) {
 	// The response from etcd commands may include a context.Canceled error if the context
 	// was cancelled before completion.  Since with our Watcher we don't include that as
 	// an error type skip over the Canceled error, the error processing in the main
 	// watch thread will terminate the watcher.
 	if err == context.Canceled {
 		return
-	}
-
-	// If this is a terminating error, wrap the error up in an errors.ErrorWatchTerminated
-	// error type.
-	if terminating {
-		err = errors.ErrorWatchTerminated{Err: err}
 	}
 
 	// Wrap the error up in a WatchEvent and use sendEvent to send it.
