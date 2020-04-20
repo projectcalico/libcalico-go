@@ -45,10 +45,9 @@ type profiles struct {
 // representation of the Profile, and an error, if there is any.
 func (r profiles) Create(ctx context.Context, res *apiv3.Profile, opts options.SetOptions) (*apiv3.Profile, error) {
 	if res.Name == cresources.DefaultAllowProfileName {
-		return nil, cerrors.ErrorOperationNotSupported{
-			Operation:  "Create",
+		return nil, cerrors.ErrorResourceAlreadyExists{
+			Err:        fmt.Errorf("%v already exists. The profile %q is default provided by Calico", cresources.DefaultAllowProfileName, cresources.DefaultAllowProfileName),
 			Identifier: cresources.DefaultAllowProfileName,
-			Reason:     fmt.Sprintf("%v already exists. The profile %q is default provided by Calico", cresources.DefaultAllowProfileName, cresources.DefaultAllowProfileName),
 		}
 	}
 
