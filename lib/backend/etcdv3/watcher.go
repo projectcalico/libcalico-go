@@ -115,7 +115,6 @@ func (wc *watcher) watchLoop() {
 		wc.sendAddedEvents(kvps)
 	}
 
-	// If we are not watching a specific resource then this is a prefix watch.
 	opts = append(opts, clientv3.WithRev(wc.initialRev+1), clientv3.WithPrevKV())
 	logCxt = logCxt.WithFields(log.Fields{
 		"etcdv3-etcdKey": key,
