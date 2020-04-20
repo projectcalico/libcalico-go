@@ -2575,11 +2575,6 @@ var _ = Describe("Test Namespace conversion", func() {
 		Expect(crdRev).To(Equal(""))
 		Expect(k8sRev).To(Equal(""))
 
-		crdRev, k8sRev, err = c.SplitNetworkPolicyRevision("0")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(crdRev).To(Equal(""))
-		Expect(k8sRev).To(Equal(""))
-
 		crdRev, k8sRev, err = c.SplitNetworkPolicyRevision("/")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(crdRev).To(Equal(""))

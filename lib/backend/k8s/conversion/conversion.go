@@ -571,7 +571,7 @@ func (c converter) JoinNetworkPolicyRevisions(crdNPRev, k8sNPRev string) string 
 // SplitNetworkPolicyRevision extracts the CRD and K8s NetworkPolicy revisions from the combined
 // revision returned on the KDD NetworkPolicy client.
 func (c converter) SplitNetworkPolicyRevision(rev string) (crdNPRev string, k8sNPRev string, err error) {
-	if rev == "" || rev == "0" {
+	if rev == "" {
 		return
 	}
 
@@ -676,9 +676,6 @@ func (c converter) SplitProfileRevision(rev string) (nsRev string, saRev string,
 	}
 	nsRev = revs[0]
 	saRev = revs[1]
-	if len(revs) == 2 {
-		saRev = revs[1]
-	}
 	return
 }
 
