@@ -254,7 +254,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		// of real ns and sa watchers. This profile watcher will never get any
 		// events because no events will occur for the static default-allow profile.
 		if rlo.Name == resources.DefaultAllowProfileName {
-			log.WithField("rv", revision).Debug("Creating watch on default-allow profile")
+			log.WithField("rv", revision).Debug("Creating a fake watch on default-allow profile")
 			return newProfileWatcher(ctx, api.NewFake(), api.NewFake()), nil
 		} else if strings.HasPrefix(rlo.Name, conversion.NamespaceProfileNamePrefix) {
 			watchSA = false
