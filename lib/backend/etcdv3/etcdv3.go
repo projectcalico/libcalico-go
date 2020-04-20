@@ -363,7 +363,7 @@ func (c *etcdV3Client) Get(ctx context.Context, k model.Key, revision string) (*
 	logCxt = logCxt.WithField("etcdv3-etcdKey", key)
 
 	// Handle the static default-allow profile. Always return the default profile.
-	if key == profilesKey || key == defaultAllowProfileKey {
+	if key == defaultAllowProfileKey {
 		logCxt.Debug("Returning default-allow profile for get")
 		return resources.DefaultAllowProfile(), nil
 	}
