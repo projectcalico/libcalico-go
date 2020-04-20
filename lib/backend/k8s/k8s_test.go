@@ -536,7 +536,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		})
 
 		By("watching all profiles with a valid rv does not return an event for the default-allow profile", func() {
-			rvs := []string{"", "0"}
+			rvs := []string{"", "0", "1000000/", "1000/1000", "/100000000"}
 			for _, rv := range rvs {
 				watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, rv)
 				Expect(err).NotTo(HaveOccurred())
