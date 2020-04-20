@@ -277,7 +277,7 @@ var _ = testutils.E2eDatastoreDescribe("Profile tests", testutils.DatastoreEtcdV
 			res.Spec = defaultAllowSpec
 			_, outError = c.Profiles().Create(ctx, res, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(ContainSubstring("projectcalico-default-allow already exists"))
+			Expect(outError.Error()).To(ContainSubstring("resource already exists: projectcalico-default-allow"))
 
 			By("Getting Profile (projectcalico-default-allow) with any rv should return the resource")
 			rvs := []string{"", "0", "1", "2"}
