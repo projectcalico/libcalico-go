@@ -38,15 +38,15 @@ import (
 )
 
 var (
-	clientTimeout              = 10 * time.Second
-	keepaliveTime              = 30 * time.Second
-	keepaliveTimeout           = 10 * time.Second
-	allowAllProfileResourceKey = model.ResourceKey{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}
+	clientTimeout                  = 10 * time.Second
+	keepaliveTime                  = 30 * time.Second
+	keepaliveTimeout               = 10 * time.Second
+	defaultAllowProfileResourceKey = model.ResourceKey{Name: "projectcalico-default-allow", Kind: apiv3.KindProfile}
 )
 
 const (
-	profilesKey        = "/calico/resources/v3/projectcalico.org/profiles/"
-	allowAllProfileKey = "/calico/resources/v3/projectcalico.org/profiles/projectcalico-allow-all"
+	profilesKey            = "/calico/resources/v3/projectcalico.org/profiles/"
+	defaultAllowProfileKey = "/calico/resources/v3/projectcalico.org/profiles/projectcalico-default-allow"
 )
 
 type etcdV3Client struct {
@@ -362,10 +362,10 @@ func (c *etcdV3Client) Get(ctx context.Context, k model.Key, revision string) (*
 	}
 	logCxt = logCxt.WithField("etcdv3-etcdKey", key)
 
-	// Handle the static allow-all profile. Always return the default profile.
-	if key == profilesKey || key == allowAllProfileKey {
-		logCxt.Debug("Returning allow-all profile for get")
-		return resources.AllowProfile(), nil
+	// Handle the static default-allow profile. Always return the default profile.
+	if key == profilesKey || key == defaultAllowProfileKey {
+		logCxt.Debug("Returning default-allow profile for get")
+		return resources.DefaultAllowProfile(), nil
 	}
 
 	ops := []clientv3.OpOption{}
@@ -427,10 +427,10 @@ func (c *etcdV3Client) List(ctx context.Context, l model.ListInterface, revision
 	}
 
 	// If we're listing profiles, we need to handle the statically defined
-	// allow-all profile in the resources package.
+	// default-allow profile in the resources package.
 	// We always include the default profile.
-	if key == profilesKey || key == allowAllProfileKey {
-		list = append(list, resources.AllowProfile())
+	if key == profilesKey || key == defaultAllowProfileKey {
+		list = append(list, resources.DefaultAllowProfile())
 	}
 
 	return &model.KVPairList{

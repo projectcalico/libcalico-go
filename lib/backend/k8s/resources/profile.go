@@ -129,9 +129,9 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 	rk := key.(model.ResourceKey)
 	if rk.Name == "" {
 		return nil, fmt.Errorf("Profile key missing name: %+v", rk)
-	} else if rk.Name == resources.AllowProfileName {
-		// Always return the allow-all profile regardless of revision
-		return resources.AllowProfile(), nil
+	} else if rk.Name == resources.DefaultAllowProfileName {
+		// Always return the default-allow profile regardless of revision
+		return resources.DefaultAllowProfile(), nil
 	}
 
 	nsRev, saRev, err := c.SplitProfileRevision(revision)
@@ -180,8 +180,8 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		}, nil
 	}
 
-	// Always add the allow-all profile to the result.
-	kvps = []*model.KVPair{resources.AllowProfile()}
+	// Always add the default-allow profile to the result.
+	kvps = []*model.KVPair{resources.DefaultAllowProfile()}
 
 	nsRev, saRev, err := c.SplitProfileRevision(revision)
 	if err != nil {
@@ -249,12 +249,12 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		log.WithField("name", rlo.Name).Debug("Watching a single profile")
 		var err error
 
-		// If we're watching the allow-all profile by name, then we exit
+		// If we're watching the default-allow profile by name, then we exit
 		// with a new profileWatcher now and use fake watches in place
 		// of real ns and sa watchers. This profile watcher will never get any
-		// events because no events will occur for the static allow-all profile.
-		if rlo.Name == resources.AllowProfileName {
-			log.WithField("rv", revision).Debug("Creating watch on allow-all profile")
+		// events because no events will occur for the static default-allow profile.
+		if rlo.Name == resources.DefaultAllowProfileName {
+			log.WithField("rv", revision).Debug("Creating watch on default-allow profile")
 			return newProfileWatcher(ctx, api.NewFake(), api.NewFake()), nil
 		} else if strings.HasPrefix(rlo.Name, conversion.NamespaceProfileNamePrefix) {
 			watchSA = false

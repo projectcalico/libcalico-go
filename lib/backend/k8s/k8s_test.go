@@ -113,7 +113,7 @@ var (
 		},
 	}
 
-	allowAllProfileKey = model.ResourceKey{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}
+	defaultAllowProfileKey = model.ResourceKey{Name: "projectcalico-default-allow", Kind: apiv3.KindProfile}
 
 	// Use a back-off set of intervals for testing deletion of a namespace
 	// which can sometimes be slow.
@@ -506,7 +506,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		})
 	})
 
-	It("should handle the static allow-all Profile", func() {
+	It("should handle the static default-allow Profile", func() {
 
 		findAllowAllProfileEvent := func(c <-chan api.WatchEvent) bool {
 			found := false
@@ -515,7 +515,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 				case e := <-c:
 					if e.Type == api.WatchAdded &&
 						e.Old == nil &&
-						e.New.Key == allowAllProfileKey {
+						e.New.Key == defaultAllowProfileKey {
 						found = true
 					}
 				default:
@@ -531,11 +531,11 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		}
 
 		By("existing in our cache", func() {
-			expectedName := "projectcalico-allow-all"
+			expectedName := "projectcalico-default-allow"
 			Eventually(cb.GetSyncerValuePresentFunc(model.ProfileRulesKey{ProfileKey: model.ProfileKey{expectedName}}), slowCheck...).Should(BeTrue())
 		})
 
-		By("watching all profiles with any rv does not return an event for the allow-all profile", func() {
+		By("watching all profiles with any rv does not return an event for the default-allow profile", func() {
 			rvs := []string{"", "0"}
 			for _, rv := range rvs {
 				watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindProfile}, rv)
@@ -546,10 +546,10 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 			}
 		})
 
-		By("watching the allow-all profile with any rv does not return an event", func() {
+		By("watching the default-allow profile with any rv does not return an event", func() {
 			rvs := []string{"", "0"}
 			for _, rv := range rvs {
-				watch, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-allow-all", Kind: apiv3.KindProfile}, rv)
+				watch, err := c.Watch(ctx, model.ResourceListOptions{Name: "projectcalico-default-allow", Kind: apiv3.KindProfile}, rv)
 				Expect(err).NotTo(HaveOccurred())
 				defer watch.Stop()
 				select {
@@ -563,7 +563,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		By("getting the profile with any rv should return the profile", func() {
 			rvs := []string{"", "0"}
 			for _, rv := range rvs {
-				kvp, err := c.Get(ctx, allowAllProfileKey, rv)
+				kvp, err := c.Get(ctx, defaultAllowProfileKey, rv)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(kvp).NotTo(BeNil())
 
@@ -580,7 +580,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 
 				var found bool
 				for _, kvp := range kvps.KVPairs {
-					if kvp.Key == allowAllProfileKey {
+					if kvp.Key == defaultAllowProfileKey {
 						found = true
 						Expect(kvp.Value.(*apiv3.Profile).Spec).Should(Equal(calicoAllowProfileSpec))
 					}
@@ -590,27 +590,27 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		})
 
 		By("creating the profile returns an error", func() {
-			kvp, err := c.Get(ctx, allowAllProfileKey, "")
+			kvp, err := c.Get(ctx, defaultAllowProfileKey, "")
 			Expect(err).NotTo(HaveOccurred())
 
 			_, err = c.Create(ctx, kvp)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("Create is not supported on Profile(projectcalico-allow-all)"))
+			Expect(err.Error()).To(ContainSubstring("Create is not supported on Profile(projectcalico-default-allow)"))
 		})
 
 		By("updating the profile returns an error", func() {
-			kvp, err := c.Get(ctx, allowAllProfileKey, "")
+			kvp, err := c.Get(ctx, defaultAllowProfileKey, "")
 			Expect(err).NotTo(HaveOccurred())
 
 			_, err = c.Update(ctx, kvp)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("Update is not supported on Profile(projectcalico-allow-all)"))
+			Expect(err.Error()).To(ContainSubstring("Update is not supported on Profile(projectcalico-default-allow)"))
 		})
 
 		By("deleting the profile returns an error", func() {
-			_, err := c.Delete(ctx, allowAllProfileKey, "")
+			_, err := c.Delete(ctx, defaultAllowProfileKey, "")
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("Delete is not supported on Profile(projectcalico-allow-all)"))
+			Expect(err.Error()).To(ContainSubstring("Delete is not supported on Profile(projectcalico-default-allow)"))
 		})
 	})
 

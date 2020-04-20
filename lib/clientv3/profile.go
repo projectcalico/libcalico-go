@@ -44,11 +44,11 @@ type profiles struct {
 // Create takes the representation of a Profile and creates it.  Returns the stored
 // representation of the Profile, and an error, if there is any.
 func (r profiles) Create(ctx context.Context, res *apiv3.Profile, opts options.SetOptions) (*apiv3.Profile, error) {
-	if res.Name == cresources.AllowProfileName {
+	if res.Name == cresources.DefaultAllowProfileName {
 		return nil, cerrors.ErrorOperationNotSupported{
 			Operation:  "Create",
-			Identifier: cresources.AllowProfileName,
-			Reason:     fmt.Sprintf("%v already exists. The profile %q is default provided by Calico", cresources.AllowProfileName, cresources.AllowProfileName),
+			Identifier: cresources.DefaultAllowProfileName,
+			Reason:     fmt.Sprintf("%v already exists. The profile %q is default provided by Calico", cresources.DefaultAllowProfileName, cresources.DefaultAllowProfileName),
 		}
 	}
 
@@ -66,11 +66,11 @@ func (r profiles) Create(ctx context.Context, res *apiv3.Profile, opts options.S
 // Update takes the representation of a Profile and updates it. Returns the stored
 // representation of the Profile, and an error, if there is any.
 func (r profiles) Update(ctx context.Context, res *apiv3.Profile, opts options.SetOptions) (*apiv3.Profile, error) {
-	if res.Name == cresources.AllowProfileName {
+	if res.Name == cresources.DefaultAllowProfileName {
 		return nil, cerrors.ErrorOperationNotSupported{
 			Operation:  "Update",
-			Identifier: cresources.AllowProfileName,
-			Reason:     fmt.Sprintf("The profile %q is a default provided by Calico and cannot be updated", cresources.AllowProfileName),
+			Identifier: cresources.DefaultAllowProfileName,
+			Reason:     fmt.Sprintf("The profile %q is a default provided by Calico and cannot be updated", cresources.DefaultAllowProfileName),
 		}
 	}
 
@@ -87,11 +87,11 @@ func (r profiles) Update(ctx context.Context, res *apiv3.Profile, opts options.S
 
 // Delete takes name of the Profile and deletes it. Returns an error if one occurs.
 func (r profiles) Delete(ctx context.Context, name string, opts options.DeleteOptions) (*apiv3.Profile, error) {
-	if name == cresources.AllowProfileName {
+	if name == cresources.DefaultAllowProfileName {
 		return nil, cerrors.ErrorOperationNotSupported{
 			Operation:  "Delete",
-			Identifier: cresources.AllowProfileName,
-			Reason:     fmt.Sprintf("The profile %q is a default provided by Calico and cannot be deleted", cresources.AllowProfileName),
+			Identifier: cresources.DefaultAllowProfileName,
+			Reason:     fmt.Sprintf("The profile %q is a default provided by Calico and cannot be deleted", cresources.DefaultAllowProfileName),
 		}
 	}
 	out, err := r.client.resources.Delete(ctx, opts, apiv3.KindProfile, noNamespace, name)

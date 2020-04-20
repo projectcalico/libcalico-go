@@ -90,7 +90,7 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 			// Add one for the default-allow profile that is always there.
 			expectedCacheSize += 1
 			syncTester.ExpectData(model.KVPair{
-				Key: model.ProfileRulesKey{ProfileKey: model.ProfileKey{Name: "projectcalico-allow-all"}},
+				Key: model.ProfileRulesKey{ProfileKey: model.ProfileKey{Name: "projectcalico-default-allow"}},
 				Value: &model.ProfileRules{
 					InboundRules:  []model.Rule{{Action: "allow"}},
 					OutboundRules: []model.Rule{{Action: "allow"}},

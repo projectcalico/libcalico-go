@@ -103,9 +103,9 @@ func (wc *watcher) watchLoop() {
 			return
 		}
 
-		// If we're handling profiles, filter out the default allow-all profile.
-		if len(kvps.KVPairs) > 0 && (key == profilesKey || key == allowAllProfileKey) {
-			wc.removeAllowAllProfile(kvps)
+		// If we're handling profiles, filter out the default-allow profile.
+		if len(kvps.KVPairs) > 0 && (key == profilesKey || key == defaultAllowProfileKey) {
+			wc.removeDefaultAllowProfile(kvps)
 		}
 
 		// We are sending an initial sync of entries to the watcher to provide current
@@ -166,14 +166,14 @@ func (wc *watcher) listCurrent() (*model.KVPairList, error) {
 	return list, nil
 }
 
-// removeAllowAllProfile filters out the default allow-all profile out of the
+// removeDefaultAllowProfile filters out the default-allow profile out of the
 // given kvps list.
-func (wc *watcher) removeAllowAllProfile(list *model.KVPairList) {
-	log.Debugf("Filtering the allow-all profile out of the kvps list")
+func (wc *watcher) removeDefaultAllowProfile(list *model.KVPairList) {
+	log.Debugf("Filtering the default-allow profile out of the kvps list")
 	n := 0
 	s := list.KVPairs
 	for _, kvp := range s {
-		if kvp.Key != allowAllProfileResourceKey {
+		if kvp.Key != defaultAllowProfileResourceKey {
 			s[n] = kvp
 			n++
 		}

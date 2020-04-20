@@ -22,18 +22,19 @@ import (
 )
 
 const (
-	// AllowProfileName is the name of an "allow-all" profile.
-	AllowProfileName = "projectcalico-allow-all"
+	// DefaultAllowProfileName is the name of a profile provided by Calico that
+	// has allow all ingress and egress rules.
+	DefaultAllowProfileName = "projectcalico-default-allow"
 )
 
-// AllowProfile returns a single profile kvp with default allow rules.
+// DefaultAllowProfile returns a single profile kvp with default allow rules.
 // This profile can be attached to host endpoints to allow traffic in the
 // absence of policy.
-func AllowProfile() *model.KVPair {
+func DefaultAllowProfile() *model.KVPair {
 	// Create the profile
 	profile := v3.NewProfile()
 	profile.ObjectMeta = metav1.ObjectMeta{
-		Name: AllowProfileName,
+		Name: DefaultAllowProfileName,
 	}
 	profile.Spec = v3.ProfileSpec{
 		Ingress: []v3.Rule{{Action: v3.Allow}},
@@ -43,7 +44,7 @@ func AllowProfile() *model.KVPair {
 	// Embed the profile in a KVPair.
 	return &model.KVPair{
 		Key: model.ResourceKey{
-			Name: AllowProfileName,
+			Name: DefaultAllowProfileName,
 			Kind: v3.KindProfile,
 		},
 		Value:    profile,
