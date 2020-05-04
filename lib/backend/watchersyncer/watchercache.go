@@ -123,13 +123,13 @@ mainLoop:
 
 				if e, ok := event.Error.(cerrors.ErrorWatchTerminated); ok {
 					wc.logger.Debug("Received watch terminated error - recreate watcher")
+					wc.onError()
 					if !e.ClosedByRemote {
 						// If the watcher was not closed by remote, reset the currentWatchRevision.  This will
 						// trigger a full resync rather than simply trying to watch from the last event
 						// revision.
 						wc.logger.Debug("Watch was not closed by remote - full resync required")
 						wc.currentWatchRevision = ""
-						wc.onError()
 					}
 					wc.resyncAndCreateWatcher(ctx)
 				} else {
@@ -436,7 +436,7 @@ func (wc *watcherCache) markAsValid(resourceKey string) {
 // exceeds the error threshold.  See finishResync() for how the watcherCache goes back to in-sync.
 func (wc *watcherCache) onError() {
 	wc.errors++
-	if wc.hasSynced && wc.errors > wc.errorThreshold {
+	if wc.errors > wc.errorThreshold {
 		wc.logger.WithFields(logrus.Fields{"errors": wc.errors, "threshold": wc.errorThreshold}).Debugf("Exceeded error threshold")
 		wc.hasSynced = false
 		wc.results <- api.WaitForDatastore
