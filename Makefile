@@ -54,9 +54,17 @@ GENERATED_FILES:=./lib/apis/v3/zz_generated.deepcopy.go \
 
 .PHONY: gen-files
 ## Force rebuild generated go utilities (e.g. deepcopy-gen) and generated files
-gen-files:
+gen-files: gen-crds
 	rm -rf $(GENERATED_FILES)
 	$(MAKE) $(GENERATED_FILES)
+
+## Force a rebuild of custom resource definition yamls
+gen-crds: bin/controller-gen
+	./bin/controller-gen  crd:crdVersions=v1 paths=./lib/apis/... output:crd:dir=config/crd/
+
+# Used for generating CRD files.
+bin/controller-gen:
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5 && cp $(GOPATH)/bin/controller-gen ./bin/controller-gen
 
 $(BINDIR)/deepcopy-gen: vendor
 	$(DOCKER_GO_BUILD) sh -c 'go build -o $@ $(PACKAGE_NAME)/vendor/k8s.io/code-generator/cmd/deepcopy-gen'

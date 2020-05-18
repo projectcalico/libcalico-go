@@ -14,7 +14,10 @@
 
 package v3
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 const (
 	KindGlobalNetworkPolicy     = "GlobalNetworkPolicy"
@@ -58,7 +61,7 @@ type GlobalNetworkPolicySpec struct {
 	// order.  If the order is omitted, it may be considered to be "infinite" - i.e. the
 	// policy will be applied last.  Policies with identical order will be applied in
 	// alphanumerical order based on the Policy "Name".
-	Order *float64 `json:"order,omitempty"`
+	Order resource.Quantity `json:"order,omitempty"`
 	// The ordered set of ingress rules.  Each rule contains a set of packet match criteria and
 	// a corresponding action to apply.
 	Ingress []Rule `json:"ingress,omitempty" validate:"omitempty,dive"`
