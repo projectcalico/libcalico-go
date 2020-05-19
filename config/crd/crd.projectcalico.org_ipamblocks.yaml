@@ -39,9 +39,9 @@ spec:
               affinity:
                 type: string
               allocations:
-                items:
-                  type: integer
-                type: array
+                # TODO: This is manually set after auto-generation, because
+                # the autogenerator doesn't like slices of pointers.
+                x-kubernetes-preserve-unknown-fields: true
               attributes:
                 items:
                   properties:
@@ -67,7 +67,6 @@ spec:
                   type: integer
                 type: array
             required:
-            - affinity
             - allocations
             - attributes
             - cidr
