@@ -14,7 +14,7 @@ spec:
     listKind: IPAMBlockList
     plural: ipamblocks
     singular: ipamblock
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
@@ -31,10 +31,10 @@ spec:
               submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
-            description: Standard object's metadata.
             type: object
           spec:
-            description: Specification of the IPAMBlock.
+            description: IPAMBlockSpec contains the specification for an IPAMBlock
+              resource.
             properties:
               affinity:
                 type: string
@@ -82,5 +82,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

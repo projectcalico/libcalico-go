@@ -24,7 +24,7 @@ include Makefile.common
 
 ###############################################################################
 
-K8S_VERSION      ?= v1.16.0
+K8S_VERSION=v1.17.0
 BINDIR           ?= bin
 
 # Create a list of files upon which the generated file depends, skip the generated file itself
@@ -60,7 +60,8 @@ gen-files: gen-crds
 
 ## Force a rebuild of custom resource definition yamls
 gen-crds: bin/controller-gen
-	./bin/controller-gen  crd:crdVersions=v1 paths=./lib/apis/... output:crd:dir=config/crd/
+	@./bin/controller-gen  crd:crdVersions=v1 paths=./lib/apis/... output:crd:dir=config/crd/
+	@rm config/crd/_.yaml
 
 # Used for generating CRD files.
 bin/controller-gen:
@@ -169,8 +170,7 @@ run-kubernetes-master: stop-kubernetes-master
 	docker run \
 		--net=host --name st-apiserver \
 		--detach \
-		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} \
-		/hyperkube kube-apiserver \
+		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kube-apiserver \
 			--bind-address=0.0.0.0 \
 			--insecure-bind-address=0.0.0.0 \
 	        	--etcd-servers=http://127.0.0.1:2379 \
@@ -181,37 +181,34 @@ run-kubernetes-master: stop-kubernetes-master
 
 	# Wait until the apiserver is accepting requests.
 	while ! docker exec st-apiserver kubectl get nodes; do echo "Waiting for apiserver to come up..."; sleep 2; done
+	sleep 5
 
 	# And run the controller manager.
 	docker run \
 		--net=host --name st-controller-manager \
 		--detach \
-		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} \
-		/hyperkube kube-controller-manager \
+		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kube-controller-manager \
                         --master=127.0.0.1:8080 \
                         --min-resync-period=3m \
                         --allocate-node-cidrs=true \
                         --cluster-cidr=10.10.0.0/16 \
                         --v=5
 
-	# Create CustomResourceDefinition (CRD) for Calico resources
-	# from the manifest crds.yaml
+	# Create CustomResourceDefinition (CRD) for Calico resources.
 	docker run \
 	    --net=host \
 	    --rm \
 		-v  $(CURDIR):/manifests \
-		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} \
-		/hyperkube kubectl \
+		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kubectl \
 		--server=http://127.0.0.1:8080 \
-		apply -f /manifests/test/crds.yaml
+		apply -f /manifests/config/crd
 
 	# Create a Node in the API for the tests to use.
 	docker run \
 	    --net=host \
 	    --rm \
 		-v  $(CURDIR):/manifests \
-		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} \
-		/hyperkube kubectl \
+		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kubectl \
 		--server=http://127.0.0.1:8080 \
 		apply -f /manifests/test/mock-node.yaml
 
@@ -221,8 +218,7 @@ run-kubernetes-master: stop-kubernetes-master
 	    --net=host \
 	    --rm \
 		-v  $(CURDIR):/manifests \
-		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} \
-		/hyperkube kubectl \
+		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kubectl \
 		--server=http://localhost:8080 \
 		apply -f /manifests/test/namespaces.yaml
 

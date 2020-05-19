@@ -14,7 +14,7 @@ spec:
     listKind: BGPPeerList
     plural: bgppeers
     singular: bgppeer
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
@@ -71,5 +71,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

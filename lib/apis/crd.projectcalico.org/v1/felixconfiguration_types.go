@@ -24,6 +24,7 @@ import (
 
 // Felix Configuration contains the configuration for Felix.
 // +k8s:openapi-gen=true
+// +kubebuilder:resource:scope=Cluster
 type FelixConfiguration struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

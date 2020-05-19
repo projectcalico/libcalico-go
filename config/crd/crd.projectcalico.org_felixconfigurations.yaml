@@ -14,7 +14,7 @@ spec:
     listKind: FelixConfigurationList
     plural: felixconfigurations
     singular: felixconfiguration
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
@@ -298,7 +298,7 @@ spec:
                   in ipvs mode. Felix uses these ranges to separate host and workload
                   traffic. [Default: 30000:32767].'
                 items:
-                  type: Any
+                  type: string
                 type: array
               logFilePath:
                 description: 'LogFilePath is the full path to the Felix log. Set to
@@ -347,7 +347,7 @@ spec:
                 description: NATPortRange specifies the range of ports that is used
                   for port mapping when doing outgoing NAT. When unset the default
                   behavior of the network stack is used.
-                type: Any
+                type: string
               netlinkTimeout:
                 type: string
               openstackRegion:
@@ -497,5 +497,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

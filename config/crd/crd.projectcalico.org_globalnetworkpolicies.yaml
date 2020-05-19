@@ -14,7 +14,7 @@ spec:
     listKind: GlobalNetworkPolicyList
     plural: globalnetworkpolicies
     singular: globalnetworkpolicy
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
@@ -97,7 +97,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            type: Any
+                            type: string
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -113,7 +113,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            type: Any
+                            type: string
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -238,7 +238,7 @@ spec:
                     notProtocol:
                       description: NotProtocol is the negated version of the Protocol
                         field.
-                      type: Any
+                      type: string
                     protocol:
                       description: "Protocol is an optional field that restricts the
                         rule to only apply to traffic of a specific IP protocol. Required
@@ -246,7 +246,7 @@ spec:
                         apply to certain protocols). \n Must be one of these string
                         values: \"TCP\", \"UDP\", \"ICMP\", \"ICMPv6\", \"SCTP\",
                         \"UDPLite\" or an integer in the range 1-255."
-                      type: Any
+                      type: string
                     source:
                       description: Source contains the match criteria that apply to
                         source entity.
@@ -284,7 +284,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            type: Any
+                            type: string
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -300,7 +300,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            type: Any
+                            type: string
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -400,7 +400,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            type: Any
+                            type: string
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -416,7 +416,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            type: Any
+                            type: string
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -541,7 +541,7 @@ spec:
                     notProtocol:
                       description: NotProtocol is the negated version of the Protocol
                         field.
-                      type: Any
+                      type: string
                     protocol:
                       description: "Protocol is an optional field that restricts the
                         rule to only apply to traffic of a specific IP protocol. Required
@@ -549,7 +549,7 @@ spec:
                         apply to certain protocols). \n Must be one of these string
                         values: \"TCP\", \"UDP\", \"ICMP\", \"ICMPv6\", \"SCTP\",
                         \"UDPLite\" or an integer in the range 1-255."
-                      type: Any
+                      type: string
                     source:
                       description: Source contains the match criteria that apply to
                         source entity.
@@ -587,7 +587,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            type: Any
+                            type: string
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -603,7 +603,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            type: Any
+                            type: string
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -662,7 +662,7 @@ spec:
                   considered to be "infinite" - i.e. the policy will be applied last.  Policies
                   with identical order will be applied in alphanumerical order based
                   on the Policy "Name".
-                type: float
+                type: number
               preDNAT:
                 description: PreDNAT indicates to apply the rules in this policy before
                   any DNAT.
@@ -714,5 +714,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

@@ -14,7 +14,7 @@ spec:
     listKind: HostEndpointList
     plural: hostendpoints
     singular: hostendpoint
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
@@ -80,7 +80,7 @@ spec:
                     port:
                       type: integer
                     protocol:
-                      type: Any
+                      type: string
                   required:
                   - name
                   - port
@@ -103,5 +103,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

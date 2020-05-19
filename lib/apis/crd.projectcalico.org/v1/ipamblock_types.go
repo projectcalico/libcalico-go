@@ -23,10 +23,9 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // +k8s:openapi-gen=true
+// +kubebuilder:resource:scope=Cluster
 type IPAMBlock struct {
-	metav1.TypeMeta `json:",inline"`
-	// Standard object's metadata.
+	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// Specification of the IPAMBlock.
-	Spec v3.IPAMBlockSpec `json:"spec,omitempty"`
+	Spec              v3.IPAMBlockSpec `json:"spec,omitempty"`
 }

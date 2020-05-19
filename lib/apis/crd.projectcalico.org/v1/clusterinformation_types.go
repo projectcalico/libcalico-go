@@ -24,6 +24,7 @@ import (
 
 // ClusterInformation contains the cluster specific information.
 // +k8s:openapi-gen=true
+// +kubebuilder:resource:scope=Cluster
 type ClusterInformation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

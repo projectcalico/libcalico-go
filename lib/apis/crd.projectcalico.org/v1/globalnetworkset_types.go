@@ -25,6 +25,7 @@ import (
 // GlobalNetworkSet contains a set of arbitrary IP sub-networks/CIDRs that share labels to
 // allow rules to refer to them via selectors.  The labels of GlobalNetworkSet are not namespaced.
 // +k8s:openapi-gen=true
+// +kubebuilder:resource:scope=Cluster
 type GlobalNetworkSet struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

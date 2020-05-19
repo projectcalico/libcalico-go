@@ -14,7 +14,7 @@ spec:
     listKind: IPAMConfigList
     plural: ipamconfigs
     singular: ipamconfig
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
@@ -51,5 +51,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

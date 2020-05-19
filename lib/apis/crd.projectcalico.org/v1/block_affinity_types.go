@@ -22,8 +22,8 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// BlockAffinity maintains a block affinity's state
 // +k8s:openapi-gen=true
+// +kubebuilder:resource:scope=Cluster
 type BlockAffinity struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

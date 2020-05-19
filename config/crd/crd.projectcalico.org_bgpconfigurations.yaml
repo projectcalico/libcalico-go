@@ -14,7 +14,7 @@ spec:
     listKind: BGPConfigurationList
     plural: bgpconfigurations
     singular: bgpconfiguration
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
@@ -81,5 +81,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

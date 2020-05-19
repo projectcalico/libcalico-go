@@ -14,7 +14,7 @@ spec:
     listKind: IPAMHandleList
     plural: ipamhandles
     singular: ipamhandle
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
@@ -53,5 +53,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

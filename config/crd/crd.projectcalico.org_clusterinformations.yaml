@@ -14,7 +14,7 @@ spec:
     listKind: ClusterInformationList
     plural: clusterinformations
     singular: clusterinformation
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
@@ -62,5 +62,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []
