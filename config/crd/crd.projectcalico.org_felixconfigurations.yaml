@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.2.5
+    controller-gen.kubebuilder.io/version: (devel)
   creationTimestamp: null
   name: felixconfigurations.crd.projectcalico.org
 spec:
@@ -298,22 +298,7 @@ spec:
                   in ipvs mode. Felix uses these ranges to separate host and workload
                   traffic. [Default: 30000:32767].'
                 items:
-                  description: "Port represents either a range of numeric ports or
-                    a named port. \n     - For a named port, set the PortName, leaving
-                    MinPort and MaxPort as 0.     - For a port range, set MinPort
-                    and MaxPort to the (inclusive) port numbers.  Set       PortName
-                    to \"\".     - For a single port, set MinPort = MaxPort and PortName
-                    = \"\"."
-                  properties:
-                    maxPort:
-                      type: integer
-                    minPort:
-                      type: integer
-                    portName:
-                      type: string
-                  required:
-                  - portName
-                  type: object
+                  type: Any
                 type: array
               logFilePath:
                 description: 'LogFilePath is the full path to the Felix log. Set to
@@ -362,16 +347,7 @@ spec:
                 description: NATPortRange specifies the range of ports that is used
                   for port mapping when doing outgoing NAT. When unset the default
                   behavior of the network stack is used.
-                properties:
-                  maxPort:
-                    type: integer
-                  minPort:
-                    type: integer
-                  portName:
-                    type: string
-                required:
-                - portName
-                type: object
+                type: Any
               netlinkTimeout:
                 type: string
               openstackRegion:
@@ -521,5 +497,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null

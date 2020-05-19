@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.2.5
+    controller-gen.kubebuilder.io/version: (devel)
   creationTimestamp: null
   name: networkpolicies.crd.projectcalico.org
 spec:
@@ -86,23 +86,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            description: "Port represents either a range of numeric
-                              ports or a named port. \n     - For a named port, set
-                              the PortName, leaving MinPort and MaxPort as 0.     -
-                              For a port range, set MinPort and MaxPort to the (inclusive)
-                              port numbers.  Set       PortName to \"\".     - For
-                              a single port, set MinPort = MaxPort and PortName =
-                              \"\"."
-                            properties:
-                              maxPort:
-                                type: integer
-                              minPort:
-                                type: integer
-                              portName:
-                                type: string
-                            required:
-                            - portName
-                            type: object
+                            type: Any
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -118,23 +102,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            description: "Port represents either a range of numeric
-                              ports or a named port. \n     - For a named port, set
-                              the PortName, leaving MinPort and MaxPort as 0.     -
-                              For a port range, set MinPort and MaxPort to the (inclusive)
-                              port numbers.  Set       PortName to \"\".     - For
-                              a single port, set MinPort = MaxPort and PortName =
-                              \"\"."
-                            properties:
-                              maxPort:
-                                type: integer
-                              minPort:
-                                type: integer
-                              portName:
-                                type: string
-                            required:
-                            - portName
-                            type: object
+                            type: Any
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -257,17 +225,17 @@ spec:
                           type: integer
                       type: object
                     notProtocol:
-                      $ref: '#/definitions/Uint8OrString'
                       description: NotProtocol is the negated version of the Protocol
                         field.
+                      type: Any
                     protocol:
-                      $ref: '#/definitions/Uint8OrString'
                       description: "Protocol is an optional field that restricts the
                         rule to only apply to traffic of a specific IP protocol. Required
                         if any of the EntityRules contain Ports (because ports only
                         apply to certain protocols). \n Must be one of these string
                         values: \"TCP\", \"UDP\", \"ICMP\", \"ICMPv6\", \"SCTP\",
                         \"UDPLite\" or an integer in the range 1-255."
+                      type: Any
                     source:
                       description: Source contains the match criteria that apply to
                         source entity.
@@ -305,23 +273,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            description: "Port represents either a range of numeric
-                              ports or a named port. \n     - For a named port, set
-                              the PortName, leaving MinPort and MaxPort as 0.     -
-                              For a port range, set MinPort and MaxPort to the (inclusive)
-                              port numbers.  Set       PortName to \"\".     - For
-                              a single port, set MinPort = MaxPort and PortName =
-                              \"\"."
-                            properties:
-                              maxPort:
-                                type: integer
-                              minPort:
-                                type: integer
-                              portName:
-                                type: string
-                            required:
-                            - portName
-                            type: object
+                            type: Any
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -337,23 +289,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            description: "Port represents either a range of numeric
-                              ports or a named port. \n     - For a named port, set
-                              the PortName, leaving MinPort and MaxPort as 0.     -
-                              For a port range, set MinPort and MaxPort to the (inclusive)
-                              port numbers.  Set       PortName to \"\".     - For
-                              a single port, set MinPort = MaxPort and PortName =
-                              \"\"."
-                            properties:
-                              maxPort:
-                                type: integer
-                              minPort:
-                                type: integer
-                              portName:
-                                type: string
-                            required:
-                            - portName
-                            type: object
+                            type: Any
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -453,23 +389,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            description: "Port represents either a range of numeric
-                              ports or a named port. \n     - For a named port, set
-                              the PortName, leaving MinPort and MaxPort as 0.     -
-                              For a port range, set MinPort and MaxPort to the (inclusive)
-                              port numbers.  Set       PortName to \"\".     - For
-                              a single port, set MinPort = MaxPort and PortName =
-                              \"\"."
-                            properties:
-                              maxPort:
-                                type: integer
-                              minPort:
-                                type: integer
-                              portName:
-                                type: string
-                            required:
-                            - portName
-                            type: object
+                            type: Any
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -485,23 +405,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            description: "Port represents either a range of numeric
-                              ports or a named port. \n     - For a named port, set
-                              the PortName, leaving MinPort and MaxPort as 0.     -
-                              For a port range, set MinPort and MaxPort to the (inclusive)
-                              port numbers.  Set       PortName to \"\".     - For
-                              a single port, set MinPort = MaxPort and PortName =
-                              \"\"."
-                            properties:
-                              maxPort:
-                                type: integer
-                              minPort:
-                                type: integer
-                              portName:
-                                type: string
-                            required:
-                            - portName
-                            type: object
+                            type: Any
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -624,17 +528,17 @@ spec:
                           type: integer
                       type: object
                     notProtocol:
-                      $ref: '#/definitions/Uint8OrString'
                       description: NotProtocol is the negated version of the Protocol
                         field.
+                      type: Any
                     protocol:
-                      $ref: '#/definitions/Uint8OrString'
                       description: "Protocol is an optional field that restricts the
                         rule to only apply to traffic of a specific IP protocol. Required
                         if any of the EntityRules contain Ports (because ports only
                         apply to certain protocols). \n Must be one of these string
                         values: \"TCP\", \"UDP\", \"ICMP\", \"ICMPv6\", \"SCTP\",
                         \"UDPLite\" or an integer in the range 1-255."
+                      type: Any
                     source:
                       description: Source contains the match criteria that apply to
                         source entity.
@@ -672,23 +576,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            description: "Port represents either a range of numeric
-                              ports or a named port. \n     - For a named port, set
-                              the PortName, leaving MinPort and MaxPort as 0.     -
-                              For a port range, set MinPort and MaxPort to the (inclusive)
-                              port numbers.  Set       PortName to \"\".     - For
-                              a single port, set MinPort = MaxPort and PortName =
-                              \"\"."
-                            properties:
-                              maxPort:
-                                type: integer
-                              minPort:
-                                type: integer
-                              portName:
-                                type: string
-                            required:
-                            - portName
-                            type: object
+                            type: Any
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -704,23 +592,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            description: "Port represents either a range of numeric
-                              ports or a named port. \n     - For a named port, set
-                              the PortName, leaving MinPort and MaxPort as 0.     -
-                              For a port range, set MinPort and MaxPort to the (inclusive)
-                              port numbers.  Set       PortName to \"\".     - For
-                              a single port, set MinPort = MaxPort and PortName =
-                              \"\"."
-                            properties:
-                              maxPort:
-                                type: integer
-                              minPort:
-                                type: integer
-                              portName:
-                                type: string
-                            required:
-                            - portName
-                            type: object
+                            type: Any
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -769,17 +641,13 @@ spec:
                   type: object
                 type: array
               order:
-                anyOf:
-                - type: integer
-                - type: string
                 description: Order is an optional field that specifies the order in
                   which the policy is applied. Policies with higher "order" are applied
                   after those with lower order.  If the order is omitted, it may be
                   considered to be "infinite" - i.e. the policy will be applied last.  Policies
                   with identical order will be applied in alphanumerical order based
                   on the Policy "Name".
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
+                type: float
               selector:
                 description: "The selector is an expression used to pick pick out
                   the endpoints that the policy should be applied to. \n Selector
@@ -827,5 +695,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null

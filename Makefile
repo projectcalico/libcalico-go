@@ -64,7 +64,9 @@ gen-crds: bin/controller-gen
 
 # Used for generating CRD files.
 bin/controller-gen:
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5 && cp $(GOPATH)/bin/controller-gen ./bin/controller-gen
+	# Download a version of controller-gen that has been hacked for float support.
+	# We can remove this once we remove float fields from our API stucts.
+	wget -O $@ https://github.com/caseydavenport/controller-tools/releases/download/float-support/controller-gen && chmod +x $@
 
 $(BINDIR)/deepcopy-gen: vendor
 	$(DOCKER_GO_BUILD) sh -c 'go build -o $@ $(PACKAGE_NAME)/vendor/k8s.io/code-generator/cmd/deepcopy-gen'
