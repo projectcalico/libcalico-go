@@ -997,7 +997,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests (kdd 
 		initKVP := &model.KVPair{
 			Key: model.BlockKey{CIDR: *net},
 			Value: &model.AllocationBlock{
-				CIDR:        mustParseCIDR("10.0.1.0/29"),
+				CIDR:        cnet.MustParseCIDR("10.0.1.0/29"),
 				Allocations: []*int{nil, nil, nil},
 				Unallocated: []int{0, 1, 2},
 			},
