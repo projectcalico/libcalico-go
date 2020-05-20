@@ -52,8 +52,6 @@ spec:
                   to signal to components such as Felix that it should wait before
                   accessing the datastore.
                 type: boolean
-            required:
-            - datastoreReady
             type: object
         type: object
     served: true

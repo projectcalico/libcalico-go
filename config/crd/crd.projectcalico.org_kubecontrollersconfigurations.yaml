@@ -214,9 +214,6 @@ spec:
                 required:
                 - controllers
                 type: object
-            required:
-            - environmentVars
-            - runningConfig
             type: object
         type: object
     served: true
