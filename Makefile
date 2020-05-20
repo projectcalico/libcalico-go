@@ -65,8 +65,9 @@ gen-crds: bin/controller-gen
 
 # Used for generating CRD files.
 bin/controller-gen:
-	# Download a version of controller-gen that has been hacked for float support.
-	# We can remove this once we remove float fields from our API stucts.
+	# Download a version of controller-gen that has been hacked to support additional types (e.g., float).
+	# We can remove this once we update the Calico v3 APIs to use only types which are supported by the upstream controller-gen
+	# tooling. Some examples: float, all the types in the numorstring package, etc.
 	wget -O $@ https://github.com/caseydavenport/controller-tools/releases/download/float-support/controller-gen && chmod +x $@
 
 $(BINDIR)/deepcopy-gen: vendor
