@@ -1,5 +1,5 @@
 PACKAGE_NAME=github.com/projectcalico/libcalico-go
-GO_BUILD_VER=v0.28
+GO_BUILD_VER=v0.40
 
 # libcalico-go still relies on vendoring
 GOMOD_VENDOR = true
@@ -24,8 +24,7 @@ include Makefile.common
 
 ###############################################################################
 
-K8S_VERSION=v1.17.0
-BINDIR           ?= bin
+BINDIR?=bin
 
 # Create a list of files upon which the generated file depends, skip the generated file itself
 UPGRADE_SRCS := $(filter-out ./lib/upgrade/migrator/clients/v1/k8s/custom/zz_generated.deepcopy.go, \
