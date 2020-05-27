@@ -40,8 +40,8 @@ const (
 )
 
 type BlockAffinityKey struct {
-	CIDR net.IPNet `json:"-" validate:"required,name"`
-	Host string    `json:"-"`
+	CIDR net.IPNet `json:"cidr" validate:"required,name"`
+	Host string    `json:"host"`
 }
 
 type BlockAffinity struct {

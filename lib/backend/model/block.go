@@ -43,7 +43,7 @@ var (
 )
 
 type BlockKey struct {
-	CIDR net.IPNet `json:"-" validate:"required,name"`
+	CIDR net.IPNet `json:"cidr" validate:"required,name"`
 }
 
 func (key BlockKey) defaultPath() (string, error) {
