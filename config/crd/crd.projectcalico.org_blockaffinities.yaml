@@ -39,6 +39,8 @@ spec:
               cidr:
                 type: string
               deleted:
+                description: Deleted is an optional field that, when true, indicates
+                  Delete has been called on this block affinity.
                 type: string
               node:
                 type: string
@@ -46,7 +48,6 @@ spec:
                 type: string
             required:
             - cidr
-            - deleted
             - node
             - state
             type: object

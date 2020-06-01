@@ -37,10 +37,14 @@ type BlockAffinity struct {
 
 // BlockAffinitySpec contains the specification for a BlockAffinity resource.
 type BlockAffinitySpec struct {
-	State   string `json:"state"`
-	Node    string `json:"node"`
-	CIDR    string `json:"cidr"`
-	Deleted string `json:"deleted"`
+	State string `json:"state"`
+	Node  string `json:"node"`
+	CIDR  string `json:"cidr"`
+
+	// Deleted is an optional field that, when true, indicates Delete
+	// has been called on this block affinity.
+	// +optional
+	Deleted string `json:"deleted,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

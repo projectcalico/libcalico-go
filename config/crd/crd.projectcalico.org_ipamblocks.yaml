@@ -59,6 +59,8 @@ spec:
               cidr:
                 type: string
               deleted:
+                description: Deleted is an optional field that, when true, indicates
+                  Delete has been called on this block.
                 type: boolean
               strictAffinity:
                 type: boolean
@@ -70,7 +72,6 @@ spec:
             - allocations
             - attributes
             - cidr
-            - deleted
             - strictAffinity
             - unallocated
             type: object

@@ -43,7 +43,11 @@ type IPAMBlockSpec struct {
 	Allocations    []*int                `json:"allocations"`
 	Unallocated    []int                 `json:"unallocated"`
 	Attributes     []AllocationAttribute `json:"attributes"`
-	Deleted        bool                  `json:"deleted"`
+
+	// Deleted is an optional field that, when true, indicates Delete
+	// has been called on this block.
+	// +optional
+	Deleted bool `json:"deleted,omitempty"`
 }
 
 type AllocationAttribute struct {
