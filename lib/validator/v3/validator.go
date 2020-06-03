@@ -38,8 +38,12 @@ import (
 
 var validate *validator.Validate
 
-// Maximum size of annotations.
-const totalAnnotationSizeLimitB int64 = 256 * (1 << 10) // 256 kB
+const (
+	// Maximum size of annotations.
+	totalAnnotationSizeLimitB int64 = 256 * (1 << 10) // 256 kB
+
+	globalSelector = "global()"
+)
 
 var (
 	nameLabelFmt     = "[a-z0-9]([-a-z0-9]*[a-z0-9])?"
@@ -1079,6 +1083,26 @@ func validateNetworkPolicy(structLevel validator.StructLevel) {
 			}
 		}
 	}
+
+	// Check that the selector doesn't have the global() selector which is only
+	// valid as an EntityRule namespaceSelector on GNPs.
+	if strings.Contains(spec.Selector, globalSelector) {
+		structLevel.ReportError(
+			reflect.ValueOf(spec.Selector),
+			"NetworkPolicySpec.Selector",
+			"",
+			reason(fmt.Sprintf("%s can only be used in a GlobalNetworkPolicy EntityRule", globalSelector)),
+			"")
+	}
+
+	if strings.Contains(spec.ServiceAccountSelector, globalSelector) {
+		structLevel.ReportError(
+			reflect.ValueOf(spec.ServiceAccountSelector),
+			"NetworkPolicySpec.ServiceAccountSelector",
+			"",
+			reason(fmt.Sprintf("%s can only be used in GlobalNetworkPolicy EntityRule", globalSelector)),
+			"")
+	}
 }
 
 func validateNetworkSet(structLevel validator.StructLevel) {
@@ -1188,6 +1212,35 @@ func validateGlobalNetworkPolicy(structLevel validator.StructLevel) {
 				structLevel.ReportError(v, f, "", reason("not allowed in egress rules"), "")
 			}
 		}
+	}
+
+	// Check that the selector doesn't have the global() selector which is only
+	// valid as an EntityRule namespaceSelector.
+	if strings.Contains(spec.Selector, globalSelector) {
+		structLevel.ReportError(
+			reflect.ValueOf(spec.Selector),
+			"GlobalNetworkPolicySpec.Selector",
+			"",
+			reason(fmt.Sprintf("%s can only be used in EntityRule", globalSelector)),
+			"")
+	}
+
+	if strings.Contains(spec.ServiceAccountSelector, globalSelector) {
+		structLevel.ReportError(
+			reflect.ValueOf(spec.Selector),
+			"GlobalNetworkPolicySpec.ServiceAccountSelector",
+			"",
+			reason(fmt.Sprintf("%s can only be used in EntityRule", globalSelector)),
+			"")
+	}
+
+	if strings.Contains(spec.NamespaceSelector, globalSelector) {
+		structLevel.ReportError(
+			reflect.ValueOf(spec.Selector),
+			"GlobalNetworkPolicySpec.NamespaceSelector",
+			"",
+			reason(fmt.Sprintf("%s can only be used in EntityRule", globalSelector)),
+			"")
 	}
 }
 

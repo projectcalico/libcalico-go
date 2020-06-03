@@ -1634,6 +1634,45 @@ func init() {
 				},
 			}, false,
 		),
+		Entry("disallow global() in namespaceSelector field",
+			&api.GlobalNetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.GlobalNetworkPolicySpec{
+					NamespaceSelector: "global()",
+				},
+			}, false,
+		),
+		Entry("disallow global() in selector field",
+			&api.GlobalNetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.GlobalNetworkPolicySpec{
+					Selector: "global()",
+				},
+			}, false,
+		),
+		Entry("disallow global() in serviceAccountSelector field",
+			&api.GlobalNetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.GlobalNetworkPolicySpec{
+					ServiceAccountSelector: "global()",
+				},
+			}, false,
+		),
+		Entry("allow global() in EntityRule namespaceSelector field",
+			&api.GlobalNetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.GlobalNetworkPolicySpec{
+					Ingress: []api.Rule{
+						{
+							Action: "Allow",
+							Source: api.EntityRule{
+								NamespaceSelector: "global()",
+							},
+						},
+					},
+				},
+			}, true,
+		),
 
 		// NetworkPolicySpec Types field checks.
 		Entry("allow valid name", &api.NetworkPolicy{ObjectMeta: v1.ObjectMeta{Name: "thing"}}, true),
@@ -1765,6 +1804,23 @@ func init() {
 				},
 			}, false,
 		),
+		Entry("disallow global() in selector field",
+			&api.NetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.NetworkPolicySpec{
+					Selector: "global()",
+				},
+			}, false,
+		),
+		Entry("disallow global() in serviceAccountSelector field",
+			&api.NetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.NetworkPolicySpec{
+					ServiceAccountSelector: "global()",
+				},
+			}, false,
+		),
+
 		Entry("allow HTTP Path with permitted match clauses",
 			&api.HTTPMatch{Paths: []api.HTTPPath{{Exact: "/foo"}, {Prefix: "/bar"}}},
 			true,
