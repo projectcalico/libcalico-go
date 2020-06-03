@@ -1,0 +1,74 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: (devel)
+  creationTimestamp: null
+  name: debuggingconfigurations.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: DebuggingConfiguration
+    listKind: DebuggingConfigurationList
+    plural: debuggingconfigurations
+    singular: debuggingconfiguration
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: DebuggingConfigurationSpec contains the debugging configuration
+              values for Tigera Enterprise components.
+            properties:
+              co:
+                description: Configuration contains debugging configuration as granular
+                  as per container on a given node.
+                items:
+                  description: 'ComponentConfiguration is the debugging configuration
+                    to be applied to the Tigera Enterprise. If multiple configurations
+                    apply to same process on a given node, the evaluation order is
+                    as follow: - component/node - component'
+                  properties:
+                    component:
+                      description: Component indicates which Tigera Enterprise component
+                        the configuration applies to.
+                      type: string
+                    logLevel:
+                      description: 'LogSeverity is the log severity above which logs
+                        are sent to the stdout. [Default: Info]'
+                      type: string
+                    node:
+                      description: Node if present restricts the configuration to
+                        the Component running on the specified node only. If not specified,
+                        configuration will apply to all replicas.
+                      type: string
+                  required:
+                  - component
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

@@ -122,6 +122,10 @@ func init() {
 		apiv3.KindKubeControllersConfiguration,
 		"kubecontrollersconfigurations",
 		reflect.TypeOf(apiv3.KubeControllersConfiguration{}))
+	registerResourceInfo(
+		apiv3.KindDebuggingConfiguration,
+		"debuggingconfigurations",
+		reflect.TypeOf(apiv3.DebuggingConfiguration{}))
 }
 
 type ResourceKey struct {

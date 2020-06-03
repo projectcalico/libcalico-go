@@ -1869,6 +1869,62 @@ func init() {
 				Namespace:        &api.NamespaceControllerConfig{},
 			}}, true,
 		),
+		// DebuggingConfiguration validation
+		Entry("should accept a DebuggingConfiguration with correct component",
+			&api.DebuggingConfiguration{
+				ObjectMeta: v1.ObjectMeta{Name: "default"},
+				Spec: api.DebuggingConfigurationSpec{
+					Configuration: []api.ComponentConfiguration{
+						api.ComponentConfiguration{
+							Component:   api.ComponentCalicoNode,
+							LogSeverity: api.LogLevelInfo,
+						},
+					},
+				},
+			}, true,
+		),
+		Entry("should reject a DebuggingConfiguration with incorrect component",
+			&api.DebuggingConfiguration{
+				ObjectMeta: v1.ObjectMeta{Name: "default"},
+				Spec: api.DebuggingConfigurationSpec{
+					Configuration: []api.ComponentConfiguration{
+						api.ComponentConfiguration{
+							Component:   "non-existing",
+							LogSeverity: api.LogLevelInfo,
+						},
+					},
+				},
+			}, false,
+		),
+		Entry("should accept a DebuggingConfiguration with correct component/node",
+			&api.DebuggingConfiguration{
+				ObjectMeta: v1.ObjectMeta{Name: "default"},
+				Spec: api.DebuggingConfigurationSpec{
+					Configuration: []api.ComponentConfiguration{
+						api.ComponentConfiguration{
+							Component:   api.ComponentCalicoNode,
+							LogSeverity: api.LogLevelInfo,
+							Node:        "worker-node-0",
+						},
+					},
+				},
+			}, true,
+		),
+		Entry("should reject a DebuggingConfiguration with incorrect component/node",
+			&api.DebuggingConfiguration{
+				ObjectMeta: v1.ObjectMeta{Name: "default"},
+				Spec: api.DebuggingConfigurationSpec{
+					Configuration: []api.ComponentConfiguration{
+						api.ComponentConfiguration{
+							Component:   api.ComponentKubeControllers,
+							LogSeverity: api.LogLevelInfo,
+							Node:        "worker-node-0",
+						},
+					},
+				},
+			}, false,
+		),
+
 		Entry("should accept valid reconciliation period on node",
 			api.NodeControllerConfig{ReconcilerPeriod: &v1.Duration{Duration: time.Minute * 5}}, true,
 		),

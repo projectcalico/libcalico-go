@@ -150,6 +150,11 @@ func (c client) KubeControllersConfiguration() KubeControllersConfigurationInter
 	return kubeControllersConfiguration{client: c}
 }
 
+// DebuggingConfiguration returns an interface for managing the DebuggingConfiguration resource.
+func (c client) DebuggingConfiguration() DebuggingConfigurationInterface {
+	return debuggingConfiguration{client: c}
+}
+
 type poolAccessor struct {
 	client *client
 }

@@ -177,6 +177,12 @@ func NewKubeClient(ca *apiconfig.CalicoAPIConfigSpec) (api.Client, error) {
 		apiv3.KindKubeControllersConfiguration,
 		resources.NewKubeControllersConfigClient(cs, crdClientV1),
 	)
+	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.ResourceKey{}),
+		reflect.TypeOf(model.ResourceListOptions{}),
+		apiv3.KindDebuggingConfiguration,
+		resources.NewDebuggingConfigurationClient(cs, crdClientV1),
+	)
 
 	if !ca.K8sUsePodCIDR {
 		// Using Calico IPAM - use CRDs to back IPAM resources.
@@ -335,6 +341,7 @@ func (c *KubeClient) Clean() error {
 		apiv3.KindIPPool,
 		apiv3.KindHostEndpoint,
 		apiv3.KindKubeControllersConfiguration,
+		apiv3.KindDebuggingConfiguration,
 	}
 	ctx := context.Background()
 	for _, k := range kinds {
@@ -452,6 +459,8 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 					&apiv3.IPAMConfigList{},
 					&apiv3.KubeControllersConfiguration{},
 					&apiv3.KubeControllersConfigurationList{},
+					&apiv3.DebuggingConfiguration{},
+					&apiv3.DebuggingConfigurationList{},
 				)
 				return nil
 			})

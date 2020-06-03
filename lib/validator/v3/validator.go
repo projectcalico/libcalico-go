@@ -62,26 +62,27 @@ var (
 	// Hostname  have to be valid ipv4, ipv6 or strings up to 64 characters.
 	prometheusHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9:._+-]{1,64}$`)
 
-	interfaceRegex        = regexp.MustCompile("^[a-zA-Z0-9_.-]{1,15}$")
-	ifaceFilterRegex      = regexp.MustCompile("^[a-zA-Z0-9:._+-]{1,15}$")
-	actionRegex           = regexp.MustCompile("^(Allow|Deny|Log|Pass)$")
-	protocolRegex         = regexp.MustCompile("^(TCP|UDP|ICMP|ICMPv6|SCTP|UDPLite)$")
-	ipipModeRegex         = regexp.MustCompile("^(Always|CrossSubnet|Never)$")
-	vxlanModeRegex        = regexp.MustCompile("^(Always|CrossSubnet|Never)$")
-	logLevelRegex         = regexp.MustCompile("^(Debug|Info|Warning|Error|Fatal)$")
-	bpfLogLevelRegex      = regexp.MustCompile("^(Debug|Info|Off)$")
-	bpfServiceModeRegex   = regexp.MustCompile("^(Tunnel|DSR)$")
-	datastoreType         = regexp.MustCompile("^(etcdv3|kubernetes)$")
-	routeSource           = regexp.MustCompile("^(WorkloadIPs|CalicoIPAM)$")
-	dropAcceptReturnRegex = regexp.MustCompile("^(Drop|Accept|Return)$")
-	acceptReturnRegex     = regexp.MustCompile("^(Accept|Return)$")
-	reasonString          = "Reason: "
-	poolUnstictCIDR       = "IP pool CIDR is not strictly masked"
-	overlapsV4LinkLocal   = "IP pool range overlaps with IPv4 Link Local range 169.254.0.0/16"
-	overlapsV6LinkLocal   = "IP pool range overlaps with IPv6 Link Local range fe80::/10"
-	protocolPortsMsg      = "rules that specify ports must set protocol to TCP or UDP or SCTP"
-	protocolIcmpMsg       = "rules that specify ICMP fields must set protocol to ICMP"
-	protocolAndHTTPMsg    = "rules that specify HTTP fields must set protocol to TCP or empty"
+	interfaceRegex          = regexp.MustCompile("^[a-zA-Z0-9_.-]{1,15}$")
+	ifaceFilterRegex        = regexp.MustCompile("^[a-zA-Z0-9:._+-]{1,15}$")
+	actionRegex             = regexp.MustCompile("^(Allow|Deny|Log|Pass)$")
+	protocolRegex           = regexp.MustCompile("^(TCP|UDP|ICMP|ICMPv6|SCTP|UDPLite)$")
+	ipipModeRegex           = regexp.MustCompile("^(Always|CrossSubnet|Never)$")
+	vxlanModeRegex          = regexp.MustCompile("^(Always|CrossSubnet|Never)$")
+	logLevelRegex           = regexp.MustCompile("^(Debug|Info|Warning|Error|Fatal)$")
+	bpfLogLevelRegex        = regexp.MustCompile("^(Debug|Info|Off)$")
+	bpfServiceModeRegex     = regexp.MustCompile("^(Tunnel|DSR)$")
+	datastoreType           = regexp.MustCompile("^(etcdv3|kubernetes)$")
+	routeSource             = regexp.MustCompile("^(WorkloadIPs|CalicoIPAM)$")
+	dropAcceptReturnRegex   = regexp.MustCompile("^(Drop|Accept|Return)$")
+	acceptReturnRegex       = regexp.MustCompile("^(Accept|Return)$")
+	debuggingLogLevelnRegex = regexp.MustCompile("^(" + string(api.LogLevelInfo) + "|" + string(api.LogLevelDebug) + ")$")
+	reasonString            = "Reason: "
+	poolUnstictCIDR         = "IP pool CIDR is not strictly masked"
+	overlapsV4LinkLocal     = "IP pool range overlaps with IPv4 Link Local range 169.254.0.0/16"
+	overlapsV6LinkLocal     = "IP pool range overlaps with IPv6 Link Local range fe80::/10"
+	protocolPortsMsg        = "rules that specify ports must set protocol to TCP or UDP or SCTP"
+	protocolIcmpMsg         = "rules that specify ICMP fields must set protocol to ICMP"
+	protocolAndHTTPMsg      = "rules that specify HTTP fields must set protocol to TCP or empty"
 
 	ipv4LinkLocalNet = net.IPNet{
 		IP:   net.ParseIP("169.254.0.0"),
@@ -149,6 +150,7 @@ func init() {
 	registerFieldValidator("regexp", validateRegexp)
 	registerFieldValidator("routeSource", validateRouteSource)
 	registerFieldValidator("wireguardPublicKey", validateWireguardPublicKey)
+	registerFieldValidator("debuggingLogLevel", validateDebuggingLogLevel)
 
 	// Register network validators (i.e. validating a correctly masked CIDR).  Also
 	// accepts an IP address without a mask (assumes a full mask).
@@ -183,6 +185,7 @@ func init() {
 	registerStructValidator(validate, validateNetworkSet, api.NetworkSet{})
 	registerStructValidator(validate, validateRuleMetadata, api.RuleMetadata{})
 	registerStructValidator(validate, validateRouteTableRange, api.RouteTableRange{})
+	registerStructValidator(validate, validateDebuggingConfiguration, api.DebuggingConfiguration{})
 }
 
 // reason returns the provided error reason prefixed with an identifier that
@@ -320,6 +323,12 @@ func validateMAC(fl validator.FieldLevel) bool {
 		return false
 	}
 	return true
+}
+
+func validateDebuggingLogLevel(fl validator.FieldLevel) bool {
+	s := fl.Field().String()
+	log.Debugf("Validate StagedAction Mode: %s", s)
+	return debuggingLogLevelnRegex.MatchString(s)
 }
 
 func validateIptablesBackend(fl validator.FieldLevel) bool {
@@ -1258,6 +1267,35 @@ func validateRouteTableRange(structLevel validator.StructLevel) {
 			reason("must be a range of route table indices within 1..250"),
 			"",
 		)
+	}
+}
+
+func validateDebuggingConfiguration(structLevel validator.StructLevel) {
+	dc := structLevel.Current().Interface().(api.DebuggingConfiguration)
+
+	spec := dc.Spec
+	for _, t := range spec.Configuration {
+		if ok, msg := api.IsValidDebuggingConfigurationComponent(t.Component); !ok {
+			structLevel.ReportError(
+				reflect.ValueOf(dc.Name),
+				"Spec.ComponentConfiguration",
+				"",
+				reason(fmt.Sprintf("%s is not a valid component. Valid components are: %s", t.Component, msg)),
+				"",
+			)
+		}
+
+		if t.Node != "" {
+			if ok, msg := api.IsValidDebuggingConfigurationNode(t.Component); !ok {
+				structLevel.ReportError(
+					reflect.ValueOf(dc.Name),
+					"Spec.ComponentConfiguration.Node",
+					"",
+					reason(fmt.Sprintf("%s", msg)),
+					"",
+				)
+			}
+		}
 	}
 }
 
