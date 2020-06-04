@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2020 Tigera, Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -235,6 +235,9 @@ func KeyFromDefaultPath(path string) Key {
 	} else if m := matchHostIp.FindStringSubmatch(path); m != nil {
 		log.Debugf("Path is a host ID: %v", path)
 		return HostIPKey{Hostname: m[1]}
+	} else if m := matchWireguard.FindStringSubmatch(path); m != nil {
+		log.Debugf("Path is a node name: %v", path)
+		return WireguardKey{NodeName: m[1]}
 	} else if m := matchIPPool.FindStringSubmatch(path); m != nil {
 		log.Debugf("Path is a pool: %v", path)
 		mungedCIDR := m[1]
@@ -269,6 +272,8 @@ func KeyFromDefaultPath(path string) Key {
 	} else if k := (ResourceListOptions{Kind: v3.KindNetworkPolicy}).KeyFromDefaultPath(path); k != nil {
 		return k
 	} else if k := (ResourceListOptions{Kind: v3.KindIPPool}).KeyFromDefaultPath(path); k != nil {
+		return k
+	} else if k := (ResourceListOptions{Kind: v3.KindProfile}).KeyFromDefaultPath(path); k != nil {
 		return k
 	} else if k := (HostEndpointStatusListOptions{}).KeyFromDefaultPath(path); k != nil {
 		return k

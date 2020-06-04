@@ -196,16 +196,17 @@ type FelixConfigurationSpec struct {
 	PrometheusProcessMetricsEnabled *bool `json:"prometheusProcessMetricsEnabled,omitempty"`
 
 	// FailsafeInboundHostPorts is a comma-delimited list of UDP/TCP ports that Felix will allow incoming traffic to host endpoints
-	// on irrespective of the security policy. This is useful to avoid accidently cutting off a host with incorrect configuration. Each
+	// on irrespective of the security policy. This is useful to avoid accidentally cutting off a host with incorrect configuration. Each
 	// port should be specified as tcp:<port-number> or udp:<port-number>. For back-compatibility, if the protocol is not specified, it
 	// defaults to “tcp”. To disable all inbound host ports, use the value none. The default value allows ssh access and DHCP.
-	// [Default: tcp:22, udp:68]
+	// [Default: tcp:22, udp:68, tcp:179, tcp:2379, tcp:2380, tcp:6443, tcp:6666, tcp:6667]
 	FailsafeInboundHostPorts *[]ProtoPort `json:"failsafeInboundHostPorts,omitempty"`
 	// FailsafeOutboundHostPorts is a comma-delimited list of UDP/TCP ports that Felix will allow outgoing traffic from host endpoints to
-	// irrespective of the security policy. This is useful to avoid accidently cutting off a host with incorrect configuration. Each port
+	// irrespective of the security policy. This is useful to avoid accidentally cutting off a host with incorrect configuration. Each port
 	// should be specified as tcp:<port-number> or udp:<port-number>. For back-compatibility, if the protocol is not specified, it defaults
 	// to “tcp”. To disable all outbound host ports, use the value none. The default value opens etcd’s standard ports to ensure that Felix
-	// does not get cut off from etcd as well as allowing DHCP and DNS. [Default: tcp:2379, tcp:2380, tcp:4001, tcp:7001, udp:53, udp:67]
+	// does not get cut off from etcd as well as allowing DHCP and DNS.
+	// [Default: tcp:179, tcp:2379, tcp:2380, tcp:6443, tcp:6666, tcp:6667, udp:53, udp:67]
 	FailsafeOutboundHostPorts *[]ProtoPort `json:"failsafeOutboundHostPorts,omitempty"`
 
 	// KubeNodePortRanges holds list of port ranges used for service node ports. Only used if felix detects kube-proxy running in ipvs mode.
@@ -268,6 +269,10 @@ type FelixConfigurationSpec struct {
 
 	// BPFEnabled, if enabled Felix will use the BPF dataplane. [Default: false]
 	BPFEnabled *bool `json:"bpfEnabled,omitempty" validate:"omitempty"`
+	// BPFDisableUnprivileged, if enabled, Felix sets the kernel.unprivileged_bpf_disabled sysctl to disable
+	// unprivileged use of BPF.  This ensures that unprivileged users cannot access Calico's BPF maps and
+	// cannot insert their own BPF programs to interfere with Calico's. [Default: true]
+	BPFDisableUnprivileged *bool `json:"bpfDisableUnprivileged,omitempty" validate:"omitempty"`
 	// BPFLogLevel controls the log level of the BPF programs when in BPF dataplane mode.  One of "Off", "Info", or
 	// "Debug".  The logs are emitted to the BPF trace pipe, accessible with the command `tc exec bpf debug`.
 	// [Default: Off].
@@ -296,6 +301,34 @@ type FelixConfigurationSpec struct {
 	// embedded kube-proxy.  Lower values give reduced set-up latency.  Higher values reduce Felix CPU usage by
 	// batching up more work.  [Default: 1s]
 	BPFKubeProxyMinSyncPeriod *metav1.Duration `json:"bpfKubeProxyMinSyncPeriod,omitempty" validate:"omitempty" configv1timescale:"seconds"`
+	// BPFKubeProxyEndpointSlicesEnabled in BPF mode, controls whether Felix's
+	// embedded kube-proxy accepts EndpointSlices or not.
+	BPFKubeProxyEndpointSlicesEnabled *bool `json:"bpfKubeProxyEndpointSlicesEnabled,omitempty" validate:"omitempty"`
+
+	// RouteSource configures where Felix gets its routing information.
+	// - WorkloadIPs: use workload endpoints to construct routes.
+	// - CalicoIPAM: the default - use IPAM data to construct routes.
+	RouteSource string `json:"routeSource,omitempty" validate:"omitempty,routeSource"`
+
+	// Calico programs additional Linux route tables for various purposes.  RouteTableRange
+	// specifies the indices of the route tables that Calico should use.
+	RouteTableRange *RouteTableRange `json:"routeTableRange,omitempty" validate:"omitempty"`
+
+	// WireguardEnabled controls whether Wireguard is enabled. [Default: false]
+	WireguardEnabled *bool `json:"wireguardEnabled,omitempty"`
+	// WireguardListeningPort controls the listening port used by Wireguard. [Default: 51820]
+	WireguardListeningPort *int `json:"wireguardListeningPort,omitempty" validate:"omitempty,gt=0,lte=65535"`
+	// WireguardRoutingRulePriority controls the priority value to use for the Wireguard routing rule. [Default: 99]
+	WireguardRoutingRulePriority *int `json:"wireguardRoutingRulePriority,omitempty" validate:"omitempty,gt=0,lt=32766"`
+	// WireguardInterfaceName specifies the name to use for the Wireguard interface. [Default: wg.calico]
+	WireguardInterfaceName string `json:"wireguardInterfaceName,omitempty" validate:"omitempty,interface"`
+	// WireguardMTU controls the MTU on the Wireguard interface. See Configuring MTU [Default: 1420]
+	WireguardMTU *int `json:"wireguardMTU,omitempty"`
+}
+
+type RouteTableRange struct {
+	Min int `json:"min"`
+	Max int `json:"max"`
 }
 
 // ProtoPort is combination of protocol and port, both must be specified.

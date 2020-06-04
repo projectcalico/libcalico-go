@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019 Tigera, Inc. All rights reserved.
+// Copyright (c) 2017-2020 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/libcalico-go/lib/resources"
 	"github.com/projectcalico/libcalico-go/lib/testutils"
 )
 
@@ -87,6 +88,22 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 			syncTester.ExpectStatusUpdate(api.ResyncInProgress)
 			syncTester.ExpectStatusUpdate(api.InSync)
 
+			// Add 2 for the default-allow profile that is always there.
+			// However, no profile labels are in the list because the
+			// default-allow profile doesn't specify labels.
+			expectedProfile := resources.DefaultAllowProfile()
+			syncTester.ExpectData(*expectedProfile)
+			expectedCacheSize += 1
+
+			syncTester.ExpectData(model.KVPair{
+				Key: model.ProfileRulesKey{ProfileKey: model.ProfileKey{Name: "projectcalico-default-allow"}},
+				Value: &model.ProfileRules{
+					InboundRules:  []model.Rule{{Action: "allow"}},
+					OutboundRules: []model.Rule{{Action: "allow"}},
+				},
+			})
+			expectedCacheSize += 1
+
 			// Kubernetes will have a profile for each of the namespaces that is configured.
 			// We expect:  default, kube-system, kube-public, namespace-1, namespace-2
 			if config.Spec.DatastoreType == apiconfig.Kubernetes {
@@ -131,13 +148,16 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 						},
 					})
 
-					// Increase expected cache size based on per-namespace resources.
-					expectedCacheSize += 4
+					// Increase expected cache size based on per-namespace
+					// resources.  (The 4 as above, plus two v3 Profile
+					// resources, one kns. and one ksa.)
+					expectedCacheSize += 6
 				}
 			}
 			syncTester.ExpectCacheSize(expectedCacheSize)
 
 			var node *apiv3.Node
+			wip := net.MustParseIP("192.168.12.34")
 			if config.Spec.DatastoreType == apiconfig.Kubernetes {
 				// For Kubernetes, update the existing node config to have some BGP configuration.
 				By("Configuring a node with an IP address and tunnel MAC address")
@@ -145,6 +165,8 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 					oldValuesSaved        bool
 					oldBGPSpec            *apiv3.NodeBGPSpec
 					oldVXLANTunnelMACAddr string
+					oldWireguardSpec      *apiv3.NodeWireguardSpec
+					oldWireguardPublicKey string
 				)
 				for i := 0; i < 5; i++ {
 					// This can fail due to an update conflict, so we allow a few retries.
@@ -158,6 +180,13 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 							oldBGPSpec = &bgpSpecCopy
 						}
 						oldVXLANTunnelMACAddr = node.Spec.VXLANTunnelMACAddr
+						if node.Spec.Wireguard == nil {
+							oldWireguardSpec = nil
+						} else {
+							wireguardSpecCopy := *node.Spec.Wireguard
+							oldWireguardSpec = &wireguardSpecCopy
+						}
+						oldWireguardPublicKey = node.Status.WireguardPublicKey
 						oldValuesSaved = true
 					}
 					node.Spec.BGP = &apiv3.NodeBGPSpec{
@@ -166,6 +195,12 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 						IPv4IPIPTunnelAddr: "10.10.10.1",
 					}
 					node.Spec.VXLANTunnelMACAddr = "66:cf:23:df:22:07"
+					node.Spec.Wireguard = &apiv3.NodeWireguardSpec{
+						InterfaceIPv4Address: "192.168.12.34",
+					}
+					node.Status = apiv3.NodeStatus{
+						WireguardPublicKey: "jlkVyQYooZYzI2wFfNhSZez5eWh44yfq1wKVjLvSXgY=",
+					}
 					node, err = c.Nodes().Update(ctx, node, options.SetOptions{})
 					if err == nil {
 						break
@@ -179,6 +214,8 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 						Expect(err).NotTo(HaveOccurred())
 						node.Spec.BGP = oldBGPSpec
 						node.Spec.VXLANTunnelMACAddr = oldVXLANTunnelMACAddr
+						node.Spec.Wireguard = oldWireguardSpec
+						node.Status.WireguardPublicKey = oldWireguardPublicKey
 						node, err = c.Nodes().Update(ctx, node, options.SetOptions{})
 						if err == nil {
 							break
@@ -194,7 +231,11 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 					Key:   model.HostConfigKey{Hostname: "127.0.0.1", Name: "VXLANTunnelMACAddr"},
 					Value: "66:cf:23:df:22:07",
 				})
-				expectedCacheSize += 2
+				syncTester.ExpectData(model.KVPair{
+					Key:   model.WireguardKey{NodeName: "127.0.0.1"},
+					Value: &model.Wireguard{InterfaceIPv4Addr: &wip, PublicKey: "jlkVyQYooZYzI2wFfNhSZez5eWh44yfq1wKVjLvSXgY="},
+				})
+				expectedCacheSize += 3
 			} else {
 				// For non-Kubernetes, add a new node with valid BGP configuration.
 				By("Creating a node with an IP address")
@@ -209,6 +250,12 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 								IPv4IPIPTunnelAddr: "10.10.10.1",
 							},
 							VXLANTunnelMACAddr: "66:cf:23:df:22:07",
+							Wireguard: &apiv3.NodeWireguardSpec{
+								InterfaceIPv4Address: "192.168.12.34",
+							},
+						},
+						Status: apiv3.NodeStatus{
+							WireguardPublicKey: "jlkVyQYooZYzI2wFfNhSZez5eWh44yfq1wKVjLvSXgY=",
 						},
 					},
 					options.SetOptions{},
@@ -232,8 +279,16 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 					Key:   model.HostConfigKey{Hostname: "127.0.0.1", Name: "VXLANTunnelMACAddr"},
 					Value: "66:cf:23:df:22:07",
 				})
+				syncTester.ExpectData(model.KVPair{
+					Key:   model.HostConfigKey{Hostname: "127.0.0.1", Name: "VXLANTunnelMACAddr"},
+					Value: "66:cf:23:df:22:07",
+				})
+				syncTester.ExpectData(model.KVPair{
+					Key:   model.WireguardKey{NodeName: "127.0.0.1"},
+					Value: &model.Wireguard{InterfaceIPv4Addr: &wip, PublicKey: "jlkVyQYooZYzI2wFfNhSZez5eWh44yfq1wKVjLvSXgY="},
+				})
 				//add one for the node resource
-				expectedCacheSize += 5
+				expectedCacheSize += 6
 			}
 
 			// The HostIP will be added for the IPv4 address
@@ -426,11 +481,10 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 			syncTester.ExpectData(model.KVPair{
 				Key: model.BlockKey{CIDR: *cidr},
 				Value: &model.AllocationBlock{
-					CIDR:           *cidr,
-					Affinity:       &affinity,
-					StrictAffinity: false,
-					Allocations:    []*int{nil, &zero, nil, nil},
-					Unallocated:    []int{0, 2, 3},
+					CIDR:        *cidr,
+					Affinity:    &affinity,
+					Allocations: []*int{nil, &zero, nil, nil},
+					Unallocated: []int{0, 2, 3},
 					Attributes: []model.AllocationAttribute{
 						{},
 					},

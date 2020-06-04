@@ -26,6 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 
+	wireguard "golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+
 	api "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/errors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
@@ -70,6 +72,7 @@ var (
 	bpfLogLevelRegex      = regexp.MustCompile("^(Debug|Info|Off)$")
 	bpfServiceModeRegex   = regexp.MustCompile("^(Tunnel|DSR)$")
 	datastoreType         = regexp.MustCompile("^(etcdv3|kubernetes)$")
+	routeSource           = regexp.MustCompile("^(WorkloadIPs|CalicoIPAM)$")
 	dropAcceptReturnRegex = regexp.MustCompile("^(Drop|Accept|Return)$")
 	acceptReturnRegex     = regexp.MustCompile("^(Accept|Return)$")
 	reasonString          = "Reason: "
@@ -144,6 +147,8 @@ func init() {
 	registerFieldValidator("iptablesBackend", validateIptablesBackend)
 	registerFieldValidator("prometheusHost", validatePrometheusHost)
 	registerFieldValidator("regexp", validateRegexp)
+	registerFieldValidator("routeSource", validateRouteSource)
+	registerFieldValidator("wireguardPublicKey", validateWireguardPublicKey)
 
 	// Register network validators (i.e. validating a correctly masked CIDR).  Also
 	// accepts an IP address without a mask (assumes a full mask).
@@ -177,6 +182,7 @@ func init() {
 	registerStructValidator(validate, validateGlobalNetworkSet, api.GlobalNetworkSet{})
 	registerStructValidator(validate, validateNetworkSet, api.NetworkSet{})
 	registerStructValidator(validate, validateRuleMetadata, api.RuleMetadata{})
+	registerStructValidator(validate, validateRouteTableRange, api.RouteTableRange{})
 }
 
 // reason returns the provided error reason prefixed with an identifier that
@@ -237,6 +243,20 @@ func validateRegexp(fl validator.FieldLevel) bool {
 	s := fl.Field().String()
 	log.Debugf("Validate regexp: %s", s)
 	_, err := regexp.Compile(s)
+	return err == nil
+}
+
+func validateRouteSource(fl validator.FieldLevel) bool {
+	s := fl.Field().String()
+	log.Debugf("Validate routeSource: %s", s)
+	_, err := regexp.Compile(s)
+	return err == nil
+}
+
+func validateWireguardPublicKey(fl validator.FieldLevel) bool {
+	k := fl.Field().String()
+	log.Debugf("Validate Wireguard public-key %s", k)
+	_, err := wireguard.ParseKey(k)
 	return err == nil
 }
 
@@ -1223,6 +1243,22 @@ func validateObjectMetaLabels(structLevel validator.StructLevel, labels map[stri
 func validateRuleMetadata(structLevel validator.StructLevel) {
 	ruleMeta := structLevel.Current().Interface().(api.RuleMetadata)
 	validateObjectMetaAnnotations(structLevel, ruleMeta.Annotations)
+}
+
+func validateRouteTableRange(structLevel validator.StructLevel) {
+	r := structLevel.Current().Interface().(api.RouteTableRange)
+	if r.Min >= 1 && r.Max >= r.Min && r.Max <= 250 {
+		log.Debugf("RouteTableRange is valid: %v", r)
+	} else {
+		log.Warningf("RouteTableRange is invalid: %v", r)
+		structLevel.ReportError(
+			reflect.ValueOf(r),
+			"RouteTableRange",
+			"",
+			reason("must be a range of route table indices within 1..250"),
+			"",
+		)
+	}
 }
 
 // ruleUsesAppLayerPolicy checks if a rule uses application layer policy, and

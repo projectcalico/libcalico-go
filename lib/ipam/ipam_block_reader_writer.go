@@ -172,7 +172,6 @@ func (rw blockReaderWriter) claimAffineBlock(ctx context.Context, aff *model.KVP
 	affinityKeyStr := "host:" + host
 	block := newBlock(subnet)
 	block.Affinity = &affinityKeyStr
-	block.StrictAffinity = config.StrictAffinity
 
 	// Create the new block in the datastore.
 	o := model.KVPair{
@@ -256,7 +255,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(ctx context.Context, host strin
 	// Make sure hostname is not empty.
 	if host == "" {
 		log.Errorf("Hostname can't be empty")
-		return errors.New("Hostname must be sepcified to release block affinity")
+		return errors.New("Hostname must be specified to release block affinity")
 	}
 
 	// Read the model.KVPair containing the block affinity.
