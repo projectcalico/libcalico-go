@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2020 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,12 +29,13 @@ import (
 
 const (
 	// Common attributes which may be set on allocations by clients.
-	IPAMBlockAttributePod       = "pod"
-	IPAMBlockAttributeNamespace = "namespace"
-	IPAMBlockAttributeNode      = "node"
-	IPAMBlockAttributeType      = "type"
-	IPAMBlockAttributeTypeIPIP  = "ipipTunnelAddress"
-	IPAMBlockAttributeTypeVXLAN = "vxlanTunnelAddress"
+	IPAMBlockAttributePod           = "pod"
+	IPAMBlockAttributeNamespace     = "namespace"
+	IPAMBlockAttributeNode          = "node"
+	IPAMBlockAttributeType          = "type"
+	IPAMBlockAttributeTypeIPIP      = "ipipTunnelAddress"
+	IPAMBlockAttributeTypeVXLAN     = "vxlanTunnelAddress"
+	IPAMBlockAttributeTypeWireguard = "wireguardTunnelAddress"
 )
 
 var (
@@ -96,13 +97,12 @@ func (options BlockListOptions) KeyFromDefaultPath(path string) Key {
 }
 
 type AllocationBlock struct {
-	CIDR           net.IPNet             `json:"cidr"`
-	Affinity       *string               `json:"affinity"`
-	StrictAffinity bool                  `json:"strictAffinity"`
-	Allocations    []*int                `json:"allocations"`
-	Unallocated    []int                 `json:"unallocated"`
-	Attributes     []AllocationAttribute `json:"attributes"`
-	Deleted        bool                  `json:"deleted"`
+	CIDR        net.IPNet             `json:"cidr"`
+	Affinity    *string               `json:"affinity"`
+	Allocations []*int                `json:"allocations"`
+	Unallocated []int                 `json:"unallocated"`
+	Attributes  []AllocationAttribute `json:"attributes"`
+	Deleted     bool                  `json:"deleted"`
 
 	// HostAffinity is deprecated in favor of Affinity.
 	// This is only to keep compatibility with existing deployments.

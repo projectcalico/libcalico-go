@@ -63,6 +63,9 @@ func init() {
 
 	as61234, _ := numorstring.ASNumberFromString("61234")
 
+	validWireguardPortOrRulePriority := 12345
+	invalidWireguardPortOrRulePriority := 99999
+
 	// longLabelsValue is 63 and 64 chars long
 	maxAnnotationsLength := 256 * (1 << 10)
 	longValue := make([]byte, maxAnnotationsLength)
@@ -609,6 +612,13 @@ func init() {
 
 		Entry("should reject an invalid BPFDataIfacePattern value '*'", api.FelixConfigurationSpec{BPFDataIfacePattern: "*"}, false),
 		Entry("should accept a valid BPFDataIfacePattern value 'eth.*'", api.FelixConfigurationSpec{BPFDataIfacePattern: "eth.*"}, true),
+
+		Entry("should accept valid route table range", api.FelixConfigurationSpec{RouteTableRange: &api.RouteTableRange{Min: 1, Max: 250}}, true),
+		Entry("should reject route table range min too small", api.FelixConfigurationSpec{RouteTableRange: &api.RouteTableRange{Min: 0, Max: 250}}, false),
+		Entry("should reject route table range min negative", api.FelixConfigurationSpec{RouteTableRange: &api.RouteTableRange{Min: -5, Max: 250}}, false),
+		Entry("should reject route table range max < min", api.FelixConfigurationSpec{RouteTableRange: &api.RouteTableRange{Min: 50, Max: 45}}, false),
+		Entry("should reject route table range max too large", api.FelixConfigurationSpec{RouteTableRange: &api.RouteTableRange{Min: 1, Max: 253}}, false),
+		Entry("should accept route table range with min == max", api.FelixConfigurationSpec{RouteTableRange: &api.RouteTableRange{Min: 8, Max: 8}}, true),
 
 		// (API) Protocol
 		Entry("should accept protocol TCP", protocolFromString("TCP"), true),
@@ -1339,6 +1349,20 @@ func init() {
 			RouteReflectorClusterID: "245.0.0.1",
 		}}, true),
 
+		// Wireguard config field tests
+		Entry("should allow valid Wireguard public-key", api.NodeStatus{
+			WireguardPublicKey: "jlkVyQYooZYzI2wFfNhSZez5eWh44yfq1wKVjLvSXgY=",
+		}, true),
+		Entry("should allow valid IP address on Wireguard config", api.NodeSpec{Wireguard: &api.NodeWireguardSpec{
+			InterfaceIPv4Address: ipv4_1,
+		}}, true),
+		Entry("should reject invalid IP address on Wireguard config", api.NodeSpec{Wireguard: &api.NodeWireguardSpec{
+			InterfaceIPv4Address: "foo.bar",
+		}}, false),
+		Entry("should reject invalid Wireguard public-key", api.NodeStatus{
+			WireguardPublicKey: "foobar",
+		}, false),
+
 		// GlobalNetworkPolicy validation.
 		Entry("disallow name with invalid character", &api.GlobalNetworkPolicy{ObjectMeta: v1.ObjectMeta{Name: "t~!s.h.i.ng"}}, false),
 		Entry("disallow name with mixed case characters", &api.GlobalNetworkPolicy{ObjectMeta: v1.ObjectMeta{Name: "tHiNg"}}, false),
@@ -1802,6 +1826,20 @@ func init() {
 		Entry("should not accept a masked IP address",
 			api.FelixConfigurationSpec{DeviceRouteSourceAddress: netv4_1}, false,
 		),
+		Entry("should accept a valid listening port",
+			api.FelixConfigurationSpec{WireguardListeningPort: &validWireguardPortOrRulePriority}, true,
+		),
+		Entry("should reject a valid listening port",
+			api.FelixConfigurationSpec{WireguardListeningPort: &invalidWireguardPortOrRulePriority}, false,
+		),
+		Entry("should accept a valid routing rule priority",
+			api.FelixConfigurationSpec{WireguardRoutingRulePriority: &validWireguardPortOrRulePriority}, true,
+		),
+		Entry("should reject a valid routing rule priority",
+			api.FelixConfigurationSpec{WireguardRoutingRulePriority: &invalidWireguardPortOrRulePriority}, false,
+		),
+		Entry("should accept valid Wireguard interface", api.FelixConfigurationSpec{WireguardInterfaceName: "wg0"}, true),
+		Entry("should reject valid Wireguard interface", api.FelixConfigurationSpec{WireguardInterfaceName: "wg&0"}, false),
 
 		// KubeControllersConfiguration validation
 		Entry("should not accept invalid HealthChecks",

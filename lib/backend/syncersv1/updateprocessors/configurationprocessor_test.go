@@ -38,8 +38,9 @@ const (
 	isGlobalBgpConfig
 	isNodeBgpConfig
 
-	hostIPMarker = "*HOSTIP*"
-	nodeMarker   = "*NODEMARKER*"
+	hostIPMarker    = "*HOSTIP*"
+	nodeMarker      = "*NODEMARKER*"
+	wireguardMarker = "*WIREGUARDMARKER*"
 )
 
 var _ = Describe("Test the generic configuration update processor and the concrete implementations", func() {
@@ -72,7 +73,7 @@ var _ = Describe("Test the generic configuration update processor and the concre
 		Kind: apiv3.KindBGPConfiguration,
 		Name: "node.bgpnode1",
 	}
-	numFelixConfigs := 76
+	numFelixConfigs := 85
 	numClusterConfigs := 4
 	numNodeClusterConfigs := 3
 	numBgpConfigs := 5
@@ -218,6 +219,7 @@ var _ = Describe("Test the generic configuration update processor and the concre
 		}
 		res.Spec.ExternalNodesCIDRList = &[]string{"1.1.1.1", "2.2.2.2"}
 		res.Spec.IptablesNATOutgoingInterfaceFilter = "cali-123"
+		res.Spec.RouteTableRange = &apiv3.RouteTableRange{Min: 43, Max: 211}
 		expected := map[string]interface{}{
 			"RouteRefreshInterval":               "12.345",
 			"IptablesLockProbeIntervalMillis":    "54.321",
@@ -230,6 +232,7 @@ var _ = Describe("Test the generic configuration update processor and the concre
 			"FailsafeOutboundHostPorts":          "tcp:1234,udp:22,tcp:65535",
 			"ExternalNodesCIDRList":              "1.1.1.1,2.2.2.2",
 			"IptablesNATOutgoingInterfaceFilter": "cali-123",
+			"RouteTableRange":                    "43-211",
 		}
 		kvps, err := cc.Process(&model.KVPair{
 			Key:   perNodeFelixKey,
@@ -663,6 +666,10 @@ func checkExpectedConfigs(kvps []*model.KVPair, dataType int, expectedNum int, e
 				node := kt.Name
 				Expect(node).To(Equal("mynode"))
 				name = nodeMarker
+			case model.WireguardKey:
+				node := kt.NodeName
+				Expect(node).To(Equal("mynode"))
+				name = wireguardMarker
 			default:
 				Expect(kvp.Key).To(BeAssignableToTypeOf(model.HostConfigKey{}))
 			}
