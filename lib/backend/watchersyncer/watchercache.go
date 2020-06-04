@@ -118,8 +118,7 @@ mainLoop:
 				// of WatchError are treated equally,log the Error and trigger a full resync.
 
 				wc.logger.WithField("EventType", event.Type).Errorf("Watch error received from Upstream")
-				wc.hasSynced = false
-				wc.results <- api.WaitForDatastore
+				wc.onWaitForDatastore()
 				wc.currentWatchRevision = ""
 				wc.resyncAndCreateWatcher(ctx)
 
@@ -410,11 +409,11 @@ func (wc *watcherCache) markAsValid(resourceKey string) {
 	}
 }
 
-// If a syncer isn't in-sync state, the onWaitForDatastore method, sends WaitForDatastore event.
+// If a syncer is in-sync state, the onWaitForDatastore method, sends WaitForDatastore event.
 // See finishResync() for how the watcherCache goes back to in-sync.
 func (wc *watcherCache) onWaitForDatastore() {
 	wc.logger.Debug("Send WaitforDatastore event if sync isn't in-sync")
-	if !wc.hasSynced {
+	if wc.hasSynced {
 		wc.results <- api.WaitForDatastore
 		wc.hasSynced = false
 	}

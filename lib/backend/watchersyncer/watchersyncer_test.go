@@ -174,8 +174,11 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		rs.clientListResponse(r1, emptyList)
 		rs.ExpectStatusUpdate(api.ResyncInProgress)
 		rs.clientWatchResponse(r1, genError)
+		rs.ExpectStatusUpdate(api.WaitForDatastore)
 
 		rs.clientListResponse(r1, emptyList)
+		rs.ExpectStatusUpdate(api.ResyncInProgress)
+		//rs.ExpectStatusUpdate(api.InSync)
 		rs.clientWatchResponse(r1, nil)
 		rs.clientListResponse(r2, emptyList)
 		rs.clientWatchResponse(r2, notSupported)
@@ -288,7 +291,9 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		By("Syncing no results for resource 2, failing to create a watch, retrying successfully.")
 		rs.clientListResponse(r2, emptyList)
 		rs.clientWatchResponse(r2, genError)
+		rs.ExpectStatusUpdate(api.WaitForDatastore)
 		rs.clientListResponse(r2, emptyList)
+		rs.ExpectStatusUpdate(api.ResyncInProgress)
 		rs.clientWatchResponse(r2, nil)
 		time.Sleep(130 * watchersyncer.WatchPollInterval / 100)
 		rs.expectAllEventsHandled()
@@ -373,6 +378,7 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		// The retry thread will be blocked for the watch poll interval.
 		rs.clientWatchResponse(r1, genError)
 		time.Sleep(watchersyncer.WatchPollInterval)
+		rs.ExpectStatusUpdate(api.WaitForDatastore)
 
 		By("returning a sync list with one entry removed and a new one added")
 		rs.clientListResponse(r1, &model.KVPairList{
@@ -383,6 +389,9 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 				eventL1Added4.New,
 			},
 		})
+
+		rs.ExpectStatusUpdate(api.ResyncInProgress)
+		rs.ExpectStatusUpdate(api.InSync)
 
 		rs.clientWatchResponse(r1, nil)
 
