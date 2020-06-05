@@ -1363,6 +1363,13 @@ func init() {
 			WireguardPublicKey: "foobar",
 		}, false),
 
+		// AWS source-destination-check.
+		Entry("should accept a valid AWSSrcDstCheck value 'DoNothing'", api.FelixConfigurationSpec{AWSSrcDstCheck: "DoNothing"}, true),
+		Entry("should accept a valid AWSSrcDstCheck value 'Disabled'", api.FelixConfigurationSpec{AWSSrcDstCheck: "Disabled"}, true),
+		Entry("should accept a valid AWSSrcDstCheck value 'Enabled'", api.FelixConfigurationSpec{AWSSrcDstCheck: "Enabled"}, true),
+		Entry("should reject an invalid AWSSrcDstCheck value 'enabled'", api.FelixConfigurationSpec{AWSSrcDstCheck: "enabled"}, false),
+		Entry("should reject an invalid AWSSrcDstCheck value 'badVal'", api.FelixConfigurationSpec{AWSSrcDstCheck: "badVal"}, false),
+
 		// GlobalNetworkPolicy validation.
 		Entry("disallow name with invalid character", &api.GlobalNetworkPolicy{ObjectMeta: v1.ObjectMeta{Name: "t~!s.h.i.ng"}}, false),
 		Entry("disallow name with mixed case characters", &api.GlobalNetworkPolicy{ObjectMeta: v1.ObjectMeta{Name: "tHiNg"}}, false),

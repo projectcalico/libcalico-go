@@ -324,6 +324,11 @@ type FelixConfigurationSpec struct {
 	WireguardInterfaceName string `json:"wireguardInterfaceName,omitempty" validate:"omitempty,interface"`
 	// WireguardMTU controls the MTU on the Wireguard interface. See Configuring MTU [Default: 1420]
 	WireguardMTU *int `json:"wireguardMTU,omitempty"`
+
+	// Set source-destination-check on AWS EC2 instances. Accepted value must
+	// be one of "DoNothing", "Enabled" or "Disabled".
+	// [Default: DoNothing]
+	AWSSrcDstCheck string `json:"awsSrcDstCheck,omitempty" validate:"omitempty,awsSrcDstCheck"`
 }
 
 type RouteTableRange struct {
