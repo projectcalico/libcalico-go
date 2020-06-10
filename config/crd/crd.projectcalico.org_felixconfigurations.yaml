@@ -40,6 +40,10 @@ spec:
                 description: 'Set source-destination-check on AWS EC2 instances. Accepted
                   value must be one of "DoNothing", "Enabled" or "Disabled". [Default:
                   DoNothing]'
+                enum:
+                - DoNothing
+                - Enable
+                - Disable
                 type: string
               bpfConnectTimeLoadBalancingEnabled:
                 description: 'BPFConnectTimeLoadBalancingEnabled when in BPF mode,

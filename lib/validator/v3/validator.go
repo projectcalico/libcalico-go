@@ -75,7 +75,6 @@ var (
 	routeSource           = regexp.MustCompile("^(WorkloadIPs|CalicoIPAM)$")
 	dropAcceptReturnRegex = regexp.MustCompile("^(Drop|Accept|Return)$")
 	acceptReturnRegex     = regexp.MustCompile("^(Accept|Return)$")
-	awsSrcDstCheckRegex   = regexp.MustCompile("^(DoNothing|Enabled|Disabled)$")
 	reasonString          = "Reason: "
 	poolUnstictCIDR       = "IP pool CIDR is not strictly masked"
 	overlapsV4LinkLocal   = "IP pool range overlaps with IPv4 Link Local range 169.254.0.0/16"
@@ -150,7 +149,6 @@ func init() {
 	registerFieldValidator("regexp", validateRegexp)
 	registerFieldValidator("routeSource", validateRouteSource)
 	registerFieldValidator("wireguardPublicKey", validateWireguardPublicKey)
-	registerFieldValidator("awsSrcDstCheck", validateAWSSrcDstCheck)
 
 	// Register network validators (i.e. validating a correctly masked CIDR).  Also
 	// accepts an IP address without a mask (assumes a full mask).
@@ -358,12 +356,6 @@ func validateAcceptReturn(fl validator.FieldLevel) bool {
 	s := fl.Field().String()
 	log.Debugf("Validate Accept Return Action: %s", s)
 	return acceptReturnRegex.MatchString(s)
-}
-
-func validateAWSSrcDstCheck(fl validator.FieldLevel) bool {
-	s := fl.Field().String()
-	log.Debugf("Validate AWS source-destination-check %s", s)
-	return awsSrcDstCheckRegex.MatchString(s)
 }
 
 func validateSelector(fl validator.FieldLevel) bool {
