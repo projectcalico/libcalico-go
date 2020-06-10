@@ -94,7 +94,7 @@ var (
 	protocolPortsMsg      = "rules that specify ports must set protocol to TCP or UDP or SCTP"
 	protocolIcmpMsg       = "rules that specify ICMP fields must set protocol to ICMP"
 	protocolAndHTTPMsg    = "rules that specify HTTP fields must set protocol to TCP or empty"
-	globalSelectorMsg     = fmt.Sprintf("%v can only be used in an EntityRule namespaceSelector", globalSelector)
+	globalSelectorEntRule = fmt.Sprintf("%v can only be used in an EntityRule namespaceSelector", globalSelector)
 	globalSelectorOnly    = fmt.Sprintf("%v cannot be combined with other selectors", globalSelector)
 	namespaceSelectorOnly = fmt.Sprintf("%v cannot be combined with other selectors", conversion.NameLabel)
 
@@ -963,7 +963,7 @@ func validateEntityRule(structLevel validator.StructLevel) {
 	rule := structLevel.Current().Interface().(api.EntityRule)
 	if strings.Contains(rule.Selector, globalSelector) {
 		structLevel.ReportError(reflect.ValueOf(rule.Selector),
-			"Selector field", "", reason(globalSelectorMsg), "")
+			"Selector field", "", reason(globalSelectorEntRule), "")
 	}
 
 	// Get the parsed and canonicalised string of the namespaceSelector
@@ -1130,7 +1130,7 @@ func validateNetworkPolicy(structLevel validator.StructLevel) {
 			reflect.ValueOf(spec.Selector),
 			"NetworkPolicySpec.Selector",
 			"",
-			reason(fmt.Sprintf("%s can only be used in a GlobalNetworkPolicy EntityRule", globalSelector)),
+			reason(globalSelectorEntRule),
 			"")
 	}
 
@@ -1139,7 +1139,7 @@ func validateNetworkPolicy(structLevel validator.StructLevel) {
 			reflect.ValueOf(spec.ServiceAccountSelector),
 			"NetworkPolicySpec.ServiceAccountSelector",
 			"",
-			reason(fmt.Sprintf("%s can only be used in GlobalNetworkPolicy EntityRule", globalSelector)),
+			reason(globalSelectorEntRule),
 			"")
 	}
 }
@@ -1260,7 +1260,7 @@ func validateGlobalNetworkPolicy(structLevel validator.StructLevel) {
 			reflect.ValueOf(spec.Selector),
 			"GlobalNetworkPolicySpec.Selector",
 			"",
-			reason(fmt.Sprintf("%s can only be used in EntityRule", globalSelector)),
+			reason(globalSelectorEntRule),
 			"")
 	}
 
@@ -1269,7 +1269,7 @@ func validateGlobalNetworkPolicy(structLevel validator.StructLevel) {
 			reflect.ValueOf(spec.Selector),
 			"GlobalNetworkPolicySpec.ServiceAccountSelector",
 			"",
-			reason(fmt.Sprintf("%s can only be used in EntityRule", globalSelector)),
+			reason(globalSelectorEntRule),
 			"")
 	}
 
@@ -1278,7 +1278,7 @@ func validateGlobalNetworkPolicy(structLevel validator.StructLevel) {
 			reflect.ValueOf(spec.Selector),
 			"GlobalNetworkPolicySpec.NamespaceSelector",
 			"",
-			reason(fmt.Sprintf("%s can only be used in EntityRule", globalSelector)),
+			reason(globalSelectorEntRule),
 			"")
 	}
 }
