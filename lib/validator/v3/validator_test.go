@@ -1658,6 +1658,21 @@ func init() {
 				},
 			}, false,
 		),
+		Entry("disallow global() in EntityRule selector field",
+			&api.GlobalNetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.GlobalNetworkPolicySpec{
+					Ingress: []api.Rule{
+						{
+							Action: "Allow",
+							Source: api.EntityRule{
+								Selector: "global()",
+							},
+						},
+					},
+				},
+			}, false,
+		),
 		Entry("allow global() in EntityRule namespaceSelector field",
 			&api.GlobalNetworkPolicy{
 				ObjectMeta: v1.ObjectMeta{Name: "thing"},
@@ -1666,6 +1681,9 @@ func init() {
 						{
 							Action: "Allow",
 							Source: api.EntityRule{
+								NamespaceSelector: "global()",
+							},
+							Destination: api.EntityRule{
 								NamespaceSelector: "global()",
 							},
 						},
