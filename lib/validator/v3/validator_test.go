@@ -1673,7 +1673,7 @@ func init() {
 				},
 			}, false,
 		),
-		Entry("allow global() in EntityRule namespaceSelector field",
+		Entry("allow global() and projectcalico.org/name in EntityRule namespaceSelector field",
 			&api.GlobalNetworkPolicy{
 				ObjectMeta: v1.ObjectMeta{Name: "thing"},
 				Spec: api.GlobalNetworkPolicySpec{
@@ -1684,7 +1684,7 @@ func init() {
 								NamespaceSelector: "global()",
 							},
 							Destination: api.EntityRule{
-								NamespaceSelector: "global()",
+								NamespaceSelector: "projectcalico.org/name == 'test'",
 							},
 						},
 					},
@@ -1838,7 +1838,72 @@ func init() {
 				},
 			}, false,
 		),
-
+		Entry("allow global() and projectcalico.org/name in EntityRule namespaceSelector field",
+			&api.NetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.NetworkPolicySpec{
+					Ingress: []api.Rule{
+						{
+							Action: "Allow",
+							Source: api.EntityRule{
+								NamespaceSelector: "global()",
+							},
+							Destination: api.EntityRule{
+								NamespaceSelector: "projectcalico.org/name == 'test'",
+							},
+						},
+					},
+				},
+			}, true,
+		),
+		// Validate EntityRule against special selectors global() and
+		// projectcalico.org/name.
+		// Extra spaces added in some cases to make sure validation handles it.
+		Entry("disallow global() in EntityRule selector field",
+			&api.EntityRule{
+				Selector: "  global()  ",
+			}, false,
+		),
+		Entry("allow global() in EntityRule namespaceSelector field",
+			&api.EntityRule{
+				NamespaceSelector: "  global()  ",
+			}, true,
+		),
+		Entry("disallow global() in EntityRule namespaceSelector field AND'd with other expressions",
+			&api.EntityRule{
+				NamespaceSelector: " global() && all()",
+			}, false,
+		),
+		Entry("disallow global() in EntityRule namespaceSelector field OR'd other expressions",
+			&api.EntityRule{
+				NamespaceSelector: "global()||all()",
+			}, false,
+		),
+		Entry("allow projectcalico.org/name in EntityRule namespaceSelector field",
+			&api.EntityRule{
+				NamespaceSelector: "projectcalico.org/name=='test' ",
+			}, true,
+		),
+		Entry("disallow projectcalico.org/name in EntityRule namespaceSelector field AND'd with other expressions",
+			&api.EntityRule{
+				NamespaceSelector: "   projectcalico.org/name=='test' && all() ",
+			}, false,
+		),
+		Entry("disallow projectcalico.org/name in EntityRule namespaceSelector field OR'd other expressions",
+			&api.EntityRule{
+				NamespaceSelector: "   projectcalico.org/name=='test' || all() ",
+			}, false,
+		),
+		Entry("disallow bad selectors in EntityRule selector field",
+			&api.EntityRule{
+				Selector: "global() && bad",
+			}, false,
+		),
+		Entry("disallow bad selectors in EntityRule namespaceSelector field",
+			&api.EntityRule{
+				Selector: "projectcalico.org/name == 'test' || bad",
+			}, false,
+		),
 		Entry("allow HTTP Path with permitted match clauses",
 			&api.HTTPMatch{Paths: []api.HTTPPath{{Exact: "/foo"}, {Prefix: "/bar"}}},
 			true,
