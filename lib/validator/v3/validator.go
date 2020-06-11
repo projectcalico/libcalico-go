@@ -29,7 +29,6 @@ import (
 	wireguard "golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	api "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
 	"github.com/projectcalico/libcalico-go/lib/errors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
@@ -71,9 +70,6 @@ var (
 	andOr               = `(&&|\|\|)`
 	globalSelectorRegex = regexp.MustCompile(fmt.Sprintf(`%v global\(\)|global\(\) %v`, andOr, andOr))
 
-	// projectcalico.org/name cannot be used with other selectors.
-	namespaceSelectorRegex = regexp.MustCompile(fmt.Sprintf(`%v projectcalico.org/name == ".*"|projectcalico.org/name == ".*" %v`, andOr, andOr))
-
 	interfaceRegex        = regexp.MustCompile("^[a-zA-Z0-9_.-]{1,15}$")
 	ifaceFilterRegex      = regexp.MustCompile("^[a-zA-Z0-9:._+-]{1,15}$")
 	actionRegex           = regexp.MustCompile("^(Allow|Deny|Log|Pass)$")
@@ -96,7 +92,6 @@ var (
 	protocolAndHTTPMsg    = "rules that specify HTTP fields must set protocol to TCP or empty"
 	globalSelectorEntRule = fmt.Sprintf("%v can only be used in an EntityRule namespaceSelector", globalSelector)
 	globalSelectorOnly    = fmt.Sprintf("%v cannot be combined with other selectors", globalSelector)
-	namespaceSelectorOnly = fmt.Sprintf("%v cannot be combined with other selectors", conversion.NameLabel)
 
 	ipv4LinkLocalNet = net.IPNet{
 		IP:   net.ParseIP("169.254.0.0"),
@@ -977,12 +972,6 @@ func validateEntityRule(structLevel validator.StructLevel) {
 	if globalSelectorRegex.MatchString(namespaceSelector) {
 		structLevel.ReportError(reflect.ValueOf(rule.NamespaceSelector),
 			"NamespaceSelector field", "", reason(globalSelectorOnly), "")
-	}
-
-	// If the namespaceSelector specifies a namespace with projectcalico.org/name, then it should be the only selector.
-	if namespaceSelectorRegex.MatchString(namespaceSelector) {
-		structLevel.ReportError(reflect.ValueOf(rule.NamespaceSelector),
-			"NamespaceSelector field", "", reason(namespaceSelectorOnly), "")
 	}
 }
 
