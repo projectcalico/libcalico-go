@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 
@@ -84,6 +85,29 @@ func (options BlockListOptions) defaultPathRoot() string {
 	return k
 }
 
+//check the cidr format for ipv4 or ipv6
+func checkCIDRFormat( ip string ) (bool ) {
+	re:=strings.Split(ip, "/" )
+	if len(re)!=2{
+		return false 
+	}
+	if s, err := strconv.ParseInt(re[1], 10, 64); err == nil {
+	    if s>128 || s<1 {
+	    	return false
+	    } 
+	}else{
+		return false 
+	}
+	result := net.ParseIP(re[0])
+	if result==nil {
+		return false
+	}
+	if result.To16()==nil {
+		return false
+	}
+	return true
+}
+
 func (options BlockListOptions) KeyFromDefaultPath(path string) Key {
 	log.Debugf("Get Block key from %s", path)
 	r := matchBlock.FindAllStringSubmatch(path, -1)
@@ -92,6 +116,10 @@ func (options BlockListOptions) KeyFromDefaultPath(path string) Key {
 		return nil
 	}
 	cidrStr := strings.Replace(r[0][1], "-", "/", 1)
+	if checkCIDRFormat(cidrStr)==false   {
+		log.Debugf("find an invalid cidr %s from path=%v ", r[0][1] , path )
+		return nil
+	}
 	_, cidr, _ := net.ParseCIDR(cidrStr)
 	return BlockKey{CIDR: *cidr}
 }
