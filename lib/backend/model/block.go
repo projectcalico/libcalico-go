@@ -93,11 +93,11 @@ func (options BlockListOptions) KeyFromDefaultPath(path string) Key {
 		return nil
 	}
 	cidrStr := strings.Replace(r[0][1], "-", "/", 1)
-	if _ , _ , err:=net.ParseCIDR(cidrStr) ; err!=nil   {
-		log.Debugf("find an invalid cidr %s for path=%v , info=%v ", r[0][1] , path , err )
+	_, cidr, err := net.ParseCIDR(cidrStr) 
+	if err != nil {
+		log.Debugf("find an invalid cidr %s for path=%v , info=%v ", r[0][1], path, err)
 		return nil
 	}
-	_, cidr, _ := net.ParseCIDR(cidrStr)
 	return BlockKey{CIDR: *cidr}
 }
 
