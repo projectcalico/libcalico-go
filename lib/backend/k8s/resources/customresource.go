@@ -73,6 +73,9 @@ func (c *customK8sResourceClient) Create(ctx context.Context, kvp *model.KVPair)
 		return nil, err
 	}
 
+	// CASEY: HCK
+	resIn.GetObjectMeta().SetFinalizers(kvp.Value.(Resource).GetObjectMeta().GetFinalizers())
+
 	// Send the update request using the REST interface.
 	resOut := reflect.New(c.k8sResourceType).Interface().(Resource)
 	namespace := kvp.Key.(model.ResourceKey).Namespace
