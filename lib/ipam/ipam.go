@@ -564,6 +564,16 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 		return nil, err
 	}
 
+	// Merge in any global config, if it exists. We use the more restrictive value between
+	// the global max block limit, and the limit provided on this particular request.
+	if config.MaxBlocksPerHost > 0 && maxNumBlocks > 0 && maxNumBlocks > config.MaxBlocksPerHost {
+		// The global config is more restrictive, so use it instead.
+		maxNumBlocks = config.MaxBlocksPerHost
+	} else if maxNumBlocks == 0 {
+		// No per-request value, so use the global one.
+		maxNumBlocks = config.MaxBlocksPerHost
+	}
+
 	s := &blockAssignState{
 		client:                c,
 		version:               version,
@@ -1522,7 +1532,11 @@ func (c ipamClient) GetIPAMConfig(ctx context.Context) (config *IPAMConfig, err 
 		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
 			// IPAMConfig has not been explicitly set.  Return
 			// a default IPAM configuration.
-			config = &IPAMConfig{AutoAllocateBlocks: true, StrictAffinity: false}
+			config = &IPAMConfig{
+				AutoAllocateBlocks: true,
+				StrictAffinity:     false,
+				MaxBlocksPerHost:   0,
+			}
 			err = nil
 		} else {
 			log.Errorf("Error getting IPAMConfig: %v", err)
@@ -1598,6 +1612,7 @@ func (c ipamClient) convertBackendToIPAMConfig(cfg *model.IPAMConfig) *IPAMConfi
 	return &IPAMConfig{
 		StrictAffinity:     cfg.StrictAffinity,
 		AutoAllocateBlocks: cfg.AutoAllocateBlocks,
+		MaxBlocksPerHost:   cfg.MaxBlocksPerHost,
 	}
 }
 
