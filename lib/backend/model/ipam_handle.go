@@ -78,7 +78,8 @@ func (options IPAMHandleListOptions) KeyFromDefaultPath(path string) Key {
 }
 
 type IPAMHandle struct {
-	HandleID string         `json:"-"`
-	Block    map[string]int `json:"block"`
-	Deleted  bool           `json:"deleted"`
+	HandleID string            `json:"-"`
+	Block    map[string]int    `json:"block"`
+	Deleted  bool              `json:"deleted"`
+	Attrs    map[string]string `json:"attrs"`
 }
