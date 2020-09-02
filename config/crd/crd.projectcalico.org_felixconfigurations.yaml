@@ -37,11 +37,13 @@ spec:
             description: FelixConfigurationSpec contains the values of the Felix configuration.
             properties:
               allowIPIPPacketsFromWorkloads:
+                default: false
                 description: 'AllowIPIPPacketsFromWorkloads controls whether Felix
                   will add a rule to drop IPIP encapsulated traffic from workloads
                   [Default: false]'
                 type: boolean
               allowVXLANPacketsFromWorkloads:
+                default: false
                 description: 'AllowVXLANPacketsFromWorkloads controls whether Felix
                   will add a rule to drop VXLAN encapsulated traffic from workloads
                   [Default: false]'
