@@ -48,6 +48,7 @@ const (
 	AttributeTypeIPIP      = model.IPAMBlockAttributeTypeIPIP
 	AttributeTypeVXLAN     = model.IPAMBlockAttributeTypeVXLAN
 	AttributeTypeWireguard = model.IPAMBlockAttributeTypeWireguard
+	AttributeTypeUID       = model.IPAMBlockAttributeTypeUID
 )
 
 var (
@@ -772,7 +773,7 @@ func (c ipamClient) AssignIP(ctx context.Context, args AssignIPArgs) error {
 
 		// Increment handle.
 		if args.HandleID != nil {
-			c.incrementHandle(ctx, *args.HandleID, blockCIDR, 1)
+			c.incrementHandle(ctx, *args.HandleID, blockCIDR, 1, args.Attrs)
 		}
 
 		// Update the block using the original KVPair to do a CAS.  No need to
@@ -951,7 +952,7 @@ func (c ipamClient) assignFromExistingBlock(ctx context.Context, block *model.KV
 	// Increment handle count.
 	if handleID != nil {
 		logCtx.Debug("Incrementing handle")
-		c.incrementHandle(ctx, *handleID, blockCIDR, num)
+		c.incrementHandle(ctx, *handleID, blockCIDR, num, attrs)
 	}
 
 	// Update the block using CAS by passing back the original
@@ -1398,7 +1399,7 @@ func (c ipamClient) releaseByHandle(ctx context.Context, handleID string, blockC
 	return errors.New("Hit max retries")
 }
 
-func (c ipamClient) incrementHandle(ctx context.Context, handleID string, blockCIDR net.IPNet, num int) error {
+func (c ipamClient) incrementHandle(ctx context.Context, handleID string, blockCIDR net.IPNet, num int, attrs map[string]string) error {
 	var obj *model.KVPair
 	var err error
 	for i := 0; i < datastoreRetries; i++ {
@@ -1410,6 +1411,7 @@ func (c ipamClient) incrementHandle(ctx context.Context, handleID string, blockC
 				bh := model.IPAMHandle{
 					HandleID: handleID,
 					Block:    map[string]int{},
+					Attrs:    attrs,
 				}
 				obj = &model.KVPair{
 					Key:   model.IPAMHandleKey{HandleID: handleID},

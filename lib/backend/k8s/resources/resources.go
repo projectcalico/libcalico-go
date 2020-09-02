@@ -160,6 +160,8 @@ func ConvertCalicoResourceToK8sResource(resIn Resource) (Resource, error) {
 	meta.ResourceVersion = rom.GetResourceVersion()
 	meta.Labels = rom.GetLabels()
 	meta.UID = rom.GetUID()
+	meta.Finalizers = rom.GetFinalizers()
+	meta.OwnerReferences = rom.GetOwnerReferences()
 
 	resOut := resIn.DeepCopyObject().(Resource)
 	romOut := resOut.GetObjectMeta()

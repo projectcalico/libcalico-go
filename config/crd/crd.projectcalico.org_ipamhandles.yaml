@@ -36,6 +36,10 @@ spec:
             description: IPAMHandleSpec contains the specification for an IPAMHandle
               resource.
             properties:
+              attrs:
+                additionalProperties:
+                  type: string
+                type: object
               block:
                 additionalProperties:
                   type: integer
