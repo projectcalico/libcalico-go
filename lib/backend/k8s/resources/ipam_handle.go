@@ -69,6 +69,7 @@ type ipamHandleClient struct {
 func (c ipamHandleClient) toV1(kvpv3 *model.KVPair) *model.KVPair {
 	handle := kvpv3.Value.(*apiv3.IPAMHandle).Spec.HandleID
 	block := kvpv3.Value.(*apiv3.IPAMHandle).Spec.Block
+	attrs := kvpv3.Value.(*apiv3.IPAMHandle).Spec.Attrs
 	return &model.KVPair{
 		Key: model.IPAMHandleKey{
 			HandleID: handle,
@@ -76,6 +77,7 @@ func (c ipamHandleClient) toV1(kvpv3 *model.KVPair) *model.KVPair {
 		Value: &model.IPAMHandle{
 			HandleID: handle,
 			Block:    block,
+			Attrs:    attrs,
 		},
 		Revision: kvpv3.Revision,
 	}
@@ -89,6 +91,13 @@ func (c ipamHandleClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
 	name := c.parseKey(kvpv1.Key)
 	handle := kvpv1.Key.(model.IPAMHandleKey).HandleID
 	block := kvpv1.Value.(*model.IPAMHandle).Block
+	attrs := kvpv1.Value.(*model.IPAMHandle).Attrs
+
+	var finalizers []string
+	if !kvpv1.Value.(*model.IPAMHandle).Deleted {
+		finalizers = []string{"deleted.projectcalico.org"}
+	}
+
 	return &model.KVPair{
 		Key: model.ResourceKey{
 			Name: name,
@@ -102,10 +111,20 @@ func (c ipamHandleClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            name,
 				ResourceVersion: kvpv1.Revision,
+				Finalizers:      finalizers,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						UID:        types.UID(attrs[model.IPAMBlockAttributeTypeUID]),
+						APIVersion: "v1",
+						Kind:       "Pod",
+						Name:       attrs[model.IPAMBlockAttributePod],
+					},
+				},
 			},
 			Spec: apiv3.IPAMHandleSpec{
 				HandleID: handle,
 				Block:    block,
+				Attrs:    attrs,
 			},
 		},
 		Revision: kvpv1.Revision,
