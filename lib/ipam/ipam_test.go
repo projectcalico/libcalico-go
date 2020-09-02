@@ -755,8 +755,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			err = applyNode(bc, kc, node2, map[string]string{"foo": "bar"})
 			Expect(err).NotTo(HaveOccurred())
 
-			// StrictAffinity is false, max blocks per host is 2
-			cfg := IPAMConfig{AutoAllocateBlocks: true, StrictAffinity: false, MaxBlocksPerHost: 2}
+			// StrictAffinity is true, max blocks per host is 2
+			cfg := IPAMConfig{AutoAllocateBlocks: true, StrictAffinity: true, MaxBlocksPerHost: 2}
 			err = ic.SetIPAMConfig(ctx, cfg)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -796,8 +796,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(v4)).To(Equal(1))
 
-			// Attempting to allocate a ninth address should still fail, even though
-			// strict affinity is disabled, since max blocks takes precedence.
+			// Attempting to allocate a ninth address should still fail, due to
+			// strict affinity.
 			v4, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
@@ -820,7 +820,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(len(v4)).To(Equal(0))
 
 			// Increase the global limit.
-			cfg = IPAMConfig{AutoAllocateBlocks: true, StrictAffinity: false, MaxBlocksPerHost: 3}
+			cfg = IPAMConfig{AutoAllocateBlocks: true, StrictAffinity: true, MaxBlocksPerHost: 3}
 			err = ic.SetIPAMConfig(ctx, cfg)
 			Expect(err).NotTo(HaveOccurred())
 

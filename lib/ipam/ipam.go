@@ -454,8 +454,6 @@ func (s *blockAssignState) findOrClaimBlock(ctx context.Context, minFreeIps int)
 				logCtx.Debugf("Block '%s' has %d free ips which is less than %d ips required.", cidr.String(), block.NumFreeAddresses(), minFreeIps)
 				break
 			}
-
-			s.datastoreRetryCount++
 		}
 	}
 
@@ -1576,6 +1574,13 @@ func (c ipamClient) SetIPAMConfig(ctx context.Context, cfg IPAMConfig) error {
 
 	if !cfg.StrictAffinity && !cfg.AutoAllocateBlocks {
 		return errors.New("Cannot disable 'StrictAffinity' and 'AutoAllocateBlocks' at the same time")
+	}
+
+	if cfg.MaxBlocksPerHost > 0 && !cfg.StrictAffinity {
+		// MaxBlocksPerHost always takes effect before StrictAffinity,
+		// so require the user to be explicit in order to prevent confusing behavior, and to
+		// ensure that our code behaves consistently even in places where MaxBlocksPerHost isn't checked.
+		return errors.New("MaxBlocksPerHost requires StrictAffinity to be enabled")
 	}
 
 	// Get revision if resource already exists
