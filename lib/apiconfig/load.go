@@ -43,9 +43,8 @@ func LoadClientConfig(filename string) (*CalicoAPIConfig, error) {
 	} else if c.Spec.DatastoreType == "" {
 		c.Spec.DatastoreType = Kubernetes
 	}
-	// Changing Kubeconfig prevents a default error attitude
-	// when user has set no configuration.
-	if c.Spec.DatastoreType == Kubernetes && c.Spec.Kubeconfig == "" {
+
+	if os.Getenv("KUBERNETES_SERVICE_HOST") == "" && c.Spec.DatastoreType == Kubernetes && c.Spec.Kubeconfig == "" {
 		c.Spec.Kubeconfig = filepath.Join(os.Getenv("HOME"),".kube","config")
 	}
 
