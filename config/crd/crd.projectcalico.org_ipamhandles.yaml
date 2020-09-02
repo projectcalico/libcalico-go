@@ -47,7 +47,6 @@ spec:
               handleID:
                 type: string
             required:
-            - attrs
             - block
             - handleID
             type: object

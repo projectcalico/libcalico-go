@@ -37,9 +37,11 @@ type IPAMHandle struct {
 
 // IPAMHandleSpec contains the specification for an IPAMHandle resource.
 type IPAMHandleSpec struct {
-	HandleID string            `json:"handleID"`
-	Block    map[string]int    `json:"block"`
-	Attrs    map[string]string `json:"attrs"`
+	HandleID string         `json:"handleID"`
+	Block    map[string]int `json:"block"`
+
+	// +optional
+	Attrs map[string]string `json:"attrs"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
