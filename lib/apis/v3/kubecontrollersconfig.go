@@ -68,6 +68,9 @@ type ControllersConfig struct {
 
 	// Namespace enables and configures the namespace controller. Enabled by default, set to nil to disable.
 	Namespace *NamespaceControllerConfig `json:"namespace,omitempty"`
+
+	// RouteReflector enables and configures the route reflector controller. Disabled by default, set value to enable.
+	RouteReflector *RouteReflectorControllerConfig `json:"routereflector,omitempty"`
 }
 
 // NodeControllerConfig configures the node controller, which automatically cleans up configuration
@@ -114,6 +117,40 @@ type ServiceAccountControllerConfig struct {
 type NamespaceControllerConfig struct {
 	// ReconcilerPeriod is the period to perform reconciliation with the Calico datastore. [Default: 5m]
 	ReconcilerPeriod *metav1.Duration `json:"reconcilerPeriod,omitempty" validate:"omitempty"`
+}
+
+// RouteReflectorControllerConfig configures the route reflector controller, which scales Calico
+// route reflector topology.
+type RouteReflectorControllerConfig struct {
+	// ReconcilerPeriod is the period to perform reconciliation with the Calico datastore. [Default: 5m]
+	ReconcilerPeriod *metav1.Duration `json:"reconcilerPeriod,omitempty" validate:"omitempty"`
+
+	// DatastoreType is the type of backend data store. [Default: etcdv3]
+	DatastoreType *string `json:"datastoreType,omitempty" validate:"omitempty,oneof=etcdv3 kubernetes"`
+
+	// ClusterID is the Route Reflector cluster id. [Default: 224.0.0.0]
+	ClusterID *string `json:"clusterId,omitempty" validate:"omitempty"`
+
+	// Min the minimum nulber of Route Refletors. [Default: 3]
+	Min *int `json:"min,omitempty" validate:"omitempty"`
+
+	// Max the maxium nulber of Route Refletors. [Default: 10]
+	Max *int `json:"max,omitempty" validate:"omitempty"`
+
+	// Ratio the defines the ration of Route Reflectors and clients, between 0.001 and 0.05. [Default: 0.005]
+	Ratio *float32 `json:"ratio,omitempty" validate:"omitempty"`
+
+	// RouteReflectorLabelKey label key of Route Reflector selector. [Default: calico-route-reflector]
+	RouteReflectorLabelKey *string `json:"routeReflectorLabelKey,omitempty" validate:"omitempty"`
+
+	// RouteReflectorLabelValue label value of Route Reflector selector.
+	RouteReflectorLabelValue *string `json:"routeReflectorLabelValue,omitempty" validate:"omitempty"`
+
+	// ZoneLabel zone label on Kubernetes nodes. [Default: failure-domain.beta.kubernetes.io/zone]
+	ZoneLabel *string `json:"zoneLabel,omitempty" validate:"omitempty"`
+
+	// IncompatibleLabels List of node labels to disallow Route Reflector selection.
+	IncompatibleLabels *string `json:"incompatibleLabels,omitempty" validate:"omitempty"`
 }
 
 // KubeControllersConfigurationStatus represents the status of the configuration. It's useful for admins to

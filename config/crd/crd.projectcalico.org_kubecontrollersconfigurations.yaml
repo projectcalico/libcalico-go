@@ -77,6 +77,51 @@ spec:
                           with the Calico datastore. [Default: 5m]'
                         type: string
                     type: object
+                  routereflector:
+                    description: RouteReflector enables and configures the route reflector
+                      controller. Disabled by default, set value to enable.
+                    properties:
+                      clusterId:
+                        description: 'ClusterID is the Route Reflector cluster id.
+                          [Default: 224.0.0.0]'
+                        type: string
+                      datastoreType:
+                        description: 'DatastoreType is the type of backend data store.
+                          [Default: etcdv3]'
+                        type: string
+                      incompatibleLabels:
+                        description: IncompatibleLabels List of node labels to disallow
+                          Route Reflector selection.
+                        type: string
+                      max:
+                        description: 'Max the maxium nulber of Route Refletors. [Default:
+                          10]'
+                        type: integer
+                      min:
+                        description: 'Min the minimum nulber of Route Refletors. [Default:
+                          3]'
+                        type: integer
+                      ratio:
+                        description: 'Ratio the defines the ration of Route Reflectors
+                          and clients, between 0.001 and 0.05. [Default: 0.005]'
+                        type: number
+                      reconcilerPeriod:
+                        description: 'ReconcilerPeriod is the period to perform reconciliation
+                          with the Calico datastore. [Default: 5m]'
+                        type: string
+                      routeReflectorLabelKey:
+                        description: 'RouteReflectorLabelKey label key of Route Reflector
+                          selector. [Default: calico-route-reflector]'
+                        type: string
+                      routeReflectorLabelValue:
+                        description: RouteReflectorLabelValue label value of Route
+                          Reflector selector.
+                        type: string
+                      zoneLabel:
+                        description: 'ZoneLabel zone label on Kubernetes nodes. [Default:
+                          failure-domain.beta.kubernetes.io/zone]'
+                        type: string
+                    type: object
                   serviceAccount:
                     description: ServiceAccount enables and configures the service
                       account controller. Enabled by default, set to nil to disable.
@@ -173,6 +218,53 @@ spec:
                             description: 'ReconcilerPeriod is the period to perform
                               reconciliation with the Calico datastore. [Default:
                               5m]'
+                            type: string
+                        type: object
+                      routereflector:
+                        description: RouteReflector enables and configures the route
+                          reflector controller. Disabled by default, set value to
+                          enable.
+                        properties:
+                          clusterId:
+                            description: 'ClusterID is the Route Reflector cluster
+                              id. [Default: 224.0.0.0]'
+                            type: string
+                          datastoreType:
+                            description: 'DatastoreType is the type of backend data
+                              store. [Default: etcdv3]'
+                            type: string
+                          incompatibleLabels:
+                            description: IncompatibleLabels List of node labels to
+                              disallow Route Reflector selection.
+                            type: string
+                          max:
+                            description: 'Max the maxium nulber of Route Refletors.
+                              [Default: 10]'
+                            type: integer
+                          min:
+                            description: 'Min the minimum nulber of Route Refletors.
+                              [Default: 3]'
+                            type: integer
+                          ratio:
+                            description: 'Ratio the defines the ration of Route Reflectors
+                              and clients, between 0.001 and 0.05. [Default: 0.005]'
+                            type: number
+                          reconcilerPeriod:
+                            description: 'ReconcilerPeriod is the period to perform
+                              reconciliation with the Calico datastore. [Default:
+                              5m]'
+                            type: string
+                          routeReflectorLabelKey:
+                            description: 'RouteReflectorLabelKey label key of Route
+                              Reflector selector. [Default: calico-route-reflector]'
+                            type: string
+                          routeReflectorLabelValue:
+                            description: RouteReflectorLabelValue label value of Route
+                              Reflector selector.
+                            type: string
+                          zoneLabel:
+                            description: 'ZoneLabel zone label on Kubernetes nodes.
+                              [Default: failure-domain.beta.kubernetes.io/zone]'
                             type: string
                         type: object
                       serviceAccount:
