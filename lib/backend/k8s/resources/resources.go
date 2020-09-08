@@ -205,6 +205,8 @@ func ConvertK8sResourceToCalicoResource(res Resource) error {
 	meta.Labels = rom.GetLabels()
 	meta.Annotations = annotations
 	meta.UID = rom.GetUID()
+	meta.Finalizers = rom.GetFinalizers()
+	meta.OwnerReferences = rom.GetOwnerReferences()
 
 	// Overwrite the K8s metadata with the Calico metadata.
 	meta.DeepCopyInto(rom.(*metav1.ObjectMeta))

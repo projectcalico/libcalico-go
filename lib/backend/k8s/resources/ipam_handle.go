@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -95,27 +96,32 @@ func (c ipamHandleClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
 	attrs := kvpv1.Value.(*model.IPAMHandle).Attrs
 
 	// Include a finalizer so that the associated IPAM data can be GC'd.
-	finalizers := []string{"deleted.projectcalico.org"}
-
-	var kind, name, uid string
-	if _, ok := attrs[model.IPAMBlockAttributeNode]; ok {
-		kind = "Pod"
-		name = attrs[model.IPAMBlockAttributePod]
-	} else if _, ok := attrs[model.IPAMBlockAttributeNode]; ok {
-		kind = "Node"
-		name = attrs[model.IPAMBlockAttributeNode]
+	var finalizers []string
+	if !kvpv1.Value.(*model.IPAMHandle).Deleted {
+		finalizers = []string{"deleted.projectcalico.org"}
 	}
-	uid = attrs[model.IPAMBlockAttributeTypeUID]
+
+	var ownerKind, ownerName, ownerUID string
+	if _, ok := attrs[model.IPAMBlockAttributePod]; ok {
+		// This is a pod.
+		ownerKind = "Pod"
+		ownerName = attrs[model.IPAMBlockAttributePod]
+	} else if _, ok := attrs[model.IPAMBlockAttributeNode]; ok {
+		// Pod attr not defined, but node attr is. This is a node.
+		ownerKind = "Node"
+		ownerName = attrs[model.IPAMBlockAttributeNode]
+	}
+	ownerUID = attrs[model.IPAMBlockAttributeTypeUID]
 
 	// Add in an owner reference if the right information is present.
 	var ownerRef []metav1.OwnerReference
-	if kind != "" && name != "" && uid != "" {
+	if ownerKind != "" && ownerName != "" && ownerUID != "" {
 		ownerRef = []metav1.OwnerReference{
 			{
 				APIVersion: "v1",
-				UID:        types.UID(uid),
-				Kind:       kind,
-				Name:       name,
+				UID:        types.UID(ownerUID),
+				Kind:       ownerKind,
+				Name:       ownerName,
 			},
 		}
 	}
@@ -193,11 +199,13 @@ func (c *ipamHandleClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*m
 func (c *ipamHandleClient) finalizeDeletion(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	// Remove finalizers.
 	// TODO: Only remove OUR finalizer.
-	kvp.Value.(*v3.IPAMHandle).SetFinalizers([]string{})
+	logrus.Error("FINALIZING DELETION")
+	kvp.Value.(*v3.IPAMHandle).Finalizers = nil
 	kvp, err := c.rc.Update(ctx, kvp)
 	if err != nil {
 		return nil, err
 	}
+	logrus.Errorf("FINAL: %+v", kvp.Value.(Resource).GetObjectMeta())
 	return kvp, nil
 }
 

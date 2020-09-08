@@ -73,6 +73,9 @@ func (c *customK8sResourceClient) Create(ctx context.Context, kvp *model.KVPair)
 		return nil, err
 	}
 
+	// CASEY: HCK
+	resIn.GetObjectMeta().SetFinalizers(kvp.Value.(Resource).GetObjectMeta().GetFinalizers())
+
 	// Send the update request using the REST interface.
 	resOut := reflect.New(c.k8sResourceType).Interface().(Resource)
 	namespace := kvp.Key.(model.ResourceKey).Namespace
@@ -118,6 +121,9 @@ func (c *customK8sResourceClient) Update(ctx context.Context, kvp *model.KVPair)
 		logContext.WithError(err).Debug("Error updating resource")
 		return nil, err
 	}
+
+	// CASEY: HCK
+	resIn.GetObjectMeta().SetFinalizers(kvp.Value.(Resource).GetObjectMeta().GetFinalizers())
 
 	// Send the update request using the name.
 	name := resIn.GetObjectMeta().GetName()
@@ -412,5 +418,7 @@ func (c *customK8sResourceClient) convertKVPairToResource(kvp *model.KVPair) (Re
 		return resOut, err
 	}
 
+	// Casey: HACK
+	resOut.GetObjectMeta().SetFinalizers(kvp.Value.(Resource).GetObjectMeta().GetFinalizers())
 	return resOut, nil
 }
