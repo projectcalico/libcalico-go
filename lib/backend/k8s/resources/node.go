@@ -290,7 +290,7 @@ func K8sNodeToCalico(k8sNode *kapiv1.Node, usePodCIDR bool) (*model.KVPair, erro
 	}
 
 	// Fill the list of all addresses from the calico Node
-	calicoNode.Spec.Addresses = listAllAddresses(calicoNode)
+	calicoNode.Spec.Addresses = listAllAddresses(k8sNode, calicoNode)
 
 	// Create the resource key from the node name.
 	return &model.KVPair{
@@ -303,7 +303,7 @@ func K8sNodeToCalico(k8sNode *kapiv1.Node, usePodCIDR bool) (*model.KVPair, erro
 	}, nil
 }
 
-func listAllAddresses(calicoNode *apiv3.Node) []apiv3.NodeAddress {
+func listAllAddresses(k8sNode *kapiv1.Node, calicoNode *apiv3.Node) []apiv3.NodeAddress {
 	var addrs []apiv3.NodeAddress
 
 	if bgp := calicoNode.Spec.BGP; bgp != nil {
@@ -332,6 +332,26 @@ func listAllAddresses(calicoNode *apiv3.Node) []apiv3.NodeAddress {
 				Type:    apiv3.NodeAddressWireguardTunnelIP,
 			},
 		)
+	}
+
+	for _, kaddr := range k8sNode.Status.Addresses {
+		var addr apiv3.NodeAddress
+		switch kaddr.Type {
+		case kapiv1.NodeInternalIP:
+			addr = apiv3.NodeAddress{
+				Type:    apiv3.NodeAddressKubeInternalIP,
+				Address: kaddr.Address,
+			}
+		case kapiv1.NodeExternalIP:
+			addr = apiv3.NodeAddress{
+				Type:    apiv3.NodeAddressKubeExternalIP,
+				Address: kaddr.Address,
+			}
+		default:
+			continue
+		}
+
+		addrs = append(addrs, addr)
 	}
 
 	return addrs
