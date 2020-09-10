@@ -125,6 +125,18 @@ var _ = Describe("Test Node conversion", func() {
 		Expect(ipInIpAddr).To(Equal(""))
 		Expect(asn.String()).To(Equal("2546"))
 		Expect(rrClusterID).To(Equal("248.0.4.5"))
+
+		addrs := n.Value.(*apiv3.Node).Spec.Addresses
+		Expect(addrs).To(ConsistOf([]apiv3.NodeAddress{
+			{
+				Type:    apiv3.NodeAddressK8sInternalIP,
+				Address: "172.17.17.10",
+			},
+			{
+				Type:    apiv3.NodeAddressK8sExternalIP,
+				Address: "192.168.1.100",
+			},
+		}))
 	})
 
 	It("should parse a k8s Node to a Calico Node with IPv6", func() {
@@ -277,6 +289,10 @@ var _ = Describe("Test Node conversion", func() {
 		calicoNodeWithMergedLabels := calicoNode.DeepCopy()
 		calicoNodeWithMergedLabels.Annotations[nodeK8sLabelAnnotation] = "{\"net.beta.kubernetes.io/role\":\"master\"}"
 		calicoNodeWithMergedLabels.Labels["net.beta.kubernetes.io/role"] = "master"
+		calicoNodeWithMergedLabels.Spec.Addresses = []apiv3.NodeAddress{
+			{Type: apiv3.NodeAddressIP, Address: "172.17.17.10/24"},
+			{Type: apiv3.NodeAddressIP, Address: "aa:bb:cc::ffff/120"},
+		}
 		Expect(newCalicoNode.Value).To(Equal(calicoNodeWithMergedLabels))
 	})
 
@@ -495,5 +511,53 @@ var _ = Describe("Test Node conversion", func() {
 			Expect(ipInIpAddr).To(Equal(""))
 		})
 
+	})
+
+	It("should parse addresses of all types into Calico Node", func() {
+		l := map[string]string{"net.beta.kubernetes.io/role": "master"}
+		node := k8sapi.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "TestNode",
+				Labels:          l,
+				ResourceVersion: "1234",
+				Annotations: map[string]string{
+					nodeBgpIpv6AddrAnnotation:            "fd10::10",
+					nodeBgpIpv4AddrAnnotation:            "172.17.17.10",
+					nodeBgpAsnAnnotation:                 "2546",
+					nodeBgpIpv4VXLANTunnelAddrAnnotation: "1.2.3.4",
+					nodeBgpVXLANTunnelMACAddrAnnotation:  "00:11:22:33:44:55",
+					nodeBgpIpv4IPIPTunnelAddrAnnotation:  "5.4.5.4",
+				},
+			},
+			Status: k8sapi.NodeStatus{
+				Addresses: []k8sapi.NodeAddress{
+					k8sapi.NodeAddress{
+						Type:    k8sapi.NodeInternalIP,
+						Address: "172.17.17.10",
+					},
+					k8sapi.NodeAddress{
+						Type:    k8sapi.NodeExternalIP,
+						Address: "192.168.1.100",
+					},
+					k8sapi.NodeAddress{
+						Type:    k8sapi.NodeHostName,
+						Address: "172-17-17-10",
+					},
+				},
+			},
+		}
+
+		n, err := K8sNodeToCalico(&node, false)
+		Expect(err).NotTo(HaveOccurred())
+
+		addrs := n.Value.(*apiv3.Node).Spec.Addresses
+		Expect(addrs).To(ConsistOf([]apiv3.NodeAddress{
+			{Type: apiv3.NodeAddressIP, Address: "fd10::10"},
+			{Type: apiv3.NodeAddressK8sInternalIP, Address: "172.17.17.10"},
+			{Type: apiv3.NodeAddressVxlanTunnelIP, Address: "1.2.3.4"},
+			{Type: apiv3.NodeAddressVxlanMAC, Address: "00:11:22:33:44:55"},
+			{Type: apiv3.NodeAddressIPIPTunnelIP, Address: "5.4.5.4"},
+			{Type: apiv3.NodeAddressK8sExternalIP, Address: "192.168.1.100"},
+		}))
 	})
 })
