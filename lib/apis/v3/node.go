@@ -55,6 +55,11 @@ type NodeSpec struct {
 
 	// Wireguard configuration for this node.
 	Wireguard *NodeWireguardSpec `json:"wireguard,omitempty" validate:"omitempty"`
+
+	// Addresses lists all known addresses and their types. Addresses are
+	// possibly on different ISO/OSI levels, that is the address can be IP or MAC
+	// or something else, denoted by its type.
+	Addresses []NodeAddress `json:"addresses,omitempty" validate:"omitempty"`
 }
 
 type NodeStatus struct {
@@ -96,6 +101,25 @@ type NodeBGPSpec struct {
 type NodeWireguardSpec struct {
 	// InterfaceIPv4Address is the IPv4 address for the Wireguard interface.
 	InterfaceIPv4Address string `json:"interfaceIPv4Address,omitempty" validate:"omitempty,ipv4"`
+}
+
+// NodeAddressType represents a node address type as a string
+type NodeAddressType string
+
+const (
+	NodeAddressBGPIP             NodeAddressType = "BgpIP"
+	NodeAddressVXLANTunnelIP     NodeAddressType = "VxlanTunnelIP"
+	NodeAddressVXLANMAC          NodeAddressType = "VxlanMAC"
+	NodeAddressIPIPTunnelIP      NodeAddressType = "IPIPTunnelIP"
+	NodeAddressWireguardTunnelIP NodeAddressType = "WireguardTunnelIP"
+)
+
+// NodeAddress represents an address assigned to the node annotated with its type.
+type NodeAddress struct {
+	// Type denotes what sort of address it is.
+	Type NodeAddressType `json:"type"`
+	// Address is a string rpresentation of the actual address.
+	Address string `json:"address"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
