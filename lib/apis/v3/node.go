@@ -112,6 +112,8 @@ const (
 	NodeAddressVxlanMAC          NodeAddressType = "VxlanMAC"
 	NodeAddressIPIPTunnelIP      NodeAddressType = "IPIPTunnelIP"
 	NodeAddressWireguardTunnelIP NodeAddressType = "WireguardTunnelIP"
+	NodeAddressK8sInternalIP     NodeAddressType = "K8sInternalIP"
+	NodeAddressK8sExternalIP     NodeAddressType = "K8sExternalIP"
 )
 
 // NodeAddress represents an address assigned to the node annotated with its type.

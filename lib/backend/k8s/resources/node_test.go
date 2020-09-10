@@ -127,10 +127,15 @@ var _ = Describe("Test Node conversion", func() {
 		Expect(rrClusterID).To(Equal("248.0.4.5"))
 
 		addrs := n.Value.(*apiv3.Node).Spec.Addresses
-		Expect(addrs).Should(HaveLen(1))
-		Expect(addrs[0]).To(Equal(apiv3.NodeAddress{
-			Type:    apiv3.NodeAddressIP,
-			Address: "172.17.17.10",
+		Expect(addrs).To(ConsistOf([]apiv3.NodeAddress{
+			{
+				Type:    apiv3.NodeAddressK8sInternalIP,
+				Address: "172.17.17.10",
+			},
+			{
+				Type:    apiv3.NodeAddressK8sExternalIP,
+				Address: "192.168.1.100",
+			},
 		}))
 	})
 
@@ -524,6 +529,22 @@ var _ = Describe("Test Node conversion", func() {
 					nodeBgpIpv4IPIPTunnelAddrAnnotation:  "5.4.5.4",
 				},
 			},
+			Status: k8sapi.NodeStatus{
+				Addresses: []k8sapi.NodeAddress{
+					k8sapi.NodeAddress{
+						Type:    k8sapi.NodeInternalIP,
+						Address: "172.17.17.10",
+					},
+					k8sapi.NodeAddress{
+						Type:    k8sapi.NodeExternalIP,
+						Address: "192.168.1.100",
+					},
+					k8sapi.NodeAddress{
+						Type:    k8sapi.NodeHostName,
+						Address: "172-17-17-10",
+					},
+				},
+			},
 		}
 
 		n, err := K8sNodeToCalico(&node, false)
@@ -532,10 +553,11 @@ var _ = Describe("Test Node conversion", func() {
 		addrs := n.Value.(*apiv3.Node).Spec.Addresses
 		Expect(addrs).To(ConsistOf([]apiv3.NodeAddress{
 			{Type: apiv3.NodeAddressIP, Address: "fd10::10"},
-			{Type: apiv3.NodeAddressIP, Address: "172.17.17.10"},
+			{Type: apiv3.NodeAddressK8sInternalIP, Address: "172.17.17.10"},
 			{Type: apiv3.NodeAddressVxlanTunnelIP, Address: "1.2.3.4"},
 			{Type: apiv3.NodeAddressVxlanMAC, Address: "00:11:22:33:44:55"},
 			{Type: apiv3.NodeAddressIPIPTunnelIP, Address: "5.4.5.4"},
+			{Type: apiv3.NodeAddressK8sExternalIP, Address: "192.168.1.100"},
 		}))
 	})
 })
