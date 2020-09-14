@@ -289,6 +289,9 @@ func K8sNodeToCalico(k8sNode *kapiv1.Node, usePodCIDR bool) (*model.KVPair, erro
 		}
 	}
 
+	// Fill the list of all addresses from the calico Node
+	calicoNode.Spec.Addresses = listAllAddresses(k8sNode, calicoNode)
+
 	// Create the resource key from the node name.
 	return &model.KVPair{
 		Key: model.ResourceKey{
@@ -298,6 +301,60 @@ func K8sNodeToCalico(k8sNode *kapiv1.Node, usePodCIDR bool) (*model.KVPair, erro
 		Value:    calicoNode,
 		Revision: k8sNode.ObjectMeta.ResourceVersion,
 	}, nil
+}
+
+func listAllAddresses(k8sNode *kapiv1.Node, calicoNode *apiv3.Node) []apiv3.NodeAddress {
+	var addrs []apiv3.NodeAddress
+
+	if bgp := calicoNode.Spec.BGP; bgp != nil {
+		if addr := bgp.IPv4Address; addr != "" {
+			addrs = append(addrs, apiv3.NodeAddress{Address: addr, Type: apiv3.NodeAddressBGPIP})
+		}
+		if addr := bgp.IPv6Address; addr != "" {
+			addrs = append(addrs, apiv3.NodeAddress{Address: addr, Type: apiv3.NodeAddressBGPIP})
+		}
+		if addr := bgp.IPv4IPIPTunnelAddr; addr != "" {
+			addrs = append(addrs, apiv3.NodeAddress{Address: addr, Type: apiv3.NodeAddressIPIPTunnelIP})
+		}
+	}
+
+	if addr := calicoNode.Spec.IPv4VXLANTunnelAddr; addr != "" {
+		addrs = append(addrs, apiv3.NodeAddress{Address: addr, Type: apiv3.NodeAddressVXLANTunnelIP})
+	}
+	if addr := calicoNode.Spec.VXLANTunnelMACAddr; addr != "" {
+		addrs = append(addrs, apiv3.NodeAddress{Address: addr, Type: apiv3.NodeAddressVXLANMAC})
+	}
+
+	if wg := calicoNode.Spec.Wireguard; wg != nil {
+		addrs = append(addrs,
+			apiv3.NodeAddress{
+				Address: wg.InterfaceIPv4Address,
+				Type:    apiv3.NodeAddressWireguardTunnelIP,
+			},
+		)
+	}
+
+	for _, kaddr := range k8sNode.Status.Addresses {
+		var addr apiv3.NodeAddress
+		switch kaddr.Type {
+		case kapiv1.NodeInternalIP:
+			addr = apiv3.NodeAddress{
+				Type:    apiv3.NodeAddressKubeInternalIP,
+				Address: kaddr.Address,
+			}
+		case kapiv1.NodeExternalIP:
+			addr = apiv3.NodeAddress{
+				Type:    apiv3.NodeAddressKubeExternalIP,
+				Address: kaddr.Address,
+			}
+		default:
+			continue
+		}
+
+		addrs = append(addrs, addr)
+	}
+
+	return addrs
 }
 
 // mergeCalicoNodeIntoK8sNode takes a k8s node and a Calico node and puts the values from the Calico
