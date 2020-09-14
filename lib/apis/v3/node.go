@@ -107,9 +107,9 @@ type NodeWireguardSpec struct {
 type NodeAddressType string
 
 const (
-	NodeAddressBGPIP             NodeAddressType = "BgpIP"
-	NodeAddressVXLANTunnelIP     NodeAddressType = "VxlanTunnelIP"
-	NodeAddressVXLANMAC          NodeAddressType = "VxlanMAC"
+	NodeAddressBGPIP             NodeAddressType = "BGPIP"
+	NodeAddressVXLANTunnelIP     NodeAddressType = "VXLANTunnelIP"
+	NodeAddressVXLANMAC          NodeAddressType = "VXLANMAC"
 	NodeAddressIPIPTunnelIP      NodeAddressType = "IPIPTunnelIP"
 	NodeAddressWireguardTunnelIP NodeAddressType = "WireguardTunnelIP"
 	NodeAddressKubeInternalIP    NodeAddressType = "KubeInternalIP"
