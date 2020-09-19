@@ -1,5 +1,8 @@
 PACKAGE_NAME=github.com/projectcalico/libcalico-go
-GO_BUILD_VER=v0.45
+GO_BUILD_VER=v0.48
+
+# Used so semaphore can trigger the update pin pipelines in projects that have this project as a dependency
+SEMAPHORE_AUTO_PIN_UPDATE_PROJECT_IDS=$(SEMAPHORE_TYPHA_PROJECT_ID)
 
 # libcalico-go still relies on vendoring
 GOMOD_VENDOR = true
@@ -38,7 +41,7 @@ TEST_CERT_PATH := test/etcd-ut-certs/
 
 .PHONY: clean
 clean:
-	rm -rf .go-pkg-cache vendor $(BINDIR) checkouts
+	rm -rf .go-pkg-cache vendor $(BINDIR) checkouts Makefile.common*
 	find . -name '*.coverprofile' -type f -delete
 
 ###############################################################################
@@ -58,9 +61,9 @@ gen-files: gen-crds
 	$(MAKE) $(GENERATED_FILES)
 
 ## Force a rebuild of custom resource definition yamls
-gen-crds: bin/controller-gen
+gen-crds: vendor bin/controller-gen
 	rm -rf config
-	@./bin/controller-gen  crd:crdVersions=v1 paths=./lib/apis/... output:crd:dir=config/crd/
+	$(DOCKER_RUN) $(CALICO_BUILD) sh -c './bin/controller-gen  crd:crdVersions=v1 paths=./lib/apis/... output:crd:dir=config/crd/'
 	@rm config/crd/_.yaml
 	patch -s -p0 < ./config.patch
 
@@ -69,6 +72,7 @@ bin/controller-gen:
 	# Download a version of controller-gen that has been hacked to support additional types (e.g., float).
 	# We can remove this once we update the Calico v3 APIs to use only types which are supported by the upstream controller-gen
 	# tooling. Some examples: float, all the types in the numorstring package, etc.
+	mkdir -p bin
 	wget -O $@ https://github.com/caseydavenport/controller-tools/releases/download/float-support/controller-gen && chmod +x $@
 
 $(BINDIR)/deepcopy-gen: vendor

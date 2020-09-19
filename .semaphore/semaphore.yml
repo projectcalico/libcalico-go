@@ -1,0 +1,30 @@
+version: v1.0
+name: libcalico-go
+execution_time_limit:
+  hours: 2
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu1804
+blocks:
+  - name: Build
+    dependencies: []
+    task:
+      jobs:
+        - name: Build
+          commands:
+            - checkout
+            - make ci
+
+  - name: Trigger pin updates
+    dependencies: []
+    skip:
+      when: "(branch != 'master') and (branch !~ 'release-v\d*\.\d*')"
+    task:
+      secrets:
+        - name: semaphore-api
+      jobs:
+        - name: Trigger pin updates
+          commands:
+            - checkout
+            - make semaphore-run-auto-pin-update-workflows
