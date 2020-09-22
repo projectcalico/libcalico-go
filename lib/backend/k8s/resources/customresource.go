@@ -122,6 +122,8 @@ func (c *customK8sResourceClient) Update(ctx context.Context, kvp *model.KVPair)
 	// Send the update request using the name.
 	name := resIn.GetObjectMeta().GetName()
 	namespace := resIn.GetObjectMeta().GetNamespace()
+	uid := resIn.GetObjectMeta().GetUID()
+	log.Warningf("Updating with UID: %v", uid)
 	logContext = logContext.WithField("Name", name)
 	logContext.Debug("Update resource by name")
 	updateError = c.restClient.Put().
