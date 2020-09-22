@@ -20,7 +20,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,12 +30,14 @@ import (
 	v3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/libcalico-go/lib/errors"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 )
 
 const (
 	IPAMHandleResourceName = "IPAMHandles"
 	IPAMHandleCRDName      = "ipamhandles.crd.projectcalico.org"
+	DeletedFinalizer       = "deleted.projectcalico.org"
 )
 
 func NewIPAMHandleClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceClient {
@@ -97,9 +98,7 @@ func (c ipamHandleClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
 
 	// Include a finalizer so that the associated IPAM data can be GC'd.
 	var finalizers []string
-	if !kvpv1.Value.(*model.IPAMHandle).Deleted {
-		finalizers = []string{"deleted.projectcalico.org"}
-	}
+	finalizers = []string{DeletedFinalizer}
 
 	var ownerKind, ownerName, ownerUID string
 	if _, ok := attrs[model.IPAMBlockAttributePod]; ok {
@@ -158,6 +157,7 @@ func (c *ipamHandleClient) Create(ctx context.Context, kvp *model.KVPair) (*mode
 	if err != nil {
 		return nil, err
 	}
+	log.Warnf("CREATED v3: %+v", kvp.Value)
 	return c.toV1(kvp), nil
 }
 
@@ -187,7 +187,7 @@ func (c *ipamHandleClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*m
 		return nil, err
 	}
 
-	// And finalize deletion.
+	// If needed, remove finalizers.
 	kvp, err = c.finalizeDeletion(ctx, kvp)
 	if err != nil {
 		return nil, err
@@ -197,15 +197,22 @@ func (c *ipamHandleClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*m
 }
 
 func (c *ipamHandleClient) finalizeDeletion(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
+	// Get current state.
+	kvp, err := c.rc.Get(ctx, kvp.Key, kvp.Revision)
+	if err != nil {
+		if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
+			// Resource doesn't exist, no need to finalize.
+			return kvp, nil
+		}
+		return kvp, err
+	}
+
 	// Remove finalizers.
-	// TODO: Only remove OUR finalizer.
-	logrus.Error("FINALIZING DELETION")
 	kvp.Value.(*v3.IPAMHandle).Finalizers = nil
-	kvp, err := c.rc.Update(ctx, kvp)
+	kvp, err = c.rc.Update(ctx, kvp)
 	if err != nil {
 		return nil, err
 	}
-	logrus.Errorf("FINAL: %+v", kvp.Value.(Resource).GetObjectMeta())
 	return kvp, nil
 }
 

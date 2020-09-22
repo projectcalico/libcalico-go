@@ -36,6 +36,7 @@ spec:
               attrs:
                 additionalProperties:
                   type: string
+                nullable: true
                 type: object
               block:
                 additionalProperties:
