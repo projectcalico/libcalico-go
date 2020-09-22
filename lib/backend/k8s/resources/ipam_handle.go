@@ -27,10 +27,8 @@ import (
 	"k8s.io/client-go/rest"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	v3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/libcalico-go/lib/errors"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 )
 
@@ -201,19 +199,19 @@ func (c *ipamHandleClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*m
 	return c.toV1(kvp), nil
 }
 
-func (c *ipamHandleClient) finalizeDeletion(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
+func (c *ipamHandleClient) finalizeDeletion(ctx context.Context, v3kvp *model.KVPair) (*model.KVPair, error) {
 	// Get current state.
-	kvp, err := c.rc.Get(ctx, kvp.Key, kvp.Revision)
+	kvp, err := c.rc.Get(ctx, v3kvp.Key, v3kvp.Revision)
 	if err != nil {
-		if _, ok := err.(errors.ErrorResourceDoesNotExist); ok {
+		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
 			// Resource doesn't exist, no need to finalize.
-			return kvp, nil
+			return v3kvp, nil
 		}
-		return kvp, err
+		return v3kvp, err
 	}
 
 	// Remove finalizers.
-	kvp.Value.(*v3.IPAMHandle).Finalizers = nil
+	kvp.Value.(*apiv3.IPAMHandle).Finalizers = nil
 	kvp, err = c.rc.Update(ctx, kvp)
 	if err != nil {
 		return nil, err
