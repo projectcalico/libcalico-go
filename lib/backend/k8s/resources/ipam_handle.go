@@ -35,7 +35,7 @@ import (
 const (
 	IPAMHandleResourceName = "IPAMHandles"
 	IPAMHandleCRDName      = "ipamhandles.crd.projectcalico.org"
-	DeletedFinalizer       = "deleted.projectcalico.org"
+	IPAMFinalizer          = "ipam.projectcalico.org"
 )
 
 func NewIPAMHandleClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceClient {
@@ -94,14 +94,11 @@ func (c ipamHandleClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
 	block := kvpv1.Value.(*model.IPAMHandle).Block
 	ownerRef := kvpv1.Value.(*model.IPAMHandle).OwnerReferences
 
-	// Check if we have enough information to add a reference to the owner
-	// of this IPAM allocation. Currently, we only do this for IPs belong to pods
-	// and IPs belonging to nodes.
 	var finalizers []string
 	if len(ownerRef) != 0 {
 		// Add a finalizer so that when the parent is deleted, we have an
 		// opportunity to take action on related resources (e.g. blocks).
-		finalizers = []string{DeletedFinalizer}
+		finalizers = []string{IPAMFinalizer}
 	}
 
 	return &model.KVPair{
