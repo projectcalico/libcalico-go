@@ -70,15 +70,15 @@ type ipamHandleClient struct {
 func (c ipamHandleClient) toV1(kvpv3 *model.KVPair) *model.KVPair {
 	handle := kvpv3.Value.(*apiv3.IPAMHandle).Spec.HandleID
 	block := kvpv3.Value.(*apiv3.IPAMHandle).Spec.Block
-	attrs := kvpv3.Value.(*apiv3.IPAMHandle).Spec.Attrs
+	refs := kvpv3.Value.(*apiv3.IPAMHandle).OwnerReferences
 	return &model.KVPair{
 		Key: model.IPAMHandleKey{
 			HandleID: handle,
 		},
 		Value: &model.IPAMHandle{
-			HandleID: handle,
-			Block:    block,
-			Attrs:    attrs,
+			HandleID:        handle,
+			Block:           block,
+			OwnerReferences: refs,
 		},
 		Revision: kvpv3.Revision,
 	}
@@ -92,38 +92,13 @@ func (c ipamHandleClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
 	name := c.parseKey(kvpv1.Key)
 	handle := kvpv1.Key.(model.IPAMHandleKey).HandleID
 	block := kvpv1.Value.(*model.IPAMHandle).Block
-	attrs := kvpv1.Value.(*model.IPAMHandle).Attrs
-
-	// Determine who owns this handle, if possible.
-	var ownerKind, ownerName, ownerUID string
-	if _, ok := attrs[model.IPAMBlockAttributePod]; ok {
-		// This is a pod.
-		ownerKind = "Pod"
-		ownerName = attrs[model.IPAMBlockAttributePod]
-	} else if _, ok := attrs[model.IPAMBlockAttributeNode]; ok {
-		// Pod attr not defined, but node attr is. This is a node.
-		ownerKind = "Node"
-		ownerName = attrs[model.IPAMBlockAttributeNode]
-	}
-	ownerUID = attrs[model.IPAMBlockAttributeTypeUID]
+	ownerRef := kvpv1.Value.(*model.IPAMHandle).OwnerReferences
 
 	// Check if we have enough information to add a reference to the owner
 	// of this IPAM allocation. Currently, we only do this for IPs belong to pods
 	// and IPs belonging to nodes.
 	var finalizers []string
-	var ownerRef []metav1.OwnerReference
-	if ownerKind != "" && ownerName != "" && ownerUID != "" {
-		// Add a reference to the parent object so it is automatically
-		// cleaned up when the parent is deleted.
-		ownerRef = []metav1.OwnerReference{
-			{
-				APIVersion: "v1",
-				UID:        types.UID(ownerUID),
-				Kind:       ownerKind,
-				Name:       ownerName,
-			},
-		}
-
+	if len(ownerRef) != 0 {
 		// Add a finalizer so that when the parent is deleted, we have an
 		// opportunity to take action on related resources (e.g. blocks).
 		finalizers = []string{DeletedFinalizer}
@@ -148,7 +123,6 @@ func (c ipamHandleClient) toV3(kvpv1 *model.KVPair) *model.KVPair {
 			Spec: apiv3.IPAMHandleSpec{
 				HandleID: handle,
 				Block:    block,
-				Attrs:    attrs,
 			},
 		},
 		Revision: kvpv1.Revision,
