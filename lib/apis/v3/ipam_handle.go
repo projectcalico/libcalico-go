@@ -39,10 +39,6 @@ type IPAMHandle struct {
 type IPAMHandleSpec struct {
 	HandleID string         `json:"handleID"`
 	Block    map[string]int `json:"block"`
-
-	// +optional
-	// +nullable
-	Attrs map[string]string `json:"attrs,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

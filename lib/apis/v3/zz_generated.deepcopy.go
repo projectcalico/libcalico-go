@@ -1522,13 +1522,6 @@ func (in *IPAMHandleSpec) DeepCopyInto(out *IPAMHandleSpec) {
 			(*out)[key] = val
 		}
 	}
-	if in.Attrs != nil {
-		in, out := &in.Attrs, &out.Attrs
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	return
 }
 

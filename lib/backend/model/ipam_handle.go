@@ -22,6 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/libcalico-go/lib/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -78,8 +79,11 @@ func (options IPAMHandleListOptions) KeyFromDefaultPath(path string) Key {
 }
 
 type IPAMHandle struct {
-	HandleID string            `json:"-"`
-	Block    map[string]int    `json:"block"`
-	Deleted  bool              `json:"deleted"`
-	Attrs    map[string]string `json:"attrs"`
+	HandleID string         `json:"-"`
+	Block    map[string]int `json:"block"`
+	Deleted  bool           `json:"deleted"`
+
+	// OwnerReferences are used by the Kubernetes backend but not the etcd
+	// backend. They don't need to be stored, so nil the json tag.
+	OwnerReferences []metav1.OwnerReference `json:"-"`
 }
