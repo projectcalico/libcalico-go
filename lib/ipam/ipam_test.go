@@ -428,6 +428,50 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Expect(h.Finalizers).To(HaveLen(1))
 				Expect(h.Finalizers[0]).To(Equal("deleted.projectcalico.org"))
 			}
+
+			// Part 2: Test support for multiple addresses with the same handle. This is a
+			// rare scenario that probably never happens in Kubernetes but our IPAM data model
+			// does support it.
+			By("Allocating a second address with the same handle")
+			uid2 := "f9151ae3-cb0c-2bcf-51e9-2b5ad000000c"
+			ipAttr2 := map[string]string{
+				AttributeNode:    hostname,
+				AttributePod:     "test-pod-2",
+				AttributeTypeUID: uid2,
+			}
+			ip2 := net.ParseIP("10.0.0.2")
+			args = AssignIPArgs{
+				IP:       cnet.IP{IP: ip2},
+				Hostname: hostname,
+				Attrs:    ipAttr2,
+				HandleID: &handle,
+			}
+			err = ic.AssignIP(context.Background(), args)
+			Expect(err).NotTo(HaveOccurred())
+			if config.Spec.DatastoreType == "kubernetes" {
+				// Get the actual CRD.
+				h := v3.NewIPAMHandle()
+				err = crdClient.Get().
+					Context(context.Background()).
+					Resource("ipamhandles").
+					Name(handle).
+					Do().Into(h)
+				Expect(err).NotTo(HaveOccurred())
+
+				// Expect the IPAM handle to have proper owner references.
+				// There should be two now.
+				Expect(h.OwnerReferences).To(HaveLen(2))
+				Expect(string(h.OwnerReferences[0].UID)).To(Equal(uid))
+				Expect(h.OwnerReferences[0].Kind).To(Equal("Pod"))
+				Expect(h.OwnerReferences[0].Name).To(Equal("test-pod"))
+				Expect(string(h.OwnerReferences[1].UID)).To(Equal(uid2))
+				Expect(h.OwnerReferences[1].Kind).To(Equal("Pod"))
+				Expect(h.OwnerReferences[1].Name).To(Equal("test-pod-2"))
+
+				// Expect the IPAM handle to have proper finalizers.
+				Expect(h.Finalizers).To(HaveLen(1))
+				Expect(h.Finalizers[0]).To(Equal("deleted.projectcalico.org"))
+			}
 		})
 
 		It("should assign a node IP address when a UID is given", func() {
