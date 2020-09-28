@@ -965,7 +965,9 @@ func (c ipamClient) assignFromExistingBlock(ctx context.Context, block *model.KV
 	// Increment handle count.
 	if handleID != nil {
 		logCtx.Debug("Incrementing handle")
-		c.incrementHandle(ctx, *handleID, blockCIDR, num, attrs)
+		if err = c.incrementHandle(ctx, *handleID, blockCIDR, num, attrs); err != nil {
+			return nil, err
+		}
 	}
 
 	// Update the block using CAS by passing back the original
