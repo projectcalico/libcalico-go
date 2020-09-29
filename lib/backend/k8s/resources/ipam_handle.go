@@ -151,6 +151,7 @@ func (c *ipamHandleClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*m
 	kvp.Value.(*model.IPAMHandle).Deleted = true
 	v1kvp, err := c.Update(ctx, kvp)
 	if err != nil {
+		log.WithError(err).Debug("Error marking IPAM handle as deleted")
 		return nil, err
 	}
 
@@ -164,6 +165,7 @@ func (c *ipamHandleClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*m
 	// If needed, remove finalizers.
 	kvp, err = c.finalizeDeletion(ctx, kvp)
 	if err != nil {
+		log.WithError(err).Debug("Error finalizing deletion")
 		return nil, err
 	}
 
@@ -178,6 +180,7 @@ func (c *ipamHandleClient) finalizeDeletion(ctx context.Context, v3kvp *model.KV
 			// Resource doesn't exist, no need to finalize.
 			return v3kvp, nil
 		}
+		log.WithError(err).Debug("Error querying IPAM handle")
 		return v3kvp, err
 	}
 
@@ -185,6 +188,7 @@ func (c *ipamHandleClient) finalizeDeletion(ctx context.Context, v3kvp *model.KV
 	kvp.Value.(*apiv3.IPAMHandle).Finalizers = nil
 	kvp, err = c.rc.Update(ctx, kvp)
 	if err != nil {
+		log.WithError(err).Debug("Error removing finalizers")
 		return nil, err
 	}
 	return kvp, nil
