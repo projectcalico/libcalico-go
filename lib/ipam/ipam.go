@@ -1330,9 +1330,20 @@ func (c ipamClient) ReleaseByHandle(ctx context.Context, handleID string) error 
 	}
 	handle := allocationHandle{obj.Value.(*model.IPAMHandle)}
 
-	for blockStr, _ := range handle.Block {
+	for blockStr := range handle.Block {
 		_, blockCIDR, _ := net.ParseCIDR(blockStr)
 		if err := c.releaseByHandle(ctx, handleID, *blockCIDR); err != nil {
+			return err
+		}
+	}
+
+	// Defensively delete the handle itself. This may have already happened as a side-effect of
+	// decrementing the handle. However, if for some reason there are no IPs allocated with this handle,
+	// we will never decrement it and thus it will never otherwise be deleted.
+	if err = c.blockReaderWriter.deleteHandle(ctx, obj); err != nil {
+		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+			// We expect the handle to either not exist, or be deleted cleanly.
+			// If it's not either of these things, return an error.
 			return err
 		}
 	}
