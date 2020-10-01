@@ -17,6 +17,7 @@ package ipam
 import (
 	"context"
 
+	v3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 )
 
@@ -54,6 +55,7 @@ type Interface interface {
 	// using the provided handle.  Returns an error if no addresses
 	// are assigned with the given handle.
 	ReleaseByHandle(ctx context.Context, handleID string) error
+	ReleaseByHandleObject(ctx context.Context, handle *v3.IPAMHandle) error
 
 	// ClaimAffinity claims affinity to the given host for all blocks
 	// within the given CIDR.  The given CIDR must fall within a configured
