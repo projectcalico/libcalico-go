@@ -19,6 +19,7 @@ import (
 
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	k8sv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apiv1 "github.com/projectcalico/libcalico-go/lib/apis/v1"
@@ -402,6 +403,8 @@ func init() {
 		Entry("should accept a valid BGP externalIPs: 8.8.8.8", api.BGPConfigurationSpec{ServiceExternalIPs: []api.ServiceExternalIPBlock{{"8.8.8.8"}}}, true),
 		Entry("should reject invalid BGP clusterIPs: x.x.x.x", api.BGPConfigurationSpec{ServiceClusterIPs: []api.ServiceClusterIPBlock{{"x.x.x.x"}}}, false),
 		Entry("should reject invalid BGP externalIPs: x.x.x.x", api.BGPConfigurationSpec{ServiceExternalIPs: []api.ServiceExternalIPBlock{{"y.y.y.y"}}}, false),
+		Entry("should accept valid IPv6 BGP clusterIP", api.BGPConfigurationSpec{ServiceClusterIPs: []api.ServiceClusterIPBlock{{"fdf5:1234::102:304"}}}, true),
+		Entry("should accept valid IPv6 BGP externalIP", api.BGPConfigurationSpec{ServiceExternalIPs: []api.ServiceExternalIPBlock{{"fdf5:1234::808:808"}}}, true),
 
 		// (API) IP version.
 		Entry("should accept IP version 4", api.Rule{Action: "Allow", IPVersion: &V4}, true),
@@ -1331,6 +1334,15 @@ func init() {
 		Entry("should accept BGPPeerSpec with NodeSelector and PeerSelector", api.BGPPeerSpec{
 			NodeSelector: "has(mylabel)",
 			PeerSelector: "has(mylabel)",
+		}, true),
+		Entry("should accept BGPPeerSpec with Password", api.BGPPeerSpec{
+			PeerIP: ipv4_1,
+			Password: &api.BGPPassword{
+				SecretKeyRef: &k8sv1.SecretKeySelector{
+					LocalObjectReference: k8sv1.LocalObjectReference{Name: "tigera-bgp-passwords"},
+					Key:                  "my-peering",
+				},
+			},
 		}, true),
 		Entry("should reject invalid BGPPeerSpec (selector)", api.BGPPeerSpec{
 			NodeSelector: "kubernetes.io/hostname: == 'casey-crc-kadm-node-4'",
