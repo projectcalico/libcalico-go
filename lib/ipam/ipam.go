@@ -806,7 +806,7 @@ func (c ipamClient) AssignIP(ctx context.Context, args AssignIPArgs) error {
 			if h != nil {
 				// Attempt to decrement the handle that was incremented above, so the handle stays
 				// consistent with allocation state.
-				if decErr := c.decrementHandle(ctx, h, blockCIDR, 1); decErr != nil {
+				if _, decErr := c.decrementHandle(ctx, h, blockCIDR, 1); decErr != nil {
 					log.WithError(decErr).Warn("Failed to decrement handle")
 				}
 			}
@@ -941,7 +941,7 @@ func (c ipamClient) releaseIPsFromBlock(ctx context.Context, ips []net.IP, block
 				logCtx.WithError(err).Warn("Failed to query handle")
 				continue
 			}
-			if err := c.decrementHandle(ctx, handle, blockCIDR, amount); err != nil {
+			if _, err := c.decrementHandle(ctx, handle, blockCIDR, amount); err != nil {
 				logCtx.WithError(err).Warn("Failed to decrement handle")
 			}
 		}
@@ -994,7 +994,7 @@ func (c ipamClient) assignFromExistingBlock(ctx context.Context, block *model.KV
 		logCtx.WithError(err).Infof("Failed to update block")
 		if h != nil {
 			logCtx.Debug("Decrementing handle since we failed to allocate IP(s)")
-			if err := c.decrementHandle(ctx, h, blockCIDR, num); err != nil {
+			if _, err := c.decrementHandle(ctx, h, blockCIDR, num); err != nil {
 				logCtx.WithError(err).Warnf("Failed to decrement handle")
 			}
 		}
@@ -1167,6 +1167,9 @@ func (c ipamClient) ReleaseHostAffinities(ctx context.Context, host string, must
 						// We don't want to return just yet so we can do a best-effort
 						// attempt at releasing the other CIDRs for this host.
 						storedError = err
+
+						// Break out of the inner loop.
+						break
 					}
 				}
 
@@ -1364,19 +1367,21 @@ func (c ipamClient) ReleaseByHandleObject(ctx context.Context, v3h *v3.IPAMHandl
 	log.Infof("Releasing all IPs with handle '%s', RV=%s; UID=%s", handleID, obj.Revision, uid)
 	for blockStr := range h.Block {
 		_, blockCIDR, _ := net.ParseCIDR(blockStr)
-		if err := c.releaseByHandle(ctx, obj, *blockCIDR); err != nil {
+		if obj, err = c.releaseByHandle(ctx, obj, *blockCIDR); err != nil {
 			return err
 		}
 	}
 
-	// Defensively delete the handle itself. This may have already happened as a side-effect of
-	// decrementing the handle. However, if for some reason there are no IPs allocated with this handle,
-	// we will never decrement it and thus it will never otherwise be deleted.
-	if err = c.blockReaderWriter.deleteHandle(ctx, obj); err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
-			// We expect the handle to either not exist, or be deleted cleanly.
-			// If it's not either of these things, return an error.
-			return err
+	if obj != nil {
+		// Delete the handle itself. This normally would have happened as a side-effect of
+		// decrementing the handle. However, if for some reason there are no IPs allocated with this handle,
+		// we will never decrement it and thus it will never otherwise be deleted.
+		if err = c.blockReaderWriter.deleteHandle(ctx, obj); err != nil {
+			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+				// We expect the handle to either not exist, or be deleted cleanly.
+				// If it's not either of these things, return an error.
+				return err
+			}
 		}
 	}
 	return nil
@@ -1394,26 +1399,30 @@ func (c ipamClient) ReleaseByHandle(ctx context.Context, handleID string) error 
 
 	for blockStr := range handle.Block {
 		_, blockCIDR, _ := net.ParseCIDR(blockStr)
-		if err := c.releaseByHandle(ctx, obj, *blockCIDR); err != nil {
+		if obj, err = c.releaseByHandle(ctx, obj, *blockCIDR); err != nil {
 			return err
 		}
 	}
 
-	// Defensively delete the handle itself. This may have already happened as a side-effect of
-	// decrementing the handle. However, if for some reason there are no IPs allocated with this handle,
-	// we will never decrement it and thus it will never otherwise be deleted.
-	if err = c.blockReaderWriter.deleteHandle(ctx, obj); err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
-			// We expect the handle to either not exist, or be deleted cleanly.
-			// If it's not either of these things, return an error.
-			return err
+	if obj != nil {
+		// Delete the handle itself. This normally would have happened as a side-effect of
+		// decrementing the handle. However, if for some reason there are no IPs allocated with this handle,
+		// we will never decrement it and thus it will never otherwise be deleted.
+		if err = c.blockReaderWriter.deleteHandle(ctx, obj); err != nil {
+			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+				// We expect the handle to either not exist, or be deleted cleanly.
+				// If it's not either of these things, return an error.
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (c ipamClient) releaseByHandle(ctx context.Context, handle *model.KVPair, blockCIDR net.IPNet) error {
-	handleID := handle.Value.(*model.IPAMHandle).HandleID
+// releaseByHandle releases all addresses with the given handle object, and returns an updated handle object or nil if
+// the handle was deleted, or nil and an error if an error was encountered.
+func (c ipamClient) releaseByHandle(ctx context.Context, handle *model.KVPair, blockCIDR net.IPNet) (*model.KVPair, error) {
+	handleID := handle.Key.(model.IPAMHandleKey).HandleID
 	logCtx := log.WithFields(log.Fields{"handle": handleID, "cidr": blockCIDR})
 	for i := 0; i < datastoreRetries; i++ {
 		logCtx.Debug("Querying block so we can release IPs by handle")
@@ -1423,9 +1432,9 @@ func (c ipamClient) releaseByHandle(ctx context.Context, handle *model.KVPair, b
 				// Block doesn't exist, so all addresses are already
 				// unallocated.  This can happen when a handle is
 				// overestimating the number of assigned addresses.
-				return nil
+				return handle, nil
 			} else {
-				return err
+				return nil, err
 			}
 		}
 
@@ -1433,7 +1442,7 @@ func (c ipamClient) releaseByHandle(ctx context.Context, handle *model.KVPair, b
 		handle, err = c.blockReaderWriter.updateHandle(ctx, handle)
 		if err != nil {
 			log.WithError(err).Debug("Failed to confirm handle")
-			return err
+			return nil, err
 		}
 
 		// Release the IP by handle.
@@ -1443,7 +1452,7 @@ func (c ipamClient) releaseByHandle(ctx context.Context, handle *model.KVPair, b
 			// Block has no addresses with this handle, so
 			// all addresses are already unallocated.
 			logCtx.Debug("Block has no addresses with the given handle")
-			return nil
+			return handle, nil
 		}
 		logCtx.Debugf("Block has %d IPs with the given handle", num)
 
@@ -1459,7 +1468,7 @@ func (c ipamClient) releaseByHandle(ctx context.Context, handle *model.KVPair, b
 				// Return the error unless the resource does not exist.
 				if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
 					logCtx.Errorf("Error deleting block: %v", err)
-					return err
+					return nil, err
 				}
 			}
 			logCtx.Info("Successfully deleted empty block")
@@ -1477,23 +1486,23 @@ func (c ipamClient) releaseByHandle(ctx context.Context, handle *model.KVPair, b
 				} else {
 					// Something else - return the error.
 					logCtx.Errorf("Error updating block '%s': %v", block.CIDR.String(), err)
-					return err
+					return nil, err
 				}
 			}
 			logCtx.Debug("Successfully released IPs from block")
 		}
-		if err = c.decrementHandle(ctx, handle, blockCIDR, num); err != nil {
+		if handle, err = c.decrementHandle(ctx, handle, blockCIDR, num); err != nil {
 			logCtx.WithError(err).Warn("Failed to decrement handle")
-			return err
+			return nil, err
 		}
 
 		// Determine whether or not the block's pool still matches the node.
 		if err = c.ensureConsistentAffinity(ctx, block.AllocationBlock); err != nil {
 			logCtx.WithError(err).Warn("Error ensuring consistent affinity but IP already released. Returning no error.")
 		}
-		return nil
+		return handle, nil
 	}
-	return errors.New("Hit max retries")
+	return nil, errors.New("Hit max retries")
 }
 
 func buildOwnerReferencesFromAttrs(attrs map[string]string) *v1.OwnerReference {
@@ -1601,13 +1610,15 @@ func (c ipamClient) incrementHandle(ctx context.Context, handleID string, blockC
 	return nil, errors.New("Max retries hit - excessive concurrent IPAM requests")
 }
 
-func (c ipamClient) decrementHandle(ctx context.Context, obj *model.KVPair, blockCIDR net.IPNet, num int) error {
+func (c ipamClient) decrementHandle(ctx context.Context, obj *model.KVPair, blockCIDR net.IPNet, num int) (*model.KVPair, error) {
 	handle := allocationHandle{obj.Value.(*model.IPAMHandle)}
 	_, err := handle.decrementBlock(blockCIDR, num)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	handleID := handle.HandleID
+
+	var newObj *model.KVPair
 
 	// Update / Delete as appropriate.  Since we have been manipulating the
 	// data in the KVPair, just pass this straight back to the client.
@@ -1616,7 +1627,7 @@ func (c ipamClient) decrementHandle(ctx context.Context, obj *model.KVPair, bloc
 		if err = c.blockReaderWriter.deleteHandle(ctx, obj); err != nil {
 			if err != nil {
 				if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
-					return err
+					return nil, err
 				}
 				// Already deleted.
 				log.WithError(err).Debugf("Handle '%s' already deleted", handleID)
@@ -1624,13 +1635,13 @@ func (c ipamClient) decrementHandle(ctx context.Context, obj *model.KVPair, bloc
 		}
 	} else {
 		log.Debugf("Updating handle: %s", handleID)
-		if _, err = c.blockReaderWriter.updateHandle(ctx, obj); err != nil {
-			return err
+		if newObj, err = c.blockReaderWriter.updateHandle(ctx, obj); err != nil {
+			return nil, err
 		}
 	}
 
 	log.Debugf("Decremented handle '%s' by %d", handleID, num)
-	return nil
+	return newObj, nil
 }
 
 // GetAssignmentAttributes returns the attributes stored with the given IP address
