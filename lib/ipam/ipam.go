@@ -1147,12 +1147,20 @@ func (c ipamClient) ReleaseHostAffinities(ctx context.Context, host string, must
 					} else if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
 						logCtx.WithError(err).Debug("CAS error releasing block affinity - retry")
 						continue
+					} else if _, ok := err.(errBlockNotEmpty); ok {
+						// We required the block to be empty, but it is not. Skip this one.
+						logCtx.WithError(err).Debug("Block is not empty, skip")
+						break
 					} else {
 						// Store the error for later so we can return it.
 						// We don't want to return just yet so we can do a best-effort
 						// attempt at releasing the other CIDRs for this host.
 						storedError = err
 					}
+				} else {
+					// Successfully released. No need to retry.
+					logCtx.Info("Successfully released block affinity")
+					break
 				}
 			}
 		}
