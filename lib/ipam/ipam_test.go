@@ -634,7 +634,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(len(blocks.KVPairs)).To(Equal(1))
 		})
 
-		It("should release host affinifies even if the pool has been deleted", func() {
+		It("should release host affinities even if the pool has been deleted", func() {
 			// Allocate several blocks to the node. The pool is a /30, so 4 addresses
 			// per each block.
 			handle := "test-handle"
