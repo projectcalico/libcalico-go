@@ -158,8 +158,14 @@ func (c *ipamHandleClient) Update(ctx context.Context, kvp *model.KVPair) (*mode
 func (c *ipamHandleClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	// We need to mark as deleted first, since the Kubernetes API doesn't support
 	// compare-and-delete. This update operation allows us to eliminate races with other clients.
+	//
+	// While doing this, also remove any ownerReferences (and thus finalizers).
+	// Doing this prior to deleting the handle rather than after ensures we don't unnecessarily enter
+	// finalizing state for normal deletes. We want to enter finalizing state only when the
+	// referenced owner is unexpectedly deleted.
 	name := c.parseKey(kvp.Key)
 	kvp.Value.(*model.IPAMHandle).Deleted = true
+	kvp.Value.(*model.IPAMHandle).OwnerReferences = nil
 	v1kvp, err := c.Update(ctx, kvp)
 	if err != nil {
 		log.WithError(err).Debug("Error marking IPAM handle as deleted")
@@ -173,35 +179,7 @@ func (c *ipamHandleClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*m
 		return nil, err
 	}
 
-	// If needed, remove finalizers.
-	kvp, err = c.finalizeDeletion(ctx, kvp)
-	if err != nil {
-		log.WithError(err).Debug("Error finalizing deletion")
-		return nil, err
-	}
 	return c.toV1(kvp), nil
-}
-
-func (c *ipamHandleClient) finalizeDeletion(ctx context.Context, v3kvp *model.KVPair) (*model.KVPair, error) {
-	// Get current state.
-	kvp, err := c.rc.Get(ctx, v3kvp.Key, v3kvp.Revision)
-	if err != nil {
-		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
-			// Resource doesn't exist, no need to finalize.
-			return v3kvp, nil
-		}
-		log.WithError(err).Debug("Error querying IPAM handle")
-		return v3kvp, err
-	}
-
-	// Remove finalizers.
-	kvp.Value.(*apiv3.IPAMHandle).Finalizers = nil
-	kvp, err = c.rc.Update(ctx, kvp)
-	if err != nil {
-		log.WithError(err).Debug("Error removing finalizers")
-		return nil, err
-	}
-	return kvp, nil
 }
 
 func (c *ipamHandleClient) Delete(ctx context.Context, key model.Key, revision string, uid *types.UID) (*model.KVPair, error) {
