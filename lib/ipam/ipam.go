@@ -1167,9 +1167,6 @@ func (c ipamClient) ReleaseHostAffinities(ctx context.Context, host string, must
 						// We don't want to return just yet so we can do a best-effort
 						// attempt at releasing the other CIDRs for this host.
 						storedError = err
-
-						// Break out of the inner loop.
-						break
 					}
 				}
 
