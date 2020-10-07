@@ -1341,63 +1341,23 @@ func (c ipamClient) IPsByHandle(ctx context.Context, handleID string) ([]net.IP,
 	return assignments, nil
 }
 
-// ReleaseByHandleObject is a safe alternative to ReleaseByHandle that allows callers to protect
-// against racing clients by providing a UID and revision.
-func (c ipamClient) ReleaseByHandleObject(ctx context.Context, v3h *v3.IPAMHandle) error {
-	// Get the existing handle.
-	handleID := v3h.Spec.HandleID
-	obj, err := c.blockReaderWriter.queryHandle(ctx, handleID, "")
+// ReleaseByHandle releases addresses with the given handle using the given revision information.
+func (c ipamClient) ReleaseByHandle(ctx context.Context, handleID, revision string, uid *types.UID) error {
+	// Get the existing handle and populate the given revision and UID information.
+	obj, err := c.blockReaderWriter.queryHandle(ctx, handleID, revision)
 	if err != nil {
 		return err
 	}
+	if revision != "" {
+		obj.Revision = revision
+	}
+	if uid != nil {
+		obj.UID = uid
+	}
+
+	log.Infof("Releasing all IPs with handle '%s', RV=%s; UID=%v", handleID, obj.Revision, obj.UID)
 	h := allocationHandle{obj.Value.(*model.IPAMHandle)}
-
-	// Use the provided revision and UID.
-	uid := v3h.UID
-	obj.Revision = v3h.ResourceVersion
-	obj.UID = &uid
-
-	// Write the handle to invalidate any other users of the handle.
-	obj, err = c.blockReaderWriter.updateHandle(ctx, obj)
-	if err != nil {
-		log.WithError(err).Debug("Failed to confirm handle UID or revision")
-		return nil
-	}
-
-	log.Infof("Releasing all IPs with handle '%s', RV=%s; UID=%s", handleID, obj.Revision, uid)
 	for blockStr := range h.Block {
-		_, blockCIDR, _ := net.ParseCIDR(blockStr)
-		if obj, err = c.releaseByHandle(ctx, obj, *blockCIDR); err != nil {
-			return err
-		}
-	}
-
-	if obj != nil {
-		// Delete the handle itself. This normally would have happened as a side-effect of
-		// decrementing the handle. However, if for some reason there are no IPs allocated with this handle,
-		// we will never decrement it and thus it will never otherwise be deleted.
-		if err = c.blockReaderWriter.deleteHandle(ctx, obj); err != nil {
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
-				// We expect the handle to either not exist, or be deleted cleanly.
-				// If it's not either of these things, return an error.
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// ReleaseByHandle releases all IP addresses that have been assigned
-// using the provided handle.
-func (c ipamClient) ReleaseByHandle(ctx context.Context, handleID string) error {
-	log.Infof("Releasing all IPs with handle '%s'", handleID)
-	obj, err := c.blockReaderWriter.queryHandle(ctx, handleID, "")
-	if err != nil {
-		return err
-	}
-	handle := allocationHandle{obj.Value.(*model.IPAMHandle)}
-
-	for blockStr := range handle.Block {
 		_, blockCIDR, _ := net.ParseCIDR(blockStr)
 		if obj, err = c.releaseByHandle(ctx, obj, *blockCIDR); err != nil {
 			return err
