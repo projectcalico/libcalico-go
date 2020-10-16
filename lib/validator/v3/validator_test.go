@@ -573,7 +573,10 @@ func init() {
 
 		// (API) FelixConfiguration.
 		Entry("should accept a valid DefaultEndpointToHostAction value", api.FelixConfigurationSpec{DefaultEndpointToHostAction: "Drop"}, true),
-		Entry("should reject an invalid DefaultEndpointToHostAction value 'drop' (lower case)", api.FelixConfigurationSpec{DefaultEndpointToHostAction: "drop"}, false),
+		Entry("should accept a valid DefaultEndpointToHostAction value 'drop'", api.FelixConfigurationSpec{DefaultEndpointToHostAction: "drop"}, true),
+		Entry("should accept a valid DefaultEndpointToHostAction value 'RETURN'", api.FelixConfigurationSpec{DefaultEndpointToHostAction: "RETURN"}, true),
+		Entry("should accept a valid DefaultEndpointToHostAction value 'return'", api.FelixConfigurationSpec{DefaultEndpointToHostAction: "return"}, true),
+		Entry("should accpet a invalid DefaultEndpointToHostAction value 'Return'", api.FelixConfigurationSpec{DefaultEndpointToHostAction: "Return"}, true),
 		Entry("should accept a valid IptablesFilterAllowAction value 'Accept'", api.FelixConfigurationSpec{IptablesFilterAllowAction: "Accept"}, true),
 		Entry("should accept a valid IptablesMangleAllowAction value 'Return'", api.FelixConfigurationSpec{IptablesMangleAllowAction: "Return"}, true),
 		Entry("should reject an invalid IptablesMangleAllowAction value 'Drop'", api.FelixConfigurationSpec{IptablesMangleAllowAction: "Drop"}, false),
