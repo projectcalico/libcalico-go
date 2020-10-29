@@ -248,7 +248,7 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		rs.clientWatchResponse(r3, nil)
 		rs.sendEvent(r3, api.WatchEvent{
 			Type:  api.WatchError,
-			Error: cerrors.ErrorWatchTerminated{Err: dsError},
+			Error: dsError,
 		})
 		rs.ExpectStatusUpdate(api.WaitForDatastore)
 		rs.clientListResponse(r3, emptyList)
@@ -308,7 +308,7 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		rs.clientWatchResponse(r3, nil)
 		rs.sendEvent(r3, api.WatchEvent{
 			Type:  api.WatchError,
-			Error: cerrors.ErrorWatchTerminated{Err: dsError},
+			Error: dsError,
 		})
 		rs.ExpectStatusUpdate(api.WaitForDatastore)
 		rs.clientListResponse(r3, emptyList)
