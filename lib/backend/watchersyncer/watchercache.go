@@ -115,13 +115,13 @@ mainLoop:
 				wc.handleWatchListEvent(kvp)
 			case api.WatchError:
 				// Handle a WatchError. This error triggered from upstream, all type
-				// of WatchError are treated equally,log the Error and trigger a full resync.
-
+				// of WatchError are treated equally. Log the error, reset the revision to trigger a full resync when
+				// the channel closes. No need to trigger a full resync immediately since not all errors are terminating
+				// events. If we get a subsequent good update the the revision will be updated again. If the watch
+				// channel is closed then we'll get a full update. This latter case handles, for example, attempting to
+				// watch with an obsolete revision.
 				wc.logger.WithField("EventType", event.Type).Errorf("Watch error received from Upstream")
-				wc.onWaitForDatastore()
 				wc.currentWatchRevision = ""
-				wc.resyncAndCreateWatcher(ctx)
-
 			default:
 				// Unknown event type - not much we can do other than log.
 				wc.logger.WithField("EventType", event.Type).Errorf("Unknown event type received from the datastore")
@@ -172,7 +172,7 @@ func (wc *watcherCache) resyncAndCreateWatcher(ctx context.Context) {
 		}
 
 		if performFullResync {
-			wc.logger.Debug("Full resync is required")
+			wc.logger.Info("Full resync is required")
 
 			// Notify the converter that we are resyncing.
 			if wc.resourceType.UpdateProcessor != nil {
