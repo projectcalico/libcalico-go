@@ -36,6 +36,7 @@ import (
 
 var (
 	dsError = cerrors.ErrorDatastoreError{Err: errors.New("Generic datastore error")}
+	termError = cerrors.ErrorDatastoreError{Err: errors.New("Terminating datastore error")}
 	l1Key1  = model.ResourceKey{
 		Kind:      apiv3.KindNetworkPolicy,
 		Namespace: "namespace1",
@@ -233,7 +234,7 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		Expect(duration).To(BeNumerically("<", maxDuration))
 	})
 
-	It("Should handle reconnection and syncing when the watcher sends a watch terminated error", func() {
+	It("Should handle reconnection and full sync when the watcher sends a terminating error", func() {
 
 		rs := newWatcherSyncerTester([]watchersyncer.ResourceType{r1, r2, r3})
 		rs.ExpectStatusUpdate(api.WaitForDatastore)
@@ -248,7 +249,7 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		rs.clientWatchResponse(r3, nil)
 		rs.sendEvent(r3, api.WatchEvent{
 			Type:  api.WatchError,
-			Error: cerrors.ErrorWatchTerminated{Err: dsError},
+			Error: termError,
 		})
 		rs.ExpectStatusUpdate(api.WaitForDatastore)
 		rs.clientListResponse(r3, emptyList)
@@ -308,7 +309,7 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		rs.clientWatchResponse(r3, nil)
 		rs.sendEvent(r3, api.WatchEvent{
 			Type:  api.WatchError,
-			Error: cerrors.ErrorWatchTerminated{Err: dsError},
+			Error: termError,
 		})
 		rs.ExpectStatusUpdate(api.WaitForDatastore)
 		rs.clientListResponse(r3, emptyList)
@@ -433,7 +434,7 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
 		By("Failing the watch, and resyncing with another modified entry")
 		rs.sendEvent(r1, api.WatchEvent{
 			Type:  api.WatchError,
-			Error: cerrors.ErrorWatchTerminated{Err: dsError},
+			Error: termError,
 		})
 		rs.ExpectStatusUpdate(api.WaitForDatastore)
 		rs.clientListResponse(r1, &model.KVPairList{
@@ -895,11 +896,11 @@ func (rst *watcherSyncerTester) sendEvent(r watchersyncer.ResourceType, event ap
 	rst.lws[name].termWg.Wait()
 	log.Info("Previous watcher terminated (if any)")
 
-	if event.Type == api.WatchError {
-		// Watch errors are treated as a terminating event.  Our test framework will shut down the previous
-		// watcher as part of the creation of the new one.  Increment the init wait group
-		// in the watcher which will be decremented once the old one has fully terminated.
+	if event.Type == api.WatchError && event.Error == termError {
+		// Watch errors are not necessarily treated as a terminating event.  If the error is a termError then replicate
+		// the datastore behavior by terminating the watcher.
 		log.WithField("Name", name).Info("Watcher error will trigger restart - increment termination count")
+		rst.lws[name].watcher.terminate()
 		rst.lws[name].termWg.Add(1)
 
 	}
@@ -907,7 +908,7 @@ func (rst *watcherSyncerTester) sendEvent(r watchersyncer.ResourceType, event ap
 	log.WithField("Name", name).Info("Sending event")
 	rst.lws[name].results <- event
 
-	if event.Type == api.WatchError {
+	if event.Type == api.WatchError && event.Error == termError {
 		// Finally, since this is a terminating event then we expect a corresponding Stop()
 		// invocation (now that the event has been sent).
 		log.WithField("Name", name).Info("Expecting a stop invocation")

@@ -125,6 +125,7 @@ func (wc *watcher) watchLoop() {
 			// A watch channel error is a terminating event, so exit the loop.
 			err := wres.Err()
 			log.WithError(err).Error("Watch channel error")
+			wc.sendError(err)
 			return
 		}
 		for _, e := range wres.Events {
