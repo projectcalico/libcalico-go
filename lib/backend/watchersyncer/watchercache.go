@@ -116,7 +116,6 @@ mainLoop:
 			case api.WatchError:
 				// Handle a WatchError. This error triggered from upstream, all type
 				// of WatchError are treated equally,log the Error and trigger a full resync.
-
 				wc.logger.WithField("EventType", event.Type).Errorf("Watch error received from Upstream")
 				wc.onWaitForDatastore()
 				wc.currentWatchRevision = ""
@@ -172,7 +171,7 @@ func (wc *watcherCache) resyncAndCreateWatcher(ctx context.Context) {
 		}
 
 		if performFullResync {
-			wc.logger.Debug("Full resync is required")
+			wc.logger.Info("Full resync is required")
 
 			// Notify the converter that we are resyncing.
 			if wc.resourceType.UpdateProcessor != nil {
