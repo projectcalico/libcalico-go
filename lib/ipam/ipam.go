@@ -127,7 +127,7 @@ func (c ipamClient) AutoAssign(ctx context.Context, args AutoAssignArgs) ([]net.
 			log.Errorf("Error assigning IPV6 addresses: %v", err)
 		}
 
-		if len(v6list) == 0 {
+		if len(v6list) != args.Num6 {
 			if len(v4list) != 0 {
 				// Release any v4 IPs that were assigned when we were expecting to assign
 				// both v4 and v6 IPs and v6 IP assignment did not complete.
