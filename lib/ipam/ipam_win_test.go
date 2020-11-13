@@ -495,7 +495,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 		Entry("256 v4 256 v6", "testHost", true, []pool{
 			{cidr: "192.168.1.0/24", blockSize: 26, enabled: true},
 			{cidr: "fd80:24e2:f998:72d6::/120", blockSize: 122, enabled: true},
-		}, rsvdAttrWindows, "192.168.1.0/24", 256, 256, 240, 240, nil),
+		}, rsvdAttrWindows, "192.168.1.0/24", 256, 256, 240, 0, nil),
 
 		// Test 2: AutoAssign 257 IPv4, 0 IPv6 - expect 240 IPv4 addresses, no IPv6, and no error.
 		Entry("257 v4 0 v6", "testHost", true, []pool{{cidr: "192.168.1.0/24", blockSize: 26, enabled: true}}, rsvdAttrWindows, "192.168.1.0/24", 257, 0, 240, 0, nil),
