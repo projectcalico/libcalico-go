@@ -1024,6 +1024,48 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(v4)).To(Equal(1))
 		})
+
+		It("should not assign IPv4 addresses if it fails to assign IPv6 addresses", func() {
+			deleteAllPools()
+
+			applyPool("100.0.0.0/24", true, "")
+			applyPool("fe80:ba:ad:beef::00/127", true, "")
+			args.Num6 = 1
+
+			// Attempt to assign an IPv6 address from the fully allocated pool
+			v4, v6, err := ic.AutoAssign(context.Background(), args)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(v4)).To(Equal(0))
+			Expect(len(v6)).To(Equal(0))
+
+			// Make sure the IPv4 addresses were cleaned up successfully
+			usage, err := ic.GetUtilization(context.Background(), GetUtilizationArgs{
+				Pools: []string{"100.0.0.0/24"},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(findInUse(usage, "100.0.0.0/24", 1)).To(BeFalse())
+		})
+
+		It("should not assign IPv6 addresses if it fails to assign IPv4 addresses", func() {
+			deleteAllPools()
+
+			applyPool("10.0.0.0/32", true, "")
+			applyPool("fe80:ba:ad:beef::00/120", true, "")
+			args.Num6 = 1
+
+			// Attempt to assign an IPv4 address from the fully allocated pool
+			v4, v6, err := ic.AutoAssign(context.Background(), args)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(v4)).To(Equal(0))
+			Expect(len(v6)).To(Equal(0))
+
+			// Make sure the IPv4 addresses were cleaned up successfully
+			usage, err := ic.GetUtilization(context.Background(), GetUtilizationArgs{
+				Pools: []string{"fe80:ba:ad:beef::00/120"},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(findInUse(usage, "fe80:ba:ad:beef::00/120", 1)).To(BeFalse())
+		})
 	})
 
 	Describe("IPAM AutoAssign from different pools", func() {
@@ -1031,18 +1073,6 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 		pool1 := cnet.MustParseNetwork("10.0.0.0/24")
 		pool2 := cnet.MustParseNetwork("20.0.0.0/24")
 		var block1, block2 cnet.IPNet
-
-		findInUse := func(usage []*PoolUtilization, cidr string, expectedInUse int) bool {
-			for _, poolUse := range usage {
-				for _, blockUse := range poolUse.Blocks {
-					if (blockUse.CIDR.String() == cidr) &&
-						(blockUse.Available == blockUse.Capacity-expectedInUse) {
-						return true
-					}
-				}
-			}
-			return false
-		}
 
 		It("should get an IP from pool1 when explicitly requesting from that pool", func() {
 			bc.Clean()
@@ -2359,4 +2389,16 @@ func deleteNode(c bapi.Client, kc *kubernetes.Clientset, host string) {
 	} else {
 		c.Delete(context.Background(), &model.ResourceKey{Name: host, Kind: v3.KindNode}, "")
 	}
+}
+
+func findInUse(usage []*PoolUtilization, cidr string, expectedInUse int) bool {
+	for _, poolUse := range usage {
+		for _, blockUse := range poolUse.Blocks {
+			if (blockUse.CIDR.String() == cidr) &&
+				(blockUse.Available == blockUse.Capacity-expectedInUse) {
+				return true
+			}
+		}
+	}
+	return false
 }

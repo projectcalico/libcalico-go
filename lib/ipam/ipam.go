@@ -108,6 +108,12 @@ func (c ipamClient) AutoAssign(ctx context.Context, args AutoAssignArgs) ([]net.
 		}
 	}
 
+	if len(v4list) != args.Num4 && args.Num6 != 0 {
+		// No need to assign any V6 if V4 has already failed.
+		log.Debugf("Skipping assignment of IPv6 addresses since IPv4 assignment has failed")
+		return v4list, nil, nil
+	}
+
 	if args.Num6 != 0 {
 		// If no err assigning V4, try to assign any V6.
 		log.Debugf("Assigning IPv6 addresses")
@@ -119,7 +125,24 @@ func (c ipamClient) AutoAssign(ctx context.Context, args AutoAssignArgs) ([]net.
 		v6list, err = c.autoAssign(ctx, args.Num6, args.HandleID, args.Attrs, args.IPv6Pools, 6, hostname, args.MaxBlocksPerHost, args.HostReservedAttrIPv6s)
 		if err != nil {
 			log.Errorf("Error assigning IPV6 addresses: %v", err)
-			return v4list, v6list, err
+		}
+
+		if len(v6list) != args.Num6 {
+			if len(v4list) != 0 {
+				// Release any v4 IPs that were assigned when we were expecting to assign
+				// both v4 and v6 IPs and v6 IP assignment did not complete.
+				// This should only occur in dual stack environments.
+				// This prevents v4 IPs from being assigned when v6 assignment fails.
+				v4IPs := []net.IP{}
+				for _, v4 := range v4list {
+					v4IPs = append(v4IPs, *net.ParseIP(v4.IP.String()))
+				}
+				_, releaseErr := c.ReleaseIPs(ctx, v4IPs)
+				if releaseErr != nil {
+					log.Errorf("Error releasing IPv4 addresses %+v on IPv6 address assignment failure: %s", v4IPs, err)
+				}
+			}
+			return nil, v6list, err
 		}
 	}
 
