@@ -145,8 +145,14 @@ func (c *ipamHandleClient) Update(ctx context.Context, kvp *model.KVPair) (*mode
 func (c *ipamHandleClient) DeleteKVP(ctx context.Context, kvp *model.KVPair) (*model.KVPair, error) {
 	// We need to mark as deleted first, since the Kubernetes API doesn't support
 	// compare-and-delete. This update operation allows us to eliminate races with other clients.
+	//
+	// While doing this, also remove any ownerReferences (and thus finalizers).
+	// Doing this prior to deleting the handle rather than after ensures we don't unnecessarily enter
+	// finalizing state for normal deletes. We want to enter finalizing state only when the
+	// referenced owner is unexpectedly deleted.
 	name := c.parseKey(kvp.Key)
 	kvp.Value.(*model.IPAMHandle).Deleted = true
+	kvp.Value.(*model.IPAMHandle).OwnerReferences = nil
 	v1kvp, err := c.Update(ctx, kvp)
 	if err != nil {
 		return nil, err
