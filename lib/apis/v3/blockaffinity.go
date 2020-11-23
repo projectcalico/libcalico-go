@@ -44,6 +44,7 @@ type BlockAffinitySpec struct {
 	// Deleted indicates that this block affinity is being deleted.
 	// This field is a string for compatibility with older releases that
 	// mistakenly treat this field as a string.
+	// +optional
 	Deleted string `json:"deleted"`
 }
 
