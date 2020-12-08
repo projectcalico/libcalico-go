@@ -2346,12 +2346,7 @@ func (in *RouteReflectorControllerConfig) DeepCopyInto(out *RouteReflectorContro
 	*out = *in
 	if in.ReconcilerPeriod != nil {
 		in, out := &in.ReconcilerPeriod, &out.ReconcilerPeriod
-		*out = new(v1.Duration)
-		**out = **in
-	}
-	if in.DatastoreType != nil {
-		in, out := &in.DatastoreType, &out.DatastoreType
-		*out = new(string)
+		*out = new(metav1.Duration)
 		**out = **in
 	}
 	if in.ClusterID != nil {

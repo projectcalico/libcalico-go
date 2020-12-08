@@ -125,9 +125,6 @@ type RouteReflectorControllerConfig struct {
 	// ReconcilerPeriod is the period to perform reconciliation with the Calico datastore. [Default: 5m]
 	ReconcilerPeriod *metav1.Duration `json:"reconcilerPeriod,omitempty" validate:"omitempty"`
 
-	// DatastoreType is the type of backend data store. [Default: etcdv3]
-	DatastoreType *string `json:"datastoreType,omitempty" validate:"omitempty,oneof=etcdv3 kubernetes"`
-
 	// ClusterID is the Route Reflector cluster id. [Default: 224.0.0.0]
 	ClusterID *string `json:"clusterId,omitempty" validate:"omitempty"`
 

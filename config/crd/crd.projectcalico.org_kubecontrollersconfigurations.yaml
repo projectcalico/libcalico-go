@@ -85,10 +85,6 @@ spec:
                         description: 'ClusterID is the Route Reflector cluster id.
                           [Default: 224.0.0.0]'
                         type: string
-                      datastoreType:
-                        description: 'DatastoreType is the type of backend data store.
-                          [Default: etcdv3]'
-                        type: string
                       incompatibleLabels:
                         description: IncompatibleLabels List of node labels to disallow
                           Route Reflector selection.
@@ -228,10 +224,6 @@ spec:
                           clusterId:
                             description: 'ClusterID is the Route Reflector cluster
                               id. [Default: 224.0.0.0]'
-                            type: string
-                          datastoreType:
-                            description: 'DatastoreType is the type of backend data
-                              store. [Default: etcdv3]'
                             type: string
                           incompatibleLabels:
                             description: IncompatibleLabels List of node labels to
