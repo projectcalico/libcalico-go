@@ -401,6 +401,10 @@ func (c converter) k8sRuleToCalico(rPeers []networkingv1.NetworkPolicyPeer, rPor
 			protval := kapiv1.Protocol(fmt.Sprintf("%s", *p.Protocol))
 			port.Protocol = &protval
 		}
+
+		if p.EndPort != nil {
+			port.EndPort = p.EndPort
+		}
 		ports = append(ports, &port)
 	}
 
@@ -619,9 +623,13 @@ func (c converter) k8sPeerToCalicoFields(peer *networkingv1.NetworkPolicyPeer, n
 func (c converter) k8sPortToCalico(port networkingv1.NetworkPolicyPort) ([]numorstring.Port, error) {
 	var portList []numorstring.Port
 	if port.Port != nil {
-		p, err := numorstring.PortFromString(port.Port.String())
+		calicoPort := port.Port.String()
+		if port.EndPort != nil {
+			calicoPort = fmt.Sprintf("%s:%d", calicoPort, *port.EndPort)
+		}
+		p, err := numorstring.PortFromString(calicoPort)
 		if err != nil {
-			return nil, fmt.Errorf("invalid port %+v: %s", port.Port, err)
+			return nil, fmt.Errorf("invalid port %+v: %s", calicoPort, err)
 		}
 		return append(portList, p), nil
 	}
