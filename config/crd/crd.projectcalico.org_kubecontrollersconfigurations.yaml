@@ -83,7 +83,12 @@ spec:
                     properties:
                       clusterId:
                         description: 'ClusterID is the Route Reflector cluster id.
-                          [Default: 224.0.0.0]'
+                          Multi cluster topology uses zeros as wildcard. [Default:
+                          224.0.0.0]'
+                        type: string
+                      hostnameLabel:
+                        description: 'HostnameLabel hostname label on Kubernetes nodes.
+                          [Default: kubernetes.io/hostname]'
                         type: string
                       incompatibleLabels:
                         description: IncompatibleLabels List of node labels to disallow
@@ -98,8 +103,8 @@ spec:
                           3]'
                         type: integer
                       ratio:
-                        description: 'Ratio the defines the ration of Route Reflectors
-                          and clients, between 0.001 and 0.05. [Default: 0.005]'
+                        description: 'Ratio defines the ration of Route Reflectors
+                          and clients, between 0.001 and 0.5. [Default: 0.005]'
                         type: number
                       reconcilerPeriod:
                         description: 'ReconcilerPeriod is the period to perform reconciliation
@@ -112,6 +117,14 @@ spec:
                       routeReflectorLabelValue:
                         description: RouteReflectorLabelValue label value of Route
                           Reflector selector.
+                        type: string
+                      routeReflectorsPerNode:
+                        description: 'ReflectorsPerNode the number of route reflectors
+                          per client. Single cluster topology ignores. [Default: 3]'
+                        type: integer
+                      topologyType:
+                        description: 'TopologyType deines the type of topology, which
+                          can be [single, multi]. [Default: multi]'
                         type: string
                       zoneLabel:
                         description: 'ZoneLabel zone label on Kubernetes nodes. [Default:
@@ -223,7 +236,12 @@ spec:
                         properties:
                           clusterId:
                             description: 'ClusterID is the Route Reflector cluster
-                              id. [Default: 224.0.0.0]'
+                              id. Multi cluster topology uses zeros as wildcard. [Default:
+                              224.0.0.0]'
+                            type: string
+                          hostnameLabel:
+                            description: 'HostnameLabel hostname label on Kubernetes
+                              nodes. [Default: kubernetes.io/hostname]'
                             type: string
                           incompatibleLabels:
                             description: IncompatibleLabels List of node labels to
@@ -238,8 +256,8 @@ spec:
                               [Default: 3]'
                             type: integer
                           ratio:
-                            description: 'Ratio the defines the ration of Route Reflectors
-                              and clients, between 0.001 and 0.05. [Default: 0.005]'
+                            description: 'Ratio defines the ration of Route Reflectors
+                              and clients, between 0.001 and 0.5. [Default: 0.005]'
                             type: number
                           reconcilerPeriod:
                             description: 'ReconcilerPeriod is the period to perform
@@ -253,6 +271,15 @@ spec:
                           routeReflectorLabelValue:
                             description: RouteReflectorLabelValue label value of Route
                               Reflector selector.
+                            type: string
+                          routeReflectorsPerNode:
+                            description: 'ReflectorsPerNode the number of route reflectors
+                              per client. Single cluster topology ignores. [Default:
+                              3]'
+                            type: integer
+                          topologyType:
+                            description: 'TopologyType deines the type of topology,
+                              which can be [single, multi]. [Default: multi]'
                             type: string
                           zoneLabel:
                             description: 'ZoneLabel zone label on Kubernetes nodes.

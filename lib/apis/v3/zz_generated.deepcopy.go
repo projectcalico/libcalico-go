@@ -2349,6 +2349,11 @@ func (in *RouteReflectorControllerConfig) DeepCopyInto(out *RouteReflectorContro
 		*out = new(metav1.Duration)
 		**out = **in
 	}
+	if in.TopologyType != nil {
+		in, out := &in.TopologyType, &out.TopologyType
+		*out = new(string)
+		**out = **in
+	}
 	if in.ClusterID != nil {
 		in, out := &in.ClusterID, &out.ClusterID
 		*out = new(string)
@@ -2369,6 +2374,11 @@ func (in *RouteReflectorControllerConfig) DeepCopyInto(out *RouteReflectorContro
 		*out = new(float32)
 		**out = **in
 	}
+	if in.RouteReflectorsPerNode != nil {
+		in, out := &in.RouteReflectorsPerNode, &out.RouteReflectorsPerNode
+		*out = new(int)
+		**out = **in
+	}
 	if in.RouteReflectorLabelKey != nil {
 		in, out := &in.RouteReflectorLabelKey, &out.RouteReflectorLabelKey
 		*out = new(string)
@@ -2381,6 +2391,11 @@ func (in *RouteReflectorControllerConfig) DeepCopyInto(out *RouteReflectorContro
 	}
 	if in.ZoneLabel != nil {
 		in, out := &in.ZoneLabel, &out.ZoneLabel
+		*out = new(string)
+		**out = **in
+	}
+	if in.HostnameLabel != nil {
+		in, out := &in.HostnameLabel, &out.HostnameLabel
 		*out = new(string)
 		**out = **in
 	}

@@ -125,17 +125,23 @@ type RouteReflectorControllerConfig struct {
 	// ReconcilerPeriod is the period to perform reconciliation with the Calico datastore. [Default: 5m]
 	ReconcilerPeriod *metav1.Duration `json:"reconcilerPeriod,omitempty" validate:"omitempty"`
 
-	// ClusterID is the Route Reflector cluster id. [Default: 224.0.0.0]
+	// TopologyType deines the type of topology, which can be [single, multi]. [Default: multi]
+	TopologyType *string `json:"topologyType,omitempty" validate:"omitempty,oneof=single multi"`
+
+	// ClusterID is the Route Reflector cluster id. Multi cluster topology uses zeros as wildcard. [Default: 224.0.0.0]
 	ClusterID *string `json:"clusterId,omitempty" validate:"omitempty"`
 
 	// Min the minimum nulber of Route Refletors. [Default: 3]
-	Min *int `json:"min,omitempty" validate:"omitempty"`
+	Min *int `json:"min,omitempty" validate:"omitempty,minimum=1,maximum=10"`
 
 	// Max the maxium nulber of Route Refletors. [Default: 10]
-	Max *int `json:"max,omitempty" validate:"omitempty"`
+	Max *int `json:"max,omitempty" validate:"omitempty,minimum=5,maximum=50"`
 
-	// Ratio the defines the ration of Route Reflectors and clients, between 0.001 and 0.05. [Default: 0.005]
-	Ratio *float32 `json:"ratio,omitempty" validate:"omitempty"`
+	// Ratio defines the ration of Route Reflectors and clients, between 0.001 and 0.5. [Default: 0.005]
+	Ratio *float32 `json:"ratio,omitempty" validate:"omitempty,minimum=0.001,maximum=0.5"`
+
+	// ReflectorsPerNode the number of route reflectors per client. Single cluster topology ignores. [Default: 3]
+	RouteReflectorsPerNode *int `json:"routeReflectorsPerNode,omitempty" validate:"omitempty,minimum=1,maximum=5"`
 
 	// RouteReflectorLabelKey label key of Route Reflector selector. [Default: calico-route-reflector]
 	RouteReflectorLabelKey *string `json:"routeReflectorLabelKey,omitempty" validate:"omitempty"`
@@ -145,6 +151,9 @@ type RouteReflectorControllerConfig struct {
 
 	// ZoneLabel zone label on Kubernetes nodes. [Default: failure-domain.beta.kubernetes.io/zone]
 	ZoneLabel *string `json:"zoneLabel,omitempty" validate:"omitempty"`
+
+	// HostnameLabel hostname label on Kubernetes nodes. [Default: kubernetes.io/hostname]
+	HostnameLabel *string `json:"hostnameLabel,omitempty" validate:"omitempty"`
 
 	// IncompatibleLabels List of node labels to disallow Route Reflector selection.
 	IncompatibleLabels *string `json:"incompatibleLabels,omitempty" validate:"omitempty"`
