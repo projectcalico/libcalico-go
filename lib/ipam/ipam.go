@@ -573,9 +573,14 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 		// No per-request value, so use the global one.
 		maxNumBlocks = config.MaxBlocksPerHost
 	}
-	if maxNumBlocks > 0 {
+
+	if maxNumBlocks <= 0 {
+		// maxNumblocks is not defined. Default to a reasonable limit to act as a safeguard
+		// against runaway block allocation. This limit can be overridden via config.
 		logCtx.Debugf("Host must not use more than %d blocks", maxNumBlocks)
+		maxNumBlocks = 20
 	}
+	logCtx.Debugf("Host must not use more than %d blocks", maxNumBlocks)
 
 	s := &blockAssignState{
 		client:                c,
