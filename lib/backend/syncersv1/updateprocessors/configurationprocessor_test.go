@@ -201,14 +201,17 @@ var _ = Describe("Test the generic configuration update processor and the concre
 			{
 				Protocol: "TCP",
 				Port:     1234,
+				Net:      "0.0.0.0/0",
 			},
 			{
 				Protocol: "UDP",
 				Port:     22,
+				Net:      "0.0.0.0/0",
 			},
 			{
 				Protocol: "TCP",
 				Port:     65535,
+				Net:      "0.0.0.0/0",
 			},
 		}
 		res.Spec.ExternalNodesCIDRList = &[]string{"1.1.1.1", "2.2.2.2"}
