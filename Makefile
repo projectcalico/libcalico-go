@@ -75,10 +75,10 @@ $(BINDIR)/controller-gen:
 	wget -O $@ https://github.com/caseydavenport/controller-tools/releases/download/float-support/controller-gen && chmod +x $@
 
 $(BINDIR)/openapi-gen: 
-	GOBIN=$(PWD)/$(BINDIR) go install k8s.io/code-generator/cmd/openapi-gen
+	$(DOCKER_GO_BUILD) sh -c "GOBIN=/go/src/$(PACKAGE_NAME)/$(BINDIR) go install k8s.io/code-generator/cmd/openapi-gen"
 
 $(BINDIR)/deepcopy-gen: 
-	GOBIN=$(PWD)/$(BINDIR) go install k8s.io/code-generator/cmd/deepcopy-gen
+	$(DOCKER_GO_BUILD) sh -c "GOBIN=/go/src/$(PACKAGE_NAME)/$(BINDIR) go install k8s.io/code-generator/cmd/deepcopy-gen"
 
 ./lib/upgrade/migrator/clients/v1/k8s/custom/zz_generated.deepcopy.go: $(UPGRADE_SRCS) $(BINDIR)/deepcopy-gen
 	$(DOCKER_GO_BUILD) sh -c '$(BINDIR)/deepcopy-gen \
