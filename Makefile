@@ -50,6 +50,7 @@ clean:
 GENERATED_FILES:=./lib/apis/v3/zz_generated.deepcopy.go \
            ./lib/upgrade/migrator/clients/v1/k8s/custom/zz_generated.deepcopy.go \
            ./lib/apis/v3/openapi_generated.go \
+	   ./lib/apis/v1/openapi_generated.go \
            ./lib/numorstring/openapi_generated.go
 
 .PHONY: gen-files
