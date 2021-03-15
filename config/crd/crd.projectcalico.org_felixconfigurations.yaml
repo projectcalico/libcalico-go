@@ -199,9 +199,9 @@ spec:
                   of UDP/TCP ports and CIDRs that Felix will allow outgoing traffic
                   from host endpoints to irrespective of the security policy. This
                   is useful to avoid accidentally cutting off a host with incorrect
-                  configuration. Each port should be specified as tcp:<port-number>
-                  or udp:<port-number>. For back-compatibility, if the protocol is
-                  not specified, it defaults to "tcp". If a CIDR is not specified,
+                  configuration. Each port should be specified as tcp:<cidr>:<port-number>
+                  or udp:<cidr>:<port-number>. For back-compatibility, if the protocol
+                  is not specified, it defaults to "tcp". If a CIDR is not specified,
                   it will default to `0.0.0.0/0`. To disable all outbound host ports,
                   use the value none. The default value opens etcd''s standard ports
                   to ensure that Felix does not get cut off from etcd as well as allowing
