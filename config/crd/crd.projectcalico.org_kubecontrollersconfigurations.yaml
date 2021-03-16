@@ -95,11 +95,11 @@ spec:
                           Route Reflector selection.
                         type: string
                       max:
-                        description: 'Max the maxium nulber of Route Refletors. [Default:
+                        description: 'Max the maxium number of Route Refletors. [Default:
                           10]'
                         type: integer
                       min:
-                        description: 'Min the minimum nulber of Route Refletors. [Default:
+                        description: 'Min the minimum number of Route Refletors. [Default:
                           3]'
                         type: integer
                       ratio:
@@ -248,11 +248,11 @@ spec:
                               disallow Route Reflector selection.
                             type: string
                           max:
-                            description: 'Max the maxium nulber of Route Refletors.
+                            description: 'Max the maxium number of Route Refletors.
                               [Default: 10]'
                             type: integer
                           min:
-                            description: 'Min the minimum nulber of Route Refletors.
+                            description: 'Min the minimum number of Route Refletors.
                               [Default: 3]'
                             type: integer
                           ratio:

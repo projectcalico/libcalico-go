@@ -131,17 +131,17 @@ type RouteReflectorControllerConfig struct {
 	// ClusterID is the Route Reflector cluster id. Multi cluster topology uses zeros as wildcard. [Default: 224.0.0.0]
 	ClusterID *string `json:"clusterId,omitempty" validate:"omitempty"`
 
-	// Min the minimum nulber of Route Refletors. [Default: 3]
-	Min *int `json:"min,omitempty" validate:"omitempty,minimum=1,maximum=10"`
+	// Min the minimum number of Route Refletors. [Default: 3]
+	Min *int `json:"min,omitempty" validate:"omitempty"`
 
-	// Max the maxium nulber of Route Refletors. [Default: 10]
-	Max *int `json:"max,omitempty" validate:"omitempty,minimum=5,maximum=50"`
+	// Max the maxium number of Route Refletors. [Default: 10]
+	Max *int `json:"max,omitempty" validate:"omitempty"`
 
 	// Ratio defines the ration of Route Reflectors and clients, between 0.001 and 0.5. [Default: 0.005]
-	Ratio *float32 `json:"ratio,omitempty" validate:"omitempty,minimum=0.001,maximum=0.5"`
+	Ratio *float32 `json:"ratio,omitempty" validate:"omitempty"`
 
 	// ReflectorsPerNode the number of route reflectors per client. Single cluster topology ignores. [Default: 3]
-	RouteReflectorsPerNode *int `json:"routeReflectorsPerNode,omitempty" validate:"omitempty,minimum=1,maximum=5"`
+	RouteReflectorsPerNode *int `json:"routeReflectorsPerNode,omitempty" validate:"omitempty"`
 
 	// RouteReflectorLabelKey label key of Route Reflector selector. [Default: calico-route-reflector]
 	RouteReflectorLabelKey *string `json:"routeReflectorLabelKey,omitempty" validate:"omitempty"`
