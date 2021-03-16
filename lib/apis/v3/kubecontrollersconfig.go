@@ -126,33 +126,46 @@ type RouteReflectorControllerConfig struct {
 	ReconcilerPeriod *metav1.Duration `json:"reconcilerPeriod,omitempty" validate:"omitempty"`
 
 	// TopologyType deines the type of topology, which can be [single, multi]. [Default: multi]
+	// +kubebuilder:default=multi
+	// +kubebuilder:validation:Pattern=`^(single|multi)$`
 	TopologyType *string `json:"topologyType,omitempty" validate:"omitempty,oneof=single multi"`
 
 	// ClusterID is the Route Reflector cluster id. Multi cluster topology uses zeros as wildcard. [Default: 224.0.0.0]
+	// +kubebuilder:default="224.0.0.0"
+	// +kubebuilder:validation:Pattern=`^\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}\b$`
 	ClusterID *string `json:"clusterId,omitempty" validate:"omitempty"`
 
 	// Min the minimum number of Route Refletors. [Default: 3]
+	// +kubebuilder:default=3
+	// +kubebuilder:validation:Minimum:=1
 	Min *int `json:"min,omitempty" validate:"omitempty"`
 
 	// Max the maxium number of Route Refletors. [Default: 10]
+	// +kubebuilder:default=10
+	// +kubebuilder:validation:Minimum:=3
 	Max *int `json:"max,omitempty" validate:"omitempty"`
 
-	// Ratio defines the ration of Route Reflectors and clients, between 0.001 and 0.5. [Default: 0.005]
+	// Ratio defines the ration of Route Reflectors and clients. [Default: 0.005]
 	Ratio *float32 `json:"ratio,omitempty" validate:"omitempty"`
 
 	// ReflectorsPerNode the number of route reflectors per client. Single cluster topology ignores. [Default: 3]
+	// +kubebuilder:default=3
+	// +kubebuilder:validation:Minimum:=1
 	RouteReflectorsPerNode *int `json:"routeReflectorsPerNode,omitempty" validate:"omitempty"`
 
 	// RouteReflectorLabelKey label key of Route Reflector selector. [Default: calico-route-reflector]
+	// +kubebuilder:default=calico-route-reflector
 	RouteReflectorLabelKey *string `json:"routeReflectorLabelKey,omitempty" validate:"omitempty"`
 
 	// RouteReflectorLabelValue label value of Route Reflector selector.
 	RouteReflectorLabelValue *string `json:"routeReflectorLabelValue,omitempty" validate:"omitempty"`
 
 	// ZoneLabel zone label on Kubernetes nodes. [Default: failure-domain.beta.kubernetes.io/zone]
+	// +kubebuilder:default=failure-domain.beta.kubernetes.io/zone
 	ZoneLabel *string `json:"zoneLabel,omitempty" validate:"omitempty"`
 
 	// HostnameLabel hostname label on Kubernetes nodes. [Default: kubernetes.io/hostname]
+	// +kubebuilder:default=kubernetes.io/hostname
 	HostnameLabel *string `json:"hostnameLabel,omitempty" validate:"omitempty"`
 
 	// IncompatibleLabels List of node labels to disallow Route Reflector selection.

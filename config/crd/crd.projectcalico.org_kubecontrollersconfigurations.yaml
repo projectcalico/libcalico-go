@@ -82,11 +82,14 @@ spec:
                       controller. Disabled by default, set value to enable.
                     properties:
                       clusterId:
+                        default: 224.0.0.0
                         description: 'ClusterID is the Route Reflector cluster id.
                           Multi cluster topology uses zeros as wildcard. [Default:
                           224.0.0.0]'
+                        pattern: ^\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}\b$
                         type: string
                       hostnameLabel:
+                        default: kubernetes.io/hostname
                         description: 'HostnameLabel hostname label on Kubernetes nodes.
                           [Default: kubernetes.io/hostname]'
                         type: string
@@ -95,22 +98,27 @@ spec:
                           Route Reflector selection.
                         type: string
                       max:
+                        default: 10
                         description: 'Max the maxium number of Route Refletors. [Default:
                           10]'
+                        minimum: 3
                         type: integer
                       min:
+                        default: 3
                         description: 'Min the minimum number of Route Refletors. [Default:
                           3]'
+                        minimum: 1
                         type: integer
                       ratio:
                         description: 'Ratio defines the ration of Route Reflectors
-                          and clients, between 0.001 and 0.5. [Default: 0.005]'
+                          and clients. [Default: 0.005]'
                         type: number
                       reconcilerPeriod:
                         description: 'ReconcilerPeriod is the period to perform reconciliation
                           with the Calico datastore. [Default: 5m]'
                         type: string
                       routeReflectorLabelKey:
+                        default: calico-route-reflector
                         description: 'RouteReflectorLabelKey label key of Route Reflector
                           selector. [Default: calico-route-reflector]'
                         type: string
@@ -119,14 +127,19 @@ spec:
                           Reflector selector.
                         type: string
                       routeReflectorsPerNode:
+                        default: 3
                         description: 'ReflectorsPerNode the number of route reflectors
                           per client. Single cluster topology ignores. [Default: 3]'
+                        minimum: 1
                         type: integer
                       topologyType:
+                        default: multi
                         description: 'TopologyType deines the type of topology, which
                           can be [single, multi]. [Default: multi]'
+                        pattern: ^(single|multi)$
                         type: string
                       zoneLabel:
+                        default: failure-domain.beta.kubernetes.io/zone
                         description: 'ZoneLabel zone label on Kubernetes nodes. [Default:
                           failure-domain.beta.kubernetes.io/zone]'
                         type: string
@@ -235,11 +248,14 @@ spec:
                           enable.
                         properties:
                           clusterId:
+                            default: 224.0.0.0
                             description: 'ClusterID is the Route Reflector cluster
                               id. Multi cluster topology uses zeros as wildcard. [Default:
                               224.0.0.0]'
+                            pattern: ^\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}\b$
                             type: string
                           hostnameLabel:
+                            default: kubernetes.io/hostname
                             description: 'HostnameLabel hostname label on Kubernetes
                               nodes. [Default: kubernetes.io/hostname]'
                             type: string
@@ -248,16 +264,20 @@ spec:
                               disallow Route Reflector selection.
                             type: string
                           max:
+                            default: 10
                             description: 'Max the maxium number of Route Refletors.
                               [Default: 10]'
+                            minimum: 3
                             type: integer
                           min:
+                            default: 3
                             description: 'Min the minimum number of Route Refletors.
                               [Default: 3]'
+                            minimum: 1
                             type: integer
                           ratio:
                             description: 'Ratio defines the ration of Route Reflectors
-                              and clients, between 0.001 and 0.5. [Default: 0.005]'
+                              and clients. [Default: 0.005]'
                             type: number
                           reconcilerPeriod:
                             description: 'ReconcilerPeriod is the period to perform
@@ -265,6 +285,7 @@ spec:
                               5m]'
                             type: string
                           routeReflectorLabelKey:
+                            default: calico-route-reflector
                             description: 'RouteReflectorLabelKey label key of Route
                               Reflector selector. [Default: calico-route-reflector]'
                             type: string
@@ -273,15 +294,20 @@ spec:
                               Reflector selector.
                             type: string
                           routeReflectorsPerNode:
+                            default: 3
                             description: 'ReflectorsPerNode the number of route reflectors
                               per client. Single cluster topology ignores. [Default:
                               3]'
+                            minimum: 1
                             type: integer
                           topologyType:
+                            default: multi
                             description: 'TopologyType deines the type of topology,
                               which can be [single, multi]. [Default: multi]'
+                            pattern: ^(single|multi)$
                             type: string
                           zoneLabel:
+                            default: failure-domain.beta.kubernetes.io/zone
                             description: 'ZoneLabel zone label on Kubernetes nodes.
                               [Default: failure-domain.beta.kubernetes.io/zone]'
                             type: string
