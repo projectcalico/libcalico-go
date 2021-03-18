@@ -269,6 +269,9 @@ type FelixConfigurationSpec struct {
 	// This defines the route protocol added to programmed device routes, by default this will be RTPROT_BOOT
 	// when left blank.
 	DeviceRouteProtocol *int `json:"deviceRouteProtocol,omitempty"`
+	// This defines the route protocol added to programmed routes, by default this will be 202 (or 0xCA)
+	// when left blank.
+	RouteProtocol *int `json:"routeProtocol,omitempty"`
 	// Whether or not to remove device routes that have not been programmed by Felix. Disabling this will allow external
 	// applications to also add device routes. This is enabled by default which means we will remove externally added routes.
 	RemoveExternalRoutes *bool `json:"removeExternalRoutes,omitempty"`
