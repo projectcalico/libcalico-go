@@ -458,6 +458,10 @@ spec:
                 description: 'ReportingTTL is the time-to-live setting for process-wide
                   status reports. [Default: 90s]'
                 type: string
+              routeProtocol:
+                description: This defines the route protocol added to programmed routes,
+                  by default this will be 202 (or 0xCA) when left blank.
+                type: integer
               routeRefreshInterval:
                 description: 'RouteRefreshInterval is the period at which Felix re-checks
                   the routes in the dataplane to ensure that no other process has

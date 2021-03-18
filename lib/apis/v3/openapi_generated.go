@@ -3301,6 +3301,13 @@ func schema_libcalico_go_lib_apis_v3_FelixConfigurationSpec(ref common.Reference
 							Format:      "int32",
 						},
 					},
+					"routeProtocol": {
+						SchemaProps: spec.SchemaProps{
+							Description: "This defines the route protocol added to programmed routes, by default this will be 202 (or 0xCA) when left blank.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"removeExternalRoutes": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Whether or not to remove device routes that have not been programmed by Felix. Disabling this will allow external applications to also add device routes. This is enabled by default which means we will remove externally added routes.",

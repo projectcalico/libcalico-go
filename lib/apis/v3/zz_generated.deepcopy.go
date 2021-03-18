@@ -847,6 +847,11 @@ func (in *FelixConfigurationSpec) DeepCopyInto(out *FelixConfigurationSpec) {
 		*out = new(int)
 		**out = **in
 	}
+	if in.RouteProtocol != nil {
+		in, out := &in.RouteProtocol, &out.RouteProtocol
+		*out = new(int)
+		**out = **in
+	}
 	if in.RemoveExternalRoutes != nil {
 		in, out := &in.RemoveExternalRoutes, &out.RemoveExternalRoutes
 		*out = new(bool)
