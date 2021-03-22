@@ -93,6 +93,37 @@ func (c *FelixNodeUpdateProcessor) Process(kvp *model.KVPair) ([]*model.KVPair, 
 				}
 			}
 		}
+		// Look for internal node address, if BGP is not running
+		if ipv4 == nil {
+			var ip *cnet.IP
+			var cidr *cnet.IPNet
+			for _,addr := range node.Spec.Addresses {
+				if addr.Type == "int" {
+					ip, cidr, err = cnet.ParseCIDROrIP(addr.Address)
+					if err == nil {
+						log.WithFields(log.Fields{"ip": ip, "cidr": cidr}).Debug("Parsed IPv4 address")
+						ipv4 = ip
+						break
+					} else {
+						log.WithError(err).WithField("IPv4Address", addr.Address).Warn("Failed to parse IPv4Address")
+					}
+				}
+			}
+			if ipv4 == nil {
+				for _,addr := range node.Spec.Addresses {
+					if addr.Type == "ext" {
+						ip, cidr, err = cnet.ParseCIDROrIP(addr.Address)
+						if err == nil {
+							log.WithFields(log.Fields{"ip": ip, "cidr": cidr}).Debug("Parsed IPv4 address")
+							ipv4 = ip
+							break
+						} else {
+							log.WithError(err).WithField("IPv4Address", addr.Address).Warn("Failed to parse IPv4Address")
+						}
+					}
+				}
+			}
+		}
 
 		// Parse the IPv4 VXLAN tunnel address, Felix expects this as a HostConfigKey.  If we fail to parse then
 		// treat as a delete (i.e. leave ipv4Tunl as nil).
