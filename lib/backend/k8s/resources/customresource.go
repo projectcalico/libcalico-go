@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
@@ -275,7 +274,7 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 	err := c.restClient.Get().
 		NamespaceIfScoped(namespace, c.namespaced).
 		Resource(c.resource).
-		VersionedParams(&metav1.ListOptions{ResourceVersion: revision}, scheme.ParameterCodec).
+		Param("resourceVersion", revision).
 		Do(ctx).Into(reslOut)
 	if err != nil {
 		// Don't return errors for "not found".  This just
