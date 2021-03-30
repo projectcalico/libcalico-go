@@ -355,7 +355,7 @@ func (m *migrationHelper) parseProtoPort(raw string) (*[]apiv3.ProtoPort, error)
 			return nil, err
 		}
 
-		protoPort := ProtoPort{
+		protoPort := apiv3.ProtoPort{
 			Protocol: protocolStr,
 			Port:     uint16(port),
 		}
@@ -363,7 +363,7 @@ func (m *migrationHelper) parseProtoPort(raw string) (*[]apiv3.ProtoPort, error)
 		if netStr != "" {
 			_, netParsed, err := cnet.ParseCIDROrIP(netStr)
 			if err != nil {
-				err = p.parseFailed(raw, "invalid CIDR or IP "+netStr)
+				err = m.parseProtoPortFailed(raw, "invalid CIDR or IP "+netStr)
 				return nil, err
 			}
 			protoPort.Net = netParsed.String()
