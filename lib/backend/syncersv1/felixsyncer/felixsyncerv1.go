@@ -69,6 +69,10 @@ func New(client api.Client, cfg apiconfig.CalicoAPIConfigSpec, callbacks api.Syn
 				UpdateProcessor: updateprocessors.NewNetworkPolicyUpdateProcessor(),
 			},
 			{
+				ListInterface:   model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy},
+				UpdateProcessor: updateprocessors.NewNetworkPolicyUpdateProcessor(),
+			},
+			{
 				ListInterface:   model.ResourceListOptions{Kind: apiv3.KindNetworkSet},
 				UpdateProcessor: updateprocessors.NewNetworkSetUpdateProcessor(),
 			},
