@@ -32,9 +32,11 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
+// NewKubernetesNetworkPolicyClient returns a new client for interacting with Kubernetes NetworkPolicy objects.
+// Note that this client is only intended for use by the felix syncer in KDD mode, and as such is largely unimplemented
+// except for the functions required by the syncer.
 func NewKubernetesNetworkPolicyClient(c *kubernetes.Clientset) K8sResourceClient {
 	return &networkPolicyClient{
 		Converter: conversion.NewConverter(),
@@ -83,76 +85,23 @@ func (c *networkPolicyClient) Delete(ctx context.Context, key model.Key, revisio
 }
 
 func (c *networkPolicyClient) Get(ctx context.Context, key model.Key, revision string) (*model.KVPair, error) {
-	log.Debug("Received Get request on Kubernetes NetworkPolicy type")
-	k := key.(model.ResourceKey)
-	if k.Name == "" {
-		return nil, errors.New("Missing policy name")
+	return nil, cerrors.ErrorOperationNotSupported{
+		Identifier: key,
+		Operation:  "Get",
 	}
-	if k.Namespace == "" {
-		return nil, errors.New("Missing policy namespace")
-	}
-
-	// Assert that this is backed by a NetworkPolicy.
-	if !strings.HasPrefix(k.Name, conversion.K8sNetworkPolicyNamePrefix) {
-		// TODO
-		return nil, fmt.Errorf("Bad name")
-	}
-
-	// Backed by a NetworkPolicy - extract the name.
-	policyName := strings.TrimPrefix(k.Name, conversion.K8sNetworkPolicyNamePrefix)
-
-	// Get the NetworkPolicy from the API and convert it.
-	networkPolicy := networkingv1.NetworkPolicy{}
-	err := c.clientSet.NetworkingV1().RESTClient().
-		Get().
-		Resource("networkpolicies").
-		Namespace(k.Namespace).
-		Name(policyName).
-		VersionedParams(&metav1.GetOptions{ResourceVersion: revision}, scheme.ParameterCodec).
-		Do(ctx).Into(&networkPolicy)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, k)
-	}
-	return c.K8sNetworkPolicyToCalico(&networkPolicy)
 }
 
 func (c *networkPolicyClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
 	log.Debug("Received List request on Kubernetes NetworkPolicy type")
-	l := list.(model.ResourceListOptions)
-	if l.Name != "" {
-		// Exact lookup on a NetworkPolicy.
-		kvp, err := c.Get(ctx, model.ResourceKey{Name: l.Name, Namespace: l.Namespace, Kind: l.Kind}, revision)
-		if err != nil {
-			// Return empty slice of KVPair if the object doesn't exist, return the error otherwise.
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
-				return &model.KVPairList{
-					KVPairs:  []*model.KVPair{},
-					Revision: revision,
-				}, nil
-			} else {
-				return nil, err
-			}
-		}
-
-		return &model.KVPairList{
-			KVPairs:  []*model.KVPair{kvp},
-			Revision: revision,
-		}, nil
-	}
-
 	// List all of the k8s NetworkPolicy objects.
 	networkPolicies := networkingv1.NetworkPolicyList{}
 	req := c.clientSet.NetworkingV1().RESTClient().
 		Get().
 		Resource("networkpolicies")
-	if l.Namespace != "" {
-		// Add the namespace if requested.
-		req = req.Namespace(l.Namespace)
-	}
 	err := req.Do(ctx).Into(&networkPolicies)
 	if err != nil {
 		log.WithError(err).Info("Unable to list K8s Network Policy resources")
-		return nil, K8sErrorToCalico(err, l)
+		return nil, K8sErrorToCalico(err, list)
 	}
 
 	// For each policy, turn it into a Policy and generate the list.
@@ -174,10 +123,6 @@ func (c *networkPolicyClient) List(ctx context.Context, list model.ListInterface
 	return &npKvps, nil
 }
 
-func (c *networkPolicyClient) EnsureInitialized() error {
-	return nil
-}
-
 func (c *networkPolicyClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	// Build watch options to pass to k8s.
 	opts := metav1.ListOptions{Watch: true}
@@ -196,7 +141,7 @@ func (c *networkPolicyClient) Watch(ctx context.Context, list model.ListInterfac
 		// Backed by a NetworkPolicy - extract the name.
 		policyName := rlo.Name
 		if !strings.HasPrefix(rlo.Name, conversion.K8sNetworkPolicyNamePrefix) {
-			// TODO: Error
+			// TODO: Error?
 		}
 		policyName = strings.TrimPrefix(rlo.Name, conversion.K8sNetworkPolicyNamePrefix)
 
@@ -220,4 +165,8 @@ func (c *networkPolicyClient) Watch(ctx context.Context, list model.ListInterfac
 		return c.K8sNetworkPolicyToCalico(np)
 	}
 	return newK8sWatcherConverter(ctx, "KubernetesNetworkPolicy", converter, k8sRawWatch), nil
+}
+
+func (c *networkPolicyClient) EnsureInitialized() error {
+	return nil
 }

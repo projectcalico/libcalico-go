@@ -69,10 +69,6 @@ func New(client api.Client, cfg apiconfig.CalicoAPIConfigSpec, callbacks api.Syn
 				UpdateProcessor: updateprocessors.NewNetworkPolicyUpdateProcessor(),
 			},
 			{
-				ListInterface:   model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy},
-				UpdateProcessor: updateprocessors.NewNetworkPolicyUpdateProcessor(),
-			},
-			{
 				ListInterface:   model.ResourceListOptions{Kind: apiv3.KindNetworkSet},
 				UpdateProcessor: updateprocessors.NewNetworkSetUpdateProcessor(),
 			},
@@ -83,6 +79,15 @@ func New(client api.Client, cfg apiconfig.CalicoAPIConfigSpec, callbacks api.Syn
 			{
 				ListInterface: model.ResourceListOptions{Kind: apiv3.KindBGPConfiguration},
 			},
+		}
+
+		// If running in kdd mode, also watch Kubernetes network policies directly.
+		// We don't need this in etcd mode, since kube-controllers copies k8s policies into etcd.
+		if cfg.DatastoreType == apiconfig.Kubernetes {
+			additionalTypes = append(additionalTypes, watchersyncer.ResourceType{
+				ListInterface:   model.KubernetesNetworkPolicyListOptions{},
+				UpdateProcessor: updateprocessors.NewNetworkPolicyUpdateProcessor(),
+			})
 		}
 
 		// If using Calico IPAM, include IPAM resources the felix cares about.
