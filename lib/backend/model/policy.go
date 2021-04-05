@@ -32,10 +32,6 @@ var (
 	typePolicy  = reflect.TypeOf(Policy{})
 )
 
-const (
-	KindKubernetesNetworkPolicy = "KubernetesNetworkPolicy"
-)
-
 type PolicyKey struct {
 	Name string `json:"-" validate:"required,name"`
 }
