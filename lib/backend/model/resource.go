@@ -100,7 +100,7 @@ func init() {
 	)
 	registerResourceInfo(
 		KindKubernetesNetworkPolicy,
-		"networkpolicies",
+		"kubernetesnetworkpolicies",
 		reflect.TypeOf(apiv3.NetworkPolicy{}),
 	)
 	registerResourceInfo(

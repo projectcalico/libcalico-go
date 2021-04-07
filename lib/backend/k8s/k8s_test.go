@@ -2639,35 +2639,40 @@ var _ = testutils.E2eDatastoreDescribe("Test Watch support", testutils.Datastore
 			Expect(found).To(Equal(2))
 
 			log.WithField("revision", l.Revision).Info("[TEST] first watch")
-			watch2, err := c.Watch(ctx, model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy}, l.Revision)
+			watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy}, l.Revision)
 			Expect(err).NotTo(HaveOccurred())
 
-			event := ExpectModifiedEvent(watch2.ResultChan())
+			event := ExpectModifiedEvent(watch.ResultChan())
 			log.WithField("revision", event.New.Revision).Info("[TEST] first k8s event")
-			event = ExpectModifiedEvent(watch2.ResultChan())
+			event = ExpectModifiedEvent(watch.ResultChan())
 			log.WithField("revision", event.New.Revision).Info("[TEST] second k8s event")
 
 			// There should be no more events
-			Expect(watch2.ResultChan()).ToNot(Receive())
-			watch2.Stop()
+			Expect(watch.ResultChan()).ToNot(Receive())
+			watch.Stop()
 
-			// TODO:
-			// // Make a second change to the Calico NP
-			// kvp1or2.Value.(*apiv3.NetworkPolicy).SetLabels(map[string]string{"test": "01"})
-			// _, err = c.Update(ctx, kvp1or2)
-			// Expect(err).ToNot(HaveOccurred())
+			// Make a second change to one of the NPs
+			for _, kvp := range l.KVPairs {
+				name := strings.TrimPrefix(kvp.Value.(*apiv3.NetworkPolicy).Name, "knp.default.")
+				p, err := c.ClientSet.NetworkingV1().NetworkPolicies("default").Get(ctx, name, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				p.SetLabels(map[string]string{"test": "01"})
+				_, err = c.ClientSet.NetworkingV1().NetworkPolicies("default").Update(ctx, p, metav1.UpdateOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				break
+			}
 
-			// // Resume watching at the revision of the event we got
-			// log.WithField("revision", event.New.Revision).Info("second watch")
-			// watch, err = c.Watch(ctx, model.ResourceListOptions{Kind: apiv3.KindNetworkPolicy}, event.New.Revision)
-			// Expect(err).NotTo(HaveOccurred())
+			// Resume watching at the revision of the event we got
+			log.WithField("revision", event.New.Revision).Info("second watch")
+			watch, err = c.Watch(ctx, model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy}, event.New.Revision)
+			Expect(err).NotTo(HaveOccurred())
 
-			// // We should only get 1 update, because the event from the previous watch should have been "latest"
-			// ExpectModifiedEvent(watch.ResultChan())
+			// We should only get 1 update, because the event from the previous watch should have been "latest"
+			ExpectModifiedEvent(watch.ResultChan())
 
-			// // There should be no more events
-			// Expect(watch.ResultChan()).ToNot(Receive())
-			//watch.Stop()
+			// There should be no more events
+			Expect(watch.ResultChan()).ToNot(Receive())
+			watch.Stop()
 		})
 
 		It("supports watching from part way through a list (calico)", func() {
