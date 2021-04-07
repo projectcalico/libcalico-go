@@ -124,9 +124,9 @@ func (c *networkPolicyClient) List(ctx context.Context, list model.ListInterface
 func (c *networkPolicyClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	// Build watch options to pass to k8s.
 	opts := metav1.ListOptions{Watch: true}
-	_, ok := list.(model.KubernetesNetworkPolicyListOptions)
+	_, ok := list.(model.ResourceListOptions)
 	if !ok {
-		return nil, fmt.Errorf("ListInterface is not a KubernetesNetworkPolicyListOptions: %s", list)
+		return nil, fmt.Errorf("ListInterface is not a ResourceListOptions: %s", list)
 	}
 
 	opts.ResourceVersion = revision

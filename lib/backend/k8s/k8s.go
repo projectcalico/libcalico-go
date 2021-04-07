@@ -119,8 +119,8 @@ func NewKubeClient(ca *apiconfig.CalicoAPIConfigSpec) (api.Client, error) {
 		resources.NewNetworkPolicyClient(cs, crdClientV1),
 	)
 	kubeClient.registerResourceClient(
-		reflect.TypeOf(model.KubernetesNetworkPolicyKey{}),
-		reflect.TypeOf(model.KubernetesNetworkPolicyListOptions{}),
+		reflect.TypeOf(model.ResourceKey{}),
+		reflect.TypeOf(model.ResourceListOptions{}),
 		model.KindKubernetesNetworkPolicy,
 		resources.NewKubernetesNetworkPolicyClient(cs),
 	)

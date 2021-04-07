@@ -85,7 +85,7 @@ func New(client api.Client, cfg apiconfig.CalicoAPIConfigSpec, callbacks api.Syn
 		// We don't need this in etcd mode, since kube-controllers copies k8s policies into etcd.
 		if cfg.DatastoreType == apiconfig.Kubernetes {
 			additionalTypes = append(additionalTypes, watchersyncer.ResourceType{
-				ListInterface:   model.KubernetesNetworkPolicyListOptions{},
+				ListInterface:   model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy},
 				UpdateProcessor: updateprocessors.NewNetworkPolicyUpdateProcessor(),
 			})
 		}

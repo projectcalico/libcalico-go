@@ -651,12 +651,12 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		Expect(res.Error()).NotTo(HaveOccurred())
 
 		// Perform a List and ensure it shows up in the Calico API.
-		l, err := c.List(ctx, model.KubernetesNetworkPolicyListOptions{}, "")
+		l, err := c.List(ctx, model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy}, "")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(len(l.KVPairs)).To(Equal(1))
 
 		// Perform a Get - it's not supported.
-		_, err = c.Get(ctx, model.KubernetesNetworkPolicyKey{
+		_, err = c.Get(ctx, model.ResourceKey{
 			Name:      np.ObjectMeta.Name,
 			Namespace: "default",
 		}, "")
@@ -2428,18 +2428,18 @@ var _ = testutils.E2eDatastoreDescribe("Test Watch support", testutils.Datastore
 			deleteAllNetworkPolicies()
 		})
 		It("supports watching all networkpolicies", func() {
-			watch, err := c.Watch(ctx, model.KubernetesNetworkPolicyListOptions{}, "")
+			watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy}, "")
 			Expect(err).NotTo(HaveOccurred())
 			defer watch.Stop()
 			ExpectAddedEvent(watch.ResultChan())
 		})
 		It("supports resuming watch from previous revision", func() {
-			watch, err := c.Watch(ctx, model.KubernetesNetworkPolicyListOptions{}, "")
+			watch, err := c.Watch(ctx, model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy}, "")
 			Expect(err).NotTo(HaveOccurred())
 			event := ExpectAddedEvent(watch.ResultChan())
 			watch.Stop()
 
-			watch, err = c.Watch(ctx, model.KubernetesNetworkPolicyListOptions{}, event.New.Revision)
+			watch, err = c.Watch(ctx, model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy}, event.New.Revision)
 			Expect(err).NotTo(HaveOccurred())
 			watch.Stop()
 		})
@@ -2611,7 +2611,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Watch support", testutils.Datastore
 
 		It("supports resuming watch from previous revision (k8s)", func() {
 			// Should only return k8s NPs
-			l, err := c.List(ctx, model.KubernetesNetworkPolicyListOptions{}, "")
+			l, err := c.List(ctx, model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy}, "")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(l.KVPairs).To(HaveLen(2))
 
@@ -2639,7 +2639,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Watch support", testutils.Datastore
 			Expect(found).To(Equal(2))
 
 			log.WithField("revision", l.Revision).Info("[TEST] first watch")
-			watch2, err := c.Watch(ctx, model.KubernetesNetworkPolicyListOptions{}, l.Revision)
+			watch2, err := c.Watch(ctx, model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy}, l.Revision)
 			Expect(err).NotTo(HaveOccurred())
 
 			event := ExpectModifiedEvent(watch2.ResultChan())
@@ -2693,7 +2693,7 @@ var _ = testutils.E2eDatastoreDescribe("Test Watch support", testutils.Datastore
 
 		It("supports watching from part way through a list (k8s)", func() {
 			// Only 2 Calico NPs
-			l, err := c.List(ctx, model.KubernetesNetworkPolicyListOptions{}, "")
+			l, err := c.List(ctx, model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy}, "")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(l.KVPairs).To(HaveLen(2))
 
