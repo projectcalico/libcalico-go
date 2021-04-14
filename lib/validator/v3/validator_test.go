@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2020 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2021 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -621,6 +621,11 @@ func init() {
 		Entry("should reject a valid BPFExternalServiceMode value 'Foo'", api.FelixConfigurationSpec{BPFExternalServiceMode: "Foo"}, false),
 		Entry("should accept a valid BPFExternalServiceMode value 'Tunnel'", api.FelixConfigurationSpec{BPFExternalServiceMode: "Tunnel"}, true),
 		Entry("should accept a valid BPFExternalServiceMode value 'DSR'", api.FelixConfigurationSpec{BPFExternalServiceMode: "DSR"}, true),
+
+		Entry("should reject a negative BPFExtToServiceConnmark value", api.FelixConfigurationSpec{BPFExtToServiceConnmark: -1}, false),
+		Entry("should reject a gte 32bit BPFExtToServiceConnmark value", api.FelixConfigurationSpec{BPFExtToServiceConnmark: 1 << 32}, false),
+		Entry("should accept a zero BPFExtToServiceConnmark value", api.FelixConfigurationSpec{BPFExtToServiceConnmark: 0}, true),
+		Entry("should accept a 0xffffffff BPFExtToServiceConnmark value", api.FelixConfigurationSpec{BPFExtToServiceConnmark: 0xffffffff}, true),
 
 		Entry("should reject an invalid BPFDataIfacePattern value '*'", api.FelixConfigurationSpec{BPFDataIfacePattern: "*"}, false),
 		Entry("should accept a valid BPFDataIfacePattern value 'eth.*'", api.FelixConfigurationSpec{BPFDataIfacePattern: "eth.*"}, true),
