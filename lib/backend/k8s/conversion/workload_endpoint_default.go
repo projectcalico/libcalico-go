@@ -33,6 +33,14 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 )
 
+var (
+	defaultPrefix = "cali"
+
+	maxInterfaceNameSize      = 15
+	interfaceNameHashPartSize = 11
+	maxInterfacePrefixSize    = maxInterfaceNameSize - interfaceNameHashPartSize
+)
+
 type defaultWorkloadEndpointConverter struct{}
 
 // VethNameForWorkload returns a deterministic veth name
@@ -45,14 +53,18 @@ func (wc defaultWorkloadEndpointConverter) VethNameForWorkload(namespace, podnam
 	prefix := os.Getenv("FELIX_INTERFACEPREFIX")
 	if prefix == "" {
 		// Prefix is not set. Default to "cali"
-		prefix = "cali"
+		prefix = defaultPrefix
 	} else {
 		// Prefix is set - use the first value in the list.
 		splits := strings.Split(prefix, ",")
 		prefix = splits[0]
+		if len(prefix) > maxInterfacePrefixSize {
+			log.WithField("prefix", prefix).Warnf("Using too long(>%d) FELIX_INTERFACEPREFIX. will use default prefix: '%s'", maxInterfacePrefixSize, defaultPrefix)
+			prefix = defaultPrefix
+		}
 	}
 	log.WithField("prefix", prefix).Debugf("Using prefix to create a WorkloadEndpoint veth name")
-	return fmt.Sprintf("%s%s", prefix, hex.EncodeToString(h.Sum(nil))[:11])
+	return fmt.Sprintf("%s%s", prefix, hex.EncodeToString(h.Sum(nil))[:interfaceNameHashPartSize])
 }
 
 func (wc defaultWorkloadEndpointConverter) PodToWorkloadEndpoints(pod *kapiv1.Pod) ([]*model.KVPair, error) {

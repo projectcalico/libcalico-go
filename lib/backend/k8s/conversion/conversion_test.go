@@ -56,12 +56,28 @@ var _ = Describe("Test parsing strings", func() {
 		Expect(weid.Pod).To(Equal("pod-name"))
 	})
 
-	It("generate a veth name with the right prefix", func() {
+	It("generate a veth name with the first prefix in right env", func() {
 		os.Setenv("FELIX_INTERFACEPREFIX", "eni,veth,foo")
 		defer os.Setenv("FELIX_INTERFACEPREFIX", "")
 
 		name := c.VethNameForWorkload("namespace", "podname")
 		Expect(name).To(Equal("eni82111e10a96"))
+	})
+
+	It("generate a veth name with the default prefix in illegal env", func() {
+		os.Setenv("FELIX_INTERFACEPREFIX", "vreni,veth,foo")
+		defer os.Setenv("FELIX_INTERFACEPREFIX", "")
+
+		name := c.VethNameForWorkload("namespace", "podname")
+		Expect(name).To(Equal("cali82111e10a96"))
+	})
+
+	It("generate a veth name with the default prefix in empty env", func() {
+		os.Setenv("FELIX_INTERFACEPREFIX", "")
+		defer os.Setenv("FELIX_INTERFACEPREFIX", "")
+
+		name := c.VethNameForWorkload("namespace", "podname")
+		Expect(name).To(Equal("cali82111e10a96"))
 	})
 
 	It("should parse valid profile names", func() {
