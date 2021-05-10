@@ -420,6 +420,16 @@ func validateTag(fl validator.FieldLevel) bool {
 func validateLabels(fl validator.FieldLevel) bool {
 	labels := fl.Field().Interface().(map[string]string)
 	for k, v := range labels {
+		switch k {
+		// Skip some projectcalico.org/ labels which are used internally on WEPs
+		// but don't actually require validation. These are always set by Calico itself,
+		// so any validation failure would be a product issue rather than user error.
+		case api.LabelServiceAccount:
+			continue
+		case api.LabelNamespace:
+			continue
+		}
+
 		if len(k8svalidation.IsQualifiedName(k)) != 0 {
 			return false
 		}
