@@ -64,6 +64,19 @@ func (wc defaultWorkloadEndpointConverter) PodToWorkloadEndpoints(pod *kapiv1.Po
 	return []*model.KVPair{wep}, nil
 }
 
+func SanitizeServiceAccountName(n string) string {
+	if len(n) > 63 {
+		// If the serviceaccount name is longer than the length allowed for a label,
+		// we need to trim it down so that it meets validation, but add a hash of the original
+		// value to maintain uniqueness in selectors.
+		prefix := strings.TrimRight(n[0:50], "-")
+		h := sha1.New()
+		h.Write([]byte(n))
+		return fmt.Sprintf("%s-%s", prefix, hex.EncodeToString(h.Sum(nil))[:12])
+	}
+	return n
+}
+
 // PodToWorkloadEndpoint converts a Pod to a WorkloadEndpoint.  It assumes the calling code
 // has verified that the provided Pod is valid to convert to a WorkloadEndpoint.
 // PodToWorkloadEndpoint requires a Pods Name and Node Name to be populated. It will
@@ -127,7 +140,7 @@ func (wc defaultWorkloadEndpointConverter) podToDefaultWorkloadEndpoint(pod *kap
 	labels[apiv3.LabelOrchestrator] = apiv3.OrchestratorKubernetes
 
 	if pod.Spec.ServiceAccountName != "" {
-		labels[apiv3.LabelServiceAccount] = pod.Spec.ServiceAccountName
+		labels[apiv3.LabelServiceAccount] = SanitizeServiceAccountName(pod.Spec.ServiceAccountName)
 	}
 
 	// Pull out floating IP annotation
