@@ -213,7 +213,11 @@ func parseServiceAccounts(sam *apiv3.ServiceAccountMatch) string {
 	}
 
 	// Convert the list of ServiceAccounts to selector
-	names := strings.Join(sam.Names, "', '")
+	sanitizedNames := []string{}
+	for _, n := range sam.Names {
+		sanitizedNames = append(sanitizedNames, conversion.SanitizeServiceAccountName(n))
+	}
+	names := strings.Join(sanitizedNames, "', '")
 	selectors := fmt.Sprintf("%s in { '%s' }", apiv3.LabelServiceAccount, names)
 
 	// Normalize it now

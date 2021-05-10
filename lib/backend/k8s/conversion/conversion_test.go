@@ -103,6 +103,23 @@ var _ = Describe("Test parsing strings", func() {
 	})
 })
 
+var _ = Describe("Test ServiceAccount name conversion", func() {
+	DescribeTable("service account conversion table",
+		func(name, expected string) {
+			Expect(SanitizeServiceAccountName(name)).To(Equal(expected))
+		},
+
+		Entry("should NOT change short names", "default", "default"),
+		Entry("should NOT change 63 character names", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijk", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijk"),
+		Entry("should change 64 character names", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwx-93249d4c2f89"),
+
+		// The conversion code splits the input string at 50 characters, so test when a "-" falls around that area.
+		Entry("should change long names with a hyphen at the cutoff", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwx-yzabcdefghijkl", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwx-c086e39cde0f"),
+		Entry("should change long names with a hyphen before the cutoff", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvw-xyzabcdefghijkl", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvw-cb2031a84741"),
+		Entry("should change long names with a hyphen after the cutoff", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxy-zabcdefghijkl", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwx-771e81b7155f"),
+	)
+})
+
 var _ = Describe("Test selector conversion", func() {
 	DescribeTable("selector conversion table",
 		func(inSelector *metav1.LabelSelector, selectorType selectorType, expected string) {

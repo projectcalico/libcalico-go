@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	v3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/libcalico-go/lib/backend/syncersv1/updateprocessors"
@@ -49,6 +50,14 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 
 	fullNPKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "full", Namespace: ns2}
 	fullNP := fullNPv3("full", ns2, selector)
+
+	// Serviceaccount with a Long name.
+	validSASelectorLongKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "valid-sa-selector-long", Namespace: ns2}
+	validSASelectorLong := fullNPv3("valid-sa-selector-long", ns2, selector)
+	validSASelectorLong.Spec.ServiceAccountSelector = "role == 'development'"
+	validSASelectorLong.Spec.Ingress[0].Source.ServiceAccounts = &v3.ServiceAccountMatch{
+		Names: []string{"valid-sa-selector-with-a-long-name-that-should-trigger-our-sanitization-logic"},
+	}
 
 	// NetworkPolicies with valid, invalid and 'all()' ServiceAccountSelectors.
 	validSASelectorKey := model.ResourceKey{Kind: apiv3.KindNetworkPolicy, Name: "valid-sa-selector", Namespace: ns2}
@@ -123,6 +132,18 @@ var _ = Describe("Test the NetworkPolicy update processor", func() {
 			policy := fullNPv1(ns2)
 			policy.Selector = `((mylabel == 'selectme') && projectcalico.org/namespace == 'namespace2') && pcsa.role == "development"`
 			v1Key := model.PolicyKey{Name: ns2 + "/valid-sa-selector"}
+			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: testRev}}))
+		})
+
+		It("should accept a NetworkPolicy with a ServiceAccountSelector that uses long names", func() {
+			kvps, err := up.Process(&model.KVPair{Key: validSASelectorLongKey, Value: validSASelectorLong, Revision: testRev})
+			Expect(err).NotTo(HaveOccurred())
+
+			policy := fullNPv1(ns2)
+			policy.Selector = `((mylabel == 'selectme') && projectcalico.org/namespace == 'namespace2') && pcsa.role == "development"`
+			policy.InboundRules[0].SrcSelector = "(projectcalico.org/namespace == 'namespace2') && ((projectcalico.org/serviceaccount in {\"valid-sa-selector-with-a-long-name-that-should-tri-b23fbe967455\"}) && (mylabel == selector1))"
+			policy.InboundRules[0].OriginalSrcServiceAccountNames = []string{"valid-sa-selector-with-a-long-name-that-should-trigger-our-sanitization-logic"}
+			v1Key := model.PolicyKey{Name: ns2 + "/valid-sa-selector-long"}
 			Expect(kvps).To(Equal([]*model.KVPair{{Key: v1Key, Value: &policy, Revision: testRev}}))
 		})
 
