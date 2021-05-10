@@ -419,6 +419,7 @@ func validateTag(fl validator.FieldLevel) bool {
 
 func validateLabels(fl validator.FieldLevel) bool {
 	labels := fl.Field().Interface().(map[string]string)
+	log.Debugf("Validate labels: %s", labels)
 	for k, v := range labels {
 		if len(k8svalidation.IsQualifiedName(k)) != 0 {
 			return false
@@ -1390,6 +1391,17 @@ func validateObjectMetaAnnotations(structLevel validator.StructLevel, annotation
 
 func validateObjectMetaLabels(structLevel validator.StructLevel, labels map[string]string) {
 	for k, v := range labels {
+		switch k {
+		// Skip some projectcalico.org/ labels which are used internally on WEPs
+		// but don't actually require validation. These are always set by Calico itself,
+		// so any validation failure would be a product issue rather than user error.
+		// See https://github.com/projectcalico/calico/issues/4529#issuecomment-837174318
+		case api.LabelServiceAccount:
+			continue
+		case api.LabelNamespace:
+			continue
+		}
+
 		for _, errStr := range k8svalidation.IsQualifiedName(k) {
 			structLevel.ReportError(
 				reflect.ValueOf(k),
