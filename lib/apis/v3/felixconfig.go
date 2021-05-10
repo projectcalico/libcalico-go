@@ -379,11 +379,13 @@ type RouteTableRange struct {
 	Max int `json:"max"`
 }
 
-// ProtoPort is combination of protocol, port, and CIDR. All three must be specified.
+// ProtoPort is combination of protocol, port, and CIDR.
 type ProtoPort struct {
+	// +optional
 	Protocol string `json:"protocol"`
 	Port     uint16 `json:"port"`
-	Net      string `json:"net"`
+	// +optional
+	Net string `json:"net"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
