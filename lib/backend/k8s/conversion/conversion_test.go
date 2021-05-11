@@ -788,6 +788,7 @@ var _ = Describe("Test Pod conversion", func() {
 			apiv3.LabelServiceAccount:        "sa-test",
 		}
 		Expect(wep.Value.(*apiv3.WorkloadEndpoint).ObjectMeta.Labels).To(Equal(expectedLabels))
+		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.ServiceAccountName).To(Equal("sa-test"))
 
 		// Assert ResourceVersion is present.
 		Expect(wep.Revision).To(Equal("1234"))
