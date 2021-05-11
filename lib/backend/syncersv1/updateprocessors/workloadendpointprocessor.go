@@ -146,7 +146,7 @@ func convertWorkloadEndpointV2ToV1Value(val interface{}) (interface{}, error) {
 		// It's possible that this label is already set, because earlier version of the code set this
 		// label explicitly. If it is, it should be safe to override it with the new spec field
 		// since the values will be the same.
-		v3res.Labels[apiv3.LabelServiceAccount] = v3res.Spec.ServiceAccountName
+		labels[apiv3.LabelServiceAccount] = v3res.Spec.ServiceAccountName
 	}
 
 	v1value := &model.WorkloadEndpoint{
