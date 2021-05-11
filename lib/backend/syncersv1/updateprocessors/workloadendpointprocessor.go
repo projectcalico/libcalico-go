@@ -115,7 +115,7 @@ func convertWorkloadEndpointV2ToV1Value(val interface{}) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		cmac = &cnet.MAC{mac}
+		cmac = &cnet.MAC{HardwareAddr: mac}
 	}
 
 	// Convert the EndpointPort type from the API pkg to the v1 model equivalent type
