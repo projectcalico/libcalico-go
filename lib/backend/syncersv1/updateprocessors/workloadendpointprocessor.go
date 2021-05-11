@@ -115,7 +115,7 @@ func convertWorkloadEndpointV2ToV1Value(val interface{}) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		cmac = &cnet.MAC{mac}
+		cmac = &cnet.MAC{HardwareAddr: mac}
 	}
 
 	// Convert the EndpointPort type from the API pkg to the v1 model equivalent type
@@ -139,14 +139,15 @@ func convertWorkloadEndpointV2ToV1Value(val interface{}) (interface{}, error) {
 		}
 	}
 
-	// Add a label for the WEP's serviceaccount if present. We only do this in the syncer
-	// because it is possible that a serviceaccount name is longer than the allowable character limit
-	// for a label. See https://github.com/projectcalico/calico/issues/4529.
+	// Add a label for the WEP's serviceaccount if present. We do this in the syncer rather than on the
+	// workload endpoint when we create it, because it is possible that a serviceaccount name is longer than
+	// the allowable character limit for a label.
+	// See https://github.com/projectcalico/calico/issues/4529.
 	if v3res.Spec.ServiceAccountName != "" {
 		// It's possible that this label is already set, because earlier version of the code set this
-		// label explicitly. If it is, it should be safe to override it with the new spec field
-		// since the values will be the same.
-		v3res.Labels[apiv3.LabelServiceAccount] = v3res.Spec.ServiceAccountName
+		// label on the WorkloadEndpoint directly. If it is, it should be safe to override it
+		// with the new spec field since the values will be the same.
+		labels[apiv3.LabelServiceAccount] = v3res.Spec.ServiceAccountName
 	}
 
 	v1value := &model.WorkloadEndpoint{

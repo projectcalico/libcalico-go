@@ -128,7 +128,7 @@ func (wc defaultWorkloadEndpointConverter) podToDefaultWorkloadEndpoint(pod *kap
 
 	if pod.Spec.ServiceAccountName != "" && len(pod.Spec.ServiceAccountName) < 63 {
 		// For backwards compatibility, include the label if less than 63 characters.
-		labels[apiv3.LabelNamespace] = pod.Spec.ServiceAccountName
+		labels[apiv3.LabelServiceAccount] = pod.Spec.ServiceAccountName
 	}
 
 	// Pull out floating IP annotation
