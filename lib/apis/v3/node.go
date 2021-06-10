@@ -15,9 +15,10 @@
 package v3
 
 import (
+	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/projectcalico/libcalico-go/lib/numorstring"
+	"github.com/projectcalico/api/pkg/lib/numorstring"
 )
 
 const (
@@ -128,7 +129,7 @@ func NewNode() *Node {
 	return &Node{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindNode,
-			APIVersion: GroupVersionCurrent,
+			APIVersion: apiv3.GroupVersionCurrent,
 		},
 	}
 }
@@ -139,7 +140,7 @@ func NewNodeList() *NodeList {
 	return &NodeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindNodeList,
-			APIVersion: GroupVersionCurrent,
+			APIVersion: apiv3.GroupVersionCurrent,
 		},
 	}
 }

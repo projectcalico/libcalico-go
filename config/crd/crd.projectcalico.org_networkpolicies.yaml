@@ -85,11 +85,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^.*
-                            x-kubernetes-int-or-string: true
+                            type: string
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -105,11 +101,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^.*
-                            x-kubernetes-int-or-string: true
+                            type: string
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -232,25 +224,17 @@ spec:
                           type: integer
                       type: object
                     notProtocol:
-                      anyOf:
-                      - type: integer
-                      - type: string
                       description: NotProtocol is the negated version of the Protocol
                         field.
-                      pattern: ^.*
-                      x-kubernetes-int-or-string: true
+                      type: string
                     protocol:
-                      anyOf:
-                      - type: integer
-                      - type: string
                       description: "Protocol is an optional field that restricts the
                         rule to only apply to traffic of a specific IP protocol. Required
                         if any of the EntityRules contain Ports (because ports only
                         apply to certain protocols). \n Must be one of these string
                         values: \"TCP\", \"UDP\", \"ICMP\", \"ICMPv6\", \"SCTP\",
                         \"UDPLite\" or an integer in the range 1-255."
-                      pattern: ^.*
-                      x-kubernetes-int-or-string: true
+                      type: string
                     source:
                       description: Source contains the match criteria that apply to
                         source entity.
@@ -290,11 +274,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^.*
-                            x-kubernetes-int-or-string: true
+                            type: string
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -310,11 +290,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^.*
-                            x-kubernetes-int-or-string: true
+                            type: string
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -416,11 +392,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^.*
-                            x-kubernetes-int-or-string: true
+                            type: string
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -436,11 +408,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^.*
-                            x-kubernetes-int-or-string: true
+                            type: string
                           type: array
                         selector:
                           description: "Selector is an optional field that contains
@@ -563,25 +531,17 @@ spec:
                           type: integer
                       type: object
                     notProtocol:
-                      anyOf:
-                      - type: integer
-                      - type: string
                       description: NotProtocol is the negated version of the Protocol
                         field.
-                      pattern: ^.*
-                      x-kubernetes-int-or-string: true
+                      type: string
                     protocol:
-                      anyOf:
-                      - type: integer
-                      - type: string
                       description: "Protocol is an optional field that restricts the
                         rule to only apply to traffic of a specific IP protocol. Required
                         if any of the EntityRules contain Ports (because ports only
                         apply to certain protocols). \n Must be one of these string
                         values: \"TCP\", \"UDP\", \"ICMP\", \"ICMPv6\", \"SCTP\",
                         \"UDPLite\" or an integer in the range 1-255."
-                      pattern: ^.*
-                      x-kubernetes-int-or-string: true
+                      type: string
                     source:
                       description: Source contains the match criteria that apply to
                         source entity.
@@ -621,11 +581,7 @@ spec:
                             are specified it requires the Protocol match in the Rule
                             to be set to "TCP" or "UDP".
                           items:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^.*
-                            x-kubernetes-int-or-string: true
+                            type: string
                           type: array
                         notSelector:
                           description: NotSelector is the negated version of the Selector
@@ -641,11 +597,7 @@ spec:
                             any ports are specified it requires the Protocol match
                             in the Rule to be set to \"TCP\" or \"UDP\"."
                           items:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^.*
-                            x-kubernetes-int-or-string: true
+                            type: string
                           type: array
                         selector:
                           description: "Selector is an optional field that contains

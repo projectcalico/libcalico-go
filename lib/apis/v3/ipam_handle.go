@@ -15,6 +15,7 @@
 package v3
 
 import (
+	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -59,7 +60,7 @@ func NewIPAMHandle() *IPAMHandle {
 	return &IPAMHandle{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindIPAMHandle,
-			APIVersion: GroupVersionCurrent,
+			APIVersion: apiv3.GroupVersionCurrent,
 		},
 	}
 }
@@ -70,7 +71,7 @@ func NewIPAMHandleList() *IPAMHandleList {
 	return &IPAMHandleList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindIPAMHandleList,
-			APIVersion: GroupVersionCurrent,
+			APIVersion: apiv3.GroupVersionCurrent,
 		},
 	}
 }
