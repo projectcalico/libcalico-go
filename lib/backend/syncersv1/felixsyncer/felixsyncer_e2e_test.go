@@ -25,9 +25,9 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/syncersv1/felixsyncer"
 
 	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	libapiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/api/pkg/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
+	libapiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"

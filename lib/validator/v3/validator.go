@@ -30,8 +30,8 @@ import (
 	wireguard "golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	api "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	libapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/api/pkg/lib/numorstring"
+	libapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/errors"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/selector"
