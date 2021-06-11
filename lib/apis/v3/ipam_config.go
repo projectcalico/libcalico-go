@@ -15,6 +15,7 @@
 package v3
 
 import (
+	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -63,7 +64,7 @@ func NewIPAMConfig() *IPAMConfig {
 	return &IPAMConfig{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindIPAMConfig,
-			APIVersion: GroupVersionCurrent,
+			APIVersion: apiv3.GroupVersionCurrent,
 		},
 	}
 }
@@ -74,7 +75,7 @@ func NewIPAMConfigList() *IPAMConfigList {
 	return &IPAMConfigList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       KindIPAMConfigList,
-			APIVersion: GroupVersionCurrent,
+			APIVersion: apiv3.GroupVersionCurrent,
 		},
 	}
 }
