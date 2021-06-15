@@ -77,7 +77,11 @@ spec:
                     port:
                       type: integer
                     protocol:
-                      type: string
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^.*
+                      x-kubernetes-int-or-string: true
                   required:
                   - name
                   - port

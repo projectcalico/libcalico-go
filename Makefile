@@ -72,9 +72,9 @@ gen-crds: bin/controller-gen
 $(BINDIR)/controller-gen:
 	# Download a version of controller-gen that has been hacked to support additional types (e.g., float).
 	# We can remove this once we update the Calico v3 APIs to use only types which are supported by the upstream controller-gen
-	# tooling. Example: float.
+	# tooling. Example: float, all the types in the numorstring package, etc.
 	mkdir -p bin
-	wget -O $@ https://github.com/caseydavenport/controller-tools/releases/download/float-support/controller-gen && chmod +x $@
+	wget -O $@ https://github.com/projectcalico/controller-tools/releases/download/calico/controller-gen && chmod +x $@
 
 $(BINDIR)/openapi-gen: 
 	$(DOCKER_GO_BUILD) sh -c "GOBIN=/go/src/$(PACKAGE_NAME)/$(BINDIR) go install k8s.io/code-generator/cmd/openapi-gen"
