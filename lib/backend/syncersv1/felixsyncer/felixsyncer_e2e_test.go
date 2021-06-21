@@ -193,7 +193,7 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 					node.Spec.BGP = &libapiv3.NodeBGPSpec{
 						IPv4Address:        "1.2.3.4/24",
 						IPv6Address:        "aa:bb::cc/120",
-						IPv4IPIPTunnelAddr: "10.10.10.1",
+						IPv4IPIPTunnelAddr: "192.168.0.1",
 					}
 					node.Spec.VXLANTunnelMACAddr = "66:cf:23:df:22:07"
 					node.Spec.Wireguard = &libapiv3.NodeWireguardSpec{
@@ -226,7 +226,7 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 				})
 				syncTester.ExpectData(model.KVPair{
 					Key:   model.HostConfigKey{Hostname: "127.0.0.1", Name: "IpInIpTunnelAddr"},
-					Value: "10.10.10.1",
+					Value: "192.168.0.1",
 				})
 				syncTester.ExpectData(model.KVPair{
 					Key:   model.HostConfigKey{Hostname: "127.0.0.1", Name: "VXLANTunnelMACAddr"},
@@ -248,7 +248,7 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 							BGP: &libapiv3.NodeBGPSpec{
 								IPv4Address:        "1.2.3.4/24",
 								IPv6Address:        "aa:bb::cc/120",
-								IPv4IPIPTunnelAddr: "10.10.10.1",
+								IPv4IPIPTunnelAddr: "192.168.0.1",
 							},
 							VXLANTunnelMACAddr: "66:cf:23:df:22:07",
 							Wireguard: &libapiv3.NodeWireguardSpec{
@@ -274,7 +274,7 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 				)
 				syncTester.ExpectData(model.KVPair{
 					Key:   model.HostConfigKey{Hostname: "127.0.0.1", Name: "IpInIpTunnelAddr"},
-					Value: "10.10.10.1",
+					Value: "192.168.0.1",
 				})
 				syncTester.ExpectData(model.KVPair{
 					Key:   model.HostConfigKey{Hostname: "127.0.0.1", Name: "VXLANTunnelMACAddr"},
@@ -545,7 +545,7 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests (KDD only)", testutil
 		// Expect a felix config for the IPIP tunnel address, generated from the podCIDR.
 		syncTester.ExpectData(model.KVPair{
 			Key:   model.HostConfigKey{Hostname: "127.0.0.1", Name: "IpInIpTunnelAddr"},
-			Value: "10.10.10.1",
+			Value: "192.168.0.1",
 		})
 
 		// Expect to be in-sync.
