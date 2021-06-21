@@ -198,7 +198,10 @@ cluster-create: $(BINDIR)/kubectl $(BINDIR)/kind
 	make cluster-destroy
 
 	# Create a kind cluster.
-	$(BINDIR)/kind create cluster --config ./test/kind-config.yaml --kubeconfig $(KUBECONFIG)
+	$(BINDIR)/kind create cluster \
+		--config ./test/kind-config.yaml \
+		--kubeconfig $(KUBECONFIG) \
+		--image kindest/node:$(K8S_VERSION)
 
 	# Deploy resources needed in test env.
 	$(MAKE) deploy-test-resources
