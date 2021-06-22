@@ -207,7 +207,7 @@ cluster-create: $(BINDIR)/kubectl $(BINDIR)/kind
 	$(MAKE) deploy-test-resources
 
 	# Wait for controller manager to be running and healthy.
-	while ! $(BINDIR)/kubectl get serviceaccount default; do echo "Waiting for default serviceaccount to be created..."; sleep 2; done
+	while ! KUBECONFIG=$(KUBECONFIG) $(BINDIR)/kubectl get serviceaccount default; do echo "Waiting for default serviceaccount to be created..."; sleep 2; done
 
 
 ## Deploy resources needed for UTs.
@@ -226,6 +226,7 @@ $(BINDIR)/kind:
 	$(DOCKER_GO_BUILD) sh -c "GOBIN=/go/src/$(PACKAGE_NAME)/$(BINDIR) go install sigs.k8s.io/kind"
 
 $(BINDIR)/kubectl:
+	mkdir -p $(BINDIR)
 	curl -L https://storage.googleapis.com/kubernetes-release/release/v1.17.0/bin/linux/amd64/kubectl -o $@
 	chmod +x $(BINDIR)/kubectl
 
