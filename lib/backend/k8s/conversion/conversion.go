@@ -23,7 +23,7 @@ import (
 	kapiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	discoveryv1 "k8s.io/api/discovery/v1"
+	discovery "k8s.io/api/discovery/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -56,7 +56,7 @@ type Converter interface {
 	HasIPAddress(pod *kapiv1.Pod) bool
 	StagedKubernetesNetworkPolicyToStagedName(stagedK8sName string) string
 	K8sNetworkPolicyToCalico(np *networkingv1.NetworkPolicy) (*model.KVPair, error)
-	EndpointSliceToKVP(svc *discoveryv1.EndpointSlice) (*model.KVPair, error)
+	EndpointSliceToKVP(svc *discovery.EndpointSlice) (*model.KVPair, error)
 	ProfileNameToNamespace(profileName string) (string, error)
 	ServiceAccountToProfile(sa *kapiv1.ServiceAccount) (*model.KVPair, error)
 	ProfileNameToServiceAccount(profileName string) (ns, sa string, err error)
@@ -227,7 +227,7 @@ func (c converter) StagedKubernetesNetworkPolicyToStagedName(stagedK8sName strin
 }
 
 // EndpointSliceToKVP converts a k8s EndpointSlice to a model.KVPair.
-func (c converter) EndpointSliceToKVP(slice *discoveryv1.EndpointSlice) (*model.KVPair, error) {
+func (c converter) EndpointSliceToKVP(slice *discovery.EndpointSlice) (*model.KVPair, error) {
 	return &model.KVPair{
 		Key: model.ResourceKey{
 			Name:      slice.Name,

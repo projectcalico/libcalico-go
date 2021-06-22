@@ -15,5 +15,5 @@
 package model
 
 const (
-	KindKubernetesNetworkPolicy = "KubernetesNetworkPolicy"
+	KindKubernetesEndpointSlice = "KubernetesEndpointSlice"
 )
