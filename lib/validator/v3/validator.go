@@ -1064,6 +1064,29 @@ func validateEntityRule(structLevel validator.StructLevel) {
 		structLevel.ReportError(reflect.ValueOf(rule.NamespaceSelector),
 			"NamespaceSelector field", "", reason(globalSelectorOnly), "")
 	}
+
+	if rule.Services != nil {
+		// Make sure it's not empty.
+		if len(rule.ServiceAccounts.Names) == 0 {
+			structLevel.ReportError(reflect.ValueOf(rule.Services),
+				"Services field", "", reason("must specify at least one service name"), "")
+		}
+
+		// Make sure the rest of the entity rule is consistent.
+		if rule.Selector != "" {
+			structLevel.ReportError(reflect.ValueOf(rule.Services),
+				"Services field", "", reason("cannot specify Selector and Services on the same rule"), "")
+		}
+		if rule.ServiceAccounts != nil {
+			structLevel.ReportError(reflect.ValueOf(rule.Services),
+				"Services field", "", reason("cannot specify ServiceAccounts and Services on the same rule"), "")
+		}
+		if rule.Ports != nil || rule.NotPorts != nil {
+			// Service rules use ports specified on the endpoints.
+			structLevel.ReportError(reflect.ValueOf(rule.Services),
+				"Services field", "", reason("cannot specify Ports/NotPorts and Services on the same rule"), "")
+		}
+	}
 }
 
 func validateNodeSpec(structLevel validator.StructLevel) {
@@ -1200,6 +1223,16 @@ func validateNetworkPolicy(structLevel validator.StructLevel) {
 			if useALP {
 				structLevel.ReportError(v, f, "", reason("not allowed in egress rule"), "")
 			}
+		}
+	}
+
+	// Services are only allowed on egress rules.
+	for _, r := range spec.Ingress {
+		if r.Source.Services != nil {
+			structLevel.ReportError(
+				reflect.ValueOf(r.Source.Services), "Services", "",
+				reason("not allowed in ingress rule"), "",
+			)
 		}
 	}
 
