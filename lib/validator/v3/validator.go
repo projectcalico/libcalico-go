@@ -308,7 +308,7 @@ func validatePrometheusHost(fl validator.FieldLevel) bool {
 func validatePortName(fl validator.FieldLevel) bool {
 	s := fl.Field().String()
 	log.Debugf("Validate port name: %s", s)
-	return len(s) != 0 && len(k8svalidation.IsValidPortName(s)) == 0
+	return len(s) == 0 || (len(s) != 0 && len(k8svalidation.IsValidPortName(s)) == 0)
 }
 
 func validateMustBeNil(fl validator.FieldLevel) bool {
