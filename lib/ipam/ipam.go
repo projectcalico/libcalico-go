@@ -484,7 +484,7 @@ func (s *blockAssignState) findOrClaimBlock(ctx context.Context, minFreeIps int)
 	if config.AutoAllocateBlocks {
 		for i := 0; i < datastoreRetries; i++ {
 			// Claim a new block.
-			logCtx.Infof("No more affine blocks, but need to claim more block -- allocate another block")
+			logCtx.Infof("No more affine blocks, but need to claim more blocks -- allocate another block")
 
 			// First, try to find an unclaimed block.
 			logCtx.Info("Looking for an unclaimed block")
