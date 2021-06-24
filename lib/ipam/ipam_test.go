@@ -192,7 +192,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Expect(err).NotTo(HaveOccurred())
 				ic = NewIPAMClient(bc, pa)
 
-				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool32, Hostname: hostname})
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool32, Hostname: hostname})
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
 			})
@@ -208,7 +208,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Expect(err).NotTo(HaveOccurred())
 				ic = NewIPAMClient(bc, pa)
 
-				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool26, Hostname: hostname})
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool26, Hostname: hostname})
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
 			})
@@ -224,7 +224,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Expect(err).NotTo(HaveOccurred())
 				ic = NewIPAMClient(bc, pa)
 
-				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool20, Hostname: hostname})
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, IPv4Pools: pool20, Hostname: hostname})
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
 			})
@@ -240,7 +240,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Expect(err).NotTo(HaveOccurred())
 				ic = NewIPAMClient(bc, pa)
 
-				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 64, IPv4Pools: pool20, Hostname: hostname})
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 64, IPv4Pools: pool20, Hostname: hostname})
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(64))
 			})
@@ -256,7 +256,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Expect(err).NotTo(HaveOccurred())
 				ic = NewIPAMClient(bc, pa)
 
-				v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname})
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname})
 				v4IP := make([]cnet.IP, 0, 0)
 				for _, ipNets := range v4 {
 					IP, _, _ := cnet.ParseCIDR(ipNets.String())
@@ -286,7 +286,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				applyNode(bc, kc, node, map[string]string{"foo": "bar"})
 				for i := 0; i < 6; i++ {
 					// 6 addresses of each family per-node.
-					v4, v6, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Num6: 1, Hostname: node})
+					v4, v6, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Num6: 1, Hostname: node})
 					Expect(err).NotTo(HaveOccurred())
 					Expect(len(v4)).To(Equal(1))
 					Expect(len(v6)).To(Equal(1))
@@ -301,7 +301,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				}
 
 				// Allocate a few addresses with the same handle.
-				v4, v6, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 13, Num6: 0, Hostname: node})
+				v4, v6, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 13, Num6: 0, Hostname: node})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(13))
 				Expect(len(v6)).To(Equal(0))
@@ -435,7 +435,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 		It("should only release empty blocks", func() {
 			// Allocate an IP address in a block.
 			handle := "test-handle"
-			v4, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname, HandleID: &handle})
+			v4, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname, HandleID: &handle})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(v4)).To(Equal(1))
 
@@ -475,7 +475,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			// per each block.
 			handle := "test-handle"
 			for i := 0; i < 12; i++ {
-				v4, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname, HandleID: &handle})
+				v4, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname, HandleID: &handle})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
 			}
@@ -490,7 +490,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(len(blocks.KVPairs)).To(Equal(3))
 
 			// Allocate a single address, which will make one of the blocks non empty.
-			v4, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname, HandleID: &handle})
+			v4, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname, HandleID: &handle})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(v4)).To(Equal(1))
 
@@ -510,7 +510,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			// per each block.
 			handle := "test-handle"
 			for i := 0; i < 12; i++ {
-				v4, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname, HandleID: &handle})
+				v4, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{Num4: 1, Hostname: hostname, HandleID: &handle})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
 			}
@@ -566,7 +566,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Hostname:  host,
 				IPv4Pools: []cnet.IPNet{pool1},
 			}
-			ips, _, bulkAssignErr := ic.AutoAssign(context.Background(), args)
+			ips, _, _, _, bulkAssignErr := ic.AutoAssign(context.Background(), args)
 
 			Expect(bulkAssignErr).NotTo(HaveOccurred())
 			Expect(len(ips)).To(Equal(64))
@@ -596,7 +596,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Hostname:  host,
 				IPv4Pools: []cnet.IPNet{pool1},
 			}
-			ips, _, err := ic.AutoAssign(context.Background(), args)
+			ips, _, _, _, err := ic.AutoAssign(context.Background(), args)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(ips)).To(Equal(0), "An IP has been assigned twice!")
 		})
@@ -632,7 +632,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 					Hostname: hostA,
 				}
 
-				v4, _, outErr := ic.AutoAssign(context.Background(), args)
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 
 				blocks := getAffineBlocks(bc, hostA)
 				for _, b := range blocks {
@@ -651,7 +651,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 					Hostname: hostA,
 				}
 
-				v4, _, outErr := ic.AutoAssign(context.Background(), args)
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(block.IPNet.Contains(v4[0].IP)).To(BeTrue())
 			})
@@ -671,7 +671,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 					Num6:     0,
 					Hostname: hostB,
 				}
-				v4, _, outErr := ic.AutoAssign(context.Background(), args)
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(pool2.IPNet.Contains(v4[0].IP)).To(BeTrue())
 			})
@@ -682,7 +682,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 					Num6:     0,
 					Hostname: hostA,
 				}
-				v4, _, outErr := ic.AutoAssign(context.Background(), args)
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(pool2.IPNet.Contains(v4[0].IP)).To(BeTrue())
 			})
@@ -710,7 +710,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			By("Assigning an IP address", func() {
 				args := AutoAssignArgs{Num4: 1, HandleID: &handle, Hostname: "test-host"}
-				v4, _, err := ic.AutoAssign(context.Background(), args)
+				v4, _, _, _, err := ic.AutoAssign(context.Background(), args)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(1))
 			})
@@ -761,7 +761,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			applyPoolWithBlockSize("10.0.0.0/28", true, `foo == "bar"`, 28)
 
-			v4Node0, _, errNode0 := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4Node0, _, _, _, errNode0 := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node1,
@@ -769,7 +769,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(errNode0).ToNot(HaveOccurred())
 			Expect(len(v4Node0)).To(Equal(1))
 
-			v4Node1, _, errNode1 := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4Node1, _, _, _, errNode1 := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node2,
@@ -782,13 +782,13 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			err = ic.SetIPAMConfig(ctx, cfg)
 			Expect(err).NotTo(HaveOccurred())
 
-			v4Node0, _, errNode0 = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4Node0, _, _, _, errNode0 = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node1,
 			})
 
-			v4Node1, _, errNode1 = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4Node1, _, _, _, errNode1 = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node2,
@@ -809,7 +809,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			err = ic.SetIPAMConfig(ctx, cfg)
 			Expect(err).NotTo(HaveOccurred())
 
-			v4Node0, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4Node0, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node1,
@@ -817,7 +817,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(v4Node0)).To(Equal(1))
 
-			v4Node1, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4Node1, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node2,
@@ -852,7 +852,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			handle1 := "handle-1"
 			handle2 := "handle-2"
-			v4Node0, _, errNode0 := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4Node0, _, _, _, errNode0 := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node1,
@@ -861,7 +861,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(errNode0).ToNot(HaveOccurred())
 			Expect(len(v4Node0)).To(Equal(1))
 
-			v4Node1, _, errNode1 := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4Node1, _, _, _, errNode1 := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node2,
@@ -898,7 +898,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			// We should be able to assign 8 addresses to node0, fully using its two blocks.
 			for i := 0; i < 8; i++ {
-				v4, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
+				v4, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
 					Num4:     1,
 					Num6:     0,
 					Hostname: node1,
@@ -910,7 +910,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			// Attempting to allocate a ninth address should fail, since
 			// it would require allcoating a third block.
-			v4, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node1,
@@ -920,7 +920,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(len(v4)).To(Equal(0))
 
 			// Allocate a block for the OTHER node with a single address.
-			v4, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node2,
@@ -931,7 +931,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			// Attempting to allocate a ninth address should still fail, due to
 			// strict affinity.
-			v4, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node1,
@@ -942,7 +942,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			// And, we should respect the global config even if a per-request value is provided,
 			// if it is more restrictive.
-			v4, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:             1,
 				Num6:             0,
 				Hostname:         node1,
@@ -959,7 +959,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			// Try again, but with a more restrictive per-request value that will still fail,
 			// since the more restrictive value takes precedence.
-			v4, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:             1,
 				Num6:             0,
 				Hostname:         node1,
@@ -971,7 +971,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			// Finally, send a request with no-limit. Now that the global value is higher,
 			// we should get a new block.
-			v4, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node1,
@@ -1022,7 +1022,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			args.Hostname = longHostname
 			args.Num6 = 1
 
-			v4, v6, err := ic.AutoAssign(context.Background(), args)
+			v4, v6, _, _, err := ic.AutoAssign(context.Background(), args)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(v4)).To(Equal(1))
 			Expect(len(v6)).To(Equal(1))
@@ -1042,7 +1042,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			args.Hostname = longHostname2
 			args.Num6 = 1
-			v4, v6, err = ic.AutoAssign(context.Background(), args)
+			v4, v6, _, _, err = ic.AutoAssign(context.Background(), args)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(v4)).To(Equal(1))
 			Expect(len(v6)).To(Equal(1))
@@ -1069,14 +1069,14 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyPool("10.0.0.0/24", true, "")
 			applyPool("20.0.0.0/24", true, "")
 
-			v4, _, err := ic.AutoAssign(context.Background(), args)
+			v4, _, _, _, err := ic.AutoAssign(context.Background(), args)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(v4) == 1).To(BeTrue())
 		})
 
 		// Call again to trigger an assignment from the newly created block.
 		It("should have assigned an IP address with no error", func() {
-			v4, _, err := ic.AutoAssign(context.Background(), args)
+			v4, _, _, _, err := ic.AutoAssign(context.Background(), args)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(v4)).To(Equal(1))
 		})
@@ -1116,7 +1116,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				IPv4Pools: []cnet.IPNet{pool1},
 			}
 
-			v4, _, outErr := ic.AutoAssign(context.Background(), args)
+			v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 			blocks := getAffineBlocks(bc, host)
 			for _, b := range blocks {
 				if pool1.Contains(b.IPNet.IP) {
@@ -1146,7 +1146,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				IPv4Pools: []cnet.IPNet{pool2},
 			}
 
-			v4, _, outErr := ic.AutoAssign(context.Background(), args)
+			v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 			blocks := getAffineBlocks(bc, host)
 			for _, b := range blocks {
 				if pool2.Contains(b.IPNet.IP) {
@@ -1175,7 +1175,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Hostname:  host,
 				IPv4Pools: []cnet.IPNet{pool1},
 			}
-			v4, _, outErr := ic.AutoAssign(context.Background(), args)
+			v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 			Expect(outErr).NotTo(HaveOccurred())
 			Expect(block1.IPNet.Contains(v4[0].IP)).To(BeTrue())
 		})
@@ -1188,7 +1188,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				IPv4Pools: []cnet.IPNet{pool2},
 			}
 
-			v4, _, outErr := ic.AutoAssign(context.Background(), args)
+			v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 			Expect(outErr).NotTo(HaveOccurred())
 			Expect(block2.IPNet.Contains(v4[0].IP)).To(BeTrue())
 		})
@@ -1204,7 +1204,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			}
 
 			By("allocating the rest of the IPs in the pool", func() {
-				v4, _, outErr := ic.AutoAssign(context.Background(), args)
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(254))
 
@@ -1216,7 +1216,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			By("attempting to allocate an IP when there are no more left in the pool", func() {
 				args.Num4 = 1
-				v4, _, outErr := ic.AutoAssign(context.Background(), args)
+				v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 				Expect(outErr).NotTo(HaveOccurred())
 				Expect(len(v4)).To(Equal(0))
 			})
@@ -1237,7 +1237,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyPool(pool2.String(), true, `foo != "bar"`)
 
 			// Attempt to assign 300 ips but only the 256 ips from pool1 should be used.
-			v4, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4, _, _, _, outErr := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     300,
 				Num6:     0,
 				Hostname: host,
@@ -1266,7 +1266,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyPool(pool1.String(), true, `foo == "bar"`)
 
 			// Assign three addresses to the node.
-			v4nets, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4nets, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     3,
 				Num6:     0,
 				Hostname: host,
@@ -1338,7 +1338,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			handleID3 := "handle3"
 
 			// Assign three addresses to the node.
-			v4net1, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4net1, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: host,
@@ -1347,7 +1347,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(v4net1)).To(Equal(1))
 
-			v4net2, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4net2, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: host,
@@ -1356,7 +1356,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(v4net2)).To(Equal(1))
 
-			v4net3, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4net3, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: host,
@@ -1424,7 +1424,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyPoolWithBlockSize(pool1.String(), true, `foo == "bar"`, 30)
 
 			// Assign 3 of the 4 total addresses to node1.
-			v4, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     3,
 				Num6:     0,
 				Hostname: node1,
@@ -1441,7 +1441,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyNode(bc, kc, node2, map[string]string{"foo": "bar"})
 
 			// Assign 1 address to node1, expect an error.
-			v4, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node1,
@@ -1451,7 +1451,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(len(v4)).To(Equal(0))
 
 			// Assign 1 address to node2.
-			v4, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     1,
 				Num6:     0,
 				Hostname: node2,
@@ -1482,7 +1482,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyPool(pool1.String(), true, `foo == "bar"`)
 
 			// Assign three addresses to the node.
-			v4nets, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4nets, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     3,
 				Num6:     0,
 				Hostname: host,
@@ -1523,7 +1523,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyPool(pool2.String(), true, "all()")
 
 			// Assign three addresses to the node.
-			v4nets, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4nets, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     3,
 				Num6:     0,
 				Hostname: host,
@@ -1564,7 +1564,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyPool(pool1.String(), true, `foo == "bar"`)
 
 			// Assign three addresses to the node.
-			v4nets, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4nets, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:     3,
 				Num6:     0,
 				Hostname: host,
@@ -1602,7 +1602,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyPool(pool2.String(), true, "all()")
 
 			// Assign three addresses to the node.
-			v4nets, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
+			v4nets, _, _, _, err = ic.AutoAssign(context.Background(), AutoAssignArgs{
 				Num4:      3,
 				Num6:      0,
 				Hostname:  host,
@@ -1644,7 +1644,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyPool(pool2.String(), true, "")
 			applyPool(pool3.String(), false, "")
 			applyPool(pool4_v6.String(), true, "")
-			_, _, outErr := ic.AutoAssign(context.Background(), args)
+			_, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 			Expect(outErr).To(HaveOccurred())
 		})
 
@@ -1655,7 +1655,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Hostname:  host,
 				IPv6Pools: []cnet.IPNet{pool4_v6, pool1},
 			}
-			_, _, outErr := ic.AutoAssign(context.Background(), args)
+			_, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 			Expect(outErr).To(HaveOccurred())
 		})
 
@@ -1666,7 +1666,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Hostname:  host,
 				IPv4Pools: []cnet.IPNet{pool1, pool2},
 			}
-			v4, _, outErr := ic.AutoAssign(context.Background(), args)
+			v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 			log.Printf("IPAM returned: %v\n", v4)
 
 			Expect(outErr).NotTo(HaveOccurred())
@@ -1681,7 +1681,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Hostname:  host,
 				IPv4Pools: []cnet.IPNet{pool1, pool2},
 			}
-			v4, _, outErr := ic.AutoAssign(context.Background(), args)
+			v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 			log.Printf("v4: %d IPs\n", len(v4))
 
 			Expect(outErr).NotTo(HaveOccurred())
@@ -1695,7 +1695,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Hostname:  host,
 				IPv4Pools: []cnet.IPNet{pool1, pool2},
 			}
-			v4, _, outErr := ic.AutoAssign(context.Background(), args)
+			v4, _, _, _, outErr := ic.AutoAssign(context.Background(), args)
 			log.Printf("v4: %d IPs\n", len(v4))
 
 			// Expect 211 entries since we have a total of 512, we requested 1 + 300 already.
@@ -1710,7 +1710,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Hostname:  host,
 				IPv4Pools: []cnet.IPNet{pool1, pool5_doesnot_exist},
 			}
-			v4, _, err := ic.AutoAssign(context.Background(), args)
+			v4, _, _, _, err := ic.AutoAssign(context.Background(), args)
 			log.Printf("v4: %d IPs\n", len(v4))
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).Should(Equal("the given pool (40.0.0.0/24) does not exist, or is not enabled"))
@@ -1968,7 +1968,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 	})
 
 	DescribeTable("AutoAssign: requested IPs vs returned IPs",
-		func(host string, cleanEnv bool, pools []pool, usePool string, inv4, inv6, expv4, expv6 int, blockLimit int, expError error) {
+		func(host string, cleanEnv bool, pools []pool, usePool string, inv4, inv6, expv4, expv6 int, expV4Info, expV6Info *IPAMAssignmentInfo, blockLimit int, expError error) {
 
 			if cleanEnv {
 				bc.Clean()
@@ -1990,7 +1990,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				MaxBlocksPerHost: blockLimit,
 			}
 
-			outv4, outv6, err := ic.AutoAssign(context.Background(), args)
+			outv4, outv6, outV4Info, outV6Info, err := ic.AutoAssign(context.Background(), args)
 			if expError != nil {
 				Expect(err).To(HaveOccurred())
 			} else {
@@ -1998,43 +1998,281 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			}
 			Expect(outv4).To(HaveLen(expv4))
 			Expect(outv6).To(HaveLen(expv6))
+
+			Expect(outV4Info).To(Equal(expV4Info))
+			Expect(outV6Info).To(Equal(expV6Info))
 		},
 
 		// Test 1a: AutoAssign 1 IPv4, 1 IPv6 with tiny block - expect one of each to be returned.
-		Entry("1 v4 1 v6 - tiny block", "test-host", true, []pool{{"192.168.1.0/24", 32, true, ""}, {"fd80:24e2:f998:72d6::/120", 128, true, ""}}, "192.168.1.0/24", 1, 1, 1, 1, 0, nil),
+		Entry("1 v4 1 v6 - tiny block", "test-host", true,
+			[]pool{{"192.168.1.0/24", 32, true, ""}, {"fd80:24e2:f998:72d6::/120", 128, true, ""}}, "192.168.1.0/24", 1, 1, 1, 1,
+			&IPAMAssignmentInfo{
+				NumRequested:       1,
+				NumAssigned:        1,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			&IPAMAssignmentInfo{
+				NumRequested:       1,
+				NumAssigned:        1,
+				IPVersion:          6,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			0, nil),
 
 		// Test 1b: AutoAssign 1 IPv4, 1 IPv6 with massive block - expect one of each to be returned.
-		Entry("1 v4 1 v6 - big block", "test-host", true, []pool{{"192.168.0.0/16", 20, true, ""}, {"fd80:24e2:f998:72d6::/110", 116, true, ""}}, "192.168.0.0/16", 1, 1, 1, 1, 0, nil),
+		Entry("1 v4 1 v6 - big block", "test-host", true,
+			[]pool{{"192.168.0.0/16", 20, true, ""}, {"fd80:24e2:f998:72d6::/110", 116, true, ""}},
+			"192.168.0.0/16", 1, 1, 1, 1,
+			&IPAMAssignmentInfo{
+				NumRequested:       1,
+				NumAssigned:        1,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			&IPAMAssignmentInfo{
+				NumRequested:       1,
+				NumAssigned:        1,
+				IPVersion:          6,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			0, nil),
 
 		// Test 1c: AutoAssign 1 IPv4, 1 IPv6 with default block - expect one of each to be returned.
-		Entry("1 v4 1 v6 - default block", "test-host", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 1, 1, 1, 1, 0, nil),
+		Entry("1 v4 1 v6 - default block", "test-host", true,
+			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
+			"192.168.1.0/24", 1, 1, 1, 1,
+			&IPAMAssignmentInfo{
+				NumRequested:       1,
+				NumAssigned:        1,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			&IPAMAssignmentInfo{
+				NumRequested:       1,
+				NumAssigned:        1,
+				IPVersion:          6,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			0, nil),
 
 		// Test 2a: AutoAssign 256 IPv4, 256 IPv6 with default blocksize- expect 256 IPv4 + IPv6 addresses.
-		Entry("256 v4 256 v6", "test-host", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 256, 256, 256, 256, 0, nil),
+		Entry("256 v4 256 v6", "test-host", true,
+			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
+			"192.168.1.0/24", 256, 256, 256, 256,
+			&IPAMAssignmentInfo{
+				NumRequested:       256,
+				NumAssigned:        256,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			&IPAMAssignmentInfo{
+				NumRequested:       256,
+				NumAssigned:        256,
+				IPVersion:          6,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			0, nil),
 
 		// Test 2b: AutoAssign 256 IPv4, 256 IPv6 with small blocksize- expect 256 IPv4 + IPv6 addresses.
-		Entry("256 v4 256 v6 - small blocks", "test-host", true, []pool{{"192.168.1.0/24", 30, true, ""}, {"fd80:24e2:f998:72d6::/120", 126, true, ""}}, "192.168.1.0/24", 256, 256, 256, 256, 256, nil),
+		Entry("256 v4 256 v6 - small blocks", "test-host", true,
+			[]pool{{"192.168.1.0/24", 30, true, ""}, {"fd80:24e2:f998:72d6::/120", 126, true, ""}},
+			"192.168.1.0/24", 256, 256, 256, 256,
+			&IPAMAssignmentInfo{
+				NumRequested:       256,
+				NumAssigned:        256,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       256,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			&IPAMAssignmentInfo{
+				NumRequested:       256,
+				NumAssigned:        256,
+				IPVersion:          6,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       256,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			256, nil),
 
 		// Test 2a: AutoAssign 256 IPv4, 256 IPv6 with num blocks limit expect 64 IPv4 + IPv6 addresses.
-		Entry("256 v4 0 v6 block limit", "test-host", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 256, 0, 64, 0, 1, ErrBlockLimit),
-		Entry("256 v4 0 v6 block limit 2", "test-host", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 256, 0, 128, 0, 2, ErrBlockLimit),
-		Entry("0 v4 256 v6 block limit", "test-host", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 0, 256, 0, 64, 1, ErrBlockLimit),
+		Entry("256 v4 0 v6 block limit", "test-host", true,
+			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
+			"192.168.1.0/24", 256, 0, 64, 0,
+			&IPAMAssignmentInfo{
+				NumRequested:       256,
+				NumAssigned:        64,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       1,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			nil, 1, ErrBlockLimit),
+		Entry("256 v4 0 v6 block limit 2", "test-host", true,
+			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
+			"192.168.1.0/24", 256, 0, 128, 0,
+			&IPAMAssignmentInfo{
+				NumRequested:       256,
+				NumAssigned:        128,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       2,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			nil, 2, ErrBlockLimit),
+		Entry("0 v4 256 v6 block limit", "test-host", true,
+			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
+			"192.168.1.0/24", 0, 256, 0, 64, nil,
+			&IPAMAssignmentInfo{
+				NumRequested:       256,
+				NumAssigned:        64,
+				IPVersion:          6,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       1,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			1, ErrBlockLimit),
 
 		// Test 3: AutoAssign 257 IPv4, 0 IPv6 - expect 256 IPv4 addresses, no IPv6, and no error.
-		Entry("257 v4 0 v6", "test-host", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 257, 0, 256, 0, 0, nil),
+		Entry("257 v4 0 v6", "test-host", true,
+			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 257, 0, 256, 0,
+			&IPAMAssignmentInfo{
+				NumRequested:       257,
+				NumAssigned:        256,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     []string{"192.168.1.0/24"},
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: true,
+				HostReservedAttr:   nil,
+			},
+			nil, 0, nil),
 
 		// Test 4: AutoAssign 0 IPv4, 257 IPv6 - expect 256 IPv6 addresses, no IPv6, and no error.
-		Entry("0 v4 257 v6", "test-host", true, []pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 0, 257, 0, 256, 0, nil),
+		Entry("0 v4 257 v6", "test-host", true,
+			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
+			"192.168.1.0/24", 0, 257, 0, 256, nil,
+			&IPAMAssignmentInfo{
+				NumRequested:       257,
+				NumAssigned:        256,
+				IPVersion:          6,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     []string{"fd80:24e2:f998:72d6::/120"},
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: true,
+				HostReservedAttr:   nil,
+			},
+			0, nil),
 
 		// Test 5: (use pool of size /25 so only two blocks are contained):
 		// - Assign 1 address on host A (Expect 1 address).
-		Entry("1 v4 0 v6 host-a", "host-a", true, []pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}}, "10.0.0.0/25", 1, 0, 1, 0, 0, nil),
+		Entry("1 v4 0 v6 host-a", "host-a", true,
+			[]pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}},
+			"10.0.0.0/25", 1, 0, 1, 0,
+			&IPAMAssignmentInfo{
+				NumRequested:       1,
+				NumAssigned:        1,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			nil, 0, nil),
 
 		// - Assign 1 address on host B (Expect 1 address, different block).
-		Entry("1 v4 0 v6 host-b", "host-b", false, []pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}}, "10.0.0.0/25", 1, 0, 1, 0, 0, nil),
+		Entry("1 v4 0 v6 host-b", "host-b", false,
+			[]pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}},
+			"10.0.0.0/25", 1, 0, 1, 0,
+			&IPAMAssignmentInfo{
+				NumRequested:       1,
+				NumAssigned:        1,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: false,
+				HostReservedAttr:   nil,
+			},
+			nil, 0, nil),
 
 		// - Assign 64 more addresses on host A (Expect 63 addresses from host A's block, 1 address from host B's block).
-		Entry("64 v4 0 v6 host-a", "host-a", false, []pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}}, "10.0.0.0/25", 64, 0, 64, 0, 0, nil),
+		Entry("64 v4 0 v6 host-a", "host-a", false,
+			[]pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}},
+			"10.0.0.0/25", 64, 0, 64, 0,
+			&IPAMAssignmentInfo{
+				NumRequested:       64,
+				NumAssigned:        64,
+				IPVersion:          4,
+				NumBlocksOwned:     1,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     false,
+				NoFreeAffineBlocks: true,
+				HostReservedAttr:   nil,
+			},
+			nil, 0, nil),
 	)
 
 	DescribeTable("AssignIP: requested IP vs returned error",
@@ -2115,7 +2353,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			}
 
 			if autoAssignNumIPv4 != 0 {
-				assignedIPv4, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
+				assignedIPv4, _, _, _, err := ic.AutoAssign(context.Background(), AutoAssignArgs{
 					Num4:     autoAssignNumIPv4,
 					Hostname: hostname,
 				})
@@ -2490,3 +2728,93 @@ func deleteNode(c bapi.Client, kc *kubernetes.Clientset, host string) {
 		c.Delete(context.Background(), &model.ResourceKey{Name: host, Kind: libapiv3.KindNode}, "")
 	}
 }
+
+var _ = DescribeTable("IPAMAssignmentInfo.String() tests", func(assignmentInfo *IPAMAssignmentInfo, expOutput string) {
+
+	Expect(assignmentInfo.String()).To(Equal(expOutput))
+},
+	Entry("nil *IPAMAssignmentInfo", nil, ""),
+	Entry("",
+		&IPAMAssignmentInfo{
+			NumRequested:       1,
+			NumAssigned:        1,
+			IPVersion:          4,
+			NumBlocksOwned:     0,
+			MaxNumBlocks:       20,
+			ExhaustedPools:     nil,
+			StrictAffinity:     false,
+			NoFreeAffineBlocks: false,
+			HostReservedAttr:   nil,
+		},
+		"Assigned 1 out of 1 requested IPv4 addresses"),
+	Entry("",
+		&IPAMAssignmentInfo{
+			NumRequested:       256,
+			NumAssigned:        256,
+			IPVersion:          4,
+			NumBlocksOwned:     0,
+			MaxNumBlocks:       20,
+			ExhaustedPools:     nil,
+			StrictAffinity:     false,
+			NoFreeAffineBlocks: false,
+			HostReservedAttr:   nil,
+		},
+		"Assigned 256 out of 256 requested IPv4 addresses"),
+	Entry("Strict affinity",
+		&IPAMAssignmentInfo{
+			NumRequested:       1,
+			NumAssigned:        0,
+			IPVersion:          4,
+			NumBlocksOwned:     1,
+			MaxNumBlocks:       20,
+			ExhaustedPools:     nil,
+			StrictAffinity:     true,
+			NoFreeAffineBlocks: true,
+			HostReservedAttr:   nil,
+		},
+		"Assigned 0 out of 1 requested IPv4 addresses; No more free affine blocks and strict affinity enabled; no free affine blocks: true, strict affinity: true, assigned blocks: 1, block limit: 20, exhausted IP pools: []"),
+	Entry("Block limit",
+		&IPAMAssignmentInfo{
+			NumRequested:       1,
+			NumAssigned:        0,
+			IPVersion:          4,
+			NumBlocksOwned:     20,
+			MaxNumBlocks:       20,
+			ExhaustedPools:     nil,
+			StrictAffinity:     false,
+			NoFreeAffineBlocks: false,
+			HostReservedAttr:   nil,
+		},
+		"Assigned 0 out of 1 requested IPv4 addresses; IPAM block limit reached; no free affine blocks: false, strict affinity: false, assigned blocks: 20, block limit: 20, exhausted IP pools: []"),
+	Entry("Exhausted IP Pools",
+		&IPAMAssignmentInfo{
+			NumRequested:       1,
+			NumAssigned:        0,
+			IPVersion:          4,
+			NumBlocksOwned:     20,
+			MaxNumBlocks:       20,
+			ExhaustedPools:     []string{"192.168.0.0/24", "192.168.1.0/24"},
+			StrictAffinity:     false,
+			NoFreeAffineBlocks: false,
+			HostReservedAttr:   nil,
+		},
+		"Assigned 0 out of 1 requested IPv4 addresses; IPAM block limit reached; no free affine blocks: false, strict affinity: false, assigned blocks: 20, block limit: 20, exhausted IP pools: [192.168.0.0/24 192.168.1.0/24]"),
+	Entry("HostReservedAttr",
+		&IPAMAssignmentInfo{
+			NumRequested:       1,
+			NumAssigned:        0,
+			IPVersion:          4,
+			NumBlocksOwned:     20,
+			MaxNumBlocks:       20,
+			ExhaustedPools:     nil,
+			StrictAffinity:     false,
+			NoFreeAffineBlocks: false,
+			HostReservedAttr: &HostReservedAttr{
+				StartOfBlock: 3,
+				EndOfBlock:   1,
+				Handle:       WindowsReservedHandle,
+				Note:         "ipam ut",
+			},
+		},
+		"Assigned 0 out of 1 requested IPv4 addresses; IPAM block limit reached; no free affine blocks: false, strict affinity: false, assigned blocks: 20, block limit: 20, exhausted IP pools: [], HostReservedAttr: windows-reserved-ipam-handle"),
+)

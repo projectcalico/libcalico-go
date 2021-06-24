@@ -86,29 +86,30 @@ type ipamClient struct {
 // and the list of the assigned IPv6 addresses.
 //
 // In case of error, returns the IPs allocated so far along with the error.
-func (c ipamClient) AutoAssign(ctx context.Context, args AutoAssignArgs) ([]net.IPNet, []net.IPNet, error) {
+func (c ipamClient) AutoAssign(ctx context.Context, args AutoAssignArgs) ([]net.IPNet, []net.IPNet, *IPAMAssignmentInfo, *IPAMAssignmentInfo, error) {
 	// Determine the hostname to use - prefer the provided hostname if
 	// non-nil, otherwise use the hostname reported by os.
 	hostname, err := decideHostname(args.Hostname)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	log.Infof("Auto-assign %d ipv4, %d ipv6 addrs for host '%s'", args.Num4, args.Num6, hostname)
 
 	var v4list, v6list []net.IPNet
+	var v4IPAMAssignmentInfo, v6IPAMAssignmentInfo *IPAMAssignmentInfo
 
 	if args.Num4 != 0 {
 		// Assign IPv4 addresses.
 		log.Debugf("Assigning IPv4 addresses")
 		for _, pool := range args.IPv4Pools {
 			if pool.IP.To4() == nil {
-				return nil, nil, fmt.Errorf("provided IPv4 IPPools list contains one or more IPv6 IPPools")
+				return nil, nil, nil, nil, fmt.Errorf("provided IPv4 IPPools list contains one or more IPv6 IPPools")
 			}
 		}
-		v4list, err = c.autoAssign(ctx, args.Num4, args.HandleID, args.Attrs, args.IPv4Pools, 4, hostname, args.MaxBlocksPerHost, args.HostReservedAttrIPv4s)
+		v4list, v4IPAMAssignmentInfo, err = c.autoAssign(ctx, args.Num4, args.HandleID, args.Attrs, args.IPv4Pools, 4, hostname, args.MaxBlocksPerHost, args.HostReservedAttrIPv4s)
 		if err != nil {
 			log.Errorf("Error assigning IPV4 addresses: %v", err)
-			return v4list, nil, err
+			return v4list, nil, v4IPAMAssignmentInfo, nil, err
 		}
 	}
 
@@ -117,17 +118,17 @@ func (c ipamClient) AutoAssign(ctx context.Context, args AutoAssignArgs) ([]net.
 		log.Debugf("Assigning IPv6 addresses")
 		for _, pool := range args.IPv6Pools {
 			if pool.IP.To4() != nil {
-				return nil, nil, fmt.Errorf("provided IPv6 IPPools list contains one or more IPv4 IPPools")
+				return nil, nil, nil, nil, fmt.Errorf("provided IPv6 IPPools list contains one or more IPv4 IPPools")
 			}
 		}
-		v6list, err = c.autoAssign(ctx, args.Num6, args.HandleID, args.Attrs, args.IPv6Pools, 6, hostname, args.MaxBlocksPerHost, args.HostReservedAttrIPv6s)
+		v6list, v6IPAMAssignmentInfo, err = c.autoAssign(ctx, args.Num6, args.HandleID, args.Attrs, args.IPv6Pools, 6, hostname, args.MaxBlocksPerHost, args.HostReservedAttrIPv6s)
 		if err != nil {
 			log.Errorf("Error assigning IPV6 addresses: %v", err)
-			return v4list, v6list, err
+			return v4list, v6list, v4IPAMAssignmentInfo, v6IPAMAssignmentInfo, err
 		}
 	}
 
-	return v4list, v6list, nil
+	return v4list, v6list, v4IPAMAssignmentInfo, v6IPAMAssignmentInfo, nil
 }
 
 // getBlockFromAffinity returns the block referenced by the given affinity, attempting to create it if
@@ -548,7 +549,44 @@ func (s *blockAssignState) findOrClaimBlock(ctx context.Context, minFreeIps int)
 	return nil, false, errors.New("failed to find or claim a block")
 }
 
-func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, attrs map[string]string, requestedPools []net.IPNet, version int, host string, maxNumBlocks int, rsvdAttr *HostReservedAttr) ([]net.IPNet, error) {
+type IPAMAssignmentInfo struct {
+	NumRequested       int
+	NumAssigned        int
+	IPVersion          int
+	NumBlocksOwned     int
+	MaxNumBlocks       int
+	ExhaustedPools     []string
+	StrictAffinity     bool
+	NoFreeAffineBlocks bool
+	HostReservedAttr   *HostReservedAttr
+}
+
+func (i *IPAMAssignmentInfo) String() string {
+	if i == nil {
+		return ""
+	}
+
+	ret := fmt.Sprintf("Assigned %v out of %v requested IPv%v addresses", i.NumAssigned, i.NumRequested, i.IPVersion)
+
+	switch {
+	case i.NoFreeAffineBlocks && i.StrictAffinity:
+		ret += "; No more free affine blocks and strict affinity enabled"
+	case i.NumBlocksOwned >= i.MaxNumBlocks:
+		ret += "; IPAM block limit reached"
+	case len(i.ExhaustedPools) > 0:
+		ret += "; No IPs available in pools"
+	}
+	if i.NumAssigned != i.NumRequested {
+		ret += fmt.Sprintf("; no free affine blocks: %v, strict affinity: %v, assigned blocks: %v, block limit: %v, exhausted IP pools: %v", i.NoFreeAffineBlocks, i.StrictAffinity, i.NumBlocksOwned, i.MaxNumBlocks, i.ExhaustedPools)
+		if i.HostReservedAttr != nil {
+			ret += fmt.Sprintf(", HostReservedAttr: %v", i.HostReservedAttr.Handle)
+		}
+	}
+
+	return ret
+}
+
+func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, attrs map[string]string, requestedPools []net.IPNet, version int, host string, maxNumBlocks int, rsvdAttr *HostReservedAttr) ([]net.IPNet, *IPAMAssignmentInfo, error) {
 
 	// First, get the existing host-affine blocks.
 	logCtx := log.WithFields(log.Fields{"host": host})
@@ -558,7 +596,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 	logCtx.Info("Looking up existing affinities for host")
 	pools, affBlocks, err := c.prepareAffinityBlocksForHost(ctx, requestedPools, version, host, rsvdAttr)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	logCtx.Debugf("Found %d affine IPv%d blocks for host: %v", len(affBlocks), version, affBlocks)
@@ -569,7 +607,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 
 	config, err := c.GetIPAMConfig(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Merge in any global config, if it exists. We use the more restrictive value between
@@ -591,6 +629,15 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 		maxNumBlocks = 20
 	}
 	logCtx.Debugf("Host must not use more than %d blocks", maxNumBlocks)
+
+	iPAMAssignmentInfo := &IPAMAssignmentInfo{
+		NumRequested:     num,
+		IPVersion:        version,
+		NumBlocksOwned:   numBlocksOwned,
+		MaxNumBlocks:     maxNumBlocks,
+		StrictAffinity:   config.StrictAffinity,
+		HostReservedAttr: rsvdAttr,
+	}
 
 	s := &blockAssignState{
 		client:                c,
@@ -614,15 +661,16 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 		b, newlyClaimed, err := s.findOrClaimBlock(ctx, 1)
 		if err != nil {
 			if _, ok := err.(noFreeBlocksError); ok {
+				iPAMAssignmentInfo.NoFreeAffineBlocks = true
 				// Skip to check non-affine blocks
 				break
 			}
 			if errors.Is(err, ErrBlockLimit) {
 				log.Warnf("Unable to allocate a new IPAM block; host already has %v blocks but "+
 					"blocks per host limit is %v", numBlocksOwned, maxNumBlocks)
-				return ips, ErrBlockLimit
+				return ips, iPAMAssignmentInfo, ErrBlockLimit
 			}
-			return nil, err
+			return nil, iPAMAssignmentInfo, err
 		}
 
 		if newlyClaimed {
@@ -652,6 +700,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 				break
 			}
 			logCtx.Debugf("Assigned IPs from new block: %s", newIPs)
+			iPAMAssignmentInfo.NumAssigned += len(newIPs)
 			ips = append(ips, newIPs...)
 			rem = num - len(ips)
 			break
@@ -686,6 +735,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 				// Grab a new random block.
 				blockCIDR := newBlockCIDR()
 				if blockCIDR == nil {
+					iPAMAssignmentInfo.ExhaustedPools = append(iPAMAssignmentInfo.ExhaustedPools, p.Spec.CIDR)
 					logCtx.Warningf("All addresses exhausted in pool %s", p.Spec.CIDR)
 					break
 				}
@@ -712,6 +762,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 						break
 					}
 					logCtx.Infof("Successfully assigned IPs from non-affine block %s", blockCIDR.String())
+					iPAMAssignmentInfo.NumAssigned += len(newIPs)
 					ips = append(ips, newIPs...)
 					rem = num - len(ips)
 					break
@@ -721,7 +772,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 	}
 
 	logCtx.Infof("Auto-assigned %d out of %d IPv%ds: %v", len(ips), num, version, ips)
-	return ips, nil
+	return ips, iPAMAssignmentInfo, nil
 }
 
 // AssignIP assigns the provided IP address to the provided host.  The IP address

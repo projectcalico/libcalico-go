@@ -993,7 +993,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests (etcd only)", testutils.Dat
 			Expect(err).NotTo(HaveOccurred())
 
 			// Allocate an IP so that a block is allocated
-			assignedV4, _, err := c.IPAM().AutoAssign(ctx, ipam.AutoAssignArgs{Num4: 1, Hostname: host})
+			assignedV4, _, _, _, err := c.IPAM().AutoAssign(ctx, ipam.AutoAssignArgs{Num4: 1, Hostname: host})
 			var assigned []cnet.IP
 			for _, ipnet := range assignedV4 {
 				assigned = append(assigned, cnet.IP{ipnet.IP})
@@ -1068,7 +1068,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests (etcd only)", testutils.Dat
 			Expect(err).NotTo(HaveOccurred())
 
 			// Allocate an IP so that a block is allocated
-			assigned, _, err := c.IPAM().AutoAssign(ctx, ipam.AutoAssignArgs{Num4: 1, Hostname: host})
+			assigned, _, _, _, err := c.IPAM().AutoAssign(ctx, ipam.AutoAssignArgs{Num4: 1, Hostname: host})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(assigned).To(HaveLen(1))
 
@@ -1084,7 +1084,7 @@ var _ = testutils.E2eDatastoreDescribe("IPPool tests (etcd only)", testutils.Dat
 
 			// Allocate an IP so that a block is allocated
 			pool2 := []cnet.IPNet{cnet.MustParseCIDR(p2.Spec.CIDR)}
-			assigned, _, err = c.IPAM().AutoAssign(ctx, ipam.AutoAssignArgs{IPv4Pools: pool2, Num4: 1, Hostname: host})
+			assigned, _, _, _, err = c.IPAM().AutoAssign(ctx, ipam.AutoAssignArgs{IPv4Pools: pool2, Num4: 1, Hostname: host})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(assigned).To(HaveLen(1))
 

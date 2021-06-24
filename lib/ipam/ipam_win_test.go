@@ -106,7 +106,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			IPv4Pools:             []cnet.IPNet{fromPool},
 			HostReservedAttrIPv4s: rsvdAttrWindows,
 		}
-		_, _, outErr := ic.AutoAssign(ctx1, args1)
+		_, _, _, _, outErr := ic.AutoAssign(ctx1, args1)
 		Expect(outErr).To(Equal(ErrStrictAffinity))
 	})
 
@@ -146,7 +146,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			}
 
 			ctx := context.WithValue(context.Background(), "windowsHost", windowsHost)
-			outv4, _, outErr := ic.AutoAssign(ctx, args)
+			outv4, _, _, _, outErr := ic.AutoAssign(ctx, args)
 			if expError != nil {
 				Expect(outErr).To(HaveOccurred())
 			} else {
@@ -222,7 +222,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 				IPv4Pools:             []cnet.IPNet{fromPool},
 				HostReservedAttrIPv4s: rsvdAttrWindows,
 			}
-			outv4_1, _, outErr := ic.AutoAssign(ctx1, args1)
+			outv4_1, _, _, _, outErr := ic.AutoAssign(ctx1, args1)
 			Expect(outErr).ToNot(HaveOccurred())
 			Expect(len(outv4_1)).To(Equal(1))
 
@@ -234,7 +234,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 				IPv4Pools:             []cnet.IPNet{fromPool},
 				HostReservedAttrIPv4s: rsvdAttrWindows,
 			}
-			outv4_2, _, outErr := ic.AutoAssign(ctx1, args2)
+			outv4_2, _, _, _, outErr := ic.AutoAssign(ctx1, args2)
 			Expect(outErr).ToNot(HaveOccurred())
 			Expect(len(outv4_2)).To(Equal(1))
 
@@ -248,7 +248,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 				IPv4Pools:             []cnet.IPNet{fromPool},
 				HostReservedAttrIPv4s: rsvdAttrWindows,
 			}
-			outv4_3, _, outErr := ic.AutoAssign(ctx2, args3)
+			outv4_3, _, _, _, outErr := ic.AutoAssign(ctx2, args3)
 			Expect(outErr).ToNot(HaveOccurred())
 			Expect(len(outv4_3)).To(Equal(1))
 
@@ -261,7 +261,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 				HostReservedAttrIPv4s: rsvdAttrWindows,
 			}
 
-			outv4_4, _, outErr := ic.AutoAssign(ctx2, args4)
+			outv4_4, _, _, _, outErr := ic.AutoAssign(ctx2, args4)
 			Expect(outErr).ToNot(HaveOccurred())
 			Expect(len(outv4_4)).To(Equal(1))
 
@@ -273,7 +273,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 				IPv4Pools:             []cnet.IPNet{fromPool},
 				HostReservedAttrIPv4s: rsvdAttrWindows,
 			}
-			outv4_5, _, outErr := ic.AutoAssign(ctx1, args5)
+			outv4_5, _, _, _, outErr := ic.AutoAssign(ctx1, args5)
 			Expect(outErr).ToNot(HaveOccurred())
 			Expect(len(outv4_5)).To(Equal(59))
 
@@ -285,7 +285,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 				IPv4Pools:             []cnet.IPNet{fromPool},
 				HostReservedAttrIPv4s: rsvdAttrWindows,
 			}
-			outv4_6, _, outErr := ic.AutoAssign(ctx2, args6)
+			outv4_6, _, _, _, outErr := ic.AutoAssign(ctx2, args6)
 			Expect(outErr).ToNot(HaveOccurred())
 			Expect(len(outv4_6)).To(Equal(59))
 
@@ -297,7 +297,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 				IPv4Pools:             []cnet.IPNet{fromPool},
 				HostReservedAttrIPv4s: rsvdAttrWindows,
 			}
-			outv4_7, _, outErr := ic.AutoAssign(ctx2, args7)
+			outv4_7, _, _, _, outErr := ic.AutoAssign(ctx2, args7)
 			Expect(outErr).ToNot(HaveOccurred())
 			Expect(len(outv4_7)).To(Equal(59))
 		})
@@ -332,14 +332,14 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			ipPoolsWindows.pools["100.0.0.0/24"] = pool{cidr: "100.0.0.0/24", enabled: true, blockSize: 26}
 			ipPoolsWindows.pools["200.0.0.0/24"] = pool{cidr: "200.0.0.0/24", enabled: true, blockSize: 26}
 			ctx := context.WithValue(context.Background(), "windowsHost", "windows")
-			v4, _, outErr := ic.AutoAssign(ctx, args)
+			v4, _, _, _, outErr := ic.AutoAssign(ctx, args)
 			Expect(outErr).NotTo(HaveOccurred())
 			Expect(len(v4) == 1).To(BeTrue())
 			Expect(checkWindowsValidIP(v4[0].IP, 26)).To(BeTrue())
 			Expect(isValidWindowsHandle(bc, ipPoolsWindows, v4[0].IP, ctx)).To(BeTrue())
 
 			By("Calling again to trigger an assignment from the newly created block.")
-			v4_next, _, outErr := ic.AutoAssign(ctx, args)
+			v4_next, _, _, _, outErr := ic.AutoAssign(ctx, args)
 			Expect(outErr).NotTo(HaveOccurred())
 			Expect(len(v4_next)).To(Equal(1))
 			Expect(checkWindowsValidIP(v4_next[0].IP, 26)).To(BeTrue())
@@ -383,7 +383,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			}
 
 			ctx := context.WithValue(context.Background(), "windowsHost", "windows")
-			v4_1, _, outErr := ic.AutoAssign(ctx, args_1)
+			v4_1, _, _, _, outErr := ic.AutoAssign(ctx, args_1)
 			blocks := getAffineBlocks(bc, host)
 			for _, b := range blocks {
 				if pool1.Contains(b.IPNet.IP) {
@@ -404,7 +404,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 				HostReservedAttrIPv4s: rsvdAttrWindows,
 			}
 
-			v4_2, _, outErr := ic.AutoAssign(ctx, args_2)
+			v4_2, _, _, _, outErr := ic.AutoAssign(ctx, args_2)
 			blocks = getAffineBlocks(bc, host)
 			for _, b := range blocks {
 				if pool2.Contains(b.IPNet.IP) {
@@ -417,13 +417,13 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 
 			By("Windows: Should get an IP from pool1 in the same allocation block as the first IP from pool1")
 
-			v4_3, _, outErr := ic.AutoAssign(ctx, args_1)
+			v4_3, _, _, _, outErr := ic.AutoAssign(ctx, args_1)
 			Expect(outErr).NotTo(HaveOccurred())
 			Expect(block1.IPNet.Contains(v4_3[0].IP)).To(BeTrue())
 
 			By("Windows: Should get an IP from pool2 in the same allocation block as the first IP from pool2")
 
-			v4_4, _, outErr := ic.AutoAssign(ctx, args_2)
+			v4_4, _, _, _, outErr := ic.AutoAssign(ctx, args_2)
 			Expect(outErr).NotTo(HaveOccurred())
 			Expect(block2.IPNet.Contains(v4_4[0].IP)).To(BeTrue())
 
@@ -432,7 +432,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			args_2.Num4 = 238
 
 			By("Windows: Allocating the rest of the IPs in the pool")
-			v4_5, _, outErr := ic.AutoAssign(ctx, args_2)
+			v4_5, _, _, _, outErr := ic.AutoAssign(ctx, args_2)
 			Expect(outErr).NotTo(HaveOccurred())
 			Expect(len(v4_5)).To(Equal(238))
 
@@ -443,7 +443,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 
 			By("Windows: Attempting to allocate an IP when there are no more left in the pool")
 			args_2.Num4 = 1
-			v4_6, _, outErr := ic.AutoAssign(ctx, args_2)
+			v4_6, _, _, _, outErr := ic.AutoAssign(ctx, args_2)
 
 			Expect(outErr).NotTo(HaveOccurred())
 			Expect(len(v4_6)).To(Equal(0))
@@ -452,7 +452,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 	})
 
 	DescribeTable("Windows: AutoAssign: requested IPs vs returned IPs",
-		func(host string, cleanEnv bool, pools []pool, rsvd *HostReservedAttr, usePool string, inv4, inv6, expv4, expv6 int, expError error) {
+		func(host string, cleanEnv bool, pools []pool, rsvd *HostReservedAttr, usePool string, inv4, inv6, expv4, expv6 int, expV4Info, expV6Info *IPAMAssignmentInfo, expError error) {
 			if cleanEnv {
 				bc.Clean()
 				deleteAllPoolsWindows()
@@ -481,7 +481,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			}
 
 			ctx := context.WithValue(context.Background(), "windowsHost", "windows")
-			outv4, outv6, outErr := ic.AutoAssign(ctx, args)
+			outv4, outv6, outV4Info, outV6Info, outErr := ic.AutoAssign(ctx, args)
 			if expError != nil {
 				Expect(outErr).To(Equal(expError))
 			} else {
@@ -489,27 +489,77 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			}
 			Expect(outv4).To(HaveLen(expv4))
 			Expect(outv6).To(HaveLen(expv6))
+
+			Expect(outV4Info).To(Equal(expV4Info))
+			Expect(outV6Info).To(Equal(expV6Info))
 		},
 
 		// Test 1: AutoAssign 256 IPv4, 256 IPv6 - expect 240 IPv4 + IPv6 addresses.
 		Entry("256 v4 256 v6", "testHost", true, []pool{
 			{cidr: "192.168.1.0/24", blockSize: 26, enabled: true},
 			{cidr: "fd80:24e2:f998:72d6::/120", blockSize: 122, enabled: true},
-		}, rsvdAttrWindows, "192.168.1.0/24", 256, 256, 240, 240, nil),
+		}, rsvdAttrWindows, "192.168.1.0/24", 256, 256, 240, 240,
+			&IPAMAssignmentInfo{
+				NumRequested:       256,
+				NumAssigned:        240,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     true,
+				NoFreeAffineBlocks: true,
+				HostReservedAttr:   rsvdAttrWindows,
+			},
+			&IPAMAssignmentInfo{
+				NumRequested:       256,
+				NumAssigned:        240,
+				IPVersion:          6,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     true,
+				NoFreeAffineBlocks: true,
+				HostReservedAttr:   rsvdAttrWindows,
+			},
+			nil),
 
 		// Test 2: AutoAssign 257 IPv4, 0 IPv6 - expect 240 IPv4 addresses, no IPv6, and no error.
-		Entry("257 v4 0 v6", "testHost", true, []pool{{cidr: "192.168.1.0/24", blockSize: 26, enabled: true}}, rsvdAttrWindows, "192.168.1.0/24", 257, 0, 240, 0, nil),
+		Entry("257 v4 0 v6", "testHost", true, []pool{{cidr: "192.168.1.0/24", blockSize: 26, enabled: true}}, rsvdAttrWindows, "192.168.1.0/24", 257, 0, 240, 0,
+			&IPAMAssignmentInfo{
+				NumRequested:       257,
+				NumAssigned:        240,
+				IPVersion:          4,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     true,
+				NoFreeAffineBlocks: true,
+				HostReservedAttr:   rsvdAttrWindows,
+			},
+			nil, nil),
 
 		// Test 3: AutoAssign 0 IPv4, 257 IPv6 - expect 240 IPv6 addresses, no IPv4, and no error.
 		Entry("0 v4 257 v6", "testHost", true, []pool{
 			{cidr: "192.168.1.0/24", blockSize: 26, enabled: true},
 			{cidr: "fd80:24e2:f998:72d6::/120", blockSize: 122, enabled: true},
-		}, rsvdAttrWindows, "192.168.1.0/24", 0, 257, 0, 240, nil),
+		}, rsvdAttrWindows, "192.168.1.0/24", 0, 257, 0, 240, nil,
+			&IPAMAssignmentInfo{
+				NumRequested:       257,
+				NumAssigned:        240,
+				IPVersion:          6,
+				NumBlocksOwned:     0,
+				MaxNumBlocks:       20,
+				ExhaustedPools:     nil,
+				StrictAffinity:     true,
+				NoFreeAffineBlocks: true,
+				HostReservedAttr:   rsvdAttrWindows,
+			},
+			nil),
 
 		// Test 4: AutoAssign with invalid HostReserveAttr should return error.
-		Entry("1 v4 0 v6", "testHost", true, []pool{{cidr: "192.168.1.0/24", blockSize: 26, enabled: true}}, rsvdAttrTooBig, "192.168.1.0/24", 1, 0, 0, 0, ErrNoQualifiedPool),
+		Entry("1 v4 0 v6", "testHost", true, []pool{{cidr: "192.168.1.0/24", blockSize: 26, enabled: true}}, rsvdAttrTooBig, "192.168.1.0/24", 1, 0, 0, 0, nil, nil, ErrNoQualifiedPool),
 
-		Entry("0 v4 1 v6", "testHost", true, []pool{{cidr: "fd80:24e2:f998:72d6::/120", blockSize: 122, enabled: true}}, rsvdAttrTooBig, "fd80:24e2:f998:72d6::/120", 0, 1, 0, 0, ErrNoQualifiedPool),
+		Entry("0 v4 1 v6", "testHost", true, []pool{{cidr: "fd80:24e2:f998:72d6::/120", blockSize: 122, enabled: true}}, rsvdAttrTooBig, "fd80:24e2:f998:72d6::/120", 0, 1, 0, 0, nil, nil, ErrNoQualifiedPool),
 	)
 })
 

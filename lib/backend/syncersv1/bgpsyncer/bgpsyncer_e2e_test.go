@@ -210,7 +210,7 @@ var _ = testutils.E2eDatastoreDescribe("BGP syncer tests", testutils.DatastoreAl
 			var blockAffinityKeyV1 model.BlockAffinityKey
 			if config.Spec.DatastoreType != apiconfig.Kubernetes {
 				By("Allocating an IP address and checking that we get an allocation block")
-				ipV4Nets1, _, err := c.IPAM().AutoAssign(ctx, ipam.AutoAssignArgs{
+				ipV4Nets1, _, _, _, err := c.IPAM().AutoAssign(ctx, ipam.AutoAssignArgs{
 					Num4:     1,
 					Hostname: "127.0.0.1",
 				})
@@ -245,7 +245,7 @@ var _ = testutils.E2eDatastoreDescribe("BGP syncer tests", testutils.DatastoreAl
 				expectedCacheSize += 1
 				syncTester.ExpectCacheSize(expectedCacheSize)
 
-				ipV4Nets2, _, err := c.IPAM().AutoAssign(ctx, ipam.AutoAssignArgs{
+				ipV4Nets2, _, _, _, err := c.IPAM().AutoAssign(ctx, ipam.AutoAssignArgs{
 					Num4:     1,
 					Hostname: hostname,
 				})

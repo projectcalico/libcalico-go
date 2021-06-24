@@ -215,7 +215,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 						applyNode(bc, kc, testhost, nil)
 						defer deleteNode(bc, kc, testhost)
 
-						ips, err := ic.autoAssign(ctx, 1, &testhost, nil, nil, 4, testhost, 0, nil)
+						ips, _, err := ic.autoAssign(ctx, 1, &testhost, nil, nil, 4, testhost, 0, nil)
 						if err != nil {
 							log.WithError(err).Errorf("Auto assign failed for host %s", testhost)
 							testErr = err
@@ -303,7 +303,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 					go func() {
 						defer GinkgoRecover()
 
-						ips, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, testhost, 0, nil)
+						ips, _, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, testhost, 0, nil)
 						if err != nil {
 							log.WithError(err).Errorf("Auto assign failed for host %s", testhost)
 							testErr = err
@@ -716,7 +716,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 			}
 
 			By("attempting to claim the block on multiple hosts at the same time", func() {
-				ips, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, hostA, 0, nil)
+				ips, _, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, hostA, 0, nil)
 
 				// Shouldn't return an error.
 				Expect(err).NotTo(HaveOccurred())
@@ -746,7 +746,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 			})
 
 			By("attempting to claim another address", func() {
-				ips, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, hostA, 0, nil)
+				ips, _, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, hostA, 0, nil)
 
 				// Shouldn't return an error.
 				Expect(err).NotTo(HaveOccurred())
@@ -1019,7 +1019,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 				pools:             p,
 				blockReaderWriter: rw,
 			}
-			ips, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, host, 0, rsvdAttr)
+			ips, _, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, host, 0, rsvdAttr)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(len(ips)).To(Equal(1))
 			Expect(ips[0].String()).To(Equal("10.0.0.2/30"))
