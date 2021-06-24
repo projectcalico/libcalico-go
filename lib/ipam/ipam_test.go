@@ -1992,7 +1992,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 
 			outv4, outv6, outV4Info, outV6Info, err := ic.AutoAssign(context.Background(), args)
 			if expError != nil {
-				Expect(err).To(HaveOccurred())
+				Expect(err).To(Equal(expError))
 			} else {
 				Expect(err).ToNot(HaveOccurred())
 			}
