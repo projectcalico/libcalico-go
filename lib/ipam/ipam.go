@@ -562,10 +562,6 @@ type IPAMAssignmentInfo struct {
 }
 
 func (i *IPAMAssignmentInfo) String() string {
-	if i == nil {
-		return ""
-	}
-
 	ret := fmt.Sprintf("Assigned %v out of %v requested IPv%v addresses", i.NumAssigned, i.NumRequested, i.IPVersion)
 
 	switch {

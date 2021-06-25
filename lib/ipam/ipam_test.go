@@ -2733,7 +2733,6 @@ var _ = DescribeTable("IPAMAssignmentInfo.String() tests", func(assignmentInfo *
 
 	Expect(assignmentInfo.String()).To(Equal(expOutput))
 },
-	Entry("nil *IPAMAssignmentInfo", nil, ""),
 	Entry("",
 		&IPAMAssignmentInfo{
 			NumRequested:       1,
