@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/bits"
 	"runtime"
+	"strings"
 
 	"golang.org/x/sync/semaphore"
 
@@ -562,24 +563,25 @@ type IPAMAssignmentInfo struct {
 }
 
 func (i *IPAMAssignmentInfo) String() string {
-	ret := fmt.Sprintf("Assigned %v out of %v requested IPv%v addresses", i.NumAssigned, i.NumRequested, i.IPVersion)
+	var ret strings.Builder
+	fmt.Fprintf(&ret, "Assigned %d out of %d requested IPv%d addresses", i.NumAssigned, i.NumRequested, i.IPVersion)
 
 	switch {
 	case i.NoFreeAffineBlocks && i.StrictAffinity:
-		ret += "; No more free affine blocks and strict affinity enabled"
+		fmt.Fprintf(&ret, "; No more free affine blocks and strict affinity enabled")
 	case i.NumBlocksOwned >= i.MaxNumBlocks:
-		ret += "; IPAM block limit reached"
+		fmt.Fprintf(&ret, "; IPAM block limit reached")
 	case len(i.ExhaustedPools) > 0:
-		ret += "; No IPs available in pools"
+		fmt.Fprintf(&ret, "; No IPs available in pools")
 	}
 	if i.NumAssigned != i.NumRequested {
-		ret += fmt.Sprintf("; no free affine blocks: %v, strict affinity: %v, assigned blocks: %v, block limit: %v, exhausted IP pools: %v", i.NoFreeAffineBlocks, i.StrictAffinity, i.NumBlocksOwned, i.MaxNumBlocks, i.ExhaustedPools)
+		fmt.Fprintf(&ret, "; no free affine blocks: %v, strict affinity: %v, assigned blocks: %v, block limit: %v, exhausted IP pools: %v", i.NoFreeAffineBlocks, i.StrictAffinity, i.NumBlocksOwned, i.MaxNumBlocks, i.ExhaustedPools)
 		if i.HostReservedAttr != nil {
-			ret += fmt.Sprintf(", HostReservedAttr: %v", i.HostReservedAttr.Handle)
+			fmt.Fprintf(&ret, ", HostReservedAttr: %v", i.HostReservedAttr.Handle)
 		}
 	}
 
-	return ret
+	return ret.String()
 }
 
 func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, attrs map[string]string, requestedPools []net.IPNet, version int, host string, maxNumBlocks int, rsvdAttr *HostReservedAttr) ([]net.IPNet, *IPAMAssignmentInfo, error) {
