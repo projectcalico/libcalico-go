@@ -628,7 +628,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 	}
 	logCtx.Debugf("Host must not use more than %d blocks", maxNumBlocks)
 
-	iPAMAssignmentInfo := &IPAMAssignmentInfo{
+	ipamAssignmentInfo := &IPAMAssignmentInfo{
 		NumRequested:     num,
 		IPVersion:        version,
 		NumBlocksOwned:   numBlocksOwned,
@@ -659,16 +659,17 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 		b, newlyClaimed, err := s.findOrClaimBlock(ctx, 1)
 		if err != nil {
 			if _, ok := err.(noFreeBlocksError); ok {
-				iPAMAssignmentInfo.NoFreeAffineBlocks = true
+				ipamAssignmentInfo.NoFreeAffineBlocks = true
+
 				// Skip to check non-affine blocks
 				break
 			}
 			if errors.Is(err, ErrBlockLimit) {
 				log.Warnf("Unable to allocate a new IPAM block; host already has %v blocks but "+
 					"blocks per host limit is %v", numBlocksOwned, maxNumBlocks)
-				return ips, iPAMAssignmentInfo, ErrBlockLimit
+				return ips, ipamAssignmentInfo, ErrBlockLimit
 			}
-			return nil, iPAMAssignmentInfo, err
+			return nil, ipamAssignmentInfo, err
 		}
 
 		if newlyClaimed {
@@ -698,7 +699,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 				break
 			}
 			logCtx.Debugf("Assigned IPs from new block: %s", newIPs)
-			iPAMAssignmentInfo.NumAssigned += len(newIPs)
+			ipamAssignmentInfo.NumAssigned += len(newIPs)
 			ips = append(ips, newIPs...)
 			rem = num - len(ips)
 			break
@@ -733,7 +734,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 				// Grab a new random block.
 				blockCIDR := newBlockCIDR()
 				if blockCIDR == nil {
-					iPAMAssignmentInfo.ExhaustedPools = append(iPAMAssignmentInfo.ExhaustedPools, p.Spec.CIDR)
+					ipamAssignmentInfo.ExhaustedPools = append(ipamAssignmentInfo.ExhaustedPools, p.Spec.CIDR)
 					logCtx.Warningf("All addresses exhausted in pool %s", p.Spec.CIDR)
 					break
 				}
@@ -760,7 +761,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 						break
 					}
 					logCtx.Infof("Successfully assigned IPs from non-affine block %s", blockCIDR.String())
-					iPAMAssignmentInfo.NumAssigned += len(newIPs)
+					ipamAssignmentInfo.NumAssigned += len(newIPs)
 					ips = append(ips, newIPs...)
 					rem = num - len(ips)
 					break
@@ -770,7 +771,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 	}
 
 	logCtx.Infof("Auto-assigned %d out of %d IPv%ds: %v", len(ips), num, version, ips)
-	return ips, iPAMAssignmentInfo, nil
+	return ips, ipamAssignmentInfo, nil
 }
 
 // AssignIP assigns the provided IP address to the provided host.  The IP address
