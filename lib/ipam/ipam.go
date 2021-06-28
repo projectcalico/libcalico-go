@@ -550,15 +550,15 @@ func (s *blockAssignState) findOrClaimBlock(ctx context.Context, minFreeIps int)
 }
 
 type IPAMAssignments struct {
-	IPs                []net.IPNet
-	IPVersion          int
-	NumRequested       int
-	NumBlocksOwned     int
-	MaxNumBlocks       int
-	ExhaustedPools     []string
-	StrictAffinity     bool
-	NoFreeAffineBlocks bool
-	HostReservedAttr   *HostReservedAttr
+	IPs                []net.IPNet       // assigned IP addresses
+	IPVersion          int               // IP version (4 or 6)
+	NumRequested       int               // number of requested IP addresses (not all may be assigned)
+	NumBlocksOwned     int               // number of IP blocks currently owned by host
+	MaxNumBlocks       int               // maximum number of blocks that may be owned by a host
+	ExhaustedPools     []string          // CIDRs of exhausted IP pools (out of the ones that were checked, there may be more)
+	StrictAffinity     bool              // true if strict affinity is enabled
+	NoFreeAffineBlocks bool              // true if there are no more affine blocks to this host
+	HostReservedAttr   *HostReservedAttr // reserved addresses at start and/or end of blocks
 }
 
 func (i *IPAMAssignments) String() string {
