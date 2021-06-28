@@ -450,6 +450,28 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		})
 	})
 
+	It("should parse a services match", func() {
+		r := apiv3.Rule{
+			Action: apiv3.Allow,
+			Destination: apiv3.EntityRule{
+				Services: &apiv3.ServiceMatch{
+					Names: []string{"one", "two", "three"},
+				},
+			},
+		}
+
+		// Process the rule and get the corresponding v1 representation.
+		rulev1 := updateprocessors.RuleAPIV2ToBackend(r, "")
+
+		By("generating an empty source selector", func() {
+			Expect(rulev1.SrcSelector).To(Equal(""))
+		})
+
+		By("copying the service names", func() {
+			Expect(rulev1.DstServices).ToEqual([]string{"one", "two", "three"})
+		})
+	})
+
 	It("should parse a serviceaccount match with selector and namespace", func() {
 		dste := fmt.Sprintf("(pcns.nskey == \"nsvalue\") && (((%skey == \"value2\") && (%s in {\"%s\"})) && (has(label1)))", conversion.ServiceAccountLabelPrefix, apiv3.LabelServiceAccount, "sa3")
 
