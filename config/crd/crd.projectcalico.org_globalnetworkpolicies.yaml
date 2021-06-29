@@ -174,12 +174,15 @@ spec:
                             Ports, NotPorts, Nets, or NotNets. \n Only valid on egress
                             rules."
                           properties:
-                            names:
+                            name:
                               description: Name specifies the name of a Kubernetes
                                 Service to match.
-                              items:
-                                type: string
-                              type: array
+                              type: string
+                            namespace:
+                              description: Namespace specifies the namespace of the
+                                given Service. If left empty, the rule will match
+                                within this policy's namespace.
+                              type: string
                           type: object
                       type: object
                     http:
@@ -397,12 +400,15 @@ spec:
                             Ports, NotPorts, Nets, or NotNets. \n Only valid on egress
                             rules."
                           properties:
-                            names:
+                            name:
                               description: Name specifies the name of a Kubernetes
                                 Service to match.
-                              items:
-                                type: string
-                              type: array
+                              type: string
+                            namespace:
+                              description: Namespace specifies the namespace of the
+                                given Service. If left empty, the rule will match
+                                within this policy's namespace.
+                              type: string
                           type: object
                       type: object
                   required:
@@ -541,12 +547,15 @@ spec:
                             Ports, NotPorts, Nets, or NotNets. \n Only valid on egress
                             rules."
                           properties:
-                            names:
+                            name:
                               description: Name specifies the name of a Kubernetes
                                 Service to match.
-                              items:
-                                type: string
-                              type: array
+                              type: string
+                            namespace:
+                              description: Namespace specifies the namespace of the
+                                given Service. If left empty, the rule will match
+                                within this policy's namespace.
+                              type: string
                           type: object
                       type: object
                     http:
@@ -764,12 +773,15 @@ spec:
                             Ports, NotPorts, Nets, or NotNets. \n Only valid on egress
                             rules."
                           properties:
-                            names:
+                            name:
                               description: Name specifies the name of a Kubernetes
                                 Service to match.
-                              items:
-                                type: string
-                              type: array
+                              type: string
+                            namespace:
+                              description: Namespace specifies the namespace of the
+                                given Service. If left empty, the rule will match
+                                within this policy's namespace.
+                              type: string
                           type: object
                       type: object
                   required:
