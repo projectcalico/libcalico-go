@@ -455,7 +455,8 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 			Action: apiv3.Allow,
 			Destination: apiv3.EntityRule{
 				Services: &apiv3.ServiceMatch{
-					Names: []string{"one", "two", "three"},
+					Name:      "kube-dns",
+					Namespace: "kube-system",
 				},
 			},
 		}
@@ -468,7 +469,8 @@ var _ = Describe("Test the Rules Conversion Functions", func() {
 		})
 
 		By("copying the service names", func() {
-			Expect(rulev1.DstServices).ToEqual([]string{"one", "two", "three"})
+			Expect(rulev1.DstService).To(Equal("kube-dns"))
+			Expect(rulev1.DstServiceNamespace).To(Equal("kube-system"))
 		})
 	})
 

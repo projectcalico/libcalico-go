@@ -1067,9 +1067,9 @@ func validateEntityRule(structLevel validator.StructLevel) {
 
 	if rule.Services != nil {
 		// Make sure it's not empty.
-		if len(rule.Services.Names) == 0 {
+		if rule.Services.Name == "" {
 			structLevel.ReportError(reflect.ValueOf(rule.Services),
-				"Services field", "", reason("must specify at least one service name"), "")
+				"Services field", "", reason("must specify a service name"), "")
 		}
 
 		// Make sure the rest of the entity rule is consistent.
