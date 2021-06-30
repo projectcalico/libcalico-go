@@ -1947,6 +1947,61 @@ func init() {
 				},
 			}, true,
 		),
+		Entry("allow a Service match in an egress rule",
+			&api.NetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.NetworkPolicySpec{
+					Egress: []api.Rule{
+						{
+							Action: "Allow",
+							Destination: api.EntityRule{
+								Services: &api.ServiceMatch{
+									Names: []string{"service1"},
+								},
+							},
+						},
+					},
+				},
+			}, true,
+		),
+		Entry("disallow a Service match in an ingress rule",
+			&api.NetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.NetworkPolicySpec{
+					Ingress: []api.Rule{
+						{
+							Action: "Allow",
+							Source: api.EntityRule{
+								Services: &api.ServiceMatch{
+									Names: []string{"service1"},
+								},
+							},
+						},
+					},
+				},
+			}, false,
+		),
+		Entry("disallow a Service match AND a ServiceAccount match",
+			&api.NetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.NetworkPolicySpec{
+					Ingress: []api.Rule{
+						{
+							Action: "Allow",
+							Destination: api.EntityRule{
+								ServiceAccounts: &api.ServiceAccountMatch{
+									Names: []string{"serviceaccount"},
+								},
+								Services: &api.ServiceMatch{
+									Names: []string{"service1"},
+								},
+							},
+						},
+					},
+				},
+			}, false,
+		),
+
 		// Validate EntityRule against special selectors global().
 		// Extra spaces added in some cases to make sure validation handles it.
 		Entry("disallow global() in EntityRule selector field",
