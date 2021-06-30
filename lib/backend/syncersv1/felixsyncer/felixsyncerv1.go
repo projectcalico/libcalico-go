@@ -89,6 +89,11 @@ func New(client api.Client, cfg apiconfig.CalicoAPIConfigSpec, callbacks api.Syn
 				ListInterface:   model.ResourceListOptions{Kind: model.KindKubernetesNetworkPolicy},
 				UpdateProcessor: updateprocessors.NewNetworkPolicyUpdateProcessor(),
 			})
+
+			// CASEY: Send endpoint slices through to felix for use in policies.
+			additionalTypes = append(additionalTypes, watchersyncer.ResourceType{
+				ListInterface: model.ResourceListOptions{Kind: model.KindKubernetesEndpointSlice},
+			})
 		}
 
 		// If using Calico IPAM, include IPAM resources the felix cares about.
