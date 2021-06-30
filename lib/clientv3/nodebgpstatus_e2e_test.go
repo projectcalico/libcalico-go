@@ -33,7 +33,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/watch"
 )
 
-var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.DatastoreAll, func(config apiconfig.CalicoAPIConfig) {
+var _ = testutils.E2eDatastoreDescribe("NodeBGPStatus tests", testutils.DatastoreAll, func(config apiconfig.CalicoAPIConfig) {
 
 	ctx := context.Background()
 	name1 := "nodebgpstatus-1"
@@ -67,8 +67,8 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 		},
 	}
 
-	DescribeTable("nodeBGPStatus e2e CRUD tests",
-		func(name1, name2 string, status1, status2 apiv3.NodeBGPStatus) {
+	DescribeTable("NodeBGPStatus e2e CRUD tests",
+		func(name1, name2 string, status1, status2 apiv3.NodeBGPStatusStatus) {
 			c, err := clientv3.New(config)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -76,24 +76,24 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 			Expect(err).NotTo(HaveOccurred())
 			be.Clean()
 
-			By("Updating the nodeBGPStatus before it is created")
-			_, outError := c.NodeBGPStatus().Update(ctx, &apiv3.nodeBGPStatus{
+			By("Updating the NodeBGPStatus before it is created")
+			_, outError := c.NodeBGPStatus().Update(ctx, &apiv3.NodeBGPStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234", CreationTimestamp: metav1.Now(), UID: "test-fail-nodebgpstatus"},
 				Status:     status1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(ContainSubstring("resource does not exist: nodeBGPStatus(" + name1 + ") with error:"))
+			Expect(outError.Error()).To(ContainSubstring("resource does not exist: NodeBGPStatus(" + name1 + ") with error:"))
 
-			By("Attempting to creating a new nodeBGPStatus with name1/status1 and a non-empty ResourceVersion")
-			_, outError = c.NodeBGPStatus().Create(ctx, &apiv3.nodeBGPStatus{
+			By("Attempting to creating a new NodeBGPStatus with name1/status1 and a non-empty ResourceVersion")
+			_, outError = c.NodeBGPStatus().Create(ctx, &apiv3.NodeBGPStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "12345"},
 				Status:     status1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("error with field Metadata.ResourceVersion = '12345' (field must not be set for a Create request)"))
 
-			By("Creating a new nodeBGPStatus with name1/status1")
-			res1, outError := c.NodeBGPStatus().Create(ctx, &apiv3.nodeBGPStatus{
+			By("Creating a new NodeBGPStatus with name1/status1")
+			res1, outError := c.NodeBGPStatus().Create(ctx, &apiv3.NodeBGPStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name1},
 				Status:     status1,
 			}, options.SetOptions{})
@@ -103,24 +103,24 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 			// Track the version of the original data for name1.
 			rv1_1 := res1.ResourceVersion
 
-			By("Attempting to create the same nodeBGPStatus with name1 but with status2")
-			_, outError = c.NodeBGPStatus().Create(ctx, &apiv3.nodeBGPStatus{
+			By("Attempting to create the same NodeBGPStatus with name1 but with status2")
+			_, outError = c.NodeBGPStatus().Create(ctx, &apiv3.NodeBGPStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name1},
 				Status:     status2,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(Equal("resource already exists: nodeBGPStatus(" + name1 + ")"))
+			Expect(outError.Error()).To(Equal("resource already exists: NodeBGPStatus(" + name1 + ")"))
 
-			By("Getting nodeBGPStatus (name1) and comparing the output against status1")
+			By("Getting NodeBGPStatus (name1) and comparing the output against status1")
 			res, outError := c.NodeBGPStatus().Get(ctx, name1, options.GetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(res).To(MatchResource(apiv3.KindNodeBGPStatus, testutils.ExpectNoNamespace, name1, status1))
 			Expect(res.ResourceVersion).To(Equal(res1.ResourceVersion))
 
-			By("Getting nodeBGPStatus (name2) before it is created")
+			By("Getting NodeBGPStatus (name2) before it is created")
 			_, outError = c.NodeBGPStatus().Get(ctx, name2, options.GetOptions{})
 			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(ContainSubstring("resource does not exist: nodeBGPStatus(" + name2 + ") with error:"))
+			Expect(outError.Error()).To(ContainSubstring("resource does not exist: NodeBGPStatus(" + name2 + ") with error:"))
 
 			By("Listing all the NodeBGPStatus, expecting a single result with name1/status1")
 			outList, outError := c.NodeBGPStatus().List(ctx, options.ListOptions{})
@@ -129,15 +129,15 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 				testutils.Resource(apiv3.KindNodeBGPStatus, testutils.ExpectNoNamespace, name1, status1),
 			))
 
-			By("Creating a new nodeBGPStatus with name2/status2")
-			res2, outError := c.NodeBGPStatus().Create(ctx, &apiv3.nodeBGPStatus{
+			By("Creating a new NodeBGPStatus with name2/status2")
+			res2, outError := c.NodeBGPStatus().Create(ctx, &apiv3.NodeBGPStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name2},
 				Status:     status2,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(res2).To(MatchResource(apiv3.KindNodeBGPStatus, testutils.ExpectNoNamespace, name2, status2))
 
-			By("Getting nodeBGPStatus (name2) and comparing the output against status2")
+			By("Getting NodeBGPStatus (name2) and comparing the output against status2")
 			res, outError = c.NodeBGPStatus().Get(ctx, name2, options.GetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(res2).To(MatchResource(apiv3.KindNodeBGPStatus, testutils.ExpectNoNamespace, name2, status2))
@@ -151,14 +151,14 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 				testutils.Resource(apiv3.KindNodeBGPStatus, testutils.ExpectNoNamespace, name2, status2),
 			))
 
-			By("Updating nodeBGPStatus name1 with status2")
-			res1.Spec = status2
+			By("Updating NodeBGPStatus name1 with status2")
+			res1.Status = status2
 			res1, outError = c.NodeBGPStatus().Update(ctx, res1, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(res1).To(MatchResource(apiv3.KindNodeBGPStatus, testutils.ExpectNoNamespace, name1, status2))
 
-			By("Attempting to update the nodeBGPStatus without a Creation Timestamp")
-			res, outError = c.NodeBGPStatus().Update(ctx, &apiv3.nodeBGPStatus{
+			By("Attempting to update the NodeBGPStatus without a Creation Timestamp")
+			res, outError = c.NodeBGPStatus().Update(ctx, &apiv3.NodeBGPStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234", UID: "test-fail-nodebgpstatus"},
 				Status:     status1,
 			}, options.SetOptions{})
@@ -166,8 +166,8 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 			Expect(res).To(BeNil())
 			Expect(outError.Error()).To(Equal("error with field Metadata.CreationTimestamp = '0001-01-01 00:00:00 +0000 UTC' (field must be set for an Update request)"))
 
-			By("Attempting to update the nodeBGPStatus without a UID")
-			res, outError = c.NodeBGPStatus().Update(ctx, &apiv3.nodeBGPStatus{
+			By("Attempting to update the NodeBGPStatus without a UID")
+			res, outError = c.NodeBGPStatus().Update(ctx, &apiv3.NodeBGPStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234", CreationTimestamp: metav1.Now()},
 				Status:     status1,
 			}, options.SetOptions{})
@@ -178,29 +178,29 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 			// Track the version of the updated name1 data.
 			rv1_2 := res1.ResourceVersion
 
-			By("Updating nodeBGPStatus name1 without specifying a resource version")
-			res1.Spec = status1
+			By("Updating NodeBGPStatus name1 without specifying a resource version")
+			res1.Status = status1
 			res1.ObjectMeta.ResourceVersion = ""
 			_, outError = c.NodeBGPStatus().Update(ctx, res1, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("error with field Metadata.ResourceVersion = '' (field must be set for an Update request)"))
 
-			By("Updating nodeBGPStatus name1 using the previous resource version")
-			res1.Spec = status1
+			By("Updating NodeBGPStatus name1 using the previous resource version")
+			res1.Status = status1
 			res1.ResourceVersion = rv1_1
 			_, outError = c.NodeBGPStatus().Update(ctx, res1, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(Equal("update conflict: nodeBGPStatus(" + name1 + ")"))
+			Expect(outError.Error()).To(Equal("update conflict: NodeBGPStatus(" + name1 + ")"))
 
 			if config.Spec.DatastoreType != apiconfig.Kubernetes {
-				By("Getting nodeBGPStatus (name1) with the original resource version and comparing the output against status1")
+				By("Getting NodeBGPStatus (name1) with the original resource version and comparing the output against status1")
 				res, outError = c.NodeBGPStatus().Get(ctx, name1, options.GetOptions{ResourceVersion: rv1_1})
 				Expect(outError).NotTo(HaveOccurred())
 				Expect(res).To(MatchResource(apiv3.KindNodeBGPStatus, testutils.ExpectNoNamespace, name1, status1))
 				Expect(res.ResourceVersion).To(Equal(rv1_1))
 			}
 
-			By("Getting nodeBGPStatus (name1) with the updated resource version and comparing the output against status2")
+			By("Getting NodeBGPStatus (name1) with the updated resource version and comparing the output against status2")
 			res, outError = c.NodeBGPStatus().Get(ctx, name1, options.GetOptions{ResourceVersion: rv1_2})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(res).To(MatchResource(apiv3.KindNodeBGPStatus, testutils.ExpectNoNamespace, name1, status2))
@@ -224,19 +224,19 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 			))
 
 			if config.Spec.DatastoreType != apiconfig.Kubernetes {
-				By("Deleting nodeBGPStatus (name1) with the old resource version")
+				By("Deleting NodeBGPStatus (name1) with the old resource version")
 				_, outError = c.NodeBGPStatus().Delete(ctx, name1, options.DeleteOptions{ResourceVersion: rv1_1})
 				Expect(outError).To(HaveOccurred())
-				Expect(outError.Error()).To(Equal("update conflict: nodeBGPStatus(" + name1 + ")"))
+				Expect(outError.Error()).To(Equal("update conflict: NodeBGPStatus(" + name1 + ")"))
 			}
 
-			By("Deleting nodeBGPStatus (name1) with the new resource version")
+			By("Deleting NodeBGPStatus (name1) with the new resource version")
 			dres, outError := c.NodeBGPStatus().Delete(ctx, name1, options.DeleteOptions{ResourceVersion: rv1_2})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(dres).To(MatchResource(apiv3.KindNodeBGPStatus, testutils.ExpectNoNamespace, name1, status2))
 
 			if config.Spec.DatastoreType != apiconfig.Kubernetes {
-				By("Updating nodeBGPStatus name2 with a 2s TTL and waiting for the entry to be deleted")
+				By("Updating NodeBGPStatus name2 with a 2s TTL and waiting for the entry to be deleted")
 				_, outError = c.NodeBGPStatus().Update(ctx, res2, options.SetOptions{TTL: 2 * time.Second})
 				Expect(outError).NotTo(HaveOccurred())
 				time.Sleep(1 * time.Second)
@@ -245,10 +245,10 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 				time.Sleep(2 * time.Second)
 				_, outError = c.NodeBGPStatus().Get(ctx, name2, options.GetOptions{})
 				Expect(outError).To(HaveOccurred())
-				Expect(outError.Error()).To(ContainSubstring("resource does not exist: nodeBGPStatus(" + name2 + ") with error:"))
+				Expect(outError.Error()).To(ContainSubstring("resource does not exist: NodeBGPStatus(" + name2 + ") with error:"))
 
-				By("Creating nodeBGPStatus name2 with a 2s TTL and waiting for the entry to be deleted")
-				_, outError = c.NodeBGPStatus().Create(ctx, &apiv3.nodeBGPStatus{
+				By("Creating NodeBGPStatus name2 with a 2s TTL and waiting for the entry to be deleted")
+				_, outError = c.NodeBGPStatus().Create(ctx, &apiv3.NodeBGPStatus{
 					ObjectMeta: metav1.ObjectMeta{Name: name2},
 					Status:     status2,
 				}, options.SetOptions{TTL: 2 * time.Second})
@@ -259,36 +259,36 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 				time.Sleep(2 * time.Second)
 				_, outError = c.NodeBGPStatus().Get(ctx, name2, options.GetOptions{})
 				Expect(outError).To(HaveOccurred())
-				Expect(outError.Error()).To(ContainSubstring("resource does not exist: nodeBGPStatus(" + name2 + ") with error:"))
+				Expect(outError.Error()).To(ContainSubstring("resource does not exist: NodeBGPStatus(" + name2 + ") with error:"))
 			}
 
 			if config.Spec.DatastoreType == apiconfig.Kubernetes {
-				By("Attempting to deleting nodeBGPStatus (name2)")
+				By("Attempting to deleting NodeBGPStatus (name2)")
 				dres, outError = c.NodeBGPStatus().Delete(ctx, name2, options.DeleteOptions{})
 				Expect(outError).NotTo(HaveOccurred())
 				Expect(dres).To(MatchResource(apiv3.KindNodeBGPStatus, testutils.ExpectNoNamespace, name2, status2))
 			}
 
-			By("Attempting to deleting nodeBGPStatus (name2) again")
+			By("Attempting to deleting NodeBGPStatus (name2) again")
 			_, outError = c.NodeBGPStatus().Delete(ctx, name2, options.DeleteOptions{})
 			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(ContainSubstring("resource does not exist: nodeBGPStatus(" + name2 + ") with error:"))
+			Expect(outError.Error()).To(ContainSubstring("resource does not exist: NodeBGPStatus(" + name2 + ") with error:"))
 
 			By("Listing all NodeBGPStatus and expecting no items")
 			outList, outError = c.NodeBGPStatus().List(ctx, options.ListOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(outList.Items).To(HaveLen(0))
 
-			By("Getting nodeBGPStatus (name2) and expecting an error")
+			By("Getting NodeBGPStatus (name2) and expecting an error")
 			_, outError = c.NodeBGPStatus().Get(ctx, name2, options.GetOptions{})
 			Expect(outError).To(HaveOccurred())
-			Expect(outError.Error()).To(ContainSubstring("resource does not exist: nodeBGPStatus(" + name2 + ") with error:"))
+			Expect(outError.Error()).To(ContainSubstring("resource does not exist: NodeBGPStatus(" + name2 + ") with error:"))
 		},
 
 		Entry("NodeBGPStatus 1,2", name1, name2, status1, status2),
 	)
 
-	Describe("nodeBGPStatus watch functionality", func() {
+	Describe("NodeBGPStatus watch functionality", func() {
 		It("should handle watch events for different resource versions and event types", func() {
 			c, err := clientv3.New(config)
 			Expect(err).NotTo(HaveOccurred())
@@ -303,10 +303,10 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 			Expect(outList.Items).To(HaveLen(0))
 			rev0 := outList.ResourceVersion
 
-			By("Configuring a nodeBGPStatus name1/status1 and storing the response")
+			By("Configuring a NodeBGPStatus name1/status1 and storing the response")
 			outRes1, err := c.NodeBGPStatus().Create(
 				ctx,
-				&apiv3.nodeBGPStatus{
+				&apiv3.NodeBGPStatus{
 					ObjectMeta: metav1.ObjectMeta{Name: name1},
 					Status:     status1,
 				},
@@ -314,10 +314,10 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 			)
 			rev1 := outRes1.ResourceVersion
 
-			By("Configuring a nodeBGPStatus name2/status2 and storing the response")
+			By("Configuring a NodeBGPStatus name2/status2 and storing the response")
 			outRes2, err := c.NodeBGPStatus().Create(
 				ctx,
-				&apiv3.nodeBGPStatus{
+				&apiv3.NodeBGPStatus{
 					ObjectMeta: metav1.ObjectMeta{Name: name2},
 					Status:     status2,
 				},
@@ -356,7 +356,7 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 			By("Modifying res2")
 			outRes3, err := c.NodeBGPStatus().Update(
 				ctx,
-				&apiv3.nodeBGPStatus{
+				&apiv3.NodeBGPStatus{
 					ObjectMeta: outRes2.ObjectMeta,
 					Status:     status1,
 				},
@@ -417,10 +417,10 @@ var _ = testutils.E2eDatastoreDescribe("nodeBGPStatus tests", testutils.Datastor
 			})
 			testWatcher3.Stop()
 
-			By("Configuring nodeBGPStatus name1/status1 again and storing the response")
+			By("Configuring NodeBGPStatus name1/status1 again and storing the response")
 			outRes1, err = c.NodeBGPStatus().Create(
 				ctx,
-				&apiv3.nodeBGPStatus{
+				&apiv3.NodeBGPStatus{
 					ObjectMeta: metav1.ObjectMeta{Name: name1},
 					Status:     status1,
 				},
