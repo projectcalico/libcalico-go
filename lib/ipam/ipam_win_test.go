@@ -515,12 +515,8 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 				Expect(len(outv4ia.IPs)).To(Equal(len(expv4ia.IPs)))
 				Expect(outv4ia.IPVersion).To(Equal(expv4ia.IPVersion))
 				Expect(outv4ia.NumRequested).To(Equal(expv4ia.NumRequested))
-				Expect(outv4ia.NumBlocksOwned).To(Equal(expv4ia.NumBlocksOwned))
-				Expect(outv4ia.MaxNumBlocks).To(Equal(expv4ia.MaxNumBlocks))
-				Expect(outv4ia.ExhaustedPools).To(Equal(expv4ia.ExhaustedPools))
-				Expect(outv4ia.StrictAffinity).To(Equal(expv4ia.StrictAffinity))
-				Expect(outv4ia.NoFreeAffineBlocks).To(Equal(expv4ia.NoFreeAffineBlocks))
 				Expect(outv4ia.HostReservedAttr).To(Equal(expv4ia.HostReservedAttr))
+				Expect(outv4ia.Msgs).To(Equal(expv4ia.Msgs))
 			}
 
 			if expv6ia == nil {
@@ -530,12 +526,8 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 				Expect(len(outv6ia.IPs)).To(Equal(len(expv6ia.IPs)))
 				Expect(outv6ia.IPVersion).To(Equal(expv6ia.IPVersion))
 				Expect(outv6ia.NumRequested).To(Equal(expv6ia.NumRequested))
-				Expect(outv6ia.NumBlocksOwned).To(Equal(expv6ia.NumBlocksOwned))
-				Expect(outv6ia.MaxNumBlocks).To(Equal(expv6ia.MaxNumBlocks))
-				Expect(outv6ia.ExhaustedPools).To(Equal(expv6ia.ExhaustedPools))
-				Expect(outv6ia.StrictAffinity).To(Equal(expv6ia.StrictAffinity))
-				Expect(outv6ia.NoFreeAffineBlocks).To(Equal(expv6ia.NoFreeAffineBlocks))
 				Expect(outv6ia.HostReservedAttr).To(Equal(expv6ia.HostReservedAttr))
+				Expect(outv6ia.Msgs).To(Equal(expv6ia.Msgs))
 			}
 		},
 
@@ -545,41 +537,29 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			{cidr: "fd80:24e2:f998:72d6::/120", blockSize: 122, enabled: true},
 		}, rsvdAttrWindows, "192.168.1.0/24", 256, 256,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 240),
-				IPVersion:          4,
-				NumRequested:       256,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     true,
-				NoFreeAffineBlocks: true,
-				HostReservedAttr:   rsvdAttrWindows,
+				IPs:              make([]cnet.IPNet, 240),
+				IPVersion:        4,
+				NumRequested:     256,
+				HostReservedAttr: rsvdAttrWindows,
+				Msgs:             []string{"No more free affine blocks and strict affinity enabled"},
 			},
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 240),
-				IPVersion:          6,
-				NumRequested:       256,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     true,
-				NoFreeAffineBlocks: true,
-				HostReservedAttr:   rsvdAttrWindows,
+				IPs:              make([]cnet.IPNet, 240),
+				IPVersion:        6,
+				NumRequested:     256,
+				HostReservedAttr: rsvdAttrWindows,
+				Msgs:             []string{"No more free affine blocks and strict affinity enabled"},
 			},
 			nil),
 
 		// Test 2: AutoAssign 257 IPv4, 0 IPv6 - expect 240 IPv4 addresses, no IPv6, and no error.
 		Entry("257 v4 0 v6", "testHost", true, []pool{{cidr: "192.168.1.0/24", blockSize: 26, enabled: true}}, rsvdAttrWindows, "192.168.1.0/24", 257, 0,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 240),
-				IPVersion:          4,
-				NumRequested:       257,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     true,
-				NoFreeAffineBlocks: true,
-				HostReservedAttr:   rsvdAttrWindows,
+				IPs:              make([]cnet.IPNet, 240),
+				IPVersion:        4,
+				NumRequested:     257,
+				HostReservedAttr: rsvdAttrWindows,
+				Msgs:             []string{"No more free affine blocks and strict affinity enabled"},
 			},
 			nil, nil),
 
@@ -589,15 +569,11 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			{cidr: "fd80:24e2:f998:72d6::/120", blockSize: 122, enabled: true},
 		}, rsvdAttrWindows, "192.168.1.0/24", 0, 257, nil,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 240),
-				IPVersion:          6,
-				NumRequested:       257,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     true,
-				NoFreeAffineBlocks: true,
-				HostReservedAttr:   rsvdAttrWindows,
+				IPs:              make([]cnet.IPNet, 240),
+				IPVersion:        6,
+				NumRequested:     257,
+				HostReservedAttr: rsvdAttrWindows,
+				Msgs:             []string{"No more free affine blocks and strict affinity enabled"},
 			},
 			nil),
 
@@ -605,6 +581,17 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 		Entry("1 v4 0 v6", "testHost", true, []pool{{cidr: "192.168.1.0/24", blockSize: 26, enabled: true}}, rsvdAttrTooBig, "192.168.1.0/24", 1, 0, nil, nil, ErrNoQualifiedPool),
 
 		Entry("0 v4 1 v6", "testHost", true, []pool{{cidr: "fd80:24e2:f998:72d6::/120", blockSize: 122, enabled: true}}, rsvdAttrTooBig, "fd80:24e2:f998:72d6::/120", 0, 1, nil, nil, ErrNoQualifiedPool),
+
+		// Test 5 AutoAssign 240 IPv4, expect 240 IPv4 and empty IPAMAssingments.Msgs
+		Entry("240 v4 0 v6", "testHost", true, []pool{{cidr: "192.168.1.0/24", blockSize: 26, enabled: true}}, rsvdAttrWindows, "192.168.1.0/24", 240, 0,
+			&IPAMAssignments{
+				IPs:              make([]cnet.IPNet, 240),
+				IPVersion:        4,
+				NumRequested:     240,
+				HostReservedAttr: rsvdAttrWindows,
+				Msgs:             nil,
+			},
+			nil, nil),
 	)
 })
 

@@ -1770,7 +1770,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				IPv4Pools: []cnet.IPNet{pool1, pool5_doesnot_exist},
 			}
 			v4ia, _, err := ic.AutoAssign(context.Background(), args)
-			log.Printf("v4 IPAM Assignments: %s\n", v4ia)
+			log.Printf("v4 IPAM Assignments: %v\n", v4ia)
 			Expect(v4ia).To(BeNil())
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).Should(Equal("the given pool (40.0.0.0/24) does not exist, or is not enabled"))
@@ -2027,8 +2027,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 	})
 
 	DescribeTable("AutoAssign: requested IPs vs returned IPs",
-		// func(host string, cleanEnv bool, pools []pool, usePool string, inv4, inv6, expv4, expv6 int, expV4Info, expV6Info *IPAMAssignments, blockLimit int, expError error) {
-		func(host string, cleanEnv bool, pools []pool, usePool string, inv4, inv6 int, expv4ia, expv6ia *IPAMAssignments, blockLimit int, expError error) {
+		func(host string, cleanEnv bool, pools []pool, usePool string, inv4, inv6 int, expv4ia, expv6ia *IPAMAssignments, blockLimit int, strictAffinity bool, expError error) {
 			if cleanEnv {
 				bc.Clean()
 				deleteAllPools()
@@ -2049,6 +2048,11 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				MaxBlocksPerHost: blockLimit,
 			}
 
+			if strictAffinity {
+				setAffinity(ic, true)
+				defer setAffinity(ic, false)
+			}
+
 			outv4ia, outv6ia, err := ic.AutoAssign(context.Background(), args)
 			if expError != nil {
 				Expect(err).To(Equal(expError))
@@ -2063,12 +2067,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Expect(len(outv4ia.IPs)).To(Equal(len(expv4ia.IPs)))
 				Expect(outv4ia.IPVersion).To(Equal(expv4ia.IPVersion))
 				Expect(outv4ia.NumRequested).To(Equal(expv4ia.NumRequested))
-				Expect(outv4ia.NumBlocksOwned).To(Equal(expv4ia.NumBlocksOwned))
-				Expect(outv4ia.MaxNumBlocks).To(Equal(expv4ia.MaxNumBlocks))
-				Expect(outv4ia.ExhaustedPools).To(Equal(expv4ia.ExhaustedPools))
-				Expect(outv4ia.StrictAffinity).To(Equal(expv4ia.StrictAffinity))
-				Expect(outv4ia.NoFreeAffineBlocks).To(Equal(expv4ia.NoFreeAffineBlocks))
 				Expect(outv4ia.HostReservedAttr).To(Equal(expv4ia.HostReservedAttr))
+				Expect(outv4ia.Msgs).To(Equal(expv4ia.Msgs))
 			}
 
 			if expv6ia == nil {
@@ -2078,12 +2078,8 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Expect(len(outv6ia.IPs)).To(Equal(len(expv6ia.IPs)))
 				Expect(outv6ia.IPVersion).To(Equal(expv6ia.IPVersion))
 				Expect(outv6ia.NumRequested).To(Equal(expv6ia.NumRequested))
-				Expect(outv6ia.NumBlocksOwned).To(Equal(expv6ia.NumBlocksOwned))
-				Expect(outv6ia.MaxNumBlocks).To(Equal(expv6ia.MaxNumBlocks))
-				Expect(outv6ia.ExhaustedPools).To(Equal(expv6ia.ExhaustedPools))
-				Expect(outv6ia.StrictAffinity).To(Equal(expv6ia.StrictAffinity))
-				Expect(outv6ia.NoFreeAffineBlocks).To(Equal(expv6ia.NoFreeAffineBlocks))
 				Expect(outv6ia.HostReservedAttr).To(Equal(expv6ia.HostReservedAttr))
+				Expect(outv6ia.Msgs).To(Equal(expv6ia.Msgs))
 			}
 		},
 
@@ -2091,220 +2087,159 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 		Entry("1 v4 1 v6 - tiny block", "test-host", true,
 			[]pool{{"192.168.1.0/24", 32, true, ""}, {"fd80:24e2:f998:72d6::/120", 128, true, ""}}, "192.168.1.0/24", 1, 1,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 1),
-				IPVersion:          4,
-				NumRequested:       1,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 1),
+				IPVersion:        4,
+				NumRequested:     1,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 1),
-				IPVersion:          6,
-				NumRequested:       1,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 1),
+				IPVersion:        6,
+				NumRequested:     1,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
-			0, nil),
+			0, false, nil),
 
 		// Test 1b: AutoAssign 1 IPv4, 1 IPv6 with massive block - expect one of each to be returned.
 		Entry("1 v4 1 v6 - big block", "test-host", true,
 			[]pool{{"192.168.0.0/16", 20, true, ""}, {"fd80:24e2:f998:72d6::/110", 116, true, ""}},
 			"192.168.0.0/16", 1, 1,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 1),
-				IPVersion:          4,
-				NumRequested:       1,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 1),
+				IPVersion:        4,
+				NumRequested:     1,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 1),
-				IPVersion:          6,
-				NumRequested:       1,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 1),
+				IPVersion:        6,
+				NumRequested:     1,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
-			0, nil),
+			0, false, nil),
 
 		// Test 1c: AutoAssign 1 IPv4, 1 IPv6 with default block - expect one of each to be returned.
 		Entry("1 v4 1 v6 - default block", "test-host", true,
 			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
 			"192.168.1.0/24", 1, 1,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 1),
-				IPVersion:          4,
-				NumRequested:       1,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 1),
+				IPVersion:        4,
+				NumRequested:     1,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 1),
-				IPVersion:          6,
-				NumRequested:       1,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 1),
+				IPVersion:        6,
+				NumRequested:     1,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
-			0, nil),
+			0, false, nil),
 
 		// Test 2a: AutoAssign 256 IPv4, 256 IPv6 with default blocksize- expect 256 IPv4 + IPv6 addresses.
 		Entry("256 v4 256 v6", "test-host", true,
 			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
 			"192.168.1.0/24", 256, 256,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 256),
-				IPVersion:          4,
-				NumRequested:       256,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 256),
+				IPVersion:        4,
+				NumRequested:     256,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 256),
-				IPVersion:          6,
-				NumRequested:       256,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:          make([]cnet.IPNet, 256),
+				IPVersion:    6,
+				NumRequested: 256,
+				Msgs:         nil,
 			},
-			0, nil),
+			0, false, nil),
 
 		// Test 2b: AutoAssign 256 IPv4, 256 IPv6 with small blocksize- expect 256 IPv4 + IPv6 addresses.
 		Entry("256 v4 256 v6 - small blocks", "test-host", true,
 			[]pool{{"192.168.1.0/24", 30, true, ""}, {"fd80:24e2:f998:72d6::/120", 126, true, ""}},
 			"192.168.1.0/24", 256, 256,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 256),
-				IPVersion:          4,
-				NumRequested:       256,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       256,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 256),
+				IPVersion:        4,
+				NumRequested:     256,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 256),
-				IPVersion:          6,
-				NumRequested:       256,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       256,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 256),
+				IPVersion:        6,
+				NumRequested:     256,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
-			256, nil),
+			256, false, nil),
 
 		// Test 2a: AutoAssign 256 IPv4, 256 IPv6 with num blocks limit expect 64 IPv4 + IPv6 addresses.
 		Entry("256 v4 0 v6 block limit", "test-host", true,
 			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
 			"192.168.1.0/24", 256, 0,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 64),
-				IPVersion:          4,
-				NumRequested:       256,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       1,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 64),
+				IPVersion:        4,
+				NumRequested:     256,
+				HostReservedAttr: nil,
+				Msgs:             []string{"Need to allocate an IPAM block but could not - limit of 1 blocks reached for this node"},
 			},
-			nil, 1, ErrBlockLimit),
+			nil, 1, false, ErrBlockLimit),
 		Entry("256 v4 0 v6 block limit 2", "test-host", true,
 			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
 			"192.168.1.0/24", 256, 0,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 128),
-				IPVersion:          4,
-				NumRequested:       256,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       2,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 128),
+				IPVersion:        4,
+				NumRequested:     256,
+				HostReservedAttr: nil,
+				Msgs:             []string{"Need to allocate an IPAM block but could not - limit of 2 blocks reached for this node"},
 			},
-			nil, 2, ErrBlockLimit),
+			nil, 2, false, ErrBlockLimit),
 		Entry("0 v4 256 v6 block limit", "test-host", true,
 			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
 			"192.168.1.0/24", 0, 256, nil,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 64),
-				IPVersion:          6,
-				NumRequested:       256,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       1,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 64),
+				IPVersion:        6,
+				NumRequested:     256,
+				HostReservedAttr: nil,
+				Msgs:             []string{"Need to allocate an IPAM block but could not - limit of 1 blocks reached for this node"},
 			},
-			1, ErrBlockLimit),
+			1, false, ErrBlockLimit),
 
 		// Test 3: AutoAssign 257 IPv4, 0 IPv6 - expect 256 IPv4 addresses, no IPv6, and no error.
 		Entry("257 v4 0 v6", "test-host", true,
 			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}}, "192.168.1.0/24", 257, 0,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 256),
-				IPVersion:          4,
-				NumRequested:       257,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     []string{"192.168.1.0/24"},
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: true,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 256),
+				IPVersion:        4,
+				NumRequested:     257,
+				HostReservedAttr: nil,
+				Msgs:             []string{"No IPs available in pools: [192.168.1.0/24]"},
 			},
-			nil, 0, nil),
+			nil, 0, false, nil),
 
 		// Test 4: AutoAssign 0 IPv4, 257 IPv6 - expect 256 IPv6 addresses, no IPv6, and no error.
 		Entry("0 v4 257 v6", "test-host", true,
 			[]pool{{"192.168.1.0/24", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
 			"192.168.1.0/24", 0, 257, nil,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 256),
-				IPVersion:          6,
-				NumRequested:       257,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     []string{"fd80:24e2:f998:72d6::/120"},
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: true,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 256),
+				IPVersion:        6,
+				NumRequested:     257,
+				HostReservedAttr: nil,
+				Msgs:             []string{"No IPs available in pools: [fd80:24e2:f998:72d6::/120]"},
 			},
-			0, nil),
+			0, false, nil),
 
 		// Test 5: (use pool of size /25 so only two blocks are contained):
 		// - Assign 1 address on host A (Expect 1 address).
@@ -2312,51 +2247,51 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			[]pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}},
 			"10.0.0.0/25", 1, 0,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 1),
-				IPVersion:          4,
-				NumRequested:       1,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 1),
+				IPVersion:        4,
+				NumRequested:     1,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
-			nil, 0, nil),
+			nil, 0, false, nil),
 
 		// - Assign 1 address on host B (Expect 1 address, different block).
 		Entry("1 v4 0 v6 host-b", "host-b", false,
 			[]pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}},
 			"10.0.0.0/25", 1, 0,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 1),
-				IPVersion:          4,
-				NumRequested:       1,
-				NumBlocksOwned:     0,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: false,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 1),
+				IPVersion:        4,
+				NumRequested:     1,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
-			nil, 0, nil),
+			nil, 0, false, nil),
 
 		// - Assign 64 more addresses on host A (Expect 63 addresses from host A's block, 1 address from host B's block).
 		Entry("64 v4 0 v6 host-a", "host-a", false,
 			[]pool{{"10.0.0.0/25", 26, true, ""}, {"fd80:24e2:f998:72d6::/121", 122, true, ""}},
 			"10.0.0.0/25", 64, 0,
 			&IPAMAssignments{
-				IPs:                make([]cnet.IPNet, 64),
-				IPVersion:          4,
-				NumRequested:       64,
-				NumBlocksOwned:     1,
-				MaxNumBlocks:       20,
-				ExhaustedPools:     nil,
-				StrictAffinity:     false,
-				NoFreeAffineBlocks: true,
-				HostReservedAttr:   nil,
+				IPs:              make([]cnet.IPNet, 64),
+				IPVersion:        4,
+				NumRequested:     64,
+				HostReservedAttr: nil,
+				Msgs:             nil,
 			},
-			nil, 0, nil),
+			nil, 0, false, nil),
+		// - Try to assign 256 addresses with strict affinity enabled, expect 64 addresses.
+		Entry("256 v4 0 v6 strict affinity", "test-host", true,
+			[]pool{{"192.168.1.0/26", 26, true, ""}, {"192.168.1.64/26", 26, true, ""}, {"fd80:24e2:f998:72d6::/120", 122, true, ""}},
+			"192.168.1.0/26", 256, 0,
+			&IPAMAssignments{
+				IPs:              make([]cnet.IPNet, 64),
+				IPVersion:        4,
+				NumRequested:     256,
+				HostReservedAttr: nil,
+				Msgs:             []string{"No more free affine blocks and strict affinity enabled"},
+			},
+			nil, 0, true, nil),
 	)
 
 	DescribeTable("AssignIP: requested IP vs returned error",
@@ -2814,85 +2749,65 @@ func deleteNode(c bapi.Client, kc *kubernetes.Clientset, host string) {
 	}
 }
 
-var _ = DescribeTable("IPAMAssignmentInfo.String() tests", func(ia *IPAMAssignments, expOutput string) {
+var _ = DescribeTable("IPAMAssignmentInfo.String() tests", func(ia *IPAMAssignments, expErr error) {
 
-	Expect(ia.String()).To(Equal(expOutput))
+	if expErr == nil {
+		Expect(ia.PartialFulfillmentError()).To(BeNil())
+	} else {
+		Expect(ia.PartialFulfillmentError()).To(Equal(expErr))
+	}
 },
-	Entry("",
+	Entry("No error, 1 addr",
 		&IPAMAssignments{
-			IPs:                make([]cnet.IPNet, 1),
-			IPVersion:          4,
-			NumRequested:       1,
-			NumBlocksOwned:     0,
-			MaxNumBlocks:       20,
-			ExhaustedPools:     nil,
-			StrictAffinity:     false,
-			NoFreeAffineBlocks: false,
-			HostReservedAttr:   nil,
+			IPs:              make([]cnet.IPNet, 1),
+			IPVersion:        4,
+			NumRequested:     1,
+			Msgs:             nil,
+			HostReservedAttr: nil,
 		},
-		"Assigned 1 out of 1 requested IPv4 addresses"),
-	Entry("",
+		nil),
+	Entry("No error, 256 addrs",
 		&IPAMAssignments{
-			IPs:                make([]cnet.IPNet, 256),
-			IPVersion:          4,
-			NumRequested:       256,
-			NumBlocksOwned:     0,
-			MaxNumBlocks:       20,
-			ExhaustedPools:     nil,
-			StrictAffinity:     false,
-			NoFreeAffineBlocks: false,
-			HostReservedAttr:   nil,
+			IPs:              make([]cnet.IPNet, 256),
+			IPVersion:        4,
+			NumRequested:     256,
+			Msgs:             []string{},
+			HostReservedAttr: nil,
 		},
-		"Assigned 256 out of 256 requested IPv4 addresses"),
+		nil),
 	Entry("Strict affinity",
 		&IPAMAssignments{
-			IPs:                []cnet.IPNet{},
-			IPVersion:          4,
-			NumRequested:       1,
-			NumBlocksOwned:     1,
-			MaxNumBlocks:       20,
-			ExhaustedPools:     nil,
-			StrictAffinity:     true,
-			NoFreeAffineBlocks: true,
-			HostReservedAttr:   nil,
+			IPs:              []cnet.IPNet{},
+			IPVersion:        4,
+			NumRequested:     1,
+			Msgs:             []string{"No more free affine blocks and strict affinity enabled"},
+			HostReservedAttr: nil,
 		},
-		"Assigned 0 out of 1 requested IPv4 addresses; No more free affine blocks and strict affinity enabled; no free affine blocks: true, strict affinity: true, assigned blocks: 1, block limit: 20, exhausted IP pools: []"),
+		errors.New("Assigned 0 out of 1 requested IPv4 addresses; No more free affine blocks and strict affinity enabled")),
 	Entry("Block limit",
 		&IPAMAssignments{
-			IPs:                []cnet.IPNet{},
-			IPVersion:          4,
-			NumRequested:       1,
-			NumBlocksOwned:     20,
-			MaxNumBlocks:       20,
-			ExhaustedPools:     nil,
-			StrictAffinity:     false,
-			NoFreeAffineBlocks: false,
-			HostReservedAttr:   nil,
+			IPs:              []cnet.IPNet{},
+			IPVersion:        4,
+			NumRequested:     1,
+			Msgs:             []string{"Need to allocate an IPAM block but could not - limit of 20 blocks reached for this node"},
+			HostReservedAttr: nil,
 		},
-		"Assigned 0 out of 1 requested IPv4 addresses; IPAM block limit reached; no free affine blocks: false, strict affinity: false, assigned blocks: 20, block limit: 20, exhausted IP pools: []"),
+		errors.New("Assigned 0 out of 1 requested IPv4 addresses; Need to allocate an IPAM block but could not - limit of 20 blocks reached for this node")),
 	Entry("Exhausted IP Pools",
 		&IPAMAssignments{
-			IPs:                []cnet.IPNet{},
-			IPVersion:          4,
-			NumRequested:       1,
-			NumBlocksOwned:     20,
-			MaxNumBlocks:       20,
-			ExhaustedPools:     []string{"192.168.0.0/24", "192.168.1.0/24"},
-			StrictAffinity:     false,
-			NoFreeAffineBlocks: false,
-			HostReservedAttr:   nil,
+			IPs:              []cnet.IPNet{},
+			IPVersion:        4,
+			NumRequested:     1,
+			Msgs:             []string{"No IPs available in pools: [192.168.0.0/24 192.168.1.0/24]"},
+			HostReservedAttr: nil,
 		},
-		"Assigned 0 out of 1 requested IPv4 addresses; IPAM block limit reached; no free affine blocks: false, strict affinity: false, assigned blocks: 20, block limit: 20, exhausted IP pools: [192.168.0.0/24 192.168.1.0/24]"),
+		errors.New("Assigned 0 out of 1 requested IPv4 addresses; No IPs available in pools: [192.168.0.0/24 192.168.1.0/24]")),
 	Entry("HostReservedAttr",
 		&IPAMAssignments{
-			IPs:                []cnet.IPNet{},
-			IPVersion:          4,
-			NumRequested:       1,
-			NumBlocksOwned:     20,
-			MaxNumBlocks:       20,
-			ExhaustedPools:     nil,
-			StrictAffinity:     false,
-			NoFreeAffineBlocks: false,
+			IPs:          []cnet.IPNet{},
+			IPVersion:    4,
+			NumRequested: 1,
+			Msgs:         nil,
 			HostReservedAttr: &HostReservedAttr{
 				StartOfBlock: 3,
 				EndOfBlock:   1,
@@ -2900,5 +2815,5 @@ var _ = DescribeTable("IPAMAssignmentInfo.String() tests", func(ia *IPAMAssignme
 				Note:         "ipam ut",
 			},
 		},
-		"Assigned 0 out of 1 requested IPv4 addresses; IPAM block limit reached; no free affine blocks: false, strict affinity: false, assigned blocks: 20, block limit: 20, exhausted IP pools: [], HostReservedAttr: windows-reserved-ipam-handle"),
+		errors.New("Assigned 0 out of 1 requested IPv4 addresses; HostReservedAttr: windows-reserved-ipam-handle")),
 )

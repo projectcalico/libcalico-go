@@ -550,37 +550,34 @@ func (s *blockAssignState) findOrClaimBlock(ctx context.Context, minFreeIps int)
 }
 
 type IPAMAssignments struct {
-	IPs                []net.IPNet       // assigned IP addresses
-	IPVersion          int               // IP version (4 or 6)
-	NumRequested       int               // number of requested IP addresses (not all may be assigned)
-	NumBlocksOwned     int               // number of IP blocks currently owned by host
-	MaxNumBlocks       int               // maximum number of blocks that may be owned by a host
-	ExhaustedPools     []string          // CIDRs of exhausted IP pools (out of the ones that were checked, there may be more)
-	StrictAffinity     bool              // true if strict affinity is enabled
-	NoFreeAffineBlocks bool              // true if there are no more affine blocks to this host
-	HostReservedAttr   *HostReservedAttr // reserved addresses at start and/or end of blocks
+	IPs              []net.IPNet       // assigned IP addresses
+	IPVersion        int               // IP version (4 or 6)
+	NumRequested     int               // number of requested IP addresses (not all may be assigned)
+	HostReservedAttr *HostReservedAttr // reserved addresses at start and/or end of blocks
+	Msgs             []string          // warning/error messages to be rendered in case there are any issues with the assignment
 }
 
-func (i *IPAMAssignments) String() string {
-	var ret strings.Builder
-	fmt.Fprintf(&ret, "Assigned %d out of %d requested IPv%d addresses", len(i.IPs), i.NumRequested, i.IPVersion)
+func (i *IPAMAssignments) AddMsg(msg string) {
+	i.Msgs = append(i.Msgs, msg)
+}
 
-	switch {
-	case i.NoFreeAffineBlocks && i.StrictAffinity:
-		fmt.Fprintf(&ret, "; No more free affine blocks and strict affinity enabled")
-	case i.NumBlocksOwned >= i.MaxNumBlocks:
-		fmt.Fprintf(&ret, "; IPAM block limit reached")
-	case len(i.ExhaustedPools) > 0:
-		fmt.Fprintf(&ret, "; No IPs available in pools")
-	}
-	if len(i.IPs) != i.NumRequested {
-		fmt.Fprintf(&ret, "; no free affine blocks: %v, strict affinity: %v, assigned blocks: %v, block limit: %v, exhausted IP pools: %v", i.NoFreeAffineBlocks, i.StrictAffinity, i.NumBlocksOwned, i.MaxNumBlocks, i.ExhaustedPools)
-		if i.HostReservedAttr != nil {
-			fmt.Fprintf(&ret, ", HostReservedAttr: %v", i.HostReservedAttr.Handle)
+func (i *IPAMAssignments) PartialFulfillmentError() error {
+	if len(i.IPs) < i.NumRequested {
+		var b strings.Builder
+
+		fmt.Fprintf(&b, "Assigned %d out of %d requested IPv%d addresses", len(i.IPs), i.NumRequested, i.IPVersion)
+
+		if len(i.Msgs) > 0 {
+			fmt.Fprintf(&b, "; %v", strings.Join(i.Msgs, ";"))
 		}
-	}
 
-	return ret.String()
+		if i.HostReservedAttr != nil {
+			fmt.Fprintf(&b, "; HostReservedAttr: %v", i.HostReservedAttr.Handle)
+		}
+
+		return errors.New(b.String())
+	}
+	return nil
 }
 
 func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, attrs map[string]string, requestedPools []net.IPNet, version int, host string, maxNumBlocks int, rsvdAttr *HostReservedAttr) (*IPAMAssignments, error) {
@@ -629,9 +626,6 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 	ia := &IPAMAssignments{
 		IPVersion:        version,
 		NumRequested:     num,
-		NumBlocksOwned:   numBlocksOwned,
-		MaxNumBlocks:     maxNumBlocks,
-		StrictAffinity:   config.StrictAffinity,
 		HostReservedAttr: rsvdAttr,
 	}
 
@@ -657,7 +651,9 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 		b, newlyClaimed, err := s.findOrClaimBlock(ctx, 1)
 		if err != nil {
 			if _, ok := err.(noFreeBlocksError); ok {
-				ia.NoFreeAffineBlocks = true
+				if config.StrictAffinity {
+					ia.AddMsg("No more free affine blocks and strict affinity enabled")
+				}
 
 				// Skip to check non-affine blocks
 				break
@@ -665,6 +661,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 			if errors.Is(err, ErrBlockLimit) {
 				log.Warnf("Unable to allocate a new IPAM block; host already has %v blocks but "+
 					"blocks per host limit is %v", numBlocksOwned, maxNumBlocks)
+				ia.AddMsg(fmt.Sprintf("Need to allocate an IPAM block but could not - limit of %d blocks reached for this node", maxNumBlocks))
 				return ia, ErrBlockLimit
 			}
 			return ia, err
@@ -724,6 +721,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 		// Iterate over pools and assign addresses until we either run out of pools,
 		// or the request has been satisfied.
 		logCtx.Info("Looking for blocks with free IP addresses")
+		exhaustedPools := []string{}
 		for _, p := range pools {
 			logCtx.Debugf("Assigning from non-affine blocks in pool %s", p.Spec.CIDR)
 			newBlockCIDR := randomBlockGenerator(p, host)
@@ -731,7 +729,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 				// Grab a new random block.
 				blockCIDR := newBlockCIDR()
 				if blockCIDR == nil {
-					ia.ExhaustedPools = append(ia.ExhaustedPools, p.Spec.CIDR)
+					exhaustedPools = append(exhaustedPools, p.Spec.CIDR)
 					logCtx.Warningf("All addresses exhausted in pool %s", p.Spec.CIDR)
 					break
 				}
@@ -763,6 +761,9 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 					break
 				}
 			}
+		}
+		if len(exhaustedPools) > 0 {
+			ia.AddMsg(fmt.Sprintf("No IPs available in pools: %v", exhaustedPools))
 		}
 	}
 
