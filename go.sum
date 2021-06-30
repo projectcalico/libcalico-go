@@ -354,8 +354,6 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
-github.com/projectcalico/api v0.0.0-20210625205943-fd2597b409f4 h1:H3dDJsY91bn3GV81vMP8GR802Atg6EUN9vABSbkhjWk=
-github.com/projectcalico/api v0.0.0-20210625205943-fd2597b409f4/go.mod h1:8raLpE2oURN0I33JpEniA3LmAs5uPZ1kGnW/YunYEB0=
 github.com/projectcalico/go-json v0.0.0-20161128004156-6219dc7339ba h1:aaF2byUCZhzszHsfPEr2M3qcU4ibtD/yk/il2R7T1PU=
 github.com/projectcalico/go-json v0.0.0-20161128004156-6219dc7339ba/go.mod h1:q8EdCgBdMQzgiX/uk4GXLWLk+gIHd1a7mWUAamJKDb4=
 github.com/projectcalico/go-yaml-wrapper v0.0.0-20191112210931-090425220c54 h1:Jt2Pic9dxgJisekm8q2WV9FaWxUJhhRfwHSP640drww=
@@ -393,6 +391,8 @@ github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d/go.mod h1
 github.com/smartystreets/goconvey v1.6.4/go.mod h1:syvi0/a8iFYH4r/RixwvyeAJjdLS9QV7WQ/tjFTllLA=
 github.com/soheilhy/cmux v0.1.4 h1:0HKaf1o97UwFjHH9o5XsHUOF+tqmdA7KEzXLpiyaw0E=
 github.com/soheilhy/cmux v0.1.4/go.mod h1:IM3LyeVVIOuxMH7sFAkER9+bJ4dT7Ms6E4xg4kGIyLM=
+github.com/song-jiang/api v0.1.2-0.20210629153102-d2464c18ae71 h1:4cES71iuzpsVrtAGoVJXnmSW0gIIwCX99hpcQjhevdM=
+github.com/song-jiang/api v0.1.2-0.20210629153102-d2464c18ae71/go.mod h1:8raLpE2oURN0I33JpEniA3LmAs5uPZ1kGnW/YunYEB0=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/afero v1.2.2/go.mod h1:9ZxEEn6pIJ8Rxe320qSDBk6AsU0r9pR7Q4OcevTdifk=
