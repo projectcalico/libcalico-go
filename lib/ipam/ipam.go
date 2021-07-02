@@ -558,6 +558,12 @@ type IPAMAssignments struct {
 }
 
 func (i *IPAMAssignments) AddMsg(msg string) {
+	for _, m := range i.Msgs {
+		if msg == m {
+			// Don't add duplicate msgs
+			return
+		}
+	}
 	i.Msgs = append(i.Msgs, msg)
 }
 
@@ -691,6 +697,7 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 					continue
 				}
 				logCtx.WithError(err).Warningf("Failed to assign IPs in newly allocated block")
+				ia.AddMsg("Failed to assign IPs in newly allocated block")
 				break
 			}
 			logCtx.Debugf("Assigned IPs from new block: %s", newIPs)
