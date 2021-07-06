@@ -574,7 +574,7 @@ func (i *IPAMAssignments) PartialFulfillmentError() error {
 		fmt.Fprintf(&b, "Assigned %d out of %d requested IPv%d addresses", len(i.IPs), i.NumRequested, i.IPVersion)
 
 		if len(i.Msgs) > 0 {
-			fmt.Fprintf(&b, "; %v", strings.Join(i.Msgs, ";"))
+			fmt.Fprintf(&b, "; %v", strings.Join(i.Msgs, "; "))
 		}
 
 		if i.HostReservedAttr != nil {

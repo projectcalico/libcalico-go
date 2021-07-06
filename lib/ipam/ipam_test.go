@@ -2816,4 +2816,18 @@ var _ = DescribeTable("IPAMAssignmentInfo.String() tests", func(ia *IPAMAssignme
 			},
 		},
 		errors.New("Assigned 0 out of 1 requested IPv4 addresses; HostReservedAttr: windows-reserved-ipam-handle")),
+	Entry("Multiple msgs",
+		&IPAMAssignments{
+			IPs:          []cnet.IPNet{},
+			IPVersion:    4,
+			NumRequested: 1,
+			Msgs:         []string{"Need to allocate an IPAM block but could not - limit of 20 blocks reached for this node", "No IPs available in pools: [192.168.0.0/24 192.168.1.0/24]"},
+			HostReservedAttr: &HostReservedAttr{
+				StartOfBlock: 3,
+				EndOfBlock:   1,
+				Handle:       WindowsReservedHandle,
+				Note:         "ipam ut",
+			},
+		},
+		errors.New("Assigned 0 out of 1 requested IPv4 addresses; Need to allocate an IPAM block but could not - limit of 20 blocks reached for this node; No IPs available in pools: [192.168.0.0/24 192.168.1.0/24]; HostReservedAttr: windows-reserved-ipam-handle")),
 )
