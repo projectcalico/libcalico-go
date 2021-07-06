@@ -657,6 +657,10 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 		b, newlyClaimed, err := s.findOrClaimBlock(ctx, 1)
 		if err != nil {
 			if _, ok := err.(noFreeBlocksError); ok {
+				if config.StrictAffinity {
+					ia.AddMsg("No more free affine blocks and strict affinity enabled")
+				}
+
 				// Skip to check non-affine blocks
 				break
 			}
@@ -718,59 +722,55 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 	// blocks, then we should query the actual allocation blocks and assign
 	// from those.
 	rem := num - len(ia.IPs)
-	if rem != 0 {
-		if config.StrictAffinity == true {
-			ia.AddMsg("No more free affine blocks and strict affinity enabled")
-		} else {
-			logCtx.Infof("Attempting to assign %d more addresses from non-affine blocks", rem)
+	if config.StrictAffinity != true && rem != 0 {
+		logCtx.Infof("Attempting to assign %d more addresses from non-affine blocks", rem)
 
-			// Iterate over pools and assign addresses until we either run out of pools,
-			// or the request has been satisfied.
-			logCtx.Info("Looking for blocks with free IP addresses")
-			exhaustedPools := []string{}
-			for _, p := range pools {
-				logCtx.Debugf("Assigning from non-affine blocks in pool %s", p.Spec.CIDR)
-				newBlockCIDR := randomBlockGenerator(p, host)
-				for rem > 0 {
-					// Grab a new random block.
-					blockCIDR := newBlockCIDR()
-					if blockCIDR == nil {
-						exhaustedPools = append(exhaustedPools, p.Spec.CIDR)
-						logCtx.Warningf("All addresses exhausted in pool %s", p.Spec.CIDR)
+		// Iterate over pools and assign addresses until we either run out of pools,
+		// or the request has been satisfied.
+		logCtx.Info("Looking for blocks with free IP addresses")
+		exhaustedPools := []string{}
+		for _, p := range pools {
+			logCtx.Debugf("Assigning from non-affine blocks in pool %s", p.Spec.CIDR)
+			newBlockCIDR := randomBlockGenerator(p, host)
+			for rem > 0 {
+				// Grab a new random block.
+				blockCIDR := newBlockCIDR()
+				if blockCIDR == nil {
+					exhaustedPools = append(exhaustedPools, p.Spec.CIDR)
+					logCtx.Warningf("All addresses exhausted in pool %s", p.Spec.CIDR)
+					break
+				}
+
+				for i := 0; i < datastoreRetries; i++ {
+					b, err := c.blockReaderWriter.queryBlock(ctx, *blockCIDR, "")
+					if err != nil {
+						logCtx.WithError(err).Warn("Failed to get non-affine block")
 						break
 					}
 
-					for i := 0; i < datastoreRetries; i++ {
-						b, err := c.blockReaderWriter.queryBlock(ctx, *blockCIDR, "")
-						if err != nil {
-							logCtx.WithError(err).Warn("Failed to get non-affine block")
-							break
+					// Attempt to assign from the block.
+					logCtx.Infof("Attempting to assign IPs from non-affine block %s", blockCIDR.String())
+					newIPs, err := c.assignFromExistingBlock(ctx, b, rem, handleID, attrs, host, false)
+					if err != nil {
+						if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+							logCtx.WithError(err).Debug("CAS error assigning from non-affine block - retry")
+							continue
 						}
-
-						// Attempt to assign from the block.
-						logCtx.Infof("Attempting to assign IPs from non-affine block %s", blockCIDR.String())
-						newIPs, err := c.assignFromExistingBlock(ctx, b, rem, handleID, attrs, host, false)
-						if err != nil {
-							if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
-								logCtx.WithError(err).Debug("CAS error assigning from non-affine block - retry")
-								continue
-							}
-							logCtx.WithError(err).Warningf("Failed to assign IPs from non-affine block in pool %s", p.Spec.CIDR)
-							break
-						}
-						if len(newIPs) == 0 {
-							break
-						}
-						logCtx.Infof("Successfully assigned IPs from non-affine block %s", blockCIDR.String())
-						ia.IPs = append(ia.IPs, newIPs...)
-						rem = num - len(ia.IPs)
+						logCtx.WithError(err).Warningf("Failed to assign IPs from non-affine block in pool %s", p.Spec.CIDR)
 						break
 					}
+					if len(newIPs) == 0 {
+						break
+					}
+					logCtx.Infof("Successfully assigned IPs from non-affine block %s", blockCIDR.String())
+					ia.IPs = append(ia.IPs, newIPs...)
+					rem = num - len(ia.IPs)
+					break
 				}
 			}
-			if len(exhaustedPools) > 0 {
-				ia.AddMsg(fmt.Sprintf("No IPs available in pools: %v", exhaustedPools))
-			}
+		}
+		if len(exhaustedPools) > 0 {
+			ia.AddMsg(fmt.Sprintf("No IPs available in pools: %v", exhaustedPools))
 		}
 	}
 
