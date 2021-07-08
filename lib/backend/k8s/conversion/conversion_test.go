@@ -627,7 +627,7 @@ var _ = Describe("Test Pod conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(c.HasIPAddress(&pod)).To(BeTrue())
 		Expect(IsFinished(&pod)).To(BeFalse())
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks).To(ConsistOf("192.168.0.1/32"))
+		Expect(wep.Value.(*libapiv3.WorkloadEndpoint).Spec.IPNetworks).To(ConsistOf("192.168.0.1/32"))
 	})
 
 	It("should treat running pod with empty podIP with a deletion timestamp as finished", func() {
@@ -657,7 +657,7 @@ var _ = Describe("Test Pod conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(c.HasIPAddress(&pod)).To(BeTrue())
 		Expect(IsFinished(&pod)).To(BeTrue())
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks).To(BeEmpty())
+		Expect(wep.Value.(*libapiv3.WorkloadEndpoint).Spec.IPNetworks).To(BeEmpty())
 	})
 
 	It("should treat running pod with no podIP annoation with a deletion timestamp as running", func() {
@@ -686,7 +686,7 @@ var _ = Describe("Test Pod conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(c.HasIPAddress(&pod)).To(BeTrue())
 		Expect(IsFinished(&pod)).To(BeFalse())
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks).To(ConsistOf("192.168.0.1/32"))
+		Expect(wep.Value.(*libapiv3.WorkloadEndpoint).Spec.IPNetworks).To(ConsistOf("192.168.0.1/32"))
 	})
 
 	It("should treat finished pod with no podIP annoation with a deletion timestamp as finished", func() {
@@ -715,7 +715,7 @@ var _ = Describe("Test Pod conversion", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(c.HasIPAddress(&pod)).To(BeTrue())
 		Expect(IsFinished(&pod)).To(BeTrue())
-		Expect(wep.Value.(*apiv3.WorkloadEndpoint).Spec.IPNetworks).To(BeEmpty())
+		Expect(wep.Value.(*libapiv3.WorkloadEndpoint).Spec.IPNetworks).To(BeEmpty())
 	})
 
 	DescribeTable("PodToDefaultWorkloadEndpoint reject/accept phase tests",
