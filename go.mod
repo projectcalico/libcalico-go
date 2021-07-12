@@ -39,4 +39,7 @@ require (
 	sigs.k8s.io/kind v0.11.1
 )
 
-replace github.com/sirupsen/logrus => github.com/projectcalico/logrus v1.0.4-calico
+replace (
+	github.com/projectcalico/api => github.com/mikestephen/api v0.0.0-20210712165902-95b69982e0f7
+	github.com/sirupsen/logrus => github.com/projectcalico/logrus v1.0.4-calico
+)
