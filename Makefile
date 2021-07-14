@@ -3,7 +3,7 @@ GO_BUILD_VER=v0.49
 
 # Used so semaphore can trigger the update pin pipelines in projects that have this project as a dependency.
 SEMAPHORE_AUTO_PIN_UPDATE_PROJECT_IDS=$(SEMAPHORE_TYPHA_PROJECT_ID) $(SEMAPHORE_KUBE_CONTROLLERS_PROJECT_ID) \
-	$(SEMAPHORE_CALICOCTL_PROJECT_ID) $(SEMAPHORE_CNI_PROJECT_ID)
+	$(SEMAPHORE_CALICOCTL_PROJECT_ID) $(SEMAPHORE_CNI_PLUGIN_PROJECT_ID)
 
 # libcalico-go still relies on vendoring
 GOMOD_VENDOR = true
