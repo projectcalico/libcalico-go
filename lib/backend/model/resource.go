@@ -29,27 +29,29 @@ import (
 
 // Name/type information about a single resource.
 type resourceInfo struct {
-	typeOf reflect.Type
-	plural string
-	kind   string
+	typeOf    reflect.Type
+	plural    string
+	kindLower string
+	kind      string
 }
 
 var (
 	matchGlobalResource     = regexp.MustCompile("^/calico/resources/v3/projectcalico[.]org/([^/]+)/([^/]+)$")
 	matchNamespacedResource = regexp.MustCompile("^/calico/resources/v3/projectcalico[.]org/([^/]+)/([^/]+)/([^/]+)$")
-	resourceInfoByKind      = make(map[string]resourceInfo)
+	resourceInfoByKindLower = make(map[string]resourceInfo)
 	resourceInfoByPlural    = make(map[string]resourceInfo)
 )
 
 func registerResourceInfo(kind string, plural string, typeOf reflect.Type) {
-	kind = strings.ToLower(kind)
+	kindLower := strings.ToLower(kind)
 	plural = strings.ToLower(plural)
 	ri := resourceInfo{
-		typeOf: typeOf,
-		kind:   kind,
-		plural: plural,
+		typeOf:    typeOf,
+		kindLower: kindLower,
+		kind:      kind,
+		plural:    plural,
 	}
-	resourceInfoByKind[kind] = ri
+	resourceInfoByKindLower[kindLower] = ri
 	resourceInfoByPlural[plural] = ri
 }
 
@@ -144,7 +146,7 @@ func (key ResourceKey) defaultPath() (string, error) {
 }
 
 func (key ResourceKey) defaultDeletePath() (string, error) {
-	ri, ok := resourceInfoByKind[strings.ToLower(key.Kind)]
+	ri, ok := resourceInfoByKindLower[strings.ToLower(key.Kind)]
 	if !ok {
 		return "", fmt.Errorf("couldn't convert key: %+v", key)
 	}
@@ -159,7 +161,7 @@ func (key ResourceKey) defaultDeleteParentPaths() ([]string, error) {
 }
 
 func (key ResourceKey) valueType() (reflect.Type, error) {
-	ri, ok := resourceInfoByKind[strings.ToLower(key.Kind)]
+	ri, ok := resourceInfoByKindLower[strings.ToLower(key.Kind)]
 	if !ok {
 		return nil, fmt.Errorf("Unexpected resource kind: " + key.Kind)
 	}
@@ -194,7 +196,7 @@ func (options ResourceListOptions) IsLastSegmentIsPrefix() bool {
 }
 
 func (options ResourceListOptions) KeyFromDefaultPath(path string) Key {
-	ri, ok := resourceInfoByKind[strings.ToLower(options.Kind)]
+	ri, ok := resourceInfoByKindLower[strings.ToLower(options.Kind)]
 	if !ok {
 		log.Panic("Unexpected resource kind: " + options.Kind)
 	}
@@ -257,7 +259,7 @@ func (options ResourceListOptions) KeyFromDefaultPath(path string) Key {
 }
 
 func (options ResourceListOptions) defaultPathRoot() string {
-	ri, ok := resourceInfoByKind[strings.ToLower(options.Kind)]
+	ri, ok := resourceInfoByKindLower[strings.ToLower(options.Kind)]
 	if !ok {
 		log.Panic("Unexpected resource kind: " + options.Kind)
 	}
