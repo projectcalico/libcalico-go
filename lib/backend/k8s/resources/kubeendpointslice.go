@@ -26,7 +26,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 
-	discovery "k8s.io/api/discovery/v1beta1"
+	discovery "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -93,7 +93,7 @@ func (c *endpointSliceClient) List(ctx context.Context, list model.ListInterface
 	log.Debug("Received List request on Kubernetes EndpointSlice type")
 	// List all of the k8s EndpointSlice objects.
 	endpointSlices := discovery.EndpointSliceList{}
-	req := c.clientSet.DiscoveryV1beta1().RESTClient().
+	req := c.clientSet.DiscoveryV1().RESTClient().
 		Get().
 		Resource("endpointslices")
 	err := req.Do(ctx).Into(&endpointSlices)
@@ -130,7 +130,7 @@ func (c *endpointSliceClient) Watch(ctx context.Context, list model.ListInterfac
 
 	opts.ResourceVersion = revision
 	log.Debugf("Watching Kubernetes EndpointSlice at revision %q", revision)
-	k8sRawWatch, err := c.clientSet.DiscoveryV1beta1().EndpointSlices("").Watch(ctx, opts)
+	k8sRawWatch, err := c.clientSet.DiscoveryV1().EndpointSlices("").Watch(ctx, opts)
 	if err != nil {
 		return nil, K8sErrorToCalico(err, list)
 	}
