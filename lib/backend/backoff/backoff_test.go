@@ -27,17 +27,18 @@ import (
 var _ = Describe("Test the backend backoff handler", func() {
 	Context("With a linear backoff handler that backsoff by 100 ms every call and decreases by 50 ms per second", func() {
 		var updateCallCount int
-		updates := make(chan time.Time)
-		defer close(updates)
-		fn := func(t time.Duration) time.Duration {
-			updateCallCount++
-			return t + 100*time.Millisecond
-		}
-		bh := backoff.NewBackoffHandler(updates, 50*time.Millisecond, 1*time.Second, 0*time.Millisecond, 200*time.Millisecond, fn)
-		ctx := context.Background()
-		go bh.Run(ctx)
 
 		It("Should increment the backoff correctly", func() {
+			updates := make(chan time.Time)
+			defer close(updates)
+			fn := func(t time.Duration) time.Duration {
+				updateCallCount++
+				return t + 100*time.Millisecond
+			}
+			bh := backoff.NewBackoffHandler(updates, 50*time.Millisecond, 1*time.Second, 0*time.Millisecond, 200*time.Millisecond, fn)
+			ctx := context.Background()
+			go bh.Run(ctx)
+
 			Expect(bh.Backoff()).To(Equal(0 * time.Millisecond))
 			updates <- time.Now()
 			Expect(bh.Backoff()).To(Equal(100 * time.Millisecond))
@@ -45,6 +46,16 @@ var _ = Describe("Test the backend backoff handler", func() {
 		})
 
 		It("Backoff should decrease over time", func() {
+			updates := make(chan time.Time)
+			defer close(updates)
+			fn := func(t time.Duration) time.Duration {
+				updateCallCount++
+				return t + 100*time.Millisecond
+			}
+			bh := backoff.NewBackoffHandler(updates, 50*time.Millisecond, 1*time.Second, 0*time.Millisecond, 200*time.Millisecond, fn)
+			ctx := context.Background()
+			go bh.Run(ctx)
+
 			updates <- time.Now()
 			time.Sleep(1 * time.Second)
 			Expect(bh.Backoff()).To(Equal(50 * time.Millisecond))
@@ -52,6 +63,16 @@ var _ = Describe("Test the backend backoff handler", func() {
 		})
 
 		It("Should only backoff once per leak period", func() {
+			updates := make(chan time.Time)
+			defer close(updates)
+			fn := func(t time.Duration) time.Duration {
+				updateCallCount++
+				return t + 100*time.Millisecond
+			}
+			bh := backoff.NewBackoffHandler(updates, 50*time.Millisecond, 1*time.Second, 0*time.Millisecond, 200*time.Millisecond, fn)
+			ctx := context.Background()
+			go bh.Run(ctx)
+
 			updateCallCount = 0
 			updates <- time.Now()
 			updates <- time.Now()
