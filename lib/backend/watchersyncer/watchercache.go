@@ -21,6 +21,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/backoff"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 )
@@ -44,6 +45,8 @@ type watcherCache struct {
 	hasSynced            bool
 	resourceType         ResourceType
 	currentWatchRevision string
+	backoffHandler       backoff.BackoffHandler
+	backoffs             chan<- time.Time
 }
 
 var (
@@ -62,13 +65,15 @@ type cacheEntry struct {
 }
 
 // Create a new watcherCache.
-func newWatcherCache(client api.Client, resourceType ResourceType, results chan<- interface{}) *watcherCache {
+func newWatcherCache(client api.Client, resourceType ResourceType, results chan<- interface{}, backoffs chan<- time.Time, bh backoff.BackoffHandler) *watcherCache {
 	return &watcherCache{
-		logger:       logrus.WithField("ListRoot", model.ListOptionsToDefaultPathRoot(resourceType.ListInterface)),
-		client:       client,
-		resourceType: resourceType,
-		results:      results,
-		resources:    make(map[string]cacheEntry, 0),
+		logger:         logrus.WithField("ListRoot", model.ListOptionsToDefaultPathRoot(resourceType.ListInterface)),
+		client:         client,
+		resourceType:   resourceType,
+		results:        results,
+		resources:      make(map[string]cacheEntry, 0),
+		backoffs:       backoffs,
+		backoffHandler: bh,
 	}
 }
 
@@ -94,6 +99,8 @@ mainLoop:
 			if !ok {
 				// If the channel is closed then resync/recreate the watch.
 				wc.logger.Info("Watch channel closed by remote - recreate watcher")
+				wc.backoffs <- time.Now()
+				time.Sleep(wc.backoffHandler.Backoff())
 				wc.resyncAndCreateWatcher(ctx)
 				continue
 			}
