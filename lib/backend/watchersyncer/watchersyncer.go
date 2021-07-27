@@ -19,8 +19,10 @@ import (
 
 	"context"
 	"sync"
+	"time"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/libcalico-go/lib/backend/backoff"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 )
@@ -62,27 +64,36 @@ type SyncerUpdateProcessor interface {
 
 // New creates a new multiple Watcher-backed api.Syncer.
 func New(client api.Client, resourceTypes []ResourceType, callbacks api.SyncerCallbacks) api.Syncer {
+	backoffUpdates := make(chan time.Time)
+	// Create a backoff handler that will increase the backoff time by 100 ms every time a backoff
+	// is required until a maximum of 5 seconds is reached. The backoff time will slowly decrease by
+	// 10 ms every second until the minimum backoff time of 100 ms is reached.
+	bh := backoff.NewLinearBackoffHandler(backoffUpdates, 10*time.Millisecond, 1*time.Second, 100*time.Millisecond, 5*time.Second, 100*time.Second)
 	rs := &watcherSyncer{
-		watcherCaches: make([]*watcherCache, len(resourceTypes)),
-		results:       make(chan interface{}, 2000),
-		callbacks:     callbacks,
+		watcherCaches:  make([]*watcherCache, len(resourceTypes)),
+		results:        make(chan interface{}, 2000),
+		callbacks:      callbacks,
+		backoffHandler: bh,
+		backoffs:       backoffUpdates,
 	}
 	for i, r := range resourceTypes {
-		rs.watcherCaches[i] = newWatcherCache(client, r, rs.results)
+		rs.watcherCaches[i] = newWatcherCache(client, r, rs.results, rs.backoffs, rs.backoffHandler)
 	}
 	return rs
 }
 
 // watcherSyncer implements the api.Syncer interface.
 type watcherSyncer struct {
-	status        api.SyncStatus
-	watcherCaches []*watcherCache
-	results       chan interface{}
-	numSynced     int
-	callbacks     api.SyncerCallbacks
-	wgwc          *sync.WaitGroup
-	wgws          *sync.WaitGroup
-	cancel        context.CancelFunc
+	status         api.SyncStatus
+	watcherCaches  []*watcherCache
+	results        chan interface{}
+	numSynced      int
+	callbacks      api.SyncerCallbacks
+	wgwc           *sync.WaitGroup
+	wgws           *sync.WaitGroup
+	cancel         context.CancelFunc
+	backoffHandler backoff.BackoffHandler
+	backoffs       chan time.Time
 }
 
 func (ws *watcherSyncer) Start() {
@@ -118,6 +129,7 @@ func (ws *watcherSyncer) Stop() {
 	// Closing the results chan signals to the watchersyncer to shut itself down now that nothing else will write to
 	// the results chan
 	close(ws.results)
+	close(ws.backoffs)
 	ws.wgws.Wait()
 
 }
@@ -143,6 +155,11 @@ func (ws *watcherSyncer) run(ctx context.Context) {
 			ws.wgwc.Done()
 		}(wc)
 	}
+
+	log.Debug("Starting the backoff handler")
+	go func() {
+		ws.backoffHandler.Run(ctx)
+	}()
 
 	log.Info("Starting main event processing loop")
 	var updates []api.Update
