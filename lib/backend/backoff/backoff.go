@@ -89,7 +89,11 @@ func (bh *backoffHandler) Run(ctx context.Context) {
 			} else {
 				bh.backoff = update
 			}
-		case timestamp := <-bh.updates:
+		case timestamp, ok := <-bh.updates:
+			if !ok {
+				// Channel closed, stop the backoff handler.
+				return
+			}
 			// Only update the backoff if the timestamp is after the last update time.
 			if !bh.lock && bh.lastUpdate.Before(timestamp) {
 				bh.lock = true
