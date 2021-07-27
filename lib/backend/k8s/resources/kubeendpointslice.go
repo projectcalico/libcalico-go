@@ -140,7 +140,7 @@ func (c *endpointSliceClient) Watch(ctx context.Context, list model.ListInterfac
 			return nil, errors.New("KubernetesEndpointSlice conversion with incorrect k8s resource type")
 		}
 
-		return c.EndpointSliceToKVP(es)
+		return c.EndpointSliceToKVP(es.DeepCopy())
 	}
 	return newK8sWatcherConverter(ctx, "KubernetesEndpointSlice", converter, k8sRawWatch), nil
 }
