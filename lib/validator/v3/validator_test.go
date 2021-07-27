@@ -2165,6 +2165,23 @@ func init() {
 				},
 			}, false,
 		),
+		Entry("disallow a Service match without a namespace on a GNP",
+			&api.GlobalNetworkPolicy{
+				ObjectMeta: v1.ObjectMeta{Name: "thing"},
+				Spec: api.GlobalNetworkPolicySpec{
+					Ingress: []api.Rule{
+						{
+							Action: "Allow",
+							Destination: api.EntityRule{
+								Services: &api.ServiceMatch{
+									Name: "service1",
+								},
+							},
+						},
+					},
+				},
+			}, false,
+		),
 
 		// Validate EntityRule against special selectors global().
 		// Extra spaces added in some cases to make sure validation handles it.
