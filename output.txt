@@ -1,0 +1,83 @@
+mkdir -p .go-pkg-cache bin /root/go/pkg/mod && docker run --rm --net=host --init -e RUN_AS_ROOT='true' -e GO111MODULE=on -v /root/go/pkg/mod:/go/pkg/mod:rw -e LOCAL_USER_ID=0 -e GOCACHE=/go-cache -e GOARCH=amd64 -e GOPATH=/go -e OS=linux -e GOOS=linux -e GOFLAGS= -v /media/psf/Home/go-repo/gomod/libcalico-go:/go/src/github.com/projectcalico/libcalico-go:rw -v /media/psf/Home/go-repo/gomod/libcalico-go/.go-pkg-cache:/go-cache:rw -w /go/src/github.com/projectcalico/libcalico-go --privileged \
+	-e KUBECONFIG=/kubeconfig.yaml \
+	-v /root/code/libcalico-go/kubeconfig.yaml:/kubeconfig.yaml \
+	--dns 172.17.0.2 \
+	calico/go-build:v0.53 sh -c 'cd /go/src/github.com/projectcalico/libcalico-go && ginkgo -r -focus ".*.*\[Datastore\]|\[Datastore\].*.*" ./lib/backend'
+[1627486903] [1mBackend Suite[0m - 2/2 specs [32m•[0m[32m•[0m
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/backend_suite.xml
+ [32mSUCCESS![0m 3.048874261s PASS
+[1627486903] [1mEtcd Suite[0m - 0/0 specs 
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/etcd_suite.xml
+ [32mSUCCESS![0m 1.857184ms PASS
+[1627486903] [1mEtcdV3 Suite[0m - 8/11 specs [36mS[0m[36mS[0m[36mS[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/etcdv3_suite.xml
+ [32mSUCCESS![0m 42.309761ms PASS
+[1627486903] [1mKDD Suite[0m - 43/45 specs [32m•[0m
+[90m------------------------------[0m
+[32m• [SLOW TEST:6.219 seconds][0m
+[90mTest Syncer API for Kubernetes backend [Datastore] (kubernetes backend) [0m[0mshould handle a Namespace with DefaultDeny (v1beta annotation for namespace isolation) [0m
+[37m/go/src/github.com/projectcalico/libcalico-go/lib/backend/k8s/k8s_test.go:414[0m
+[90m------------------------------[0m
+[32m• [SLOW TEST:6.184 seconds][0m
+[90mTest Syncer API for Kubernetes backend [Datastore] (kubernetes backend) [0m[0mshould handle a Namespace without any annotations [0m
+[37m/go/src/github.com/projectcalico/libcalico-go/lib/backend/k8s/k8s_test.go:463[0m
+[90m------------------------------[0m
+[32m• [SLOW TEST:5.460 seconds][0m
+[90mTest Syncer API for Kubernetes backend [Datastore] (kubernetes backend) [0m[0mshould handle the static default-allow Profile [0m
+[37m/go/src/github.com/projectcalico/libcalico-go/lib/backend/k8s/k8s_test.go:514[0m
+[90m------------------------------[0m
+[32m•[0m
+[90m------------------------------[0m
+[32m• [SLOW TEST:43.240 seconds][0m
+[90mTest Syncer API for Kubernetes backend [Datastore] (kubernetes backend) [0m[0mshould handle a CRUD of Global Network Policy [0m
+[37m/go/src/github.com/projectcalico/libcalico-go/lib/backend/k8s/k8s_test.go:672[0m
+[90m------------------------------[0m
+[32m•[0m[32m•[0m[32m•[0m[32m•[0mUpdating Wep {Orchestrator:k8s Workload: Node:127.0.0.1 ContainerID: Pod:basic-pod Endpoint:eth0 ServiceAccountName:default IPNetworks:[192.168.1.1/32] IPNATs:[] IPv4Gateway: IPv6Gateway: Profiles:[kns.default ksa.default.default] InterfaceName:cali3857a214bd5 MAC: Ports:[]}
+[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0mUpdating Wep {Orchestrator:k8s Workload: Node:127.0.0.1 ContainerID: Pod:test-syncer-basic-pod Endpoint:eth0 ServiceAccountName:default IPNetworks:[192.168.1.1] IPNATs:[] IPv4Gateway: IPv6Gateway: Profiles:[kns.default ksa.default.default] InterfaceName:caliaa82377f0d5 MAC: Ports:[]}
+[32m•[0mUpdating Wep {Orchestrator:k8s Workload: Node:127.0.0.1 ContainerID: Pod:test-syncer-basic-pod Endpoint:eth0 ServiceAccountName:default IPNetworks:[192.168.1.1] IPNATs:[] IPv4Gateway: IPv6Gateway: Profiles:[kns.default ksa.default.default] InterfaceName:caliaa82377f0d5 MAC: Ports:[]}
+[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[32m•[0m[36mS[0m[36mS[0m
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/kdd_suite.xml
+ [32mSUCCESS![0m 1m12.011583054s PASS
+[1627486903] [1mConversion Suite[0m - 0/98 specs [36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/conversion_suite.xml
+ [32mSUCCESS![0m 2.32747ms PASS
+[1627486903] [1mK8s resources Suite[0m - 2/43 specs [36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[32m•[0m[32m•[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/k8s_resources_suite.xml
+ [32mSUCCESS![0m 245.646344ms PASS
+[1627486903] [1mModel Suite[0m - 0/95 specs [36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/model_suite.xml
+ [32mSUCCESS![0m 3.957754ms PASS
+[1627486903] [1mBGP syncer test suite[0m - 2/2 specs [32m•[0m
+[90m------------------------------[0m
+[32m• [SLOW TEST:6.716 seconds][0m
+[90mBGP syncer tests [Datastore] (etcdv3 backend) [0m[0mBGP syncer functionality [0m[90mshould receive the synced after return all current data [0m
+[37m/go/src/github.com/projectcalico/libcalico-go/lib/backend/syncersv1/bgpsyncer/bgpsyncer_e2e_test.go:49[0m
+[90m------------------------------[0m
+
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/bgpsyncer_suite.xml
+ [32mSUCCESS![0m 11.69163876s PASS
+[1627486903] [1mFelix syncer test Suite[0m - 4/4 specs [32m•[0m
+[90m------------------------------[0m
+[32m• [SLOW TEST:8.506 seconds][0m
+[90mFelix syncer tests [Datastore] (etcdv3 backend) [0m[0mFelix syncer functionality [0m[90mshould receive the synced after return all current data [0m
+[37m/go/src/github.com/projectcalico/libcalico-go/lib/backend/syncersv1/felixsyncer/felixsyncer_e2e_test.go:234[0m
+[90m------------------------------[0m
+[32m• [SLOW TEST:36.128 seconds][0m
+[90mFelix syncer tests [Datastore] (kubernetes backend) [0m[0mFelix syncer functionality [0m[90mshould receive the synced after return all current data [0m
+[37m/go/src/github.com/projectcalico/libcalico-go/lib/backend/syncersv1/felixsyncer/felixsyncer_e2e_test.go:234[0m
+[90m------------------------------[0m
+[32m•[0m
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/felix_syncer_suite.xml
+ [32mSUCCESS![0m 50.853701933s PASS
+[1627486903] [1mTunnel IP syncer test suite[0m - 2/2 specs [32m•[0m[32m•[0m
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/tunnelipsyncer_suite.xml
+ [32mSUCCESS![0m 7.99766744s PASS
+[1627486903] [1mSyncer update processors suite[0m - 0/70 specs [36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/syncer_update_proc_suite.xml
+ [32mSUCCESS![0m 1.955837ms PASS
+[1627486903] [1mBackend multi-watcher/syncer test suite[0m - 0/10 specs [36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m[36mS[0m
+JUnit report was created: /go/src/github.com/projectcalico/libcalico-go/report/backend_watcher_syncer_suite.xml
+ [32mSUCCESS![0m 1.986985ms PASS
+
+Ginkgo ran 12 suites in 2m49.954495033s
+Test Suite Passed
