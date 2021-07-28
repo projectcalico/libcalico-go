@@ -355,7 +355,7 @@ func (st *SyncerTester) hasUpdates(expectedUpdates []api.Update, checkOrder bool
 		actualUpdatesMap[key] = append(actualUpdatesMap[key], actual)
 	}
 
-	// Loop through the expectedUpdates results  and remote entries that are found.
+	// Loop through the expectedUpdates results and remove entries that are found.
 	for _, expected := range expectedUpdates {
 		if err := removeFromActualUpdatesMap(expected); err != "" {
 			errs = append(errs, err)
