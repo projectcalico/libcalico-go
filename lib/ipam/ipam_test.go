@@ -131,6 +131,13 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 	var kc *kubernetes.Clientset
 	BeforeEach(func() {
 		var err error
+
+		if config.Spec.DatastoreType == "kubernetes" {
+			// Allow a very large number of QPS for these tests with Kubernetes. We are create a large number of
+			// resources upfront (~350) followed by measurements which require up to 100 iterations per test. This can
+			// result in very large number of queries in a very short space of time.
+			config.Spec.K8sClientQPS = 500
+		}
 		bc, err = backend.NewClient(config)
 		Expect(err).NotTo(HaveOccurred())
 		ic = NewIPAMClient(bc, ipPools)
