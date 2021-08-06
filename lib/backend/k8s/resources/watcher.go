@@ -150,12 +150,6 @@ func (crw *k8sWatcherConverter) convertEvent(kevent kwatch.Event) []*api.WatchEv
 		fallthrough
 	case kwatch.Added:
 		fallthrough
-	case kwatch.Bookmark:
-		// Bookmark events include a resource version, but nothing else.
-		return []*api.WatchEvent{{
-			Type: api.WatchBookmark,
-			New:  &model.KVPair{Revision: kevent.Object.(Resource).GetObjectMeta().GetResourceVersion()},
-		}}
 	case kwatch.Modified:
 		k8sRes := kevent.Object.(Resource)
 		kvps, err = crw.converter(k8sRes)

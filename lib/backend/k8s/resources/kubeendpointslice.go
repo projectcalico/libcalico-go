@@ -27,9 +27,12 @@ import (
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 
 	discovery "k8s.io/api/discovery/v1beta1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/pager"
 )
 
 // NewKubernetesEndpointSliceClient returns a new client for interacting with Kubernetes EndpointSlice objects.
@@ -91,29 +94,44 @@ func (c *endpointSliceClient) Get(ctx context.Context, key model.Key, revision s
 
 func (c *endpointSliceClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
 	log.Debug("Received List request on Kubernetes EndpointSlice type")
-	// List all of the k8s EndpointSlice objects.
-	endpointSlices := discovery.EndpointSliceList{}
-	req := c.clientSet.DiscoveryV1beta1().RESTClient().
-		Get().
-		Resource("endpointslices")
-	err := req.Do(ctx).Into(&endpointSlices)
+	listFunc := func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return c.clientSet.DiscoveryV1beta1().EndpointSlices("").List(ctx, opts)
+	}
+
+	// For each object returned from the API server, add it to a KVPairList.
+	kvps := model.KVPairList{KVPairs: []*model.KVPair{}}
+	kvps.Revision = revision
+	forEach := func(obj runtime.Object) error {
+		es := obj.(*discovery.EndpointSlice)
+		kvp, err := c.EndpointSliceToKVP(es)
+		if err != nil {
+			log.WithError(err).Info("Failed to convert K8s EndpointSlice")
+			return err
+		}
+		kvps.KVPairs = append(kvps.KVPairs, kvp)
+		return nil
+	}
+
+	lp := pager.New(listFunc)
+	opts := metav1.ListOptions{ResourceVersion: revision}
+	if revision != "" {
+		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
+	}
+	result, _, err := lp.List(ctx, opts)
 	if err != nil {
-		log.WithError(err).Info("Unable to list K8s EndpointSlice resources")
+		return nil, K8sErrorToCalico(err, list)
+	}
+	err = meta.EachListItem(result, forEach)
+	if err != nil {
 		return nil, K8sErrorToCalico(err, list)
 	}
 
-	kvps := model.KVPairList{KVPairs: []*model.KVPair{}}
-	for _, es := range endpointSlices.Items {
-		kvp, err := c.EndpointSliceToKVP(&es)
-		if err != nil {
-			log.WithError(err).Info("Failed to convert K8s EndpointSlice")
-			return nil, err
-		}
-		kvps.KVPairs = append(kvps.KVPairs, kvp)
+	// Extract the list revision information.
+	m, err := meta.ListAccessor(result)
+	if err != nil {
+		return nil, err
 	}
-
-	// Add in the Revision information.
-	kvps.Revision = endpointSlices.ResourceVersion
+	kvps.Revision = m.GetResourceVersion()
 	log.WithFields(log.Fields{
 		"num_kvps": len(kvps.KVPairs),
 		"revision": kvps.Revision}).Debug("Returning Kubernetes EndpointSlice KVPs")
@@ -122,7 +140,7 @@ func (c *endpointSliceClient) List(ctx context.Context, list model.ListInterface
 
 func (c *endpointSliceClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	// Build watch options to pass to k8s.
-	opts := metav1.ListOptions{Watch: true}
+	opts := metav1.ListOptions{Watch: true, AllowWatchBookmarks: false}
 	_, ok := list.(model.ResourceListOptions)
 	if !ok {
 		return nil, fmt.Errorf("ListInterface is not a ResourceListOptions: %s", list)
