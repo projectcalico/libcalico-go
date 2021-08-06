@@ -122,6 +122,9 @@ mainLoop:
 				wc.logger.WithError(event.Error).Infof("Watch error received from Upstream")
 				wc.currentWatchRevision = "0"
 				wc.resyncAndCreateWatcher(ctx)
+			case api.WatchBookmark:
+				// Bookmarks don't include a resource, just the latest resourceVersion.
+				wc.currentWatchRevision = event.New.Revision
 			default:
 				// Unknown event type - not much we can do other than log.
 				wc.logger.WithField("EventType", event.Type).Errorf("Unknown event type received from the datastore")
@@ -180,8 +183,9 @@ func (wc *watcherCache) resyncAndCreateWatcher(ctx context.Context) {
 				wc.resourceType.UpdateProcessor.OnSyncerStarting()
 			}
 
-			// Start the sync by Listing the current resources.
-			l, err := wc.client.List(ctx, wc.resourceType.ListInterface, "0")
+			// Start the sync by Listing the current resources. Start from the current watch revision, which will
+			// be 0 at start of day or the latest received revision.
+			l, err := wc.client.List(ctx, wc.resourceType.ListInterface, wc.currentWatchRevision)
 			if err != nil {
 				// Failed to perform the list.  Pause briefly (so we don't tight loop) and retry.
 				wc.logger.WithError(err).Info("Failed to perform list of current data during resync")
