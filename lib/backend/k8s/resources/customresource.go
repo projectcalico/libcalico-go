@@ -291,7 +291,11 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 	}
 
 	lp := pager.New(listFunc)
-	reslOut, paginated, err := lp.List(ctx, metav1.ListOptions{ResourceVersion: revision})
+	opts := metav1.ListOptions{ResourceVersion: revision}
+	if revision != "" {
+		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
+	}
+	reslOut, paginated, err := lp.List(ctx, opts)
 	logContext = logContext.WithField("paginated", paginated)
 	if err != nil {
 		return nil, err
@@ -321,7 +325,7 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 
 func (c *customK8sResourceClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	// Build watch options to pass to k8s.
-	opts := metav1.ListOptions{ResourceVersion: revision, Watch: true}
+	opts := metav1.ListOptions{ResourceVersion: revision, Watch: true, AllowWatchBookmarks: true}
 	rlo, ok := list.(model.ResourceListOptions)
 	if !ok {
 		return nil, fmt.Errorf("ListInterface is not a ResourceListOptions: %s", list)

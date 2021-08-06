@@ -317,7 +317,11 @@ func (c *WorkloadEndpointClient) list(ctx context.Context, listOptions model.Res
 		return c.clientSet.CoreV1().Pods(listOptions.Namespace).List(ctx, opts)
 	}
 	lp := pager.New(listFunc)
-	err := lp.EachListItem(ctx, metav1.ListOptions{ResourceVersion: revision}, f)
+	opts := metav1.ListOptions{ResourceVersion: revision}
+	if revision != "" {
+		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
+	}
+	err := lp.EachListItem(ctx, opts, f)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +338,7 @@ func (c *WorkloadEndpointClient) EnsureInitialized() error {
 
 func (c *WorkloadEndpointClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	// Build watch options to pass to k8s.
-	opts := metav1.ListOptions{ResourceVersion: revision, Watch: true}
+	opts := metav1.ListOptions{ResourceVersion: revision, Watch: true, AllowWatchBookmarks: true}
 	rlo, ok := list.(model.ResourceListOptions)
 	if !ok {
 		return nil, fmt.Errorf("ListInterface is not a ResourceListOptions: %s", list)
