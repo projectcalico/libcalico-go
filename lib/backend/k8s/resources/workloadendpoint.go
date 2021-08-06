@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	libapiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -296,7 +297,7 @@ func (c *WorkloadEndpointClient) listUsingName(ctx context.Context, listOptions 
 func (c *WorkloadEndpointClient) list(ctx context.Context, listOptions model.ResourceListOptions, revision string) (*model.KVPairList, error) {
 	// Convert each pod to a workload endpoint.
 	var ret []*model.KVPair
-	f := func(obj runtime.Object) error {
+	forEach := func(obj runtime.Object) error {
 		pod := obj.(*v1.Pod)
 
 		// Decide if this pod should be included.
@@ -321,14 +322,23 @@ func (c *WorkloadEndpointClient) list(ctx context.Context, listOptions model.Res
 	if revision != "" {
 		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
 	}
-	err := lp.EachListItem(ctx, opts, f)
+	result, _, err := lp.List(ctx, opts)
+	if err != nil {
+		return nil, K8sErrorToCalico(err, listOptions)
+	}
+	err = meta.EachListItem(result, forEach)
+	if err != nil {
+		return nil, K8sErrorToCalico(err, listOptions)
+	}
+
+	// Extract the list revision information.
+	m, err := meta.ListAccessor(result)
 	if err != nil {
 		return nil, err
 	}
-
 	return &model.KVPairList{
 		KVPairs:  ret,
-		Revision: revision,
+		Revision: m.GetResourceVersion(),
 	}, nil
 }
 

@@ -122,9 +122,6 @@ mainLoop:
 				wc.logger.WithError(event.Error).Infof("Watch error received from Upstream")
 				wc.currentWatchRevision = "0"
 				wc.resyncAndCreateWatcher(ctx)
-			case api.WatchBookmark:
-				// Bookmarks don't include a resource, just the latest resourceVersion.
-				wc.currentWatchRevision = event.New.Revision
 			default:
 				// Unknown event type - not much we can do other than log.
 				wc.logger.WithField("EventType", event.Type).Errorf("Unknown event type received from the datastore")

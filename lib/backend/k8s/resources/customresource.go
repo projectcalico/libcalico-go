@@ -284,7 +284,7 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 			// an empty list.
 			if !kerrors.IsNotFound(err) {
 				logContext.WithError(err).Debug("Error listing resources")
-				return nil, K8sErrorToCalico(err, list)
+				return nil, err
 			}
 		}
 		return out, nil
@@ -295,27 +295,31 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 	if revision != "" {
 		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
 	}
-	reslOut, paginated, err := lp.List(ctx, opts)
-	logContext = logContext.WithField("paginated", paginated)
+	result, _, err := lp.List(ctx, opts)
 	if err != nil {
-		return nil, err
-	}
-	m, err := meta.ListAccessor(reslOut)
-	if err != nil {
-		return nil, err
+		return nil, K8sErrorToCalico(err, list)
 	}
 
-	// We expect the list type to have an "Items" field that we can
-	// iterate over.
-	elem := reflect.ValueOf(reslOut).Elem()
-	items := reflect.ValueOf(elem.FieldByName("Items").Interface())
-	for idx := 0; idx < items.Len(); idx++ {
-		res := items.Index(idx).Addr().Interface().(Resource)
-		if kvp, err := c.convertResourceToKVPair(res); err == nil {
-			kvps = append(kvps, kvp)
-		} else {
+	// For each item in the response, convert it to a KVPair and add it to the list.
+	forEach := func(obj runtime.Object) error {
+		res := obj.(Resource)
+		kvp, err := c.convertResourceToKVPair(res)
+		if err != nil {
 			logContext.WithError(err).WithField("Item", res).Warning("unable to process resource, skipping")
+			return nil
 		}
+		kvps = append(kvps, kvp)
+		return nil
+	}
+	err = meta.EachListItem(result, forEach)
+	if err != nil {
+		return nil, K8sErrorToCalico(err, list)
+	}
+
+	// Extract list revision information.
+	m, err := meta.ListAccessor(result)
+	if err != nil {
+		return nil, err
 	}
 	return &model.KVPairList{
 		KVPairs:  kvps,
