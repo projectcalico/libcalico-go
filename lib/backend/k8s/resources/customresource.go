@@ -232,7 +232,7 @@ func (c *customK8sResourceClient) Get(ctx context.Context, key model.Key, revisi
 }
 
 // List lists configured Custom K8s Resource instances in the k8s API matching the
-// supplied ListInterface. It will use list pagining if necessary to reduce the load on the Kubernetes API server.
+// supplied ListInterface. It will use list paging if necessary to reduce the load on the Kubernetes API server.
 func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
 	logContext := log.WithFields(log.Fields{
 		"ListInterface": list,
@@ -336,8 +336,8 @@ func (c *customK8sResourceClient) Watch(ctx context.Context, list model.ListInte
 	}
 	fieldSelector := fields.Everything()
 	if len(rlo.Name) != 0 {
-		// We've been asked to watch a specific customresource.
-		log.WithField("name", rlo.Name).Debug("Watching a single customresource")
+		// We've been asked to watch a specific custom resource.
+		log.WithField("name", rlo.Name).Debug("Watching a single custom resource")
 		fieldSelector = fields.OneTermEqualSelector("metadata.name", rlo.Name)
 
 		// If this is a namespaced resource, we also need the namespace specified.
