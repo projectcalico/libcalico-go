@@ -23,13 +23,17 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	kapiv1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/pager"
 
 	"k8s.io/apimachinery/pkg/types"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	libapiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -291,29 +295,50 @@ func (c *WorkloadEndpointClient) listUsingName(ctx context.Context, listOptions 
 
 // list lists all the Workload endpoints for the namespace given in listOptions.
 func (c *WorkloadEndpointClient) list(ctx context.Context, listOptions model.ResourceListOptions, revision string) (*model.KVPairList, error) {
-	podList, err := c.clientSet.CoreV1().Pods(listOptions.Namespace).List(ctx, metav1.ListOptions{ResourceVersion: revision})
+	// Convert each pod to a workload endpoint.
+	var ret []*model.KVPair
+	forEach := func(obj runtime.Object) error {
+		pod := obj.(*v1.Pod)
+
+		// Decide if this pod should be included.
+		if !c.converter.IsValidCalicoWorkloadEndpoint(pod) {
+			return nil
+		}
+
+		kvps, err := c.converter.PodToWorkloadEndpoints(pod)
+		if err != nil {
+			return K8sErrorToCalico(err, listOptions)
+		}
+		ret = append(ret, kvps...)
+		return nil
+	}
+
+	// Perform a paginated list of pods, executing the conversion function on each.
+	listFunc := func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return c.clientSet.CoreV1().Pods(listOptions.Namespace).List(ctx, opts)
+	}
+	lp := pager.New(listFunc)
+	opts := metav1.ListOptions{ResourceVersion: revision}
+	if revision != "" {
+		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
+	}
+	result, _, err := lp.List(ctx, opts)
+	if err != nil {
+		return nil, K8sErrorToCalico(err, listOptions)
+	}
+	err = meta.EachListItem(result, forEach)
 	if err != nil {
 		return nil, K8sErrorToCalico(err, listOptions)
 	}
 
-	// For each Pod, return a workload endpoint.
-	var ret []*model.KVPair
-	for _, pod := range podList.Items {
-		// Decide if this pod should be included.
-		if !c.converter.IsValidCalicoWorkloadEndpoint(&pod) {
-			continue
-		}
-
-		kvps, err := c.converter.PodToWorkloadEndpoints(&pod)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, kvps...)
+	// Extract the list revision information.
+	m, err := meta.ListAccessor(result)
+	if err != nil {
+		return nil, err
 	}
-
 	return &model.KVPairList{
 		KVPairs:  ret,
-		Revision: revision,
+		Revision: m.GetResourceVersion(),
 	}, nil
 }
 
@@ -323,7 +348,7 @@ func (c *WorkloadEndpointClient) EnsureInitialized() error {
 
 func (c *WorkloadEndpointClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	// Build watch options to pass to k8s.
-	opts := metav1.ListOptions{ResourceVersion: revision, Watch: true}
+	opts := metav1.ListOptions{ResourceVersion: revision, Watch: true, AllowWatchBookmarks: false}
 	rlo, ok := list.(model.ResourceListOptions)
 	if !ok {
 		return nil, fmt.Errorf("ListInterface is not a ResourceListOptions: %s", list)

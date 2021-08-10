@@ -22,12 +22,15 @@ import (
 	"sync/atomic"
 
 	log "github.com/sirupsen/logrus"
-	kapiv1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kwatch "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/pager"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
@@ -77,7 +80,7 @@ func (c *profileClient) Delete(ctx context.Context, key model.Key, revision stri
 	}
 }
 
-func (c *profileClient) getSaKv(sa *kapiv1.ServiceAccount) (*model.KVPair, error) {
+func (c *profileClient) getSaKv(sa *v1.ServiceAccount) (*model.KVPair, error) {
 	kvPair, err := c.ServiceAccountToProfile(sa)
 	if err != nil {
 		return nil, err
@@ -101,7 +104,7 @@ func (c *profileClient) getServiceAccount(ctx context.Context, rk model.Resource
 	return c.getSaKv(serviceAccount)
 }
 
-func (c *profileClient) getNsKv(ns *kapiv1.Namespace) (*model.KVPair, error) {
+func (c *profileClient) getNsKv(ns *v1.Namespace) (*model.KVPair, error) {
 	kvPair, err := c.NamespaceToProfile(ns)
 	if err != nil {
 		return nil, err
@@ -188,42 +191,82 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		return nil, err
 	}
 
-	// Otherwise, enumerate all.
-	namespaces, err := c.clientSet.CoreV1().Namespaces().List(ctx, metav1.ListOptions{ResourceVersion: nsRev})
-	if err != nil {
-		return nil, K8sErrorToCalico(err, nl)
+	// Enumerate all namespaces, paginated.
+	listFunc := func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return c.clientSet.CoreV1().Namespaces().List(ctx, metav1.ListOptions{ResourceVersion: nsRev})
 	}
-
-	// For each Namespace, return a profile.
-	for _, ns := range namespaces.Items {
-		kvp, err := c.getNsKv(&ns)
+	forEach := func(obj runtime.Object) error {
+		ns := obj.(*v1.Namespace)
+		kvp, err := c.getNsKv(ns)
 		if err != nil {
+			// Return nil so we don't let one error interrupt processing of other objs.
 			log.Errorf("Unable to convert k8s Namespace to Calico Profile: Namespace=%s: %v", ns.Name, err)
-			continue
+			return nil
 		}
 		kvps = append(kvps, kvp)
+		return nil
 	}
-
-	// Enumerate all SA
-	var serviceaccounts *kapiv1.ServiceAccountList
-	// TBD: narrow down to only to the required namespace
-	serviceaccounts, err = c.clientSet.CoreV1().ServiceAccounts(kapiv1.NamespaceAll).List(ctx, metav1.ListOptions{ResourceVersion: saRev})
+	lp := pager.New(listFunc)
+	opts := metav1.ListOptions{ResourceVersion: nsRev}
+	if nsRev != "" {
+		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
+	}
+	result, _, err := lp.List(ctx, opts)
 	if err != nil {
-		return nil, K8sErrorToCalico(err, nl)
+		return nil, K8sErrorToCalico(err, list)
+	}
+	err = meta.EachListItem(result, forEach)
+	if err != nil {
+		return nil, K8sErrorToCalico(err, list)
 	}
 
-	for _, sa := range serviceaccounts.Items {
-		kvp, err := c.getSaKv(&sa)
+	// Extract the list revision information.
+	m, err := meta.ListAccessor(result)
+	if err != nil {
+		return nil, err
+	}
+	latestNSRev := m.GetResourceVersion()
+
+	// Enumerate all service accounts, paginated.
+	listFunc = func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return c.clientSet.CoreV1().ServiceAccounts(v1.NamespaceAll).List(ctx, metav1.ListOptions{ResourceVersion: saRev})
+	}
+	forEach = func(obj runtime.Object) error {
+
+		sa := obj.(*v1.ServiceAccount)
+		kvp, err := c.getSaKv(sa)
 		if err != nil {
 			log.WithError(err).Errorf("Unable to convert k8s service account to Calico Profile: %s", sa.Name)
-			continue
+			return nil
 		}
 		log.Debug("Converted k8s sa to Calico profile ", sa.Name)
 		kvps = append(kvps, kvp)
+		return nil
 	}
+	lp = pager.New(listFunc)
+	opts = metav1.ListOptions{ResourceVersion: saRev}
+	if saRev != "" {
+		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
+	}
+	result, _, err = lp.List(ctx, opts)
+	if err != nil {
+		return nil, K8sErrorToCalico(err, list)
+	}
+	err = meta.EachListItem(result, forEach)
+	if err != nil {
+		return nil, K8sErrorToCalico(err, list)
+	}
+
+	// Extract the list revision information.
+	m, err = meta.ListAccessor(result)
+	if err != nil {
+		return nil, err
+	}
+	latestSARev := m.GetResourceVersion()
+
 	return &model.KVPairList{
 		KVPairs:  kvps,
-		Revision: c.JoinProfileRevisions(namespaces.ResourceVersion, serviceaccounts.ResourceVersion),
+		Revision: c.JoinProfileRevisions(latestNSRev, latestSARev),
 	}, nil
 }
 
@@ -233,7 +276,7 @@ func (c *profileClient) EnsureInitialized() error {
 
 func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	// Build watch options to pass to k8s.
-	opts := metav1.ListOptions{Watch: true}
+	opts := metav1.ListOptions{Watch: true, AllowWatchBookmarks: false}
 	rlo, ok := list.(model.ResourceListOptions)
 	if !ok {
 		return nil, fmt.Errorf("ListInterface is not a ResourceListOptions: %s", list)
@@ -241,7 +284,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 
 	// Setting to Watch all profiles in all namespaces; overridden below
 	watchNS, watchSA := true, true
-	ns := kapiv1.NamespaceAll
+	ns := v1.NamespaceAll
 	sa := ""
 
 	// Watch a specific profile.
@@ -289,7 +332,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		}
 	}
 	converter := func(r Resource) (*model.KVPair, error) {
-		k8sNamespace, ok := r.(*kapiv1.Namespace)
+		k8sNamespace, ok := r.(*v1.Namespace)
 		if !ok {
 			return nil, errors.New("Profile conversion with incorrect k8s resource type")
 		}
@@ -309,7 +352,7 @@ func (c *profileClient) Watch(ctx context.Context, list model.ListInterface, rev
 		}
 	}
 	converterSA := func(r Resource) (*model.KVPair, error) {
-		k8sServiceAccount, ok := r.(*kapiv1.ServiceAccount)
+		k8sServiceAccount, ok := r.(*v1.ServiceAccount)
 		if !ok {
 			nsWatch.Stop()
 			return nil, errors.New("Profile conversion with incorrect k8s resource type")
