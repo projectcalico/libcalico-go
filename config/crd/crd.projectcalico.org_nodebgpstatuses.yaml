@@ -37,25 +37,24 @@ spec:
             properties:
               conditions:
                 description: Conditions represents the latest observed set of conditions
-                  for this component. A component may be one or more of Available,
-                  Progressing, or Degraded.
+                  for this component.
                 items:
                   description: NodeBGPStatusCondition contains the status for a NodeBGPStatus
                     resource.
                   properties:
                     info:
-                      description: The Info is the bgp session info.
+                      description: The reason it's in the current state.
                       type: string
                     peerIP:
-                      description: The IP address of the peer followed by an optional
-                        port number to peer with. If port number is given, format
-                        should be `[<IPv6>]:port` or `<IPv4>:<port>` for IPv4. If
-                        optional port number is not set, and this peer IP and ASNumber
-                        belongs to a calico/node with ListenPort set in BGPConfiguration,
-                        then we use that port to peer.
+                      description: IP address of the peer whose condition we are reporting.
+                        If port number is given, format should be `[<IPv6>]:port`
+                        or `<IPv4>:<port>` for IPv4. If optional port number is not
+                        set, and this peer IP and ASNumber belongs to a calico/node
+                        with ListenPort set in BGPConfiguration, then we use that
+                        port to peer.
                       type: string
                     since:
-                      description: The Since is the bgp session since.
+                      description: Since is the time since the condition last changed.
                       type: string
                     state:
                       description: The state is the bgp session state.
@@ -68,7 +67,7 @@ spec:
               numEstablished:
                 description: The total number of established bgp sessions.
                 type: integer
-              numNoEstablished:
+              numNotEstablished:
                 description: The total number of non-established bgp sessions.
                 type: integer
             required:
