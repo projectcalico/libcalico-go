@@ -40,7 +40,7 @@ var _ = testutils.E2eDatastoreDescribe("NodeBGPStatus tests", testutils.Datastor
 	name2 := "nodebgpstatus-2"
 	status1 := apiv3.NodeBGPStatusStatus{
 		NumEstablished:    1,
-		NumNonEstablished: 0,
+		NumNotEstablished: 0,
 		Conditions: []apiv3.NodeBGPStatusCondition{
 			{
 
@@ -48,13 +48,13 @@ var _ = testutils.E2eDatastoreDescribe("NodeBGPStatus tests", testutils.Datastor
 				Type:   "nodeMesh",
 				State:  "up",
 				Since:  "09:19:28",
-				Info:   "Established",
+				Reason: "Established",
 			},
 		},
 	}
 	status2 := apiv3.NodeBGPStatusStatus{
 		NumEstablished:    1,
-		NumNonEstablished: 0,
+		NumNotEstablished: 0,
 		Conditions: []apiv3.NodeBGPStatusCondition{
 			{
 
@@ -62,7 +62,7 @@ var _ = testutils.E2eDatastoreDescribe("NodeBGPStatus tests", testutils.Datastor
 				Type:   "nodeMesh",
 				State:  "up",
 				Since:  "09:19:29",
-				Info:   "Established",
+				Reason: "Established",
 			},
 		},
 	}
