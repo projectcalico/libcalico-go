@@ -149,6 +149,11 @@ func (c client) KubeControllersConfiguration() KubeControllersConfigurationInter
 	return kubeControllersConfiguration{client: c}
 }
 
+// NodeBGPStatus returns an interface for managing the NodeBGPStatus resource.
+func (c client) NodeBGPStatus() NodeBGPStatusInterface {
+	return nodeBGPStatus{client: c}
+}
+
 type poolAccessor struct {
 	client *client
 }
