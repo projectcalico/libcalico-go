@@ -92,7 +92,7 @@ func (rw blockReaderWriter) getAffineBlocks(ctx context.Context, host string, ve
 // should already be sanitized and only include existing, enabled pools. Note that the block may become claimed
 // between receiving the cidr from this function and attempting to claim the corresponding block as this function
 // does not reserve the returned IPNet.
-func (rw blockReaderWriter) findUnclaimedBlock(ctx context.Context, host string, version int, pools []v3.IPPool, config IPAMConfig) (*cnet.IPNet, error) {
+func (rw blockReaderWriter) findUnclaimedBlock(ctx context.Context, host string, version int, attemptedCIDRs []cnet.IPNet, pools []v3.IPPool, config IPAMConfig) (*cnet.IPNet, error) {
 	// If there are no pools, we cannot assign addresses.
 	if len(pools) == 0 {
 		return nil, fmt.Errorf("no configured Calico pools for node %s", host)
@@ -106,9 +106,10 @@ func (rw blockReaderWriter) findUnclaimedBlock(ctx context.Context, host string,
 	}
 
 	/// Build a map for faster lookups.
-	exists := map[string]bool{}
+	exists := map[string]string{}
 	for _, e := range existingBlocks.KVPairs {
-		exists[e.Key.(model.BlockKey).CIDR.String()] = true
+		hostAff := e.Value.(*model.AllocationBlock).Host()
+		exists[e.Key.(model.BlockKey).CIDR.String()] = hostAff
 	}
 
 	// Iterate through pools to find a new block.
@@ -120,9 +121,24 @@ func (rw blockReaderWriter) findUnclaimedBlock(ctx context.Context, host string,
 		for subnet := blocks(); subnet != nil; subnet = blocks() {
 			// Check if a block already exists for this subnet.
 			log.Debugf("Getting block: %s", subnet.String())
-			if _, ok := exists[subnet.String()]; !ok {
+			if affHost, ok := exists[subnet.String()]; !ok {
 				log.Infof("Found free block: %+v", *subnet)
 				return subnet, nil
+			} else if affHost == host && attemptedCIDRs != nil {
+				// The block already exists. However, there is a small chance that the block
+				// is alread assigned to this host and hasn't yet been checked. If that's the case,
+				// we should try this block.
+				attempted := false
+				for _, c := range attemptedCIDRs {
+					if c.Contains(subnet.IP) {
+						attempted = true
+					}
+				}
+				if !attempted {
+					// We haven't tried this subnet yet, and its already affine to this host.
+					log.Debugf("Block %s already exists on this host but we haven't tried it yet", subnet.String())
+					return subnet, nil
+				}
 			}
 			log.Debugf("Block %s already exists", subnet.String())
 		}
