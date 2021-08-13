@@ -106,6 +106,7 @@ var _ = testutils.E2eDatastoreDescribe("BGPConfiguration tests", testutils.Datas
 				Spec:       specInfo,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
+			Expect(outError).To(HaveOccurred())
 			Expect(res1).To(MatchResource(apiv3.KindBGPConfiguration, testutils.ExpectNoNamespace, name1, specInfo))
 
 			// Track the version of the original data for name1.

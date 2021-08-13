@@ -72,7 +72,7 @@ func (m *resourceMatcher) Match(actual interface{}) (success bool, err error) {
 		(res.GetObjectKind().GroupVersionKind().Kind == m.kind) &&
 		(res.GetObjectKind().GroupVersionKind().Group == apiv3.Group) &&
 		(res.GetObjectKind().GroupVersionKind().Version == apiv3.VersionCurrent) &&
-		reflect.DeepEqual(getSpec(res), m.spec) &&
+		(m.spec == nil || reflect.DeepEqual(getSpec(res), m.spec)) &&
 		(m.status == nil || reflect.DeepEqual(getStatus(res), m.status))
 	return
 }
