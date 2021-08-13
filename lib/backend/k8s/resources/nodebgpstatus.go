@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	NodeBGPStatusResourceName = "NodeBGPStatus"
-	NodeBGPStatusCRDName      = "NodeBGPStatus.crd.projectcalico.org"
+	NodeBGPStatusResourceName = "NodeBGPStatuses"
+	NodeBGPStatusCRDName      = "NodeBGPStatuses.crd.projectcalico.org"
 )
 
 func NewNodeBGPStatusClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceClient {
@@ -41,7 +41,7 @@ func NewNodeBGPStatusClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sReso
 			Kind:       apiv3.KindNodeBGPStatus,
 			APIVersion: apiv3.GroupVersionCurrent,
 		},
-		k8sListType:  reflect.TypeOf(apiv3.NodeBGPStatus{}),
+		k8sListType:  reflect.TypeOf(apiv3.NodeBGPStatusList{}),
 		resourceKind: apiv3.KindNodeBGPStatus,
 	}
 }

@@ -29,7 +29,7 @@ type NodeBGPStatusInterface interface {
 	Update(ctx context.Context, res *apiv3.NodeBGPStatus, opts options.SetOptions) (*apiv3.NodeBGPStatus, error)
 	Delete(ctx context.Context, name string, opts options.DeleteOptions) (*apiv3.NodeBGPStatus, error)
 	Get(ctx context.Context, name string, opts options.GetOptions) (*apiv3.NodeBGPStatus, error)
-	List(ctx context.Context, opts options.ListOptions) (*apiv3.BGPPeerList, error)
+	List(ctx context.Context, opts options.ListOptions) (*apiv3.NodeBGPStatusList, error)
 	Watch(ctx context.Context, opts options.ListOptions) (watch.Interface, error)
 }
 
@@ -86,9 +86,9 @@ func (r nodeBGPStatus) Get(ctx context.Context, name string, opts options.GetOpt
 }
 
 // List returns the list of NodeBGPStatus objects that match the supplied options.
-func (r nodeBGPStatus) List(ctx context.Context, opts options.ListOptions) (*apiv3.BGPPeerList, error) {
-	res := &apiv3.BGPPeerList{}
-	if err := r.client.resources.List(ctx, opts, apiv3.KindNodeBGPStatus, apiv3.KindBGPPeerList, res); err != nil {
+func (r nodeBGPStatus) List(ctx context.Context, opts options.ListOptions) (*apiv3.NodeBGPStatusList, error) {
+	res := &apiv3.NodeBGPStatusList{}
+	if err := r.client.resources.List(ctx, opts, apiv3.KindNodeBGPStatus, apiv3.KindNodeBGPStatusList, res); err != nil {
 		return nil, err
 	}
 	return res, nil
