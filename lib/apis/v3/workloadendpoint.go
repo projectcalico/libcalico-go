@@ -83,11 +83,11 @@ type WorkloadEndpointSpec struct {
 
 // WorkloadEndpointPort represents one endpoint's named or mapped port
 type WorkloadEndpointPort struct {
-	Name     string               `json:"name" validate:"portName"`
+	Name     string               `json:"name" validate:"omitempty,portName"`
 	Protocol numorstring.Protocol `json:"protocol"`
 	Port     uint16               `json:"port" validate:"gt=0"`
 	HostPort uint16               `json:"hostPort"`
-	HostIP   string               `json:"hostIP"`
+	HostIP   string               `json:"hostIP" validate:"omitempty,net"`
 }
 
 // IPNat contains a single NAT mapping for a WorkloadEndpoint resource.

@@ -281,7 +281,6 @@ var _ = Describe("Test Pod conversion", func() {
 		nsProtoUDP := numorstring.ProtocolFromString("udp")
 		nsProtoSCTP := numorstring.ProtocolFromString("sctp")
 		Expect(wep.Value.(*libapiv3.WorkloadEndpoint).Spec.Ports).To(ConsistOf(
-			libapiv3.WorkloadEndpointPort{Name: "", Port: 5678, Protocol: nsProtoTCP},
 			// No proto defaults to TCP (as defined in k8s API spec)
 			libapiv3.WorkloadEndpointPort{Name: "no-proto", Port: 1234, Protocol: nsProtoTCP},
 			// Explicit TCP proto is OK too.

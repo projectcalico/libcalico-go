@@ -184,7 +184,7 @@ func (wc defaultWorkloadEndpointConverter) podToDefaultWorkloadEndpoint(pod *kap
 	var endpointPorts []libapiv3.WorkloadEndpointPort
 	for _, container := range pod.Spec.Containers {
 		for _, containerPort := range container.Ports {
-			if containerPort.ContainerPort != 0 {
+			if containerPort.ContainerPort != 0 && (containerPort.HostPort != 0 || containerPort.Name != "") {
 				var modelProto numorstring.Protocol
 				switch containerPort.Protocol {
 				case kapiv1.ProtocolUDP:
