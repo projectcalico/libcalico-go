@@ -487,8 +487,8 @@ func (s *blockAssignState) findOrClaimBlock(ctx context.Context, minFreeIps int)
 			logCtx.Infof("No more affine blocks, but need to claim more blocks -- allocate another block")
 
 			// First, try to find an unclaimed block.
-			logCtx.Info("Looking for an unclaimed block")
-			subnet, err := s.client.blockReaderWriter.findUnclaimedBlock(ctx, s.host, s.version, s.pools, *config)
+			logCtx.Info("Looking for an affine block with space, or a new unclaimed block")
+			subnet, err := s.client.blockReaderWriter.findUsableBlock(ctx, s.host, s.version, s.pools, *config)
 			if err != nil {
 				if _, ok := err.(noFreeBlocksError); ok {
 					// No free blocks.  Break.
