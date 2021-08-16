@@ -28,7 +28,6 @@ import (
 
 	v3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	libapiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/set"
 
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -415,7 +414,6 @@ type blockAssignState struct {
 	host                  string
 	pools                 []v3.IPPool
 	remainingAffineBlocks []net.IPNet
-	attemptedAffineBlocks []net.IPNet
 	hostReservedAttr      *HostReservedAttr
 	allowNewClaim         bool
 
@@ -435,7 +433,6 @@ func (s *blockAssignState) findOrClaimBlock(ctx context.Context, minFreeIps int)
 		// Pop first cidr.
 		cidr := s.remainingAffineBlocks[0]
 		s.remainingAffineBlocks = s.remainingAffineBlocks[1:]
-		s.attemptedAffineBlocks = append(s.attemptedAffineBlocks, cidr)
 
 		// Checking this block - if we hit a CAS error, we'll try this block again.
 		// For any other error, we'll break out and try the next affine block.
@@ -491,7 +488,7 @@ func (s *blockAssignState) findOrClaimBlock(ctx context.Context, minFreeIps int)
 
 			// First, try to find an unclaimed block.
 			logCtx.Info("Looking for an unclaimed block")
-			subnet, err := s.client.blockReaderWriter.findUnclaimedBlock(ctx, s.host, s.version, s.attemptedAffineBlocks, s.pools, *config)
+			subnet, err := s.client.blockReaderWriter.findUnclaimedBlock(ctx, s.host, s.version, s.pools, *config)
 			if err != nil {
 				if _, ok := err.(noFreeBlocksError); ok {
 					// No free blocks.  Break.
@@ -503,7 +500,6 @@ func (s *blockAssignState) findOrClaimBlock(ctx context.Context, minFreeIps int)
 			}
 			logCtx := log.WithFields(log.Fields{"host": s.host, "subnet": subnet})
 			logCtx.Info("Found unclaimed block")
-			s.attemptedAffineBlocks = append(s.attemptedAffineBlocks, *subnet)
 
 			for j := 0; j < datastoreRetries; j++ {
 				// We found an unclaimed block - claim affinity for it.
@@ -645,7 +641,6 @@ func (c ipamClient) autoAssign(ctx context.Context, num int, handleID *string, a
 		host:                  host,
 		pools:                 pools,
 		remainingAffineBlocks: affBlocks,
-		attemptedAffineBlocks: []cnet.IPNet{},
 		hostReservedAttr:      rsvdAttr,
 		allowNewClaim:         true,
 	}
@@ -2037,7 +2032,6 @@ func (c ipamClient) ensureBlock(ctx context.Context, rsvdAttr *HostReservedAttr,
 		host:                  host,
 		pools:                 pools,
 		remainingAffineBlocks: affBlocks,
-		attemptedAffineBlocks: []cnet.IPNet{},
 		hostReservedAttr:      rsvdAttr,
 		allowNewClaim:         true,
 	}
