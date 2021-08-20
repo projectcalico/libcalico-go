@@ -25,7 +25,6 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/types"
 
 	v3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	libapiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
@@ -1472,22 +1471,14 @@ func (c ipamClient) IPsByHandle(ctx context.Context, handleID string) ([]net.IP,
 }
 
 // ReleaseByHandle releases addresses with the given handle using the given revision information.
-func (c ipamClient) ReleaseByHandle(ctx context.Context, handleID, revision string, uid *types.UID) error {
-	// Get the existing handle and populate the given revision and UID information.
-	handleID = sanitizeHandle(handleID)
-	log.Debugf("Releasing all IPs with handle '%s'", handleID)
-	obj, err := c.blockReaderWriter.queryHandle(ctx, handleID, revision)
-	if err != nil {
-		return err
-	}
-	if revision != "" {
-		obj.Revision = revision
-	}
-	if uid != nil {
-		obj.UID = uid
-	}
+func (c ipamClient) ReleaseByHandle(ctx context.Context, obj *model.KVPair) error {
+	var err error
 
-	log.Infof("Releasing all IPs with handle '%s', RV=%s; UID=%v", handleID, obj.Revision, obj.UID)
+	// TODO: What is the equivalent of this now?
+	// handleID = sanitizeHandle(handleID)
+
+	handleID := obj.Value.(*model.IPAMHandle).HandleID
+	log.Debugf("Releasing all IPs with handle '%s', RV=%s; UID=%v", handleID, obj.Revision, obj.UID)
 	h := allocationHandle{obj.Value.(*model.IPAMHandle)}
 	for blockStr := range h.Block {
 		_, blockCIDR, _ := net.ParseCIDR(blockStr)
@@ -1516,85 +1507,77 @@ func (c ipamClient) ReleaseByHandle(ctx context.Context, handleID, revision stri
 func (c ipamClient) releaseByHandle(ctx context.Context, handle *model.KVPair, blockCIDR net.IPNet) (*model.KVPair, error) {
 	handleID := handle.Key.(model.IPAMHandleKey).HandleID
 	logCtx := log.WithFields(log.Fields{"handle": handleID, "cidr": blockCIDR})
-	for i := 0; i < datastoreRetries; i++ {
-		logCtx.Debug("Querying block so we can release IPs by handle")
-		obj, err := c.blockReaderWriter.queryBlock(ctx, blockCIDR, "")
+	logCtx.Debug("Querying block so we can release IPs by handle")
+	obj, err := c.blockReaderWriter.queryBlock(ctx, blockCIDR, "")
+	if err != nil {
+		if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
+			// Block doesn't exist, so all addresses are already
+			// unallocated.  This can happen when a handle is
+			// overestimating the number of assigned addresses.
+			return handle, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	// Write the handle to invalidate any other potential clients.
+	handle, err = c.blockReaderWriter.updateHandle(ctx, handle)
+	if err != nil {
+		log.WithError(err).Debug("Failed to confirm handle")
+		return nil, err
+	}
+
+	// Release the IP by handle.
+	block := allocationBlock{obj.Value.(*model.AllocationBlock)}
+	num := block.releaseByHandle(handleID)
+	if num == 0 {
+		// Block has no addresses with this handle, so
+		// all addresses are already unallocated.
+		logCtx.Debug("Block has no addresses with the given handle")
+		return handle, nil
+	}
+	logCtx.Debugf("Block has %d IPs with the given handle", num)
+
+	if block.empty() && block.Affinity == nil {
+		logCtx.Info("Deleting block because it is now empty and has no affinity")
+		err = c.blockReaderWriter.deleteBlock(ctx, obj)
 		if err != nil {
-			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); ok {
-				// Block doesn't exist, so all addresses are already
-				// unallocated.  This can happen when a handle is
-				// overestimating the number of assigned addresses.
-				return handle, nil
-			} else {
+			// Return the error unless the resource does not exist.
+			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
+				logCtx.Errorf("Error deleting block: %v", err)
 				return nil, err
 			}
 		}
-
-		// Write the handle to invalidate any other potential clients.
-		handle, err = c.blockReaderWriter.updateHandle(ctx, handle)
+		logCtx.Info("Successfully deleted empty block")
+	} else {
+		// Compare and swap the AllocationBlock using the original
+		// KVPair read from before.  No need to update the Value since we
+		// have been directly manipulating the value referenced by the KVPair.
+		logCtx.Debug("Updating block to release IPs")
+		_, err = c.blockReaderWriter.updateBlock(ctx, obj)
 		if err != nil {
-			log.WithError(err).Debug("Failed to confirm handle")
-			return nil, err
-		}
-
-		// Release the IP by handle.
-		block := allocationBlock{obj.Value.(*model.AllocationBlock)}
-		num := block.releaseByHandle(handleID)
-		if num == 0 {
-			// Block has no addresses with this handle, so
-			// all addresses are already unallocated.
-			logCtx.Debug("Block has no addresses with the given handle")
-			return handle, nil
-		}
-		logCtx.Debugf("Block has %d IPs with the given handle", num)
-
-		if block.empty() && block.Affinity == nil {
-			logCtx.Info("Deleting block because it is now empty and has no affinity")
-			err = c.blockReaderWriter.deleteBlock(ctx, obj)
-			if err != nil {
-				if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
-					logCtx.Debug("CAD error deleting block - retry")
-					continue
-				}
-
-				// Return the error unless the resource does not exist.
-				if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
-					logCtx.Errorf("Error deleting block: %v", err)
-					return nil, err
-				}
+			if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
+				// Comparison failed - retry.
+				logCtx.Warningf("CAS error for block: %v", err)
+				return nil, err
+			} else {
+				// Something else - return the error.
+				logCtx.Errorf("Error updating block '%s': %v", block.CIDR.String(), err)
+				return nil, err
 			}
-			logCtx.Info("Successfully deleted empty block")
-		} else {
-			// Compare and swap the AllocationBlock using the original
-			// KVPair read from before.  No need to update the Value since we
-			// have been directly manipulating the value referenced by the KVPair.
-			logCtx.Debug("Updating block to release IPs")
-			_, err = c.blockReaderWriter.updateBlock(ctx, obj)
-			if err != nil {
-				if _, ok := err.(cerrors.ErrorResourceUpdateConflict); ok {
-					// Comparison failed - retry.
-					logCtx.Warningf("CAS error for block, retry #%d: %v", i, err)
-					continue
-				} else {
-					// Something else - return the error.
-					logCtx.Errorf("Error updating block '%s': %v", block.CIDR.String(), err)
-					return nil, err
-				}
-			}
-			logCtx.Debug("Successfully released IPs from block")
 		}
-		if handle, err = c.decrementHandle(ctx, handle, blockCIDR, num); err != nil {
-			logCtx.WithError(err).Warn("Failed to decrement handle")
-			return nil, err
-		}
-
-		// Determine whether or not the block's pool still matches the node.
-		if err = c.ensureConsistentAffinity(ctx, block.AllocationBlock); err != nil {
-			logCtx.WithError(err).Warn("Error ensuring consistent affinity but IP already released. Returning no error.")
-		}
-		return handle, nil
+		logCtx.Debug("Successfully released IPs from block")
 	}
-	return nil, errors.New("Hit max retries")
+	if handle, err = c.decrementHandle(ctx, handle, blockCIDR, num); err != nil {
+		logCtx.WithError(err).Warn("Failed to decrement handle")
+		return nil, err
+	}
+
+	// Determine whether or not the block's pool still matches the node.
+	if err = c.ensureConsistentAffinity(ctx, block.AllocationBlock); err != nil {
+		logCtx.WithError(err).Warn("Error ensuring consistent affinity but IP already released. Returning no error.")
+	}
+	return handle, nil
 }
 
 func (c ipamClient) incrementHandle(ctx context.Context, handleID string, blockCIDR net.IPNet, num int) (*model.KVPair, error) {

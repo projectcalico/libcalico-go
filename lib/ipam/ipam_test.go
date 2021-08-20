@@ -466,7 +466,9 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(*blocks.KVPairs[0].Value.(*model.AllocationBlock).Affinity).To(Equal(fmt.Sprintf("host:%s", hostname)))
 
 			// Release the IP.
-			err = ic.ReleaseByHandle(context.Background(), handle, "", nil)
+			h, err := bc.Get(context.Background(), model.IPAMHandleKey{HandleID: handle}, "")
+			Expect(err).NotTo(HaveOccurred())
+			err = ic.ReleaseByHandle(context.Background(), h)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Try to release the block's affinity, requiring it to be empty. This time, the block is empty
@@ -492,7 +494,9 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			}
 
 			// Release them all, leaving just the empty blocks.
-			err = ic.ReleaseByHandle(context.Background(), handle, "", nil)
+			h, err := bc.Get(context.Background(), model.IPAMHandleKey{HandleID: handle}, "")
+			Expect(err).NotTo(HaveOccurred())
+			err = ic.ReleaseByHandle(context.Background(), h)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Expect three empty blocks.
@@ -551,7 +555,9 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(len(blocks.KVPairs)).To(Equal(3))
 
 			// Release the addresses, triggering deletion of the blocks.
-			err = ic.ReleaseByHandle(context.Background(), handle, "", nil)
+			h, err := bc.Get(context.Background(), model.IPAMHandleKey{HandleID: handle}, "")
+			Expect(err).NotTo(HaveOccurred())
+			err = ic.ReleaseByHandle(context.Background(), h)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Expect no blocks.
@@ -742,7 +748,9 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			})
 
 			By("Releasing the IP address using its handle", func() {
-				err := ic.ReleaseByHandle(ctx, handle, "", nil)
+				h, err := bc.Get(context.Background(), model.IPAMHandleKey{HandleID: handle}, "")
+				Expect(err).NotTo(HaveOccurred())
+				err = ic.ReleaseByHandle(context.Background(), h)
 				Expect(err).NotTo(HaveOccurred())
 			})
 
@@ -781,7 +789,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(len(assn.IPs)).To(Equal(1))
 
 			// Expect the original handle revision information to be invalidated.
-			err = ic.ReleaseByHandle(ctx, handle, h1.Revision, h1.UID)
+			err = ic.ReleaseByHandle(ctx, h1)
 			Expect(err).To(HaveOccurred())
 
 			// Get the latest handle.
@@ -789,7 +797,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(err).NotTo(HaveOccurred())
 
 			// We should be able to release with the new revision info.
-			err = ic.ReleaseByHandle(ctx, handle, h2.Revision, h2.UID)
+			err = ic.ReleaseByHandle(ctx, h2)
 			Expect(err).NotTo(HaveOccurred())
 
 			// This should delete the handle object itself.
@@ -809,11 +817,11 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 				Expect(err).NotTo(HaveOccurred())
 
 				// Attempt to release with an outdated UID. It should fail.
-				err = ic.ReleaseByHandle(ctx, handle, "", h2.UID)
+				err = ic.ReleaseByHandle(ctx, h2)
 				Expect(err).To(HaveOccurred())
 
 				// Release with the latest UID. It should work.
-				err = ic.ReleaseByHandle(ctx, handle, "", h3.UID)
+				err = ic.ReleaseByHandle(ctx, h3)
 				Expect(err).NotTo(HaveOccurred())
 			}
 		})
@@ -963,10 +971,14 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(v4iaNode1).ToNot(BeNil())
 			Expect(len(v4iaNode1.IPs)).To(Equal(1))
 
-			err = ic.ReleaseByHandle(context.Background(), handle2, "", nil)
+			h, err := bc.Get(context.Background(), model.IPAMHandleKey{HandleID: handle2}, "")
+			Expect(err).NotTo(HaveOccurred())
+			err = ic.ReleaseByHandle(context.Background(), h)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = ic.ReleaseByHandle(context.Background(), handle1, "", nil)
+			h, err = bc.Get(context.Background(), model.IPAMHandleKey{HandleID: handle1}, "")
+			Expect(err).NotTo(HaveOccurred())
+			err = ic.ReleaseByHandle(context.Background(), h)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -1492,7 +1504,9 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(pool1.IPNet.Contains(v4ia3.IPs[0].IP)).To(BeTrue(), fmt.Sprintf("%s not in pool %s", v4ia3.IPs[0].IP, pool1))
 
 			// Release one of the IPs.
-			err = ic.ReleaseByHandle(context.Background(), handleID1, "", nil)
+			h, err := bc.Get(context.Background(), model.IPAMHandleKey{HandleID: handleID1}, "")
+			Expect(err).NotTo(HaveOccurred())
+			err = ic.ReleaseByHandle(context.Background(), h)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Should still have one affine block to this host.
@@ -1503,7 +1517,9 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			applyPool(pool1.String(), true, `foo != "bar"`)
 
 			// Release another one of the IPs.
-			err = ic.ReleaseByHandle(context.Background(), handleID2, "", nil)
+			h, err = bc.Get(context.Background(), model.IPAMHandleKey{HandleID: handleID2}, "")
+			Expect(err).NotTo(HaveOccurred())
+			err = ic.ReleaseByHandle(context.Background(), h)
 			Expect(err).NotTo(HaveOccurred())
 
 			// The block still have an affinity to this host.
@@ -1516,7 +1532,9 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			Expect(len(out.KVPairs)).To(Equal(1))
 
 			// Release the last IP.
-			err = ic.ReleaseByHandle(context.Background(), handleID3, "", nil)
+			h, err = bc.Get(context.Background(), model.IPAMHandleKey{HandleID: handleID3}, "")
+			Expect(err).NotTo(HaveOccurred())
+			err = ic.ReleaseByHandle(context.Background(), h)
 			Expect(err).NotTo(HaveOccurred())
 
 			// The block now has no affinity, and no IPs, so it should be deleted.
