@@ -1073,7 +1073,15 @@ func (c ipamClient) releaseIPsFromBlock(ctx context.Context, handleMap map[strin
 		// Success - decrement handles.
 		logCtx.Debugf("Decrementing handles: %v", handles)
 		for handleID, amount := range handles {
-			if _, err := c.decrementHandle(ctx, handleMap[handleID], blockCIDR, amount); err != nil {
+			// Check if we have a cached handle for this ID.
+			h, ok := handleMap[handleID]
+			if !ok {
+				h, err = c.blockReaderWriter.queryHandle(ctx, handleID, "")
+				if err != nil {
+					return nil, err
+				}
+			}
+			if _, err := c.decrementHandle(ctx, h, blockCIDR, amount); err != nil {
 				logCtx.WithError(err).Warn("Failed to decrement handle")
 			}
 		}
