@@ -82,6 +82,11 @@ type ipamClient struct {
 	blockReaderWriter blockReaderWriter
 }
 
+// GetHandle returns the handle with the given ID.
+func (c *ipamClient) GetHandle(ctx context.Context, handleID string) (*model.KVPair, error) {
+	return c.client.Get(ctx, model.IPAMHandleKey{HandleID: handleID}, "")
+}
+
 // AutoAssign automatically assigns one or more IP addresses as specified by the
 // provided AutoAssignArgs.  AutoAssign returns the list of the assigned IPv4 addresses,
 // and the list of the assigned IPv6 addresses.
