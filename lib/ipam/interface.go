@@ -17,6 +17,7 @@ package ipam
 import (
 	"context"
 
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 )
 
@@ -53,7 +54,13 @@ type Interface interface {
 	// ReleaseByHandle releases all IP addresses that have been assigned
 	// using the provided handle.  Returns an error if no addresses
 	// are assigned with the given handle.
-	ReleaseByHandle(ctx context.Context, handleID string) error
+	ReleaseByHandle(ctx context.Context, handle *model.KVPair) error
+
+	// GetHandle returns the handle with the given ID.
+	GetHandle(ctx context.Context, handleID string) (*model.KVPair, error)
+
+	// ListHandles returns all IPAM handles.
+	ListHandles(ctx context.Context) (*model.KVPairList, error)
 
 	// ClaimAffinity claims affinity to the given host for all blocks
 	// within the given CIDR.  The given CIDR must fall within a configured
