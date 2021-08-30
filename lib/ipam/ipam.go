@@ -82,6 +82,11 @@ type ipamClient struct {
 	blockReaderWriter blockReaderWriter
 }
 
+// ListHandles returns all IPAM handles.
+func (c *ipamClient) ListHandles(ctx context.Context) (*model.KVPairList, error) {
+	return c.client.List(ctx, model.IPAMHandleListOptions{}, "")
+}
+
 // GetHandle returns the handle with the given ID.
 func (c *ipamClient) GetHandle(ctx context.Context, handleID string) (*model.KVPair, error) {
 	return c.client.Get(ctx, model.IPAMHandleKey{HandleID: handleID}, "")
