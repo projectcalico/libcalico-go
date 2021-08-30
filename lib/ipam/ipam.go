@@ -1492,10 +1492,11 @@ func (c ipamClient) IPsByHandle(ctx context.Context, handleID string) ([]net.IP,
 func (c ipamClient) ReleaseByHandle(ctx context.Context, obj *model.KVPair) error {
 	var err error
 
-	// TODO: What is the equivalent of this now?
-	// handleID = sanitizeHandle(handleID)
-
+	// Sanitize the handle ID of the given object.
 	handleID := obj.Value.(*model.IPAMHandle).HandleID
+	handleID = sanitizeHandle(handleID)
+	obj.Key = model.IPAMHandleKey{HandleID: handleID}
+	obj.Value.(*model.IPAMHandle).HandleID = handleID
 	log.Debugf("Releasing all IPs with handle '%s', RV=%s; UID=%v", handleID, obj.Revision, obj.UID)
 	h := allocationHandle{obj.Value.(*model.IPAMHandle)}
 	for blockStr := range h.Block {
