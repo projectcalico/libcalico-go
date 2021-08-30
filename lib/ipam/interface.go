@@ -59,6 +59,9 @@ type Interface interface {
 	// GetHandle returns the handle with the given ID.
 	GetHandle(ctx context.Context, handleID string) (*model.KVPair, error)
 
+	// ListHandles returns all IPAM handles.
+	ListHandles(ctx context.Context) (*model.KVPairList, error)
+
 	// ClaimAffinity claims affinity to the given host for all blocks
 	// within the given CIDR.  The given CIDR must fall within a configured
 	// pool. If an empty string is passed as the host, then the value returned by os.Hostname is used.
