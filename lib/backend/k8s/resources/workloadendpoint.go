@@ -307,7 +307,7 @@ func (c *WorkloadEndpointClient) list(ctx context.Context, listOptions model.Res
 
 		kvps, err := c.converter.PodToWorkloadEndpoints(pod)
 		if err != nil {
-			return K8sErrorToCalico(err, listOptions)
+			return err
 		}
 		ret = append(ret, kvps...)
 		return nil

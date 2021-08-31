@@ -193,7 +193,7 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 
 	// Enumerate all namespaces, paginated.
 	listFunc := func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-		return c.clientSet.CoreV1().Namespaces().List(ctx, metav1.ListOptions{ResourceVersion: nsRev})
+		return c.clientSet.CoreV1().Namespaces().List(ctx, opts)
 	}
 	forEach := func(obj runtime.Object) error {
 		ns := obj.(*v1.Namespace)
@@ -229,10 +229,9 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 
 	// Enumerate all service accounts, paginated.
 	listFunc = func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-		return c.clientSet.CoreV1().ServiceAccounts(v1.NamespaceAll).List(ctx, metav1.ListOptions{ResourceVersion: saRev})
+		return c.clientSet.CoreV1().ServiceAccounts(v1.NamespaceAll).List(ctx, opts)
 	}
 	forEach = func(obj runtime.Object) error {
-
 		sa := obj.(*v1.ServiceAccount)
 		kvp, err := c.getSaKv(sa)
 		if err != nil {

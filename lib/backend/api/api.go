@@ -195,7 +195,6 @@ const (
 	WatchModified WatchEventType = "MODIFIED"
 	WatchDeleted  WatchEventType = "DELETED"
 	WatchError    WatchEventType = "ERROR"
-	WatchBookmark WatchEventType = "BOOKMARK"
 )
 
 // Event represents a single event to a watched resource.

@@ -160,7 +160,7 @@ func (c *nodeClient) List(ctx context.Context, list model.ListInterface, revisio
 	listFunc := func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 		nodes, err := c.clientSet.CoreV1().Nodes().List(ctx, opts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list nodes: %s", err)
+			return nil, err
 		}
 		return nodes, nil
 	}
