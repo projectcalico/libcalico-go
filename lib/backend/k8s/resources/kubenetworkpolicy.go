@@ -27,9 +27,12 @@ import (
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/pager"
 )
 
 // NewKubernetesNetworkPolicyClient returns a new client for interacting with Kubernetes NetworkPolicy objects.
@@ -91,39 +94,52 @@ func (c *networkPolicyClient) Get(ctx context.Context, key model.Key, revision s
 
 func (c *networkPolicyClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
 	log.Debug("Received List request on Kubernetes NetworkPolicy type")
-	// List all of the k8s NetworkPolicy objects.
-	networkPolicies := networkingv1.NetworkPolicyList{}
-	req := c.clientSet.NetworkingV1().RESTClient().
-		Get().
-		Resource("networkpolicies")
-	err := req.Do(ctx).Into(&networkPolicies)
+
+	listFunc := func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return c.clientSet.NetworkingV1().NetworkPolicies("").List(ctx, opts)
+	}
+
+	kvps := model.KVPairList{KVPairs: []*model.KVPair{}}
+	forEach := func(obj runtime.Object) error {
+		p := obj.(*networkingv1.NetworkPolicy)
+		kvp, err := c.K8sNetworkPolicyToCalico(p)
+		if err != nil {
+			log.WithError(err).Info("Failed to convert K8s Network Policy")
+			return K8sErrorToCalico(err, list)
+		}
+		kvps.KVPairs = append(kvps.KVPairs, kvp)
+		return nil
+	}
+
+	lp := pager.New(listFunc)
+	opts := metav1.ListOptions{ResourceVersion: revision}
+	if revision != "" {
+		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
+	}
+	result, _, err := lp.List(ctx, opts)
 	if err != nil {
-		log.WithError(err).Info("Unable to list K8s Network Policy resources")
+		return nil, K8sErrorToCalico(err, list)
+	}
+	err = meta.EachListItem(result, forEach)
+	if err != nil {
 		return nil, K8sErrorToCalico(err, list)
 	}
 
-	// For each policy, turn it into a Policy and generate the list.
-	npKvps := model.KVPairList{KVPairs: []*model.KVPair{}}
-	for _, p := range networkPolicies.Items {
-		kvp, err := c.K8sNetworkPolicyToCalico(&p)
-		if err != nil {
-			log.WithError(err).Info("Failed to convert K8s Network Policy")
-			return nil, err
-		}
-		npKvps.KVPairs = append(npKvps.KVPairs, kvp)
+	// Extract the list revision information.
+	m, err := meta.ListAccessor(result)
+	if err != nil {
+		return nil, err
 	}
-
-	// Add in the Revision information.
-	npKvps.Revision = networkPolicies.ResourceVersion
+	kvps.Revision = m.GetResourceVersion()
 	log.WithFields(log.Fields{
-		"num_kvps": len(npKvps.KVPairs),
-		"revision": npKvps.Revision}).Debug("Returning Kubernetes NP KVPs")
-	return &npKvps, nil
+		"num_kvps": len(kvps.KVPairs),
+		"revision": kvps.Revision}).Debug("Returning Kubernetes NP KVPs")
+	return &kvps, nil
 }
 
 func (c *networkPolicyClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {
 	// Build watch options to pass to k8s.
-	opts := metav1.ListOptions{Watch: true}
+	opts := metav1.ListOptions{Watch: true, AllowWatchBookmarks: false}
 	_, ok := list.(model.ResourceListOptions)
 	if !ok {
 		return nil, fmt.Errorf("ListInterface is not a ResourceListOptions: %s", list)
