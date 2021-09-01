@@ -21,7 +21,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,7 +29,6 @@ import (
 	scheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/pager"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
@@ -237,15 +235,16 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 	logContext := log.WithFields(log.Fields{
 		"ListInterface": list,
 		"Resource":      c.resource,
+		"Type":          "CustomResource",
 	})
-	logContext.Debug("List Custom K8s Resource - paged if necessary")
-	kvps := []*model.KVPair{}
+	logContext.Debug("Received List request")
 
 	// Attempt to convert the ListInterface to a Key.  If possible, the parameters
 	// indicate a fully qualified resource, and we'll need to use Get instead of
 	// List.
 	if key := c.listInterfaceToKey(list); key != nil {
 		logContext.Debug("Performing List using Get")
+		kvps := []*model.KVPair{}
 		if kvp, err := c.Get(ctx, key, revision); err != nil {
 			// The error will already be a Calico error type.  Ignore
 			// error that it doesn't exist - we'll return an empty
@@ -289,42 +288,14 @@ func (c *customK8sResourceClient) List(ctx context.Context, list model.ListInter
 		}
 		return out, nil
 	}
-
-	lp := pager.New(listFunc)
-	opts := metav1.ListOptions{ResourceVersion: revision}
-	if revision != "" {
-		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
-	}
-	result, _, err := lp.List(ctx, opts)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, list)
-	}
-
-	// For each item in the response, convert it to a KVPair and add it to the list.
-	forEach := func(obj runtime.Object) error {
-		res := obj.(Resource)
-		kvp, err := c.convertResourceToKVPair(res)
+	convertFunc := func(r Resource) ([]*model.KVPair, error) {
+		kvp, err := c.convertResourceToKVPair(r)
 		if err != nil {
-			logContext.WithError(err).WithField("Item", res).Warning("unable to process resource, skipping")
-			return nil
+			return nil, err
 		}
-		kvps = append(kvps, kvp)
-		return nil
+		return []*model.KVPair{kvp}, nil
 	}
-	err = meta.EachListItem(result, forEach)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, list)
-	}
-
-	// Extract list revision information.
-	m, err := meta.ListAccessor(result)
-	if err != nil {
-		return nil, err
-	}
-	return &model.KVPairList{
-		KVPairs:  kvps,
-		Revision: m.GetResourceVersion(),
-	}, nil
+	return pagedList(ctx, logContext, revision, list, convertFunc, listFunc)
 }
 
 func (c *customK8sResourceClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {

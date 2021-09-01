@@ -27,12 +27,10 @@ import (
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/pager"
 )
 
 // NewKubernetesNetworkPolicyClient returns a new client for interacting with Kubernetes NetworkPolicy objects.
@@ -93,48 +91,21 @@ func (c *networkPolicyClient) Get(ctx context.Context, key model.Key, revision s
 }
 
 func (c *networkPolicyClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
-	log.Debug("Received List request on Kubernetes NetworkPolicy type")
+	logContext := log.WithField("Resource", "KubeNetworkPolicy")
+	logContext.Debug("Received List request")
 
 	listFunc := func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 		return c.clientSet.NetworkingV1().NetworkPolicies("").List(ctx, opts)
 	}
-
-	kvps := model.KVPairList{KVPairs: []*model.KVPair{}}
-	forEach := func(obj runtime.Object) error {
-		p := obj.(*networkingv1.NetworkPolicy)
+	convertFunc := func(r Resource) ([]*model.KVPair, error) {
+		p := r.(*networkingv1.NetworkPolicy)
 		kvp, err := c.K8sNetworkPolicyToCalico(p)
 		if err != nil {
-			log.WithError(err).Info("Failed to convert K8s Network Policy")
-			return K8sErrorToCalico(err, list)
+			return nil, err
 		}
-		kvps.KVPairs = append(kvps.KVPairs, kvp)
-		return nil
+		return []*model.KVPair{kvp}, nil
 	}
-
-	lp := pager.New(listFunc)
-	opts := metav1.ListOptions{ResourceVersion: revision}
-	if revision != "" {
-		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
-	}
-	result, _, err := lp.List(ctx, opts)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, list)
-	}
-	err = meta.EachListItem(result, forEach)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, list)
-	}
-
-	// Extract the list revision information.
-	m, err := meta.ListAccessor(result)
-	if err != nil {
-		return nil, err
-	}
-	kvps.Revision = m.GetResourceVersion()
-	log.WithFields(log.Fields{
-		"num_kvps": len(kvps.KVPairs),
-		"revision": kvps.Revision}).Debug("Returning Kubernetes NP KVPs")
-	return &kvps, nil
+	return pagedList(ctx, logContext, revision, list, convertFunc, listFunc)
 }
 
 func (c *networkPolicyClient) Watch(ctx context.Context, list model.ListInterface, revision string) (api.WatchInterface, error) {

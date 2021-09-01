@@ -23,14 +23,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kwatch "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/pager"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
@@ -158,13 +156,13 @@ func (c *profileClient) Get(ctx context.Context, key model.Key, revision string)
 }
 
 func (c *profileClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
-	log.Debug("Received List request on Profile type")
+	logContext := log.WithField("Resource", "Profile")
+	logContext.Debug("Received List request")
 	nl := list.(model.ResourceListOptions)
-
-	kvps := []*model.KVPair{}
 
 	// If a name is specified, then do an exact lookup.
 	if nl.Name != "" {
+		kvps := []*model.KVPair{}
 		kvp, err := c.Get(ctx, model.ResourceKey{Name: nl.Name, Kind: nl.Kind}, revision)
 		if err != nil {
 			if _, ok := err.(cerrors.ErrorResourceDoesNotExist); !ok {
@@ -183,9 +181,6 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 		}, nil
 	}
 
-	// Always add the default-allow profile to the result.
-	kvps = []*model.KVPair{resources.DefaultAllowProfile()}
-
 	nsRev, saRev, err := c.SplitProfileRevision(revision)
 	if err != nil {
 		return nil, err
@@ -195,77 +190,42 @@ func (c *profileClient) List(ctx context.Context, list model.ListInterface, revi
 	listFunc := func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 		return c.clientSet.CoreV1().Namespaces().List(ctx, opts)
 	}
-	forEach := func(obj runtime.Object) error {
-		ns := obj.(*v1.Namespace)
+	convertFunc := func(r Resource) ([]*model.KVPair, error) {
+		ns := r.(*v1.Namespace)
 		kvp, err := c.getNsKv(ns)
 		if err != nil {
-			// Return nil so we don't let one error interrupt processing of other objs.
-			log.Errorf("Unable to convert k8s Namespace to Calico Profile: Namespace=%s: %v", ns.Name, err)
-			return nil
+			return nil, err
 		}
-		kvps = append(kvps, kvp)
-		return nil
+		return []*model.KVPair{kvp}, nil
 	}
-	lp := pager.New(listFunc)
-	opts := metav1.ListOptions{ResourceVersion: nsRev}
-	if nsRev != "" {
-		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
-	}
-	result, _, err := lp.List(ctx, opts)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, list)
-	}
-	err = meta.EachListItem(result, forEach)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, list)
-	}
-
-	// Extract the list revision information.
-	m, err := meta.ListAccessor(result)
+	nsKVPs, err := pagedList(ctx, logContext.WithField("from", "namespaces"), nsRev, list, convertFunc, listFunc)
 	if err != nil {
 		return nil, err
 	}
-	latestNSRev := m.GetResourceVersion()
 
 	// Enumerate all service accounts, paginated.
 	listFunc = func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 		return c.clientSet.CoreV1().ServiceAccounts(v1.NamespaceAll).List(ctx, opts)
 	}
-	forEach = func(obj runtime.Object) error {
-		sa := obj.(*v1.ServiceAccount)
+	convertFunc = func(r Resource) ([]*model.KVPair, error) {
+		sa := r.(*v1.ServiceAccount)
 		kvp, err := c.getSaKv(sa)
 		if err != nil {
-			log.WithError(err).Errorf("Unable to convert k8s service account to Calico Profile: %s", sa.Name)
-			return nil
+			return nil, err
 		}
-		log.Debug("Converted k8s sa to Calico profile ", sa.Name)
-		kvps = append(kvps, kvp)
-		return nil
+		return []*model.KVPair{kvp}, nil
 	}
-	lp = pager.New(listFunc)
-	opts = metav1.ListOptions{ResourceVersion: saRev}
-	if saRev != "" {
-		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
-	}
-	result, _, err = lp.List(ctx, opts)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, list)
-	}
-	err = meta.EachListItem(result, forEach)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, list)
-	}
-
-	// Extract the list revision information.
-	m, err = meta.ListAccessor(result)
+	saKVPs, err := pagedList(ctx, logContext.WithField("from", "serviceaccounts"), saRev, list, convertFunc, listFunc)
 	if err != nil {
 		return nil, err
 	}
-	latestSARev := m.GetResourceVersion()
 
+	// Return a merged KVPairList including both results as well as the default-allow profile.
+	kvps := append([]*model.KVPair{resources.DefaultAllowProfile()}, nsKVPs.KVPairs...)
+	kvps = append(kvps, saKVPs.KVPairs...)
 	return &model.KVPairList{
 		KVPairs:  kvps,
-		Revision: c.JoinProfileRevisions(latestNSRev, latestSARev),
+		Revision: c.JoinProfileRevisions(nsKVPs.Revision, saKVPs.Revision),
 	}, nil
 }
 

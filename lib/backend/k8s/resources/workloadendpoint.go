@@ -28,12 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/pager"
 
 	"k8s.io/apimachinery/pkg/types"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 
 	libapiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -294,52 +292,24 @@ func (c *WorkloadEndpointClient) listUsingName(ctx context.Context, listOptions 
 }
 
 // list lists all the Workload endpoints for the namespace given in listOptions.
-func (c *WorkloadEndpointClient) list(ctx context.Context, listOptions model.ResourceListOptions, revision string) (*model.KVPairList, error) {
-	// Convert each pod to a workload endpoint.
-	var ret []*model.KVPair
-	forEach := func(obj runtime.Object) error {
-		pod := obj.(*v1.Pod)
+func (c *WorkloadEndpointClient) list(ctx context.Context, list model.ResourceListOptions, revision string) (*model.KVPairList, error) {
+	logContext := log.WithField("Resource", "WorkloadEndpoint")
+	logContext.Debug("Received List request")
+	convertFunc := func(r Resource) ([]*model.KVPair, error) {
+		pod := r.(*v1.Pod)
 
 		// Decide if this pod should be included.
 		if !c.converter.IsValidCalicoWorkloadEndpoint(pod) {
-			return nil
+			return nil, nil
 		}
-
-		kvps, err := c.converter.PodToWorkloadEndpoints(pod)
-		if err != nil {
-			return err
-		}
-		ret = append(ret, kvps...)
-		return nil
+		return c.converter.PodToWorkloadEndpoints(pod)
 	}
 
 	// Perform a paginated list of pods, executing the conversion function on each.
 	listFunc := func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-		return c.clientSet.CoreV1().Pods(listOptions.Namespace).List(ctx, opts)
+		return c.clientSet.CoreV1().Pods(list.Namespace).List(ctx, opts)
 	}
-	lp := pager.New(listFunc)
-	opts := metav1.ListOptions{ResourceVersion: revision}
-	if revision != "" {
-		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
-	}
-	result, _, err := lp.List(ctx, opts)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, listOptions)
-	}
-	err = meta.EachListItem(result, forEach)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, listOptions)
-	}
-
-	// Extract the list revision information.
-	m, err := meta.ListAccessor(result)
-	if err != nil {
-		return nil, err
-	}
-	return &model.KVPairList{
-		KVPairs:  ret,
-		Revision: m.GetResourceVersion(),
-	}, nil
+	return pagedList(ctx, logContext, revision, list, convertFunc, listFunc)
 }
 
 func (c *WorkloadEndpointClient) EnsureInitialized() error {

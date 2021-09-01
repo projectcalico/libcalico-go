@@ -24,13 +24,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	kapiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/pager"
 
 	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/api/pkg/lib/numorstring"
@@ -132,7 +130,8 @@ func (c *nodeClient) Get(ctx context.Context, key model.Key, revision string) (*
 }
 
 func (c *nodeClient) List(ctx context.Context, list model.ListInterface, revision string) (*model.KVPairList, error) {
-	log.Debug("Received List request on Node type")
+	logContext := log.WithField("Resource", "Node")
+	logContext.Debug("Received List request")
 	nl := list.(model.ResourceListOptions)
 	kvps := []*model.KVPair{}
 
@@ -157,6 +156,7 @@ func (c *nodeClient) List(ctx context.Context, list model.ListInterface, revisio
 		}, nil
 	}
 
+	// List all nodes.
 	listFunc := func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 		nodes, err := c.clientSet.CoreV1().Nodes().List(ctx, opts)
 		if err != nil {
@@ -164,42 +164,15 @@ func (c *nodeClient) List(ctx context.Context, list model.ListInterface, revisio
 		}
 		return nodes, nil
 	}
-
-	forEach := func(obj runtime.Object) error {
-		node := obj.(*v1.Node)
+	convertFunc := func(r Resource) ([]*model.KVPair, error) {
+		node := r.(*v1.Node)
 		kvp, err := K8sNodeToCalico(node, c.usePodCIDR)
 		if err != nil {
-			log.Errorf("Unable to convert k8s node to Calico node: node=%s: %v", node.Name, err)
-			return nil
+			return nil, err
 		}
-		kvps = append(kvps, kvp)
-		return nil
+		return []*model.KVPair{kvp}, nil
 	}
-
-	// Perform a paged list.
-	lp := pager.New(listFunc)
-	opts := metav1.ListOptions{ResourceVersion: revision}
-	if revision != "" {
-		opts.ResourceVersionMatch = metav1.ResourceVersionMatchNotOlderThan
-	}
-	result, _, err := lp.List(ctx, opts)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, list)
-	}
-	err = meta.EachListItem(result, forEach)
-	if err != nil {
-		return nil, K8sErrorToCalico(err, list)
-	}
-
-	// Extract the list revision information.
-	m, err := meta.ListAccessor(result)
-	if err != nil {
-		return nil, err
-	}
-	return &model.KVPairList{
-		KVPairs:  kvps,
-		Revision: m.GetResourceVersion(),
-	}, nil
+	return pagedList(ctx, logContext, revision, list, convertFunc, listFunc)
 }
 
 func (c *nodeClient) EnsureInitialized() error {
