@@ -1493,7 +1493,7 @@ func (c ipamClient) ReleaseByHandle(ctx context.Context, obj *model.KVPair) erro
 	var err error
 
 	// Sanitize the handle ID of the given object.
-	handleID := obj.Value.(*model.IPAMHandle).HandleID
+	handleID := obj.Key.(model.IPAMHandleKey).HandleID
 	handleID = sanitizeHandle(handleID)
 	obj.Key = model.IPAMHandleKey{HandleID: handleID}
 	obj.Value.(*model.IPAMHandle).HandleID = handleID
