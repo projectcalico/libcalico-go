@@ -1506,6 +1506,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 			// Release one of the IPs.
 			h, err := bc.Get(context.Background(), model.IPAMHandleKey{HandleID: handleID1}, "")
 			Expect(err).NotTo(HaveOccurred())
+			Expect(h.Key.(model.IPAMHandleKey).HandleID).To(Equal(handleID1))
 			err = ic.ReleaseByHandle(context.Background(), h)
 			Expect(err).NotTo(HaveOccurred())
 
