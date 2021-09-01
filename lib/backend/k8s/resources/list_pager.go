@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/tools/pager"
 )
 
-// pagedList performs a paginated list operation against the Kubenretes API using the given
+// pagedList performs a paginated list operation against the Kubernetes API using the given
 // information.
 func pagedList(
 	ctx context.Context,
