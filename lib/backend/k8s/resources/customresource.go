@@ -386,7 +386,9 @@ func (c *customK8sResourceClient) convertResourceToKVPair(r Resource) (*model.KV
 		return kvp, err
 	}
 
+	uid := r.GetObjectMeta().GetUID()
 	kvp.Value = r
+	kvp.UID = &uid
 	return kvp, nil
 }
 
