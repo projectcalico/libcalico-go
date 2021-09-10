@@ -25,9 +25,10 @@ import (
 
 // +k8s:openapi-gen=true
 // +kubebuilder:resource:scope=Cluster
-type NodeBGPStatus struct {
+type CalicoNodeStatus struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Status v3.NodeBGPStatusStatus `json:"status,omitempty"`
+	Spec   v3.CalicoNodeStatusSpec   `json:"spec,omitempty"`
+	Status v3.CalicoNodeStatusStatus `json:"status,omitempty"`
 }

@@ -149,9 +149,9 @@ func (c client) KubeControllersConfiguration() KubeControllersConfigurationInter
 	return kubeControllersConfiguration{client: c}
 }
 
-// NodeBGPStatus returns an interface for managing the NodeBGPStatus resource.
-func (c client) NodeBGPStatus() NodeBGPStatusInterface {
-	return nodeBGPStatus{client: c}
+// CalicoNodeStatus returns an interface for managing the CalicoNodeStatus resource.
+func (c client) CalicoNodeStatus() CalicoNodeStatusInterface {
+	return calicoNodeStatus{client: c}
 }
 
 type poolAccessor struct {

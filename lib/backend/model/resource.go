@@ -125,9 +125,9 @@ func init() {
 		reflect.TypeOf(libapiv3.Node{}),
 	)
 	registerResourceInfo(
-		apiv3.KindNodeBGPStatus,
-		"nodebgpstatuses",
-		reflect.TypeOf(apiv3.NodeBGPStatus{}),
+		apiv3.KindCalicoNodeStatus,
+		"caliconodestatuses",
+		reflect.TypeOf(apiv3.CalicoNodeStatus{}),
 	)
 	registerResourceInfo(
 		apiv3.KindProfile,

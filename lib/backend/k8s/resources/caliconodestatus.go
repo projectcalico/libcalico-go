@@ -25,23 +25,23 @@ import (
 )
 
 const (
-	NodeBGPStatusResourceName = "NodeBGPStatuses"
-	NodeBGPStatusCRDName      = "NodeBGPStatuses.crd.projectcalico.org"
+	CalicoNodeStatusResourceName = "CalicoNodeStatuses"
+	CalicoNodeStatusCRDName      = "CalicoNodeStatuses.crd.projectcalico.org"
 )
 
-func NewNodeBGPStatusClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceClient {
+func NewCalicoNodeStatusClient(c *kubernetes.Clientset, r *rest.RESTClient) K8sResourceClient {
 	return &customK8sResourceClient{
 		clientSet:       c,
 		restClient:      r,
-		name:            NodeBGPStatusCRDName,
-		resource:        NodeBGPStatusResourceName,
-		description:     "Calico NodeBGPStatus",
-		k8sResourceType: reflect.TypeOf(apiv3.NodeBGPStatus{}),
+		name:            CalicoNodeStatusCRDName,
+		resource:        CalicoNodeStatusResourceName,
+		description:     "Calico CalicoNodeStatus",
+		k8sResourceType: reflect.TypeOf(apiv3.CalicoNodeStatus{}),
 		k8sResourceTypeMeta: metav1.TypeMeta{
-			Kind:       apiv3.KindNodeBGPStatus,
+			Kind:       apiv3.KindCalicoNodeStatus,
 			APIVersion: apiv3.GroupVersionCurrent,
 		},
-		k8sListType:  reflect.TypeOf(apiv3.NodeBGPStatusList{}),
-		resourceKind: apiv3.KindNodeBGPStatus,
+		k8sListType:  reflect.TypeOf(apiv3.CalicoNodeStatusList{}),
+		resourceKind: apiv3.KindCalicoNodeStatus,
 	}
 }
