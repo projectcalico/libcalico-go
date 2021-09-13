@@ -37,12 +37,12 @@ spec:
               resource.
             properties:
               classes:
-                description: Classes specify type of information CalicoNodeStatus
+                description: Classes specifies type of information CalicoNodeStatus
                   should contain.
                 items:
                   type: string
                 type: array
-              nodeName:
+              node:
                 description: The node name identifies the Calico node instance for
                   node status.
                 type: string
@@ -51,8 +51,6 @@ spec:
                   should be updated. Set to 0 to disable CalicoNodeStatus refresh.
                   [Default: 10]'
                 type: integer
-            required:
-            - nodeName
             type: object
           status:
             description: CalicoNodeStatusStatus defines the observed state of CalicoNodeStatus.

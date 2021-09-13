@@ -39,7 +39,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 	name1 := "caliconodestatus-1"
 	name2 := "caliconodestatus-2"
 	spec1 := apiv3.CalicoNodeStatusSpec{
-		NodeName: "node1",
+		Node: "node1",
 		Classes: []apiv3.NodeStatusClassType{
 			apiv3.NodeStatusClassTypeAgent,
 			apiv3.NodeStatusClassTypeBGPPeers,
@@ -48,7 +48,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 		UpdateIntervalInSeconds: 11,
 	}
 	spec2 := apiv3.CalicoNodeStatusSpec{
-		NodeName: "node2",
+		Node: "node2",
 		Classes: []apiv3.NodeStatusClassType{
 			apiv3.NodeStatusClassTypeAgent,
 			apiv3.NodeStatusClassTypeBGPPeers,
@@ -56,8 +56,10 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 		},
 		UpdateIntervalInSeconds: 12,
 	}
+
+	updateTime := metav1.Time{Time: justBeforeTheHour()}
 	status1 := apiv3.CalicoNodeStatusStatus{
-		UpdateTimestamp: metav1.Now(),
+		UpdateTimestamp: updateTime,
 		AdditionalInfo:  "Updated successfully",
 		BGPStatus: apiv3.CalicoNodeBGPStatus{
 			NumEstablished:    1,
@@ -82,8 +84,9 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 			},
 		},
 	}
+
 	status2 := apiv3.CalicoNodeStatusStatus{
-		UpdateTimestamp: metav1.Now(),
+		UpdateTimestamp: updateTime,
 		AdditionalInfo:  "Updated successfully",
 		BGPStatus: apiv3.CalicoNodeBGPStatus{
 			NumEstablished:    2,
@@ -142,6 +145,10 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				Status:     status1,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
+
+			// The location field of UpdateTimestamp (loc:(*time.Location)(0x2d1e7e0)}) will be populated
+			// by datastore on write. Hence we need to copy over it to original status before comparing against it.
+			status1.UpdateTimestamp = res1.Status.UpdateTimestamp
 			Expect(res1).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status1))
 
 			// Track the version of the original data for name1.
@@ -181,6 +188,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				Status:     status2,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
+			status2.UpdateTimestamp = res2.Status.UpdateTimestamp
 			Expect(res2).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, spec2, status2))
 
 			By("Getting CalicoNodeStatus (name2) and comparing the output against spec2/status2")
@@ -300,6 +308,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				By("Creating CalicoNodeStatus name2 with a 2s TTL and waiting for the entry to be deleted")
 				_, outError = c.CalicoNodeStatus().Create(ctx, &apiv3.CalicoNodeStatus{
 					ObjectMeta: metav1.ObjectMeta{Name: name2},
+					Spec:       spec2,
 					Status:     status2,
 				}, options.SetOptions{TTL: 2 * time.Second})
 				Expect(outError).NotTo(HaveOccurred())
@@ -358,6 +367,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				ctx,
 				&apiv3.CalicoNodeStatus{
 					ObjectMeta: metav1.ObjectMeta{Name: name1},
+					Spec:       spec1,
 					Status:     status1,
 				},
 				options.SetOptions{},
@@ -512,3 +522,11 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 		})
 	})
 })
+
+func justBeforeTheHour() time.Time {
+	T1, err := time.Parse(time.RFC3339, "2016-05-19T09:59:00Z")
+	if err != nil {
+		panic("test setup error")
+	}
+	return T1
+}
