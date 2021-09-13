@@ -35,8 +35,11 @@ require (
 	k8s.io/apimachinery v0.21.0-rc.0
 	k8s.io/client-go v0.21.0-rc.0
 	k8s.io/code-generator v0.21.0-rc.0
-	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7
+	k8s.io/kube-openapi v0.0.0-20210817084001-7fbd8d59e5b8
 	sigs.k8s.io/kind v0.11.1
 )
 
-replace github.com/sirupsen/logrus => github.com/projectcalico/logrus v1.0.4-calico
+replace (
+	github.com/projectcalico/api => github.com/song-jiang/api v0.1.2-0.20210912164835-8089da7bee6a
+	github.com/sirupsen/logrus => github.com/projectcalico/logrus v1.0.4-calico
+)
