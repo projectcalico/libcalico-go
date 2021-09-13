@@ -36,33 +36,74 @@ import (
 var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.DatastoreAll, func(config apiconfig.CalicoAPIConfig) {
 
 	ctx := context.Background()
-	name1 := "nodebgpstatus-1"
-	name2 := "nodebgpstatus-2"
+	name1 := "caliconodestatus-1"
+	name2 := "caliconodestatus-2"
+	spec1 := apiv3.CalicoNodeStatusSpec{
+		NodeName: "node1",
+		Classes: []apiv3.NodeStatusClassType{
+			apiv3.NodeStatusClassTypeAgent,
+			apiv3.NodeStatusClassTypeBGPPeers,
+			apiv3.NodeStatusClassTypeRoutes,
+		},
+		UpdateIntervalInSeconds: 11,
+	}
+	spec2 := apiv3.CalicoNodeStatusSpec{
+		NodeName: "node2",
+		Classes: []apiv3.NodeStatusClassType{
+			apiv3.NodeStatusClassTypeAgent,
+			apiv3.NodeStatusClassTypeBGPPeers,
+			apiv3.NodeStatusClassTypeRoutes,
+		},
+		UpdateIntervalInSeconds: 12,
+	}
 	status1 := apiv3.CalicoNodeStatusStatus{
-		NumEstablished:    1,
-		NumNotEstablished: 0,
-		Conditions: []apiv3.CalicoNodeStatusCondition{
-			{
+		UpdateTimestamp: metav1.Now(),
+		AdditionalInfo:  "Updated successfully",
+		BGPStatus: apiv3.CalicoNodeBGPStatus{
+			NumEstablished:    1,
+			NumNotEstablished: 0,
+			BirdStatus: apiv3.CalicoNodeBirdStatus{
+				Ready:            true,
+				Version:          "birdv1.23",
+				RouteID:          "123456",
+				ServerTime:       "servertime1",
+				LastBootTime:     "lastboottime1",
+				LastReconfigTime: "lastreconfigtime1",
+			},
 
-				PeerIP: "10.0.0.1",
-				Type:   "nodeMesh",
-				State:  "up",
-				Since:  "09:19:28",
-				Reason: "Established",
+			Peers: []apiv3.CalicoNodePeers{
+				{
+					PeerIP: "10.0.0.1",
+					Type:   "nodeMesh",
+					State:  "up",
+					Since:  "09:19:28",
+					Reason: "Established",
+				},
 			},
 		},
 	}
 	status2 := apiv3.CalicoNodeStatusStatus{
-		NumEstablished:    1,
-		NumNotEstablished: 0,
-		Conditions: []apiv3.CalicoNodeStatusCondition{
-			{
+		UpdateTimestamp: metav1.Now(),
+		AdditionalInfo:  "Updated successfully",
+		BGPStatus: apiv3.CalicoNodeBGPStatus{
+			NumEstablished:    2,
+			NumNotEstablished: 0,
+			BirdStatus: apiv3.CalicoNodeBirdStatus{
+				Ready:            true,
+				Version:          "birdv1.23",
+				RouteID:          "654321",
+				ServerTime:       "servertime2",
+				LastBootTime:     "lastboottime2",
+				LastReconfigTime: "lastreconfigtime2",
+			},
 
-				PeerIP: "10.0.0.2",
-				Type:   "nodeMesh",
-				State:  "up",
-				Since:  "09:19:29",
-				Reason: "Established",
+			Routes: []apiv3.CalicoNodeRoutes{
+				{
+					Destination: "192.168.10.0/24",
+					Gateway:     "10.0.10.1",
+					Interface:   "eth0",
+					InstalledBy: "node-2",
+				},
 			},
 		},
 	}
@@ -78,43 +119,47 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 
 			By("Updating the CalicoNodeStatus before it is created")
 			_, outError := c.CalicoNodeStatus().Update(ctx, &apiv3.CalicoNodeStatus{
-				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234", CreationTimestamp: metav1.Now(), UID: "test-fail-nodebgpstatus"},
+				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234", CreationTimestamp: metav1.Now(), UID: "test-fail-caliconodestatus"},
+				Spec:       spec1,
 				Status:     status1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(ContainSubstring("resource does not exist: CalicoNodeStatus(" + name1 + ") with error:"))
 
-			By("Attempting to creating a new CalicoNodeStatus with name1/status1 and a non-empty ResourceVersion")
+			By("Attempting to creating a new CalicoNodeStatus with name1/spec1/status1 and a non-empty ResourceVersion")
 			_, outError = c.CalicoNodeStatus().Create(ctx, &apiv3.CalicoNodeStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "12345"},
+				Spec:       spec1,
 				Status:     status1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("error with field Metadata.ResourceVersion = '12345' (field must not be set for a Create request)"))
 
-			By("Creating a new CalicoNodeStatus with name1/status1")
+			By("Creating a new CalicoNodeStatus with name1/spec1/status1")
 			res1, outError := c.CalicoNodeStatus().Create(ctx, &apiv3.CalicoNodeStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name1},
+				Spec:       spec1,
 				Status:     status1,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
-			Expect(res1).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, nil, status1))
+			Expect(res1).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status1))
 
 			// Track the version of the original data for name1.
 			rv1_1 := res1.ResourceVersion
 
-			By("Attempting to create the same CalicoNodeStatus with name1 but with status2")
+			By("Attempting to create the same CalicoNodeStatus with name1 but with spec2/status2")
 			_, outError = c.CalicoNodeStatus().Create(ctx, &apiv3.CalicoNodeStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name1},
+				Spec:       spec2,
 				Status:     status2,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(Equal("resource already exists: CalicoNodeStatus(" + name1 + ")"))
 
-			By("Getting CalicoNodeStatus (name1) and comparing the output against status1")
+			By("Getting CalicoNodeStatus (name1) and comparing the output against spec1/status1")
 			res, outError := c.CalicoNodeStatus().Get(ctx, name1, options.GetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
-			Expect(res).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, nil, status1))
+			Expect(res).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status1))
 			Expect(res.ResourceVersion).To(Equal(res1.ResourceVersion))
 
 			By("Getting CalicoNodeStatus (name2) before it is created")
@@ -122,44 +167,46 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 			Expect(outError).To(HaveOccurred())
 			Expect(outError.Error()).To(ContainSubstring("resource does not exist: CalicoNodeStatus(" + name2 + ") with error:"))
 
-			By("Listing all the CalicoNodeStatus, expecting a single result with name1/status1")
+			By("Listing all the CalicoNodeStatus, expecting a single result with name1/spec1/status1")
 			outList, outError := c.CalicoNodeStatus().List(ctx, options.ListOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(outList.Items).To(ConsistOf(
-				testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, nil, status1),
+				testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status1),
 			))
 
 			By("Creating a new CalicoNodeStatus with name2/status2")
 			res2, outError := c.CalicoNodeStatus().Create(ctx, &apiv3.CalicoNodeStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name2},
+				Spec:       spec2,
 				Status:     status2,
 			}, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
-			Expect(res2).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, nil, status2))
+			Expect(res2).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, spec2, status2))
 
-			By("Getting CalicoNodeStatus (name2) and comparing the output against status2")
+			By("Getting CalicoNodeStatus (name2) and comparing the output against spec2/status2")
 			res, outError = c.CalicoNodeStatus().Get(ctx, name2, options.GetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
-			Expect(res2).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, nil, status2))
+			Expect(res2).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, spec2, status2))
 			Expect(res.ResourceVersion).To(Equal(res2.ResourceVersion))
 
-			By("Listing all the CalicoNodeStatus, expecting two results with name1/status1 and name2/status2")
+			By("Listing all the CalicoNodeStatus, expecting two results with name1/spec1/status1 and name2/spec2/status2")
 			outList, outError = c.CalicoNodeStatus().List(ctx, options.ListOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(outList.Items).To(ConsistOf(
-				testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, nil, status1),
-				testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, nil, status2),
+				testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status1),
+				testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, spec2, status2),
 			))
 
 			By("Updating CalicoNodeStatus name1 with status2")
 			res1.Status = status2
 			res1, outError = c.CalicoNodeStatus().Update(ctx, res1, options.SetOptions{})
 			Expect(outError).NotTo(HaveOccurred())
-			Expect(res1).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, nil, status2))
+			Expect(res1).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status2))
 
 			By("Attempting to update the CalicoNodeStatus without a Creation Timestamp")
 			res, outError = c.CalicoNodeStatus().Update(ctx, &apiv3.CalicoNodeStatus{
-				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234", UID: "test-fail-nodebgpstatus"},
+				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234", UID: "test-fail-caliconodestatus"},
+				Spec:       spec1,
 				Status:     status1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
@@ -169,6 +216,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 			By("Attempting to update the CalicoNodeStatus without a UID")
 			res, outError = c.CalicoNodeStatus().Update(ctx, &apiv3.CalicoNodeStatus{
 				ObjectMeta: metav1.ObjectMeta{Name: name1, ResourceVersion: "1234", CreationTimestamp: metav1.Now()},
+				Spec:       spec1,
 				Status:     status1,
 			}, options.SetOptions{})
 			Expect(outError).To(HaveOccurred())
@@ -179,6 +227,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 			rv1_2 := res1.ResourceVersion
 
 			By("Updating CalicoNodeStatus name1 without specifying a resource version")
+			res1.Spec = spec1
 			res1.Status = status1
 			res1.ObjectMeta.ResourceVersion = ""
 			_, outError = c.CalicoNodeStatus().Update(ctx, res1, options.SetOptions{})
@@ -186,6 +235,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 			Expect(outError.Error()).To(Equal("error with field Metadata.ResourceVersion = '' (field must be set for an Update request)"))
 
 			By("Updating CalicoNodeStatus name1 using the previous resource version")
+			res1.Spec = spec1
 			res1.Status = status1
 			res1.ResourceVersion = rv1_1
 			_, outError = c.CalicoNodeStatus().Update(ctx, res1, options.SetOptions{})
@@ -196,31 +246,31 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				By("Getting CalicoNodeStatus (name1) with the original resource version and comparing the output against status1")
 				res, outError = c.CalicoNodeStatus().Get(ctx, name1, options.GetOptions{ResourceVersion: rv1_1})
 				Expect(outError).NotTo(HaveOccurred())
-				Expect(res).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, nil, status1))
+				Expect(res).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status1))
 				Expect(res.ResourceVersion).To(Equal(rv1_1))
 			}
 
 			By("Getting CalicoNodeStatus (name1) with the updated resource version and comparing the output against status2")
 			res, outError = c.CalicoNodeStatus().Get(ctx, name1, options.GetOptions{ResourceVersion: rv1_2})
 			Expect(outError).NotTo(HaveOccurred())
-			Expect(res).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, nil, status2))
+			Expect(res).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status2))
 			Expect(res.ResourceVersion).To(Equal(rv1_2))
 
 			if config.Spec.DatastoreType != apiconfig.Kubernetes {
-				By("Listing CalicoNodeStatus with the original resource version and checking for a single result with name1/status1")
+				By("Listing CalicoNodeStatus with the original resource version and checking for a single result with name1/spec1/status1")
 				outList, outError = c.CalicoNodeStatus().List(ctx, options.ListOptions{ResourceVersion: rv1_1})
 				Expect(outError).NotTo(HaveOccurred())
 				Expect(outList.Items).To(ConsistOf(
-					testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, nil, status1),
+					testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status1),
 				))
 			}
 
-			By("Listing CalicoNodeStatus with the latest resource version and checking for two results with name1/status2 and name2/status2")
+			By("Listing CalicoNodeStatus with the latest resource version and checking for two results with name1/spec1/status2 and name2/spec2/status2")
 			outList, outError = c.CalicoNodeStatus().List(ctx, options.ListOptions{})
 			Expect(outError).NotTo(HaveOccurred())
 			Expect(outList.Items).To(ConsistOf(
-				testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, nil, status2),
-				testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, nil, status2),
+				testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status2),
+				testutils.ResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, spec2, status2),
 			))
 
 			if config.Spec.DatastoreType != apiconfig.Kubernetes {
@@ -233,7 +283,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 			By("Deleting CalicoNodeStatus (name1) with the new resource version")
 			dres, outError := c.CalicoNodeStatus().Delete(ctx, name1, options.DeleteOptions{ResourceVersion: rv1_2})
 			Expect(outError).NotTo(HaveOccurred())
-			Expect(dres).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, nil, status2))
+			Expect(dres).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name1, spec1, status2))
 
 			if config.Spec.DatastoreType != apiconfig.Kubernetes {
 				By("Updating CalicoNodeStatus name2 with a 2s TTL and waiting for the entry to be deleted")
@@ -266,7 +316,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				By("Attempting to deleting CalicoNodeStatus (name2)")
 				dres, outError = c.CalicoNodeStatus().Delete(ctx, name2, options.DeleteOptions{})
 				Expect(outError).NotTo(HaveOccurred())
-				Expect(dres).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, nil, status2))
+				Expect(dres).To(MatchResourceWithStatus(apiv3.KindCalicoNodeStatus, testutils.ExpectNoNamespace, name2, spec2, status2))
 			}
 
 			By("Attempting to deleting CalicoNodeStatus (name2) again")
@@ -314,11 +364,12 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 			)
 			rev1 := outRes1.ResourceVersion
 
-			By("Configuring a CalicoNodeStatus name2/status2 and storing the response")
+			By("Configuring a CalicoNodeStatus name2/spec2/status2 and storing the response")
 			outRes2, err := c.CalicoNodeStatus().Create(
 				ctx,
 				&apiv3.CalicoNodeStatus{
 					ObjectMeta: metav1.ObjectMeta{Name: name2},
+					Spec:       spec2,
 					Status:     status2,
 				},
 				options.SetOptions{},
@@ -358,6 +409,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				ctx,
 				&apiv3.CalicoNodeStatus{
 					ObjectMeta: outRes2.ObjectMeta,
+					Spec:       spec2,
 					Status:     status1,
 				},
 				options.SetOptions{},
@@ -417,11 +469,12 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 			})
 			testWatcher3.Stop()
 
-			By("Configuring CalicoNodeStatus name1/status1 again and storing the response")
+			By("Configuring CalicoNodeStatus name1/spec1/status1 again and storing the response")
 			outRes1, err = c.CalicoNodeStatus().Create(
 				ctx,
 				&apiv3.CalicoNodeStatus{
 					ObjectMeta: metav1.ObjectMeta{Name: name1},
+					Spec:       spec1,
 					Status:     status1,
 				},
 				options.SetOptions{},
