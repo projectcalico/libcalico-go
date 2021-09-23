@@ -405,6 +405,7 @@ github.com/song-jiang/api v0.1.2-0.20210913140936-2048121c9004 h1:WDK8es16G9Sbzv
 github.com/song-jiang/api v0.1.2-0.20210913140936-2048121c9004/go.mod h1:EBa6i7/+w/4iyw3BYrkXhqZkZh1juR//oO2zHgToG5E=
 github.com/song-jiang/api v0.1.2-0.20210913143137-f981580f3483 h1:yDoY6/dwrkB14y7UM9t1YyJjPttcc9WOb//tdT3vn2w=
 github.com/song-jiang/api v0.1.2-0.20210913143137-f981580f3483/go.mod h1:EBa6i7/+w/4iyw3BYrkXhqZkZh1juR//oO2zHgToG5E=
+github.com/song-jiang/api v0.1.2-0.20210917123316-3b3663e8fc5a h1:Ve9zmq9Ohjser0KQsZ0FlvtkE3GfhMhQ7sHvgFIcL3Y=
 github.com/song-jiang/api v0.1.2-0.20210917123316-3b3663e8fc5a/go.mod h1:EBa6i7/+w/4iyw3BYrkXhqZkZh1juR//oO2zHgToG5E=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
