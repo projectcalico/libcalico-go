@@ -149,6 +149,11 @@ func (c client) KubeControllersConfiguration() KubeControllersConfigurationInter
 	return kubeControllersConfiguration{client: c}
 }
 
+// CalicoNodeStatus returns an interface for managing the CalicoNodeStatus resource.
+func (c client) CalicoNodeStatus() CalicoNodeStatusInterface {
+	return calicoNodeStatus{client: c}
+}
+
 type poolAccessor struct {
 	client *client
 }
