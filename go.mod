@@ -40,6 +40,6 @@ require (
 )
 
 replace (
-	github.com/projectcalico/api => github.com/song-jiang/api v0.1.2-0.20210913143137-f981580f3483
+	github.com/projectcalico/api => github.com/song-jiang/api v0.1.2-0.20210917123316-3b3663e8fc5a
 	github.com/sirupsen/logrus => github.com/projectcalico/logrus v1.0.4-calico
 )

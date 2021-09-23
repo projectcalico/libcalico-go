@@ -42,8 +42,8 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 		Node: "node1",
 		Classes: []apiv3.NodeStatusClassType{
 			apiv3.NodeStatusClassTypeAgent,
-			apiv3.NodeStatusClassTypeBGPPeers,
-			apiv3.NodeStatusClassTypeRoutes,
+			apiv3.NodeStatusClassTypeBGP,
+			apiv3.NodeStatusClassTypeRoute,
 		},
 		UpdateIntervalInSeconds: 11,
 	}
@@ -51,20 +51,18 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 		Node: "node2",
 		Classes: []apiv3.NodeStatusClassType{
 			apiv3.NodeStatusClassTypeAgent,
-			apiv3.NodeStatusClassTypeBGPPeers,
-			apiv3.NodeStatusClassTypeRoutes,
+			apiv3.NodeStatusClassTypeBGP,
+			apiv3.NodeStatusClassTypeRoute,
 		},
 		UpdateIntervalInSeconds: 12,
 	}
 
 	updateTime := metav1.Time{Time: justBeforeTheHour()}
 	status1 := apiv3.CalicoNodeStatusStatus{
-		UpdateTimestamp: updateTime,
-		AdditionalInfo:  "Updated successfully",
-		BGPStatus: apiv3.CalicoNodeBGPStatus{
-			NumEstablished:    1,
-			NumNotEstablished: 0,
-			BirdStatus: apiv3.CalicoNodeBirdStatus{
+		LastUpdated:    updateTime,
+		AdditionalInfo: "Updated successfully",
+		Agent: apiv3.CalicoNodeAgentStatus{
+			Bird4: apiv3.CalicoNodeBirdStatus{
 				Ready:            true,
 				Version:          "birdv1.23",
 				RouteID:          "123456",
@@ -72,10 +70,30 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				LastBootTime:     "lastboottime1",
 				LastReconfigTime: "lastreconfigtime1",
 			},
-
-			Peers: []apiv3.CalicoNodePeers{
+			Bird6: apiv3.CalicoNodeBirdStatus{
+				Ready:            true,
+				Version:          "birdv1.23",
+				RouteID:          "123456",
+				ServerTime:       "servertime1",
+				LastBootTime:     "lastboottime1",
+				LastReconfigTime: "lastreconfigtime1",
+			},
+		},
+		BGP: apiv3.CalicoNodeBGPStatus{
+			NumEstablished:    2,
+			NumNotEstablished: 0,
+			V4Peers: []apiv3.CalicoNodePeer{
 				{
-					PeerIP: "10.0.0.1",
+					PeerIP: "172.17.0.5",
+					Type:   "nodeMesh",
+					State:  "up",
+					Since:  "09:19:28",
+					Reason: "Established",
+				},
+			},
+			V6Peers: []apiv3.CalicoNodePeer{
+				{
+					PeerIP: "2001:20::8",
 					Type:   "nodeMesh",
 					State:  "up",
 					Since:  "09:19:28",
@@ -83,29 +101,79 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				},
 			},
 		},
+		Route: apiv3.CalicoNodeRouteStatus{
+			V4: []apiv3.CalicoNodeRoute{
+				{
+					Destination: "192.168.110.128/26",
+					Gateway:     "172.17.0.5",
+					Interface:   "eth0",
+					LearnedFrom: "Mesh_172_17_0_5",
+				},
+				{
+					Destination: "192.168.162.129/32",
+					Gateway:     "N/A",
+					Interface:   "calie58e37f9a7f",
+					LearnedFrom: "kernel1",
+				},
+			},
+		},
 	}
-
 	status2 := apiv3.CalicoNodeStatusStatus{
-		UpdateTimestamp: updateTime,
-		AdditionalInfo:  "Updated successfully",
-		BGPStatus: apiv3.CalicoNodeBGPStatus{
-			NumEstablished:    2,
-			NumNotEstablished: 0,
-			BirdStatus: apiv3.CalicoNodeBirdStatus{
+		LastUpdated:    updateTime,
+		AdditionalInfo: "Updated successfully",
+		Agent: apiv3.CalicoNodeAgentStatus{
+			Bird4: apiv3.CalicoNodeBirdStatus{
 				Ready:            true,
 				Version:          "birdv1.23",
 				RouteID:          "654321",
-				ServerTime:       "servertime2",
-				LastBootTime:     "lastboottime2",
-				LastReconfigTime: "lastreconfigtime2",
+				ServerTime:       "servertime1",
+				LastBootTime:     "lastboottime1",
+				LastReconfigTime: "lastreconfigtime1",
 			},
-
-			Routes: []apiv3.CalicoNodeRoutes{
+			Bird6: apiv3.CalicoNodeBirdStatus{
+				Ready:            true,
+				Version:          "birdv1.23",
+				RouteID:          "654321",
+				ServerTime:       "servertime1",
+				LastBootTime:     "lastboottime1",
+				LastReconfigTime: "lastreconfigtime1",
+			},
+		},
+		BGP: apiv3.CalicoNodeBGPStatus{
+			NumEstablished:    2,
+			NumNotEstablished: 0,
+			V4Peers: []apiv3.CalicoNodePeer{
 				{
-					Destination: "192.168.10.0/24",
-					Gateway:     "10.0.10.1",
+					PeerIP: "172.17.0.6",
+					Type:   "nodeMesh",
+					State:  "up",
+					Since:  "09:19:26",
+					Reason: "Established",
+				},
+			},
+			V6Peers: []apiv3.CalicoNodePeer{
+				{
+					PeerIP: "2001:26::8",
+					Type:   "nodeMesh",
+					State:  "up",
+					Since:  "09:19:26",
+					Reason: "Established",
+				},
+			},
+		},
+		Route: apiv3.CalicoNodeRouteStatus{
+			V4: []apiv3.CalicoNodeRoute{
+				{
+					Destination: "192.168.110.126/26",
+					Gateway:     "172.17.0.6",
 					Interface:   "eth0",
-					InstalledBy: "node-2",
+					LearnedFrom: "Mesh_172_17_0_6",
+				},
+				{
+					Destination: "192.168.162.126/32",
+					Gateway:     "N/A",
+					Interface:   "calie58e37f9a76",
+					LearnedFrom: "kernel1",
 				},
 			},
 		},
