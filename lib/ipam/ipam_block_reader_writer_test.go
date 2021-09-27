@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2021 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	v3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/backend"
 	"github.com/projectcalico/libcalico-go/lib/backend/api"
@@ -145,6 +146,11 @@ func (c *fakeClient) Watch(ctx context.Context, list model.ListInterface, revisi
 	return nil, nil
 }
 
+// backendClientAccessor is an interface used to access the backend client from the main clientv3.
+type backendClientAccessor interface {
+	Backend() api.Client
+}
+
 var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", testutils.DatastoreAll, func(config apiconfig.CalicoAPIConfig) {
 
 	log.SetLevel(log.DebugLevel)
@@ -195,6 +201,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 				pls := &ipPoolAccessor{pools: map[string]pool{"10.0.0.0/22": {enabled: true}}}
 				rw = blockReaderWriter{client: bc, pools: pls}
 				ic = &ipamClient{
+					reservations:      &fakeReservations{},
 					client:            bc,
 					pools:             pls,
 					blockReaderWriter: rw,
@@ -215,7 +222,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 						applyNode(bc, kc, testhost, nil)
 						defer deleteNode(bc, kc, testhost)
 
-						ia, err := ic.autoAssign(ctx, 1, &testhost, nil, nil, 4, testhost, 0, nil)
+						ia, err := ic.autoAssign(ctx, 1, &testhost, nil, nil, 4, testhost, 0, nil, v3.IPPoolAllowedUseWorkload)
 						if err != nil {
 							log.WithError(err).Errorf("Auto assign failed for host %s", testhost)
 							testErr = err
@@ -303,7 +310,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 					go func() {
 						defer GinkgoRecover()
 
-						ia, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, testhost, 0, nil)
+						ia, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, testhost, 0, nil, v3.IPPoolAllowedUseWorkload)
 						if err != nil {
 							log.WithError(err).Errorf("Auto assign failed for host %s", testhost)
 							testErr = err
@@ -716,7 +723,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 			}
 
 			By("attempting to claim the block on multiple hosts at the same time", func() {
-				ia, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, hostA, 0, nil)
+				ia, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, hostA, 0, nil, v3.IPPoolAllowedUseWorkload)
 
 				// Shouldn't return an error.
 				Expect(err).NotTo(HaveOccurred())
@@ -746,7 +753,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 			})
 
 			By("attempting to claim another address", func() {
-				ia, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, hostA, 0, nil)
+				ia, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, hostA, 0, nil, v3.IPPoolAllowedUseWorkload)
 
 				// Shouldn't return an error.
 				Expect(err).NotTo(HaveOccurred())
@@ -809,7 +816,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 							return nil, err
 						}
 						b1 := allocationBlock{kvpb.Value.(*model.AllocationBlock)}
-						b1.autoAssign(1, nil, hostA, nil, false)
+						b1.autoAssign(1, nil, hostA, nil, false, nilFilter{})
 						if _, err := bc.Update(ctx, kvpb); err != nil {
 							return nil, err
 						}
@@ -1019,11 +1026,10 @@ var _ = testutils.E2eDatastoreDescribe("IPAM affine block allocation tests", tes
 				pools:             p,
 				blockReaderWriter: rw,
 			}
-			ia, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, host, 0, rsvdAttr)
+			ia, err := ic.autoAssign(ctx, 1, nil, nil, nil, 4, host, 0, rsvdAttr, v3.IPPoolAllowedUseTunnel /* for variety */)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(len(ia.IPs)).To(Equal(1))
 			Expect(ia.IPs[0].String()).To(Equal("10.0.0.2/30"))
-
 		})
 	})
 })
