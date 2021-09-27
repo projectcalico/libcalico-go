@@ -187,6 +187,7 @@ spec:
                   when CalicoNodeStatus object last updated. It is represented in
                   RFC3339 form and is in UTC.
                 format: date-time
+                nullable: true
                 type: string
               route:
                 description: Route represents routes on the node.
