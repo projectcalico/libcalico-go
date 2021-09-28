@@ -63,6 +63,8 @@ var _ = testutils.E2eDatastoreDescribe("Calico node status syncer tests", testut
 			syncTester.ExpectStatusUpdate(api.WaitForDatastore)
 			syncTester.ExpectCacheSize(expectedCacheSize)
 			syncTester.ExpectStatusUpdate(api.ResyncInProgress)
+			syncTester.ExpectStatusUpdate(api.InSync)
+			syncTester.ExpectCacheSize(expectedCacheSize)
 
 			By("Creating an CalicoNodeStatus")
 			status, err := c.CalicoNodeStatus().Create(
