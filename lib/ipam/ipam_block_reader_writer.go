@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2021 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,10 +38,15 @@ type blockReaderWriter struct {
 	pools  PoolAccessorInterface
 }
 
-func (rw blockReaderWriter) getAffineBlocks(ctx context.Context, host string, ver int, pools []v3.IPPool) (blocksInPool, blocksNotInPool []cnet.IPNet, err error) {
-	blocksInPool = []cnet.IPNet{}
-	blocksNotInPool = []cnet.IPNet{}
-
+// getAffineBlocks gets all the IPAM blocks that are affine to this host and returns them as a slice of CIDRs.
+func (rw blockReaderWriter) getAffineBlocks(
+	ctx context.Context,
+	host string,
+	ver int,
+) (
+	blocks []cnet.IPNet,
+	err error,
+) {
 	// Lookup blocks affine to the specified host.
 	opts := model.BlockAffinityListOptions{Host: host, IPVersion: ver}
 	datastoreObjs, err := rw.client.List(ctx, opts, "")
@@ -59,33 +64,43 @@ func (rw blockReaderWriter) getAffineBlocks(ctx context.Context, host string, ve
 	// Iterate through and extract the block CIDRs.
 	for _, o := range datastoreObjs.KVPairs {
 		k := o.Key.(model.BlockAffinityKey)
+		blocks = append(blocks, k.CIDR)
+	}
+	return
+}
 
-		// Add the block if no IP pools were specified, or if IP pools were specified
-		// and the block falls within the given IP pools.
-		if len(pools) == 0 {
-			blocksInPool = append(blocksInPool, k.CIDR)
+// filterBlocksByPools splits the given list of blocks into two slices: blocksInPools contains the blocks that
+// are contained in one of the given pools, blocksNotInPools contains the complement.
+func filterBlocksByPools(blocks []cnet.IPNet, pools []v3.IPPool) (blocksInPools, blocksNotInPools []cnet.IPNet, err error) {
+	for _, block := range blocks {
+		var pool *v3.IPPool
+		pool, err = findContainingPool(pools, block.IP)
+		if err != nil {
+			return
+		}
+		if pool != nil {
+			blocksInPools = append(blocksInPools, block)
 		} else {
-			found := false
-			for _, pool := range pools {
-				var poolNet *cnet.IPNet
-				_, poolNet, err = cnet.ParseCIDR(pool.Spec.CIDR)
-				if err != nil {
-					log.Errorf("Error parsing CIDR: %s from pool: %s %v", pool.Spec.CIDR, pool.Name, err)
-					return
-				}
-
-				if poolNet.Contains(k.CIDR.IPNet.IP) {
-					blocksInPool = append(blocksInPool, k.CIDR)
-					found = true
-					break
-				}
-			}
-			if !found {
-				blocksNotInPool = append(blocksNotInPool, k.CIDR)
-			}
+			blocksNotInPools = append(blocksNotInPools, block)
 		}
 	}
 	return
+}
+
+func findContainingPool(pools []v3.IPPool, addr net.IP) (*v3.IPPool, error) {
+	for _, pool := range pools {
+		var poolNet *cnet.IPNet
+		_, poolNet, err := cnet.ParseCIDR(pool.Spec.CIDR)
+		if err != nil {
+			log.Errorf("Error parsing CIDR: %s from pool: %s %v", pool.Spec.CIDR, pool.Name, err)
+			return nil, err
+		}
+
+		if poolNet.Contains(addr) {
+			return &pool, nil
+		}
+	}
+	return nil, nil
 }
 
 // findUsableBlock finds a block cidr which either does not yet exist within the given list of pools, or does exist but is affine to this host
@@ -93,7 +108,7 @@ func (rw blockReaderWriter) getAffineBlocks(ctx context.Context, host string, ve
 //
 // Note that the block may become claimed between receiving the CIDR from this function and attempting to claim the corresponding
 // block as this function does not reserve the returned IPNet.
-func (rw blockReaderWriter) findUsableBlock(ctx context.Context, host string, version int, pools []v3.IPPool, config IPAMConfig) (*cnet.IPNet, error) {
+func (rw blockReaderWriter) findUsableBlock(ctx context.Context, host string, version int, pools []v3.IPPool, reservations addrFilter, config IPAMConfig) (*cnet.IPNet, error) {
 	// If there are no pools, we cannot assign addresses.
 	if len(pools) == 0 {
 		return nil, fmt.Errorf("no configured Calico pools for node %s", host)
@@ -111,11 +126,11 @@ func (rw blockReaderWriter) findUsableBlock(ctx context.Context, host string, ve
 		affinity string
 	}
 
-	/// Build a map for faster lookups.
+	// Build a map for faster lookups.
 	exists := map[string]blockInfo{}
 	for _, e := range existingBlocks.KVPairs {
 		hostAff := e.Value.(*model.AllocationBlock).Host()
-		numFree := allocationBlock{e.Value.(*model.AllocationBlock)}.NumFreeAddresses()
+		numFree := allocationBlock{e.Value.(*model.AllocationBlock)}.NumFreeAddresses(reservations)
 		exists[e.Key.(model.BlockKey).CIDR.String()] = blockInfo{numFree: numFree, affinity: hostAff}
 	}
 
@@ -126,13 +141,19 @@ func (rw blockReaderWriter) findUsableBlock(ctx context.Context, host string, ve
 		log.Debugf("Looking for blocks in pool %+v", pool)
 		blocks := randomBlockGenerator(pool, host)
 		for subnet := blocks(); subnet != nil; subnet = blocks() {
+			// Check if the whole subnet is reserved.
+			if reservations.MatchesWholeCIDR(subnet) {
+				log.WithField("cidr", subnet).Debug("Skipping block that is entirely reserved.")
+				continue
+			}
+
 			// Check if a block already exists for this subnet.
 			log.Debugf("Getting block: %s", subnet.String())
 			if info, ok := exists[subnet.String()]; !ok {
 				log.Infof("Found free block: %+v", *subnet)
 				return subnet, nil
 			} else if info.affinity == host && info.numFree != 0 {
-				// Belongs to this host and has free allocations.
+				// Belongs to this host and has free allocations.  Check that the IPs really are free (not reserved).
 				log.Debugf("Block %s already assigned to host, has free space", subnet.String())
 				return subnet, nil
 			}
