@@ -153,6 +153,7 @@ var _ = testutils.E2eDatastoreDescribe("IPAM tests", testutils.DatastoreAll, fun
 	var reservations *fakeReservations
 	BeforeEach(func() {
 		var err error
+		deleteAllPools()
 		config.Spec.K8sClientQPS = 500
 		bc, err = backend.NewClient(config)
 		Expect(err).NotTo(HaveOccurred())
