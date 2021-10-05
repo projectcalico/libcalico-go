@@ -38,6 +38,8 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 	ctx := context.Background()
 	name1 := "caliconodestatus-1"
 	name2 := "caliconodestatus-2"
+	seconds1 := 11
+	seconds2 := 12
 	spec1 := apiv3.CalicoNodeStatusSpec{
 		Node: "node1",
 		Classes: []apiv3.NodeStatusClassType{
@@ -45,7 +47,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 			apiv3.NodeStatusClassTypeBGP,
 			apiv3.NodeStatusClassTypeRoutes,
 		},
-		UpdateIntervalInSeconds: 11,
+		UpdateIntervalInSeconds: &seconds1,
 	}
 	spec2 := apiv3.CalicoNodeStatusSpec{
 		Node: "node2",
@@ -54,7 +56,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 			apiv3.NodeStatusClassTypeBGP,
 			apiv3.NodeStatusClassTypeRoutes,
 		},
-		UpdateIntervalInSeconds: 12,
+		UpdateIntervalInSeconds: &seconds2,
 	}
 
 	updateTime := metav1.Time{Time: justBeforeTheHour()}
