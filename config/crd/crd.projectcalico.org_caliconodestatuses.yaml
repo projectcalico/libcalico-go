@@ -37,8 +37,9 @@ spec:
               resource.
             properties:
               classes:
-                description: Classes specifies type of information CalicoNodeStatus
-                  should contain.
+                description: Classes declares the types of information to monitor
+                  for this calico/node, and allows for selective status reporting
+                  about certain subsets of information.
                 items:
                   type: string
                 type: array
@@ -56,58 +57,54 @@ spec:
             description: CalicoNodeStatusStatus defines the observed state of CalicoNodeStatus.
               No validation needed for status since it is updated by Calico.
             properties:
-              additionalInfo:
-                description: AdditionalInfo is a a human-readable description of the
-                  status of last update.
-                type: string
               agent:
                 description: Agent holds agent status on the node.
                 properties:
-                  bird4:
+                  birdv4:
                     description: Bird4 represents the latest observed status of bird4.
                     properties:
                       lastBootTime:
                         description: LastBootTime holds the value of lastBootTime
-                          from birdctl output.
+                          from bird.ctl output.
                         type: string
                       lastReconfigTime:
                         description: LastReconfigTime holds the value of lastReconfigTime
-                          from birdctl output.
+                          from bird.ctl output.
                         type: string
                       ready:
                         description: Ready indicates if bird status is ready.
                         type: boolean
-                      routeID:
-                        description: Route ID used by bird.
+                      routerID:
+                        description: Router ID used by bird.
                         type: string
                       serverTime:
                         description: ServerTime holds the value of serverTime from
-                          birdctl output.
+                          bird.ctl output.
                         type: string
                       version:
                         description: Bird version.
                         type: string
                     type: object
-                  bird6:
+                  birdv6:
                     description: Bird6 represents the latest observed status of bird6.
                     properties:
                       lastBootTime:
                         description: LastBootTime holds the value of lastBootTime
-                          from birdctl output.
+                          from bird.ctl output.
                         type: string
                       lastReconfigTime:
                         description: LastReconfigTime holds the value of lastReconfigTime
-                          from birdctl output.
+                          from bird.ctl output.
                         type: string
                       ready:
                         description: Ready indicates if bird status is ready.
                         type: boolean
-                      routeID:
-                        description: Route ID used by bird.
+                      routerID:
+                        description: Router ID used by bird.
                         type: string
                       serverTime:
                         description: ServerTime holds the value of serverTime from
-                          birdctl output.
+                          bird.ctl output.
                         type: string
                       version:
                         description: Bird version.
@@ -117,11 +114,11 @@ spec:
               bgp:
                 description: BGP holds node BGP status.
                 properties:
-                  numEstablished:
-                    description: The total number of established bgp sessions.
+                  v4NumEstablished:
+                    description: The total number of IPv4 established bgp sessions.
                     type: integer
-                  numNotEstablished:
-                    description: The total number of non-established bgp sessions.
+                  v4NumNotEstablished:
+                    description: The total number of IPv4 non-established bgp sessions.
                     type: integer
                   v4Peers:
                     description: V4Peers represents IPv4 BGP peers status on the node.
@@ -131,27 +128,30 @@ spec:
                       properties:
                         peerIP:
                           description: IP address of the peer whose condition we are
-                            reporting. If port number is given, format should be `[<IPv6>]:port`
-                            or `<IPv4>:<port>` for IPv4. If optional port number is
-                            not set, and this peer IP and ASNumber belongs to a calico/node
-                            with ListenPort set in BGPConfiguration, then we use that
-                            port to peer.
+                            reporting.
                           type: string
                         reason:
-                          description: The reason it's in the current state.
+                          description: Extra information from bird on the bgp session.
                           type: string
                         since:
-                          description: Since is the time since the condition last
-                            changed.
+                          description: Since the state or reason last changed.
                           type: string
                         state:
-                          description: The state is the bgp session state.
+                          description: The state is the bird bgp session state.
                           type: string
                         type:
-                          description: The type is type of bgp session state.
+                          description: Type indicates whether this peer is configured
+                            via the node-to-node mesh, or via en explicit global or
+                            per-node BGPPeer object.
                           type: string
                       type: object
                     type: array
+                  v6NumEstablished:
+                    description: The total number of IPv6 established bgp sessions.
+                    type: integer
+                  v6NumNotEstablished:
+                    description: The total number of IPv6 non-established bgp sessions.
+                    type: integer
                   v6Peers:
                     description: V6Peers represents IPv6 BGP peers status on the node.
                     items:
@@ -160,24 +160,21 @@ spec:
                       properties:
                         peerIP:
                           description: IP address of the peer whose condition we are
-                            reporting. If port number is given, format should be `[<IPv6>]:port`
-                            or `<IPv4>:<port>` for IPv4. If optional port number is
-                            not set, and this peer IP and ASNumber belongs to a calico/node
-                            with ListenPort set in BGPConfiguration, then we use that
-                            port to peer.
+                            reporting.
                           type: string
                         reason:
-                          description: The reason it's in the current state.
+                          description: Extra information from bird on the bgp session.
                           type: string
                         since:
-                          description: Since is the time since the condition last
-                            changed.
+                          description: Since the state or reason last changed.
                           type: string
                         state:
-                          description: The state is the bgp session state.
+                          description: The state is the bird bgp session state.
                           type: string
                         type:
-                          description: The type is type of bgp session state.
+                          description: Type indicates whether this peer is configured
+                            via the node-to-node mesh, or via en explicit global or
+                            per-node BGPPeer object.
                           type: string
                       type: object
                     type: array
@@ -189,10 +186,11 @@ spec:
                 format: date-time
                 nullable: true
                 type: string
-              route:
-                description: Route represents routes on the node.
+              routes:
+                description: Routes reports routes known to the Calico BGP daemon
+                  on the node.
                 properties:
-                  bird4:
+                  v4Routes:
                     description: V4 represents IPv4 routes on the node.
                     items:
                       description: CalicoNodeRoute contains the status of BGP routes
@@ -213,10 +211,28 @@ spec:
                             the BGPPeer object. If it is populated by node mesh, this
                             is the name of the node. Or it is one of kernel, direct
                             or static.
+                          properties:
+                            node:
+                              description: If source is a Kubernetes node running
+                                Calico, the name of the Kubernetes node that originated
+                                the route.
+                              type: string
+                            peerIP:
+                              description: If sourceType is NodeMesh or BGPPeer, IP
+                                address of the router that sent us this route.
+                              type: string
+                            sourceType:
+                              description: Type of the source where a route is learned
+                                from.
+                              type: string
+                          type: object
+                        type:
+                          description: Type indicates if the route is being used for
+                            forwarding or not.
                           type: string
                       type: object
                     type: array
-                  bird6:
+                  v6Routes:
                     description: V6 represents IPv6 routes on the node.
                     items:
                       description: CalicoNodeRoute contains the status of BGP routes
@@ -237,6 +253,24 @@ spec:
                             the BGPPeer object. If it is populated by node mesh, this
                             is the name of the node. Or it is one of kernel, direct
                             or static.
+                          properties:
+                            node:
+                              description: If source is a Kubernetes node running
+                                Calico, the name of the Kubernetes node that originated
+                                the route.
+                              type: string
+                            peerIP:
+                              description: If sourceType is NodeMesh or BGPPeer, IP
+                                address of the router that sent us this route.
+                              type: string
+                            sourceType:
+                              description: Type of the source where a route is learned
+                                from.
+                              type: string
+                          type: object
+                        type:
+                          description: Type indicates if the route is being used for
+                            forwarding or not.
                           type: string
                       type: object
                     type: array
