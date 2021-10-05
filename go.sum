@@ -409,6 +409,10 @@ github.com/song-jiang/api v0.1.2-0.20210917123316-3b3663e8fc5a h1:Ve9zmq9Ohjser0
 github.com/song-jiang/api v0.1.2-0.20210917123316-3b3663e8fc5a/go.mod h1:EBa6i7/+w/4iyw3BYrkXhqZkZh1juR//oO2zHgToG5E=
 github.com/song-jiang/api v0.1.2-0.20210927153948-3474c0f6c406 h1:KzwveQSNHo7h9UaCFHNGkXaStadBg6y90VCDevSmyTA=
 github.com/song-jiang/api v0.1.2-0.20210927153948-3474c0f6c406/go.mod h1:EBa6i7/+w/4iyw3BYrkXhqZkZh1juR//oO2zHgToG5E=
+github.com/song-jiang/api v0.1.2-0.20211005134256-4c50138f3c3c h1:LHt1xImnBZnxCyj9wHn1PeUG154Yww2PSNu+O3pudv4=
+github.com/song-jiang/api v0.1.2-0.20211005134256-4c50138f3c3c/go.mod h1:EBa6i7/+w/4iyw3BYrkXhqZkZh1juR//oO2zHgToG5E=
+github.com/song-jiang/api v0.1.2-0.20211005141814-81486202b73e h1:yE3xhqY5DGXKZX32/QQVKVAvKEKhUg6WnZtLruqwa4I=
+github.com/song-jiang/api v0.1.2-0.20211005141814-81486202b73e/go.mod h1:EBa6i7/+w/4iyw3BYrkXhqZkZh1juR//oO2zHgToG5E=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/afero v1.2.2/go.mod h1:9ZxEEn6pIJ8Rxe320qSDBk6AsU0r9pR7Q4OcevTdifk=

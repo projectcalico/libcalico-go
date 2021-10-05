@@ -76,7 +76,7 @@ var _ = testutils.E2eDatastoreDescribe("Calico node status syncer tests", testut
 						Classes: []apiv3.NodeStatusClassType{
 							apiv3.NodeStatusClassTypeAgent,
 							apiv3.NodeStatusClassTypeBGP,
-							apiv3.NodeStatusClassTypeRoute,
+							apiv3.NodeStatusClassTypeRoutes,
 						},
 						UpdateIntervalInSeconds: 15,
 					},
@@ -100,7 +100,7 @@ var _ = testutils.E2eDatastoreDescribe("Calico node status syncer tests", testut
 						Classes: []apiv3.NodeStatusClassType{
 							apiv3.NodeStatusClassTypeAgent,
 							apiv3.NodeStatusClassTypeBGP,
-							apiv3.NodeStatusClassTypeRoute,
+							apiv3.NodeStatusClassTypeRoutes,
 						},
 						UpdateIntervalInSeconds: 15,
 					},
