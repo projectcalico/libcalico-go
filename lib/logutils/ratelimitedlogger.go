@@ -27,7 +27,7 @@ const (
 	fieldLogNextLog = "next-log"
 )
 
-// NewFirstAndIntervalLogger returns a FirstAndIntervalLogger which can be used for interval logging.
+// NewRateLimitedLogger returns a RateLimitedLogger which can be used for interval logging.
 //
 // Methods are essentially the same as the logrus logging methods, but there is no Panic or Fatal log since these don't
 // make much sense for interval logging.
@@ -39,7 +39,7 @@ const (
 //
 // Typical use might be as follows:
 //
-//   logger := NewFirstAndIntervalLogger(5 * time.Minute).WithField("key": "my-key")
+//   logger := NewRateLimitedLogger(5 * time.Minute).WithField("key": "my-key")
 //   for {
 //     logger.Infof("Checking some stuff: %s", myStuff)
 //     complete = doSomeStuff()
@@ -51,106 +51,99 @@ const (
 //   // Use force to ensure our final log is printed and it contains the summary info about the number of skipped logs.
 //   logger.Force().Info("Finished checking stuff")
 //
-func NewFirstAndIntervalLogger(interval time.Duration, logger *logrus.Logger) *FirstAndIntervalLogger {
+func NewRateLimitedLogger(interval time.Duration, logger *logrus.Logger) *RateLimitedLogger {
 	if logger == nil {
 		logger = logrus.StandardLogger()
 	}
-	return &FirstAndIntervalLogger{
-		nextLog: time.Now(),
-		interval: interval,
+	return &RateLimitedLogger{
+		data: &intervalData{
+			nextLog: time.Now(),
+			interval: interval,
+		},
 		entry:    logrus.NewEntry(logger),
 	}
 }
 
-type FirstAndIntervalLogger struct {
+type intervalData struct {
 	nextLog  time.Time
 
 	// Interval for logging.
 	interval time.Duration
 
-	// The logrus entry used for writing the log.
-	entry    *logrus.Entry
-
 	// The number skipped since the last processed log.
 	skipped  int
+
+	// Lock used to access to this data. This lock is never held while writing a log.
+	lock     sync.Mutex
+}
+
+type RateLimitedLogger struct {
+	// Data shared between all loggers created from the "root" RateLimitedLogger.
+	data *intervalData
 
 	// Whether to force the next log to be processed.
 	force    bool
 
-	// Lock used to access to this data. This lock is never held while writing a log.
-	lock     sync.RWMutex
+	// The logrus entry used for writing the log.
+	entry    *logrus.Entry
 }
 
-func (logger *FirstAndIntervalLogger) logEntry() *logrus.Entry {
+func (logger *RateLimitedLogger) logEntry() *logrus.Entry {
 	now := time.Now()
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
-	if logger.force || now.Sub(logger.nextLog) >= 0 {
-		nextLog := now.Add(logger.interval)
+	logger.data.lock.Lock()
+	defer logger.data.lock.Unlock()
+	if logger.force || now.Sub(logger.data.nextLog) >= 0 {
+		nextLog := now.Add(logger.data.interval)
 		entry := logger.entry.WithFields(logrus.Fields{
-			fieldLogSkipped: logger.skipped,
+			fieldLogSkipped: logger.data.skipped,
 			fieldLogNextLog: nextLog,
 		})
 		logger.force = false
-		logger.nextLog = nextLog
-		logger.skipped = 0
+		logger.data.nextLog = nextLog
+		logger.data.skipped = 0
 		return entry
 	}
-	logger.skipped++
+	logger.data.skipped++
 	return nil
 }
 
 // Force forces the next log to be processed. Note that this does not force the log to be written since that is also
 // dependent on the logging level.
-func (logger *FirstAndIntervalLogger) Force() *FirstAndIntervalLogger {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
-	return &FirstAndIntervalLogger{
-		nextLog:  logger.nextLog,
-		interval: logger.interval,
-		skipped:  logger.skipped,
-		entry:    logger.entry,
-		force:    true,
+func (logger *RateLimitedLogger) Force() *RateLimitedLogger {
+	logger.data.lock.Lock()
+	defer logger.data.lock.Unlock()
+	return &RateLimitedLogger{
+		data:  logger.data,
+		entry: logger.entry,
+		force: true,
 	}
 }
 
-// WithError adds an error as single field (using the key defined in ErrorKey) to the FirstAndIntervalLogger.
-func (logger *FirstAndIntervalLogger) WithError(err error) *FirstAndIntervalLogger {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
-	return &FirstAndIntervalLogger{
-		nextLog:  logger.nextLog,
-		interval: logger.interval,
-		skipped:  logger.skipped,
-		entry:    logger.entry.WithError(err),
+// WithError adds an error as single field (using the key defined in ErrorKey) to the RateLimitedLogger.
+func (logger *RateLimitedLogger) WithError(err error) *RateLimitedLogger {
+	return &RateLimitedLogger{
+		data:  logger.data,
+		entry: logger.entry.WithError(err),
 	}
 }
 
-// WithField adds a single field to the FirstAndIntervalLogger.
-func (logger *FirstAndIntervalLogger) WithField(key string, value interface{}) *FirstAndIntervalLogger {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
-	return &FirstAndIntervalLogger{
-		nextLog:  logger.nextLog,
-		interval: logger.interval,
-		skipped:  logger.skipped,
-		entry:    logger.entry.WithField(key, value),
+// WithField adds a single field to the RateLimitedLogger.
+func (logger *RateLimitedLogger) WithField(key string, value interface{}) *RateLimitedLogger {
+	return &RateLimitedLogger{
+		data:  logger.data,
+		entry: logger.entry.WithField(key, value),
 	}
 }
 
-// WithFields adds a map of fields to the FirstAndIntervalLogger.
-func (logger *FirstAndIntervalLogger) WithFields(fields logrus.Fields) *FirstAndIntervalLogger {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
-	return &FirstAndIntervalLogger{
-		nextLog:  logger.nextLog,
-		interval: logger.interval,
-		skipped:  logger.skipped,
-		entry:    logger.entry.WithFields(fields),
+// WithFields adds a map of fields to the RateLimitedLogger.
+func (logger *RateLimitedLogger) WithFields(fields logrus.Fields) *RateLimitedLogger {
+	return &RateLimitedLogger{
+		data:  logger.data,
+		entry: logger.entry.WithFields(fields),
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Debug(args ...interface{}) {
+func (logger *RateLimitedLogger) Debug(args ...interface{}) {
 	if logger.level() >= logrus.DebugLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Debug(args...)
@@ -158,13 +151,13 @@ func (logger *FirstAndIntervalLogger) Debug(args ...interface{}) {
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Print(args ...interface{}) {
+func (logger *RateLimitedLogger) Print(args ...interface{}) {
 	if entry := logger.logEntry(); entry != nil {
 		entry.Print(args...)
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Info(args ...interface{}) {
+func (logger *RateLimitedLogger) Info(args ...interface{}) {
 	if logger.level() >= logrus.InfoLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Info(args...)
@@ -172,7 +165,7 @@ func (logger *FirstAndIntervalLogger) Info(args ...interface{}) {
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Warn(args ...interface{}) {
+func (logger *RateLimitedLogger) Warn(args ...interface{}) {
 	if logger.level() >= logrus.WarnLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Warn(args...)
@@ -180,7 +173,7 @@ func (logger *FirstAndIntervalLogger) Warn(args ...interface{}) {
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Warning(args ...interface{}) {
+func (logger *RateLimitedLogger) Warning(args ...interface{}) {
 	if logger.level() >= logrus.WarnLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Warning(args...)
@@ -188,7 +181,7 @@ func (logger *FirstAndIntervalLogger) Warning(args ...interface{}) {
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Error(args ...interface{}) {
+func (logger *RateLimitedLogger) Error(args ...interface{}) {
 	if logger.level() >= logrus.ErrorLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Error(args...)
@@ -196,7 +189,7 @@ func (logger *FirstAndIntervalLogger) Error(args ...interface{}) {
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Debugf(format string, args ...interface{}) {
+func (logger *RateLimitedLogger) Debugf(format string, args ...interface{}) {
 	if logger.level() >= logrus.DebugLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Debugf(format, args...)
@@ -204,7 +197,7 @@ func (logger *FirstAndIntervalLogger) Debugf(format string, args ...interface{})
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Infof(format string, args ...interface{}) {
+func (logger *RateLimitedLogger) Infof(format string, args ...interface{}) {
 	if logger.level() >= logrus.InfoLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Infof(format, args...)
@@ -212,13 +205,13 @@ func (logger *FirstAndIntervalLogger) Infof(format string, args ...interface{}) 
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Printf(format string, args ...interface{}) {
+func (logger *RateLimitedLogger) Printf(format string, args ...interface{}) {
 	if entry := logger.logEntry(); entry != nil {
 		entry.Printf(format, args...)
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Warnf(format string, args ...interface{}) {
+func (logger *RateLimitedLogger) Warnf(format string, args ...interface{}) {
 	if logger.level() >= logrus.WarnLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Warnf(format, args...)
@@ -226,7 +219,7 @@ func (logger *FirstAndIntervalLogger) Warnf(format string, args ...interface{}) 
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Warningf(format string, args ...interface{}) {
+func (logger *RateLimitedLogger) Warningf(format string, args ...interface{}) {
 	if logger.level() >= logrus.WarnLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Warningf(format, args...)
@@ -234,7 +227,7 @@ func (logger *FirstAndIntervalLogger) Warningf(format string, args ...interface{
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Errorf(format string, args ...interface{}) {
+func (logger *RateLimitedLogger) Errorf(format string, args ...interface{}) {
 	if logger.level() >= logrus.ErrorLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Errorf(format, args...)
@@ -244,7 +237,7 @@ func (logger *FirstAndIntervalLogger) Errorf(format string, args ...interface{})
 
 // Entry Println family functions
 
-func (logger *FirstAndIntervalLogger) Debugln(args ...interface{}) {
+func (logger *RateLimitedLogger) Debugln(args ...interface{}) {
 	if logger.level() >= logrus.DebugLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Debugln(args...)
@@ -252,7 +245,7 @@ func (logger *FirstAndIntervalLogger) Debugln(args ...interface{}) {
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Infoln(args ...interface{}) {
+func (logger *RateLimitedLogger) Infoln(args ...interface{}) {
 	if logger.level() >= logrus.InfoLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Infoln(args...)
@@ -260,13 +253,13 @@ func (logger *FirstAndIntervalLogger) Infoln(args ...interface{}) {
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Println(args ...interface{}) {
+func (logger *RateLimitedLogger) Println(args ...interface{}) {
 	if entry := logger.logEntry(); entry != nil {
 		entry.Println(args...)
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Warnln(args ...interface{}) {
+func (logger *RateLimitedLogger) Warnln(args ...interface{}) {
 	if logger.level() >= logrus.WarnLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Warnln(args...)
@@ -274,7 +267,7 @@ func (logger *FirstAndIntervalLogger) Warnln(args ...interface{}) {
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Warningln(args ...interface{}) {
+func (logger *RateLimitedLogger) Warningln(args ...interface{}) {
 	if logger.level() >= logrus.WarnLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Warningln(args...)
@@ -282,7 +275,7 @@ func (logger *FirstAndIntervalLogger) Warningln(args ...interface{}) {
 	}
 }
 
-func (logger *FirstAndIntervalLogger) Errorln(args ...interface{}) {
+func (logger *RateLimitedLogger) Errorln(args ...interface{}) {
 	if logger.level() >= logrus.ErrorLevel {
 		if entry := logger.logEntry(); entry != nil {
 			entry.Errorln(args...)
@@ -291,6 +284,6 @@ func (logger *FirstAndIntervalLogger) Errorln(args ...interface{}) {
 }
 
 // level returns the log level associated with the logger.  (copied from logrus since this is not a public method)
-func (logger *FirstAndIntervalLogger) level() logrus.Level {
+func (logger *RateLimitedLogger) level() logrus.Level {
 	return logrus.Level(atomic.LoadUint32((*uint32)(&logger.entry.Logger.Level)))
 }
