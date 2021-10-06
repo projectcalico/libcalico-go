@@ -63,7 +63,7 @@ var _ = DescribeTable("First and interval logging",
 		}
 
 		// First log will be written.
-		logfn(logger)
+		logfn(logger.WithError(errors.New("error")))
 		Expect(counter.count).To(Equal(1))
 		Expect(counter.entry.Data).To(HaveKeyWithValue("a", 1))
 		Expect(counter.entry.Data).To(HaveKeyWithValue("b", 2))
@@ -73,15 +73,15 @@ var _ = DescribeTable("First and interval logging",
 		Expect(counter.entry.Data).To(HaveKey("error"))
 
 		// Next two log will be skipped.
-		logfn(logger)
-		logfn(logger)
+		logfn(logger.WithField("a", 1))
+		logfn(logger.WithField("a", 1))
 		Expect(counter.count).To(Equal(1))
 
 		// Wait for logging interval.
 		time.Sleep(200 * time.Millisecond)
 
 		// Next log will be written.
-		logfn(logger)
+		logfn(logger.WithFields(log.Fields{"b": 2, "c": "3"}))
 		Expect(counter.count).To(Equal(2))
 		Expect(counter.entry.Data).To(HaveKeyWithValue("a", 1))
 		Expect(counter.entry.Data).To(HaveKeyWithValue("b", 2))
@@ -91,8 +91,7 @@ var _ = DescribeTable("First and interval logging",
 		Expect(counter.entry.Data).To(HaveKey("error"))
 
 		// Force, so next log will also be written.
-		logger = logger.Force()
-		logfn(logger)
+		logfn(logger.Force())
 		Expect(counter.count).To(Equal(3))
 		Expect(counter.entry.Level).To(Equal(expectedLevel))
 		Expect(counter.entry.Data).To(HaveKeyWithValue("a", 1))

@@ -56,97 +56,90 @@ func NewFirstAndIntervalLogger(interval time.Duration, logger *logrus.Logger) *F
 		logger = logrus.StandardLogger()
 	}
 	return &FirstAndIntervalLogger{
-		nextLog: time.Now(),
-		interval: interval,
+		data: &intervalData{
+			nextLog: time.Now(),
+			interval: interval,
+		},
 		entry:    logrus.NewEntry(logger),
 	}
 }
 
-type FirstAndIntervalLogger struct {
+type intervalData struct {
 	nextLog  time.Time
 
 	// Interval for logging.
 	interval time.Duration
 
-	// The logrus entry used for writing the log.
-	entry    *logrus.Entry
-
 	// The number skipped since the last processed log.
 	skipped  int
-
-	// Whether to force the next log to be processed.
-	force    bool
 
 	// Lock used to access to this data. This lock is never held while writing a log.
 	lock     sync.RWMutex
 }
 
+type FirstAndIntervalLogger struct {
+	// Data shared between all loggers created from the "root" FirstAndIntervalLogger.
+	data *intervalData
+
+	// Whether to force the next log to be processed.
+	force    bool
+
+	// The logrus entry used for writing the log.
+	entry    *logrus.Entry
+}
+
 func (logger *FirstAndIntervalLogger) logEntry() *logrus.Entry {
 	now := time.Now()
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
-	if logger.force || now.Sub(logger.nextLog) >= 0 {
-		nextLog := now.Add(logger.interval)
+	logger.data.lock.Lock()
+	defer logger.data.lock.Unlock()
+	if logger.force || now.Sub(logger.data.nextLog) >= 0 {
+		nextLog := now.Add(logger.data.interval)
 		entry := logger.entry.WithFields(logrus.Fields{
-			fieldLogSkipped: logger.skipped,
+			fieldLogSkipped: logger.data.skipped,
 			fieldLogNextLog: nextLog,
 		})
 		logger.force = false
-		logger.nextLog = nextLog
-		logger.skipped = 0
+		logger.data.nextLog = nextLog
+		logger.data.skipped = 0
 		return entry
 	}
-	logger.skipped++
+	logger.data.skipped++
 	return nil
 }
 
 // Force forces the next log to be processed. Note that this does not force the log to be written since that is also
 // dependent on the logging level.
 func (logger *FirstAndIntervalLogger) Force() *FirstAndIntervalLogger {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
+	logger.data.lock.Lock()
+	defer logger.data.lock.Unlock()
 	return &FirstAndIntervalLogger{
-		nextLog:  logger.nextLog,
-		interval: logger.interval,
-		skipped:  logger.skipped,
-		entry:    logger.entry,
-		force:    true,
+		data:  logger.data,
+		entry: logger.entry,
+		force: true,
 	}
 }
 
 // WithError adds an error as single field (using the key defined in ErrorKey) to the FirstAndIntervalLogger.
 func (logger *FirstAndIntervalLogger) WithError(err error) *FirstAndIntervalLogger {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
 	return &FirstAndIntervalLogger{
-		nextLog:  logger.nextLog,
-		interval: logger.interval,
-		skipped:  logger.skipped,
-		entry:    logger.entry.WithError(err),
+		data:  logger.data,
+		entry: logger.entry.WithError(err),
 	}
 }
 
 // WithField adds a single field to the FirstAndIntervalLogger.
 func (logger *FirstAndIntervalLogger) WithField(key string, value interface{}) *FirstAndIntervalLogger {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
 	return &FirstAndIntervalLogger{
-		nextLog:  logger.nextLog,
-		interval: logger.interval,
-		skipped:  logger.skipped,
-		entry:    logger.entry.WithField(key, value),
+		data:  logger.data,
+		entry: logger.entry.WithField(key, value),
 	}
 }
 
 // WithFields adds a map of fields to the FirstAndIntervalLogger.
 func (logger *FirstAndIntervalLogger) WithFields(fields logrus.Fields) *FirstAndIntervalLogger {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
 	return &FirstAndIntervalLogger{
-		nextLog:  logger.nextLog,
-		interval: logger.interval,
-		skipped:  logger.skipped,
-		entry:    logger.entry.WithFields(fields),
+		data:  logger.data,
+		entry: logger.entry.WithFields(fields),
 	}
 }
 
