@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 Tigera, Inc. All rights reserved.
+// Copyright (c) 2021 Tigera, Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ func (s *mockLogFormatter) Format(e *log.Entry) ([]byte, error) {
 }
 
 var _ = DescribeTable("First and interval logging",
-	func(expectedLevel log.Level, testLogLevel bool, logfn func(logger *FirstAndIntervalLogger)) {
+	func(expectedLevel log.Level, testLogLevel bool, logfn func(logger *RateLimitedLogger)) {
 		counter := &mockLogFormatter{}
 		logrusLogger := &log.Logger{
 			Out:       os.Stderr,
@@ -47,7 +47,7 @@ var _ = DescribeTable("First and interval logging",
 			Hooks:     make(log.LevelHooks),
 			Level:     log.DebugLevel,
 		}
-		logger := NewFirstAndIntervalLogger(200 * time.Millisecond, logrusLogger)
+		logger := NewRateLimitedLogger(200 * time.Millisecond, logrusLogger)
 		logger = logger.WithError(errors.New("error"))
 		logger = logger.WithField("a", 1)
 		logger = logger.WithFields(log.Fields{"b": 2, "c": "3"})
@@ -63,7 +63,7 @@ var _ = DescribeTable("First and interval logging",
 		}
 
 		// First log will be written.
-		logfn(logger)
+		logfn(logger.WithError(errors.New("error")))
 		Expect(counter.count).To(Equal(1))
 		Expect(counter.entry.Data).To(HaveKeyWithValue("a", 1))
 		Expect(counter.entry.Data).To(HaveKeyWithValue("b", 2))
@@ -73,15 +73,15 @@ var _ = DescribeTable("First and interval logging",
 		Expect(counter.entry.Data).To(HaveKey("error"))
 
 		// Next two log will be skipped.
-		logfn(logger)
-		logfn(logger)
+		logfn(logger.WithField("a", 1))
+		logfn(logger.WithField("a", 1))
 		Expect(counter.count).To(Equal(1))
 
 		// Wait for logging interval.
 		time.Sleep(200 * time.Millisecond)
 
 		// Next log will be written.
-		logfn(logger)
+		logfn(logger.WithFields(log.Fields{"b": 2, "c": "3"}))
 		Expect(counter.count).To(Equal(2))
 		Expect(counter.entry.Data).To(HaveKeyWithValue("a", 1))
 		Expect(counter.entry.Data).To(HaveKeyWithValue("b", 2))
@@ -91,8 +91,7 @@ var _ = DescribeTable("First and interval logging",
 		Expect(counter.entry.Data).To(HaveKey("error"))
 
 		// Force, so next log will also be written.
-		logger = logger.Force()
-		logfn(logger)
+		logfn(logger.Force())
 		Expect(counter.count).To(Equal(3))
 		Expect(counter.entry.Level).To(Equal(expectedLevel))
 		Expect(counter.entry.Data).To(HaveKeyWithValue("a", 1))
@@ -102,22 +101,22 @@ var _ = DescribeTable("First and interval logging",
 		Expect(counter.entry.Data).To(HaveKey("next-log"))
 		Expect(counter.entry.Data).To(HaveKey("error"))
 	},
-	Entry("Debug", log.DebugLevel, true, func(l *FirstAndIntervalLogger) {l.Debug("log", "now")}),
-	Entry("Print", log.InfoLevel, false, func(l *FirstAndIntervalLogger) {l.Print("log", "now")}),
-	Entry("Info", log.InfoLevel, true, func(l *FirstAndIntervalLogger) {l.Info("log", "now")}),
-	Entry("Warn", log.WarnLevel, true, func(l *FirstAndIntervalLogger) {l.Warn("log", "now")}),
-	Entry("Warning", log.WarnLevel, true, func(l *FirstAndIntervalLogger) {l.Warning("log", "now")}),
-	Entry("Error", log.ErrorLevel, true, func(l *FirstAndIntervalLogger) {l.Error("log", "now")}),
-	Entry("Debugf", log.DebugLevel, true, func(l *FirstAndIntervalLogger) {l.Debugf("log %s", "hello")}),
-	Entry("Printf", log.InfoLevel, false, func(l *FirstAndIntervalLogger) {l.Printf("log %s", "hello")}),
-	Entry("Infof", log.InfoLevel, true, func(l *FirstAndIntervalLogger) {l.Infof("log %s", "hello")}),
-	Entry("Warnf", log.WarnLevel, true, func(l *FirstAndIntervalLogger) {l.Warnf("log %s", "hello")}),
-	Entry("Warningf", log.WarnLevel, true, func(l *FirstAndIntervalLogger) {l.Warningf("log %s", "hello")}),
-	Entry("Errorf", log.ErrorLevel, true, func(l *FirstAndIntervalLogger) {l.Errorf("log %s", "hello")}),
-	Entry("Debugln", log.DebugLevel, true, func(l *FirstAndIntervalLogger) {l.Debugln("log", "now")}),
-	Entry("Println", log.InfoLevel, false, func(l *FirstAndIntervalLogger) {l.Println("log", "now")}),
-	Entry("Infoln", log.InfoLevel, true, func(l *FirstAndIntervalLogger) {l.Infoln("log", "now")}),
-	Entry("Warnln", log.WarnLevel, true, func(l *FirstAndIntervalLogger) {l.Warnln("log", "now")}),
-	Entry("Warningln", log.WarnLevel, true, func(l *FirstAndIntervalLogger) {l.Warningln("log", "now")}),
-	Entry("Errorln", log.ErrorLevel, true, func(l *FirstAndIntervalLogger) {l.Errorln("log", "now")}),
+	Entry("Debug", log.DebugLevel, true, func(l *RateLimitedLogger) {l.Debug("log", "now")}),
+	Entry("Print", log.InfoLevel, false, func(l *RateLimitedLogger) {l.Print("log", "now")}),
+	Entry("Info", log.InfoLevel, true, func(l *RateLimitedLogger) {l.Info("log", "now")}),
+	Entry("Warn", log.WarnLevel, true, func(l *RateLimitedLogger) {l.Warn("log", "now")}),
+	Entry("Warning", log.WarnLevel, true, func(l *RateLimitedLogger) {l.Warning("log", "now")}),
+	Entry("Error", log.ErrorLevel, true, func(l *RateLimitedLogger) {l.Error("log", "now")}),
+	Entry("Debugf", log.DebugLevel, true, func(l *RateLimitedLogger) {l.Debugf("log %s", "hello")}),
+	Entry("Printf", log.InfoLevel, false, func(l *RateLimitedLogger) {l.Printf("log %s", "hello")}),
+	Entry("Infof", log.InfoLevel, true, func(l *RateLimitedLogger) {l.Infof("log %s", "hello")}),
+	Entry("Warnf", log.WarnLevel, true, func(l *RateLimitedLogger) {l.Warnf("log %s", "hello")}),
+	Entry("Warningf", log.WarnLevel, true, func(l *RateLimitedLogger) {l.Warningf("log %s", "hello")}),
+	Entry("Errorf", log.ErrorLevel, true, func(l *RateLimitedLogger) {l.Errorf("log %s", "hello")}),
+	Entry("Debugln", log.DebugLevel, true, func(l *RateLimitedLogger) {l.Debugln("log", "now")}),
+	Entry("Println", log.InfoLevel, false, func(l *RateLimitedLogger) {l.Println("log", "now")}),
+	Entry("Infoln", log.InfoLevel, true, func(l *RateLimitedLogger) {l.Infoln("log", "now")}),
+	Entry("Warnln", log.WarnLevel, true, func(l *RateLimitedLogger) {l.Warnln("log", "now")}),
+	Entry("Warningln", log.WarnLevel, true, func(l *RateLimitedLogger) {l.Warningln("log", "now")}),
+	Entry("Errorln", log.ErrorLevel, true, func(l *RateLimitedLogger) {l.Errorln("log", "now")}),
 )
