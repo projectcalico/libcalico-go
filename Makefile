@@ -224,7 +224,8 @@ cluster-destroy: $(BINDIR)/kind
 	rm -f $(KUBECONFIG)
 
 $(BINDIR)/kind:
-	$(DOCKER_GO_BUILD) sh -c "GOBIN=/go/src/$(PACKAGE_NAME)/$(BINDIR) go install sigs.k8s.io/kind"
+	$(DOCKER_GO_BUILD) curl https://github.com/kubernetes-sigs/kind/releases/download/v0.11.1/kind-linux-$(ARCH) -o /go/src/$(PACKAGE_NAME)/$(BINDIR)/kind
+	@chmod +x $@
 
 $(BINDIR)/kubectl:
 	mkdir -p $(BINDIR)
