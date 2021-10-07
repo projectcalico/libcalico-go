@@ -47,10 +47,11 @@ spec:
                 description: The node name identifies the Calico node instance for
                   node status.
                 type: string
-              updateIntervalInSeconds:
-                description: 'UpdateIntervalInSeconds is the period at which CalicoNodeStatus
+              updatePeriodSeconds:
+                description: 'UpdatePeriodSeconds is the period at which CalicoNodeStatus
                   should be updated. Set to 0 to disable CalicoNodeStatus refresh.
                   [Default: 10]'
+                format: int32
                 type: integer
             type: object
           status:
@@ -60,20 +61,17 @@ spec:
               agent:
                 description: Agent holds agent status on the node.
                 properties:
-                  birdv4:
-                    description: Bird4 represents the latest observed status of bird4.
+                  birdV4:
+                    description: BIRDV4 represents the latest observed status of bird4.
                     properties:
                       lastBootTime:
                         description: LastBootTime holds the value of lastBootTime
                           from bird.ctl output.
                         type: string
-                      lastReconfigTime:
-                        description: LastReconfigTime holds the value of lastReconfigTime
+                      lastReconfigurationTime:
+                        description: LastReconfigurationTime holds the value of lastReconfigTime
                           from bird.ctl output.
                         type: string
-                      ready:
-                        description: Ready indicates if bird status is ready.
-                        type: boolean
                       routerID:
                         description: Router ID used by bird.
                         type: string
@@ -81,24 +79,24 @@ spec:
                         description: ServerTime holds the value of serverTime from
                           bird.ctl output.
                         type: string
+                      state:
+                        description: The state of the BGP Daemon.
+                        type: string
                       version:
-                        description: Bird version.
+                        description: Version of the BGP daemon
                         type: string
                     type: object
-                  birdv6:
-                    description: Bird6 represents the latest observed status of bird6.
+                  birdV6:
+                    description: BIRDV6 represents the latest observed status of bird6.
                     properties:
                       lastBootTime:
                         description: LastBootTime holds the value of lastBootTime
                           from bird.ctl output.
                         type: string
-                      lastReconfigTime:
-                        description: LastReconfigTime holds the value of lastReconfigTime
+                      lastReconfigurationTime:
+                        description: LastReconfigurationTime holds the value of lastReconfigTime
                           from bird.ctl output.
                         type: string
-                      ready:
-                        description: Ready indicates if bird status is ready.
-                        type: boolean
                       routerID:
                         description: Router ID used by bird.
                         type: string
@@ -106,22 +104,31 @@ spec:
                         description: ServerTime holds the value of serverTime from
                           bird.ctl output.
                         type: string
+                      state:
+                        description: The state of the BGP Daemon.
+                        type: string
                       version:
-                        description: Bird version.
+                        description: Version of the BGP daemon
                         type: string
                     type: object
                 type: object
               bgp:
                 description: BGP holds node BGP status.
                 properties:
-                  v4NumEstablished:
+                  numberEstablishedV4:
                     description: The total number of IPv4 established bgp sessions.
                     type: integer
-                  v4NumNotEstablished:
+                  numberEstablishedV6:
+                    description: The total number of IPv6 established bgp sessions.
+                    type: integer
+                  numberNotEstablishedV4:
                     description: The total number of IPv4 non-established bgp sessions.
                     type: integer
-                  v4Peers:
-                    description: V4Peers represents IPv4 BGP peers status on the node.
+                  numberNotEstablishedV6:
+                    description: The total number of IPv6 non-established bgp sessions.
+                    type: integer
+                  peersV4:
+                    description: PeersV4 represents IPv4 BGP peers status on the node.
                     items:
                       description: CalicoNodePeer contains the status of BGP peers
                         on the node.
@@ -130,14 +137,11 @@ spec:
                           description: IP address of the peer whose condition we are
                             reporting.
                           type: string
-                        reason:
-                          description: Extra information from bird on the bgp session.
-                          type: string
                         since:
                           description: Since the state or reason last changed.
                           type: string
                         state:
-                          description: The state is the bird bgp session state.
+                          description: State is the BGP session state.
                           type: string
                         type:
                           description: Type indicates whether this peer is configured
@@ -146,14 +150,8 @@ spec:
                           type: string
                       type: object
                     type: array
-                  v6NumEstablished:
-                    description: The total number of IPv6 established bgp sessions.
-                    type: integer
-                  v6NumNotEstablished:
-                    description: The total number of IPv6 non-established bgp sessions.
-                    type: integer
-                  v6Peers:
-                    description: V6Peers represents IPv6 BGP peers status on the node.
+                  peersV6:
+                    description: PeersV6 represents IPv6 BGP peers status on the node.
                     items:
                       description: CalicoNodePeer contains the status of BGP peers
                         on the node.
@@ -162,14 +160,11 @@ spec:
                           description: IP address of the peer whose condition we are
                             reporting.
                           type: string
-                        reason:
-                          description: Extra information from bird on the bgp session.
-                          type: string
                         since:
                           description: Since the state or reason last changed.
                           type: string
                         state:
-                          description: The state is the bird bgp session state.
+                          description: State is the BGP session state.
                           type: string
                         type:
                           description: Type indicates whether this peer is configured
@@ -190,8 +185,8 @@ spec:
                 description: Routes reports routes known to the Calico BGP daemon
                   on the node.
                 properties:
-                  v4Routes:
-                    description: V4 represents IPv4 routes on the node.
+                  routesV4:
+                    description: RoutesV4 represents IPv4 routes on the node.
                     items:
                       description: CalicoNodeRoute contains the status of BGP routes
                         on the node.
@@ -232,8 +227,8 @@ spec:
                           type: string
                       type: object
                     type: array
-                  v6Routes:
-                    description: V6 represents IPv6 routes on the node.
+                  routesV6:
+                    description: RoutesV6 represents IPv6 routes on the node.
                     items:
                       description: CalicoNodeRoute contains the status of BGP routes
                         on the node.
