@@ -48,9 +48,9 @@ spec:
                   node status.
                 type: string
               updatePeriodSeconds:
-                description: 'UpdatePeriodSeconds is the period at which CalicoNodeStatus
+                description: UpdatePeriodSeconds is the period at which CalicoNodeStatus
                   should be updated. Set to 0 to disable CalicoNodeStatus refresh.
-                  [Default: 10]'
+                  Maximum update period is one day.
                 format: int32
                 type: integer
             type: object
@@ -75,10 +75,6 @@ spec:
                       routerID:
                         description: Router ID used by bird.
                         type: string
-                      serverTime:
-                        description: ServerTime holds the value of serverTime from
-                          bird.ctl output.
-                        type: string
                       state:
                         description: The state of the BGP Daemon.
                         type: string
@@ -99,10 +95,6 @@ spec:
                         type: string
                       routerID:
                         description: Router ID used by bird.
-                        type: string
-                      serverTime:
-                        description: ServerTime holds the value of serverTime from
-                          bird.ctl output.
                         type: string
                       state:
                         description: The state of the BGP Daemon.
@@ -173,6 +165,11 @@ spec:
                           type: string
                       type: object
                     type: array
+                required:
+                - numberEstablishedV4
+                - numberEstablishedV6
+                - numberNotEstablishedV4
+                - numberNotEstablishedV6
                 type: object
               lastUpdated:
                 description: LastUpdated is a timestamp representing the server time
@@ -201,17 +198,9 @@ spec:
                           description: Interface for the destination
                           type: string
                         learnedFrom:
-                          description: LearnedFrom indicates who installed this route.
-                            If it is populated by a BGP peer, this is the name of
-                            the BGPPeer object. If it is populated by node mesh, this
-                            is the name of the node. Or it is one of kernel, direct
-                            or static.
+                          description: LearnedFrom contains information regarding
+                            where this route originated.
                           properties:
-                            node:
-                              description: If source is a Kubernetes node running
-                                Calico, the name of the Kubernetes node that originated
-                                the route.
-                              type: string
                             peerIP:
                               description: If sourceType is NodeMesh or BGPPeer, IP
                                 address of the router that sent us this route.
@@ -243,17 +232,9 @@ spec:
                           description: Interface for the destination
                           type: string
                         learnedFrom:
-                          description: LearnedFrom indicates who installed this route.
-                            If it is populated by a BGP peer, this is the name of
-                            the BGPPeer object. If it is populated by node mesh, this
-                            is the name of the node. Or it is one of kernel, direct
-                            or static.
+                          description: LearnedFrom contains information regarding
+                            where this route originated.
                           properties:
-                            node:
-                              description: If source is a Kubernetes node running
-                                Calico, the name of the Kubernetes node that originated
-                                the route.
-                              type: string
                             peerIP:
                               description: If sourceType is NodeMesh or BGPPeer, IP
                                 address of the router that sent us this route.
