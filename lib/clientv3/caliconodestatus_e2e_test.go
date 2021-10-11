@@ -67,7 +67,6 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				State:                   apiv3.BGPDaemonStateReady,
 				Version:                 "birdv1.23",
 				RouterID:                "123456",
-				ServerTime:              "servertime1",
 				LastBootTime:            "lastboottime1",
 				LastReconfigurationTime: "lastreconfigtime1",
 			},
@@ -75,7 +74,6 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				State:                   apiv3.BGPDaemonStateNotReady,
 				Version:                 "birdv1.23",
 				RouterID:                "123456",
-				ServerTime:              "servertime1",
 				LastBootTime:            "lastboottime1",
 				LastReconfigurationTime: "lastreconfigtime1",
 			},
@@ -111,7 +109,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 					Interface:   "eth0",
 					LearnedFrom: apiv3.CalicoNodeRouteLearnedFrom{
 						SourceType: apiv3.RouteSourceTypeNodeMesh,
-						Node:       "node1",
+						PeerIP:     "172.17.0.5",
 					},
 				},
 				{
@@ -133,7 +131,6 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				State:                   apiv3.BGPDaemonStateReady,
 				Version:                 "birdv1.23",
 				RouterID:                "654321",
-				ServerTime:              "servertime1",
 				LastBootTime:            "lastboottime1",
 				LastReconfigurationTime: "lastreconfigtime1",
 			},
@@ -141,7 +138,6 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 				State:                   apiv3.BGPDaemonStateNotReady,
 				Version:                 "birdv1.23",
 				RouterID:                "654321",
-				ServerTime:              "servertime1",
 				LastBootTime:            "lastboottime1",
 				LastReconfigurationTime: "lastreconfigtime1",
 			},
@@ -177,7 +173,7 @@ var _ = testutils.E2eDatastoreDescribe("CalicoNodeStatus tests", testutils.Datas
 					Interface:   "eth0",
 					LearnedFrom: apiv3.CalicoNodeRouteLearnedFrom{
 						SourceType: apiv3.RouteSourceTypeNodeMesh,
-						Node:       "node1",
+						PeerIP:     "172.17.0.6",
 					},
 				},
 				{
