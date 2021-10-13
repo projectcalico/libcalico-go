@@ -185,7 +185,7 @@ func (c converter) IsHostNetworked(pod *kapiv1.Pod) bool {
 }
 
 func (c converter) HasIPAddress(pod *kapiv1.Pod) bool {
-	return pod.Status.PodIP != "" || pod.Annotations[AnnotationPodIP] != ""
+	return pod.Status.PodIP != "" || pod.Annotations[AnnotationPodIP] != "" || pod.Annotations[AnnotationAWSPodIPs] != ""
 	// Note: we don't need to check PodIPs and AnnotationPodIPs here, because those cannot be
 	// non-empty if the corresponding singular field is empty.
 }
@@ -209,6 +209,9 @@ func getPodIPs(pod *kapiv1.Pod) ([]*cnet.IPNet, error) {
 	} else if ip := pod.Annotations[AnnotationPodIP]; ip != "" {
 		log.WithField("ip", ip).Debug("No PodStatus IPs, use Calico singular annotation")
 		podIPs = append(podIPs, ip)
+	} else if ips := pod.Annotations[AnnotationAWSPodIPs]; ips != "" {
+		log.WithField("ips", ips).Debug("No PodStatus IPs, use AWS VPC annotation")
+		podIPs = append(podIPs, strings.Split(ips, ",")...)
 	} else {
 		log.Debug("Pod has no IP")
 		return nil, nil
