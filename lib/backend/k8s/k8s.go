@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2020 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2021 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -104,6 +104,12 @@ func NewKubeClient(ca *apiconfig.CalicoAPIConfigSpec) (api.Client, error) {
 	kubeClient.registerResourceClient(
 		reflect.TypeOf(model.ResourceKey{}),
 		reflect.TypeOf(model.ResourceListOptions{}),
+		apiv3.KindIPReservation,
+		resources.NewIPReservationClient(cs, crdClientV1),
+	)
+	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.ResourceKey{}),
+		reflect.TypeOf(model.ResourceListOptions{}),
 		apiv3.KindGlobalNetworkPolicy,
 		resources.NewGlobalNetworkPolicyClient(cs, crdClientV1),
 	)
@@ -190,6 +196,12 @@ func NewKubeClient(ca *apiconfig.CalicoAPIConfigSpec) (api.Client, error) {
 		reflect.TypeOf(model.ResourceListOptions{}),
 		apiv3.KindKubeControllersConfiguration,
 		resources.NewKubeControllersConfigClient(cs, crdClientV1),
+	)
+	kubeClient.registerResourceClient(
+		reflect.TypeOf(model.ResourceKey{}),
+		reflect.TypeOf(model.ResourceListOptions{}),
+		apiv3.KindCalicoNodeStatus,
+		resources.NewCalicoNodeStatusClient(cs, crdClientV1),
 	)
 
 	if !ca.K8sUsePodCIDR {
@@ -376,12 +388,14 @@ func (c *KubeClient) Clean() error {
 		apiv3.KindBGPConfiguration,
 		apiv3.KindBGPPeer,
 		apiv3.KindClusterInformation,
+		apiv3.KindCalicoNodeStatus,
 		apiv3.KindFelixConfiguration,
 		apiv3.KindGlobalNetworkPolicy,
 		apiv3.KindNetworkPolicy,
 		apiv3.KindGlobalNetworkSet,
 		apiv3.KindNetworkSet,
 		apiv3.KindIPPool,
+		apiv3.KindIPReservation,
 		apiv3.KindHostEndpoint,
 		apiv3.KindKubeControllersConfiguration,
 	}
@@ -475,6 +489,8 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 					&apiv3.FelixConfigurationList{},
 					&apiv3.IPPool{},
 					&apiv3.IPPoolList{},
+					&apiv3.IPReservation{},
+					&apiv3.IPReservationList{},
 					&apiv3.BGPPeer{},
 					&apiv3.BGPPeerList{},
 					&apiv3.BGPConfiguration{},
@@ -501,6 +517,8 @@ func buildCRDClientV1(cfg rest.Config) (*rest.RESTClient, error) {
 					&libapiv3.IPAMConfigList{},
 					&apiv3.KubeControllersConfiguration{},
 					&apiv3.KubeControllersConfigurationList{},
+					&apiv3.CalicoNodeStatus{},
+					&apiv3.CalicoNodeStatusList{},
 				)
 				return nil
 			})

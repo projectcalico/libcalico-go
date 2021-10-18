@@ -1,5 +1,5 @@
 PACKAGE_NAME=github.com/projectcalico/libcalico-go
-GO_BUILD_VER=v0.55
+GO_BUILD_VER=v0.57
 
 ORGANIZATION=projectcalico
 SEMAPHORE_PROJECT_ID?=$(SEMAPHORE_LIBCALICO_GO_PROJECT_ID)
@@ -54,7 +54,8 @@ clean:
 GENERATED_FILES:=./lib/apis/v3/zz_generated.deepcopy.go \
 	./lib/upgrade/migrator/clients/v1/k8s/custom/zz_generated.deepcopy.go \
 	./lib/apis/v3/openapi_generated.go \
-	./lib/apis/v1/openapi_generated.go
+	./lib/apis/v1/openapi_generated.go \
+	./config/crd/*
 
 .PHONY: gen-files
 ## Force rebuild generated go utilities (e.g. deepcopy-gen) and generated files
@@ -228,7 +229,7 @@ $(BINDIR)/kind:
 
 $(BINDIR)/kubectl:
 	mkdir -p $(BINDIR)
-	curl -L https://storage.googleapis.com/kubernetes-release/release/v1.17.0/bin/linux/amd64/kubectl -o $@
+	curl -L https://storage.googleapis.com/kubernetes-release/release/$(K8S_VERSION)/bin/linux/amd64/kubectl -o $@
 	chmod +x $(BINDIR)/kubectl
 
 ## Stop the etcd container (calico-etcd)
@@ -261,4 +262,46 @@ ci: clean static-checks test
 # Updating pins
 ###############################################################################
 update-pins: update-api-pin
+
+###############################################################################
+# Release
+###############################################################################
+
+## Tags and builds a release from start to finish.
+release: release-prereqs
+	$(MAKE) VERSION=$(VERSION) release-tag
+
+	@echo ""
+	@echo "Release tagged. Next, push the tag."
+	@echo ""
+	@echo "  make VERSION=$(VERSION) release-publish"
+	@echo ""
+
+## Produces a git tag for the release.
+release-tag: release-prereqs release-notes
+	git tag $(VERSION) -F release-notes-$(VERSION)
+
+## Generates release notes.
+release-notes: release-prereqs
+	echo "This release is for build purposes only and this should not be referenced externally." > release-notes-$(VERSION)
+	echo "libcalico is not a stable interface." >> release-notes-$(VERSION)
+	echo "If you need an API you should use [projectcalico/api](https://github.com/projectcalico/api)." >> release-notes-$(VERSION)
+
+## Pushes a github tag `make release-tag`.
+release-publish: release-prereqs
+	# Push the git tag.
+	git push origin $(VERSION)
+
+## Nothing specifically to do for this target, just including the target for consistency
+release-publish-latest:
+	@echo "Nothing to publish libcalico-go for latest"
+
+# release-prereqs checks that the environment is configured properly to create a release.
+release-prereqs:
+ifndef VERSION
+	$(error VERSION is undefined - run using make release VERSION=vX.Y.Z)
+endif
+ifdef LOCAL_BUILD
+	$(error LOCAL_BUILD must not be set for a release)
+endif
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2020 Tigera, Inc. All rights reserved.
+// Copyright (c) 2017-2021 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,8 @@ type Interface interface {
 	NetworkPolicies() NetworkPolicyInterface
 	// IPPools returns an interface for managing IP pool resources.
 	IPPools() IPPoolInterface
+	// IPReservations returns an interface for managing IP reservation resources.
+	IPReservations() IPReservationInterface
 	// Profiles returns an interface for managing profile resources.
 	Profiles() ProfileInterface
 	// GlobalNetworkSets returns an interface for managing global network sets resources.
@@ -52,6 +54,8 @@ type Interface interface {
 	// KubeControllersConfiguration returns an interface for managing the
 	// KubeControllersConfiguration resource.
 	KubeControllersConfiguration() KubeControllersConfigurationInterface
+	// CalicoNodeStatus returns an interface for managing CalicoNodeStatus resources.
+	CalicoNodeStatus() CalicoNodeStatusInterface
 
 	// EnsureInitialized is used to ensure the backend datastore is correctly
 	// initialized for use by Calico.  This method may be called multiple times, and

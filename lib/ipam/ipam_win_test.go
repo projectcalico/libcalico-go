@@ -1,4 +1,16 @@
-// Copyright (c) 2018-2019 Tigera, Inc. All rights reserved.
+// Copyright (c) 2018-2021 Tigera, Inc. All rights reserved.
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package ipam
 
@@ -13,8 +25,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	"github.com/projectcalico/libcalico-go/lib/backend"
+
+	v3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
@@ -29,7 +43,7 @@ type ipamClientWindows struct {
 	blockReaderWriter blockReaderWriter
 }
 
-//Returns the block CIDR for the given IP
+// Returns the block CIDR for the given IP
 func (c ipamClientWindows) GetAssignmentBlockCIDR(ctx context.Context, addr cnet.IP) cnet.IPNet {
 	pool, err := c.blockReaderWriter.getPoolForIP(addr, nil)
 	Expect(err).NotTo(HaveOccurred())
@@ -71,12 +85,12 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 
 	BeforeEach(func() {
 		// Create a new backend client and an IPAM Client using the IP Pools Accessor.
-		// Tests that need to ensure a clean datastore should invokke Clean() on the datastore at the start of the
+		// Tests that need to ensure a clean datastore should invoke Clean() on the datastore at the start of the
 		// tests.
 		var err error
 		bc, err = backend.NewClient(config)
 		Expect(err).NotTo(HaveOccurred())
-		ic = NewIPAMClient(bc, ipPoolsWindows)
+		ic = NewIPAMClient(bc, ipPoolsWindows, &fakeReservations{})
 
 		// If running in KDD mode, extract the k8s clientset.
 		if config.Spec.DatastoreType == "kubernetes" {
@@ -100,6 +114,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 		By("Trying to allocate an ip for windows host 1")
 		ctx1 := context.WithValue(context.Background(), "windowsHost", "windows")
 		args1 := AutoAssignArgs{
+			IntendedUse:           v3.IPPoolAllowedUseWorkload,
 			Num4:                  1,
 			Num6:                  0,
 			Hostname:              "Windows-TestHost-1",
@@ -111,7 +126,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 	})
 
 	// Request for 256 IPs from a pool, say "10.0.0.0/24", with a blocksize of 26, allocates only 240 IPs as
-	// the pool of 256 IPs is splitted into 4 blocks of 64 IPs each and 4 IPs, i.e,
+	// the pool of 256 IPs is split into 4 blocks of 64 IPs each and 4 IPs, i.e,
 	// gateway IP, the first IP of the block, the second IP of the block and the broadcast IP are reserved.
 	// So 256 - (4 * 4) = 240.
 
@@ -138,6 +153,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 
 			fromPool := cnet.MustParseNetwork(usePool)
 			args := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  inv4,
 				Num6:                  0,
 				Hostname:              host,
@@ -221,6 +237,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			By("Trying to allocate an ip for windows host 1")
 			ctx1 := context.WithValue(context.Background(), "windowsHost", "windows")
 			args1 := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  1,
 				Num6:                  0,
 				Hostname:              "Windows-TestHost-1",
@@ -234,6 +251,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 
 			By("Trying to allocate an ip for windows host 2")
 			args2 := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  1,
 				Num6:                  0,
 				Hostname:              "Windows-TestHost-2",
@@ -249,6 +267,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			By("Trying to allocate an ip for linux host 1")
 			ctx2 := context.WithValue(context.Background(), "windowsHost", "linux")
 			args3 := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  1,
 				Num6:                  0,
 				Hostname:              "Linux-TestHost-1",
@@ -262,6 +281,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 
 			By("Trying to allocate an ip for linux host 2")
 			args4 := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  1,
 				Num6:                  0,
 				Hostname:              "Linux-TestHost-2",
@@ -276,6 +296,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 
 			By("Trying to allocate 100 IPs for windows host 1")
 			args5 := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  100,
 				Num6:                  0,
 				Hostname:              "Windows-TestHost-1",
@@ -289,6 +310,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 
 			By("Trying to allocate 100 IPs for linux host 1")
 			args6 := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  100,
 				Num6:                  0,
 				Hostname:              "Linux-TestHost-1",
@@ -302,6 +324,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 
 			By("Trying to allocate 100 IPs for linux host 2")
 			args7 := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  100,
 				Num6:                  0,
 				Hostname:              "Linux-TestHost-2",
@@ -319,6 +342,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 		// Assign an IP address, don't pass a pool, make sure we can get an
 		// address.
 		args := AutoAssignArgs{
+			IntendedUse:           v3.IPPoolAllowedUseWorkload,
 			Num4:                  1,
 			Num6:                  0,
 			Hostname:              "test-host",
@@ -389,6 +413,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 		It("Windows: Should get an IP from pool1 when explicitly requesting from that pool", func() {
 
 			args_1 := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  1,
 				Num6:                  0,
 				Hostname:              host,
@@ -412,6 +437,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 			By("Windows: Should get an IP from pool2 when explicitly requesting from that pool")
 
 			args_2 := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  1,
 				Num6:                  0,
 				Hostname:              host,
@@ -492,6 +518,7 @@ var _ = testutils.E2eDatastoreDescribe("Windows: IPAM tests", testutils.Datastor
 
 			fromPool := cnet.MustParseNetwork(usePool)
 			args := AutoAssignArgs{
+				IntendedUse:           v3.IPPoolAllowedUseWorkload,
 				Num4:                  inv4,
 				Num6:                  inv6,
 				Hostname:              host,
