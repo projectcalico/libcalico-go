@@ -63,8 +63,10 @@ func (rw blockReaderWriter) getAffineBlocks(
 
 	// Iterate through and extract the block CIDRs.
 	for _, o := range datastoreObjs.KVPairs {
-		k := o.Key.(model.BlockAffinityKey)
-		blocks = append(blocks, k.CIDR)
+		k, ok := o.Key.(model.BlockAffinityKey)
+		if ok{
+			blocks = append(blocks, k.CIDR)
+		}
 	}
 	return
 }
