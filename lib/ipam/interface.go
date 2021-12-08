@@ -80,7 +80,7 @@ type Interface interface {
 	ReleasePoolAffinities(ctx context.Context, pool cnet.IPNet) error
 
 	// ReleaseBlockAffinity releases the affinity of the exact block provided.
-	ReleaseBlockAffinity(ctx context.Context, block *model.AllocationBlock, mustBeEmpty bool)
+	ReleaseBlockAffinity(ctx context.Context, block *model.AllocationBlock, mustBeEmpty bool) error
 
 	// GetIPAMConfig returns the global IPAM configuration.  If no IPAM configuration
 	// has been set, returns a default configuration with StrictAffinity disabled
