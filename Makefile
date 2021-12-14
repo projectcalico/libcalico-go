@@ -143,11 +143,7 @@ ut:
 .PHONY:fv
 ## Run functional tests against a real datastore in a container.
 fv: fv-setup
-	$(DOCKER_RUN) --privileged \
-		-e KUBECONFIG=/kubeconfig.yaml \
-		-v $(PWD)/$(KUBECONFIG):/kubeconfig.yaml \
-		--dns $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' coredns) \
-		$(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && ginkgo -r -focus "$(GINKGO_FOCUS).*\[Datastore\]|\[Datastore\].*$(GINKGO_FOCUS)" $(WHAT)'
+	$(MAKE) fv-fast
 	$(MAKE) stop-etcd-tls
 
 ## Run the setup required to run the FVs, but don't run any FVs.
@@ -159,6 +155,7 @@ fv-setup: run-etcd run-etcd-tls cluster-create run-coredns
 fv-fast:
 	$(DOCKER_RUN) --privileged \
 		-e KUBECONFIG=/kubeconfig.yaml \
+		-e CGO_ENABLED=1 \
 		-v $(PWD)/$(KUBECONFIG):/kubeconfig.yaml \
 		--dns $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' coredns) \
 		$(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && ginkgo -r -focus "$(GINKGO_FOCUS).*\[Datastore\]|\[Datastore\].*$(GINKGO_FOCUS)" $(WHAT)'

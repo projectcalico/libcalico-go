@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2020 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2021 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -128,28 +130,22 @@ var (
 // backend Syncer API.
 type cb struct {
 	// Stores the current state for comparison by the tests.
-	State map[string]api.Update
-	Lock  *sync.Mutex
+	State  map[string]api.Update
+	Status api.SyncStatus
+	Lock   *sync.Mutex
 
-	status     api.SyncStatus
-	updateChan chan api.Update
+	updateChan chan interface{}
 }
 
-func (c cb) OnStatusUpdated(status api.SyncStatus) {
+func (c *cb) OnStatusUpdated(status api.SyncStatus) {
 	defer GinkgoRecover()
 
 	// Keep latest status up to date.
 	log.Warnf("[TEST] Received status update: %+v", status)
-	c.status = status
-
-	// Once we get in sync, we don't ever expect to not
-	// be in sync.
-	if c.status == api.InSync {
-		Expect(status).To(Equal(api.InSync))
-	}
+	c.updateChan <- status
 }
 
-func (c cb) OnUpdates(updates []api.Update) {
+func (c *cb) OnUpdates(updates []api.Update) {
 	defer GinkgoRecover()
 
 	// Ensure the given updates are valid.
@@ -175,28 +171,39 @@ func (c cb) OnUpdates(updates []api.Update) {
 	}
 }
 
-func (c cb) ProcessUpdates() {
+func (c *cb) ProcessUpdates() {
+	defer GinkgoRecover()
 	for u := range c.updateChan {
 		// Store off the update so it can be checked by the test.
 		// Use a mutex for safe cross-goroutine reads/writes.
 		c.Lock.Lock()
-		if u.UpdateType == api.UpdateTypeKVUnknown {
-			// We should never get this!
-			log.Panic("Received Unknown update type")
-		} else if u.UpdateType == api.UpdateTypeKVDeleted {
-			// Deleted.
-			delete(c.State, u.Key.String())
-			log.Infof("[TEST] Delete update %s", u.Key.String())
-		} else {
-			// Add or modified.
-			c.State[u.Key.String()] = u
-			log.Infof("[TEST] Stored update (type %d) %s", u.UpdateType, u.Key.String())
+		switch u := u.(type) {
+		case api.Update:
+			if u.UpdateType == api.UpdateTypeKVUnknown {
+				// We should never get this!
+				log.Panic("Received Unknown update type")
+			} else if u.UpdateType == api.UpdateTypeKVDeleted {
+				// Deleted.
+				delete(c.State, u.Key.String())
+				log.Infof("[TEST] Delete update %s", u.Key.String())
+			} else {
+				// Add or modified.
+				c.State[u.Key.String()] = u
+				log.Infof("[TEST] Stored update (type %d) %s", u.UpdateType, u.Key.String())
+			}
+		case api.SyncStatus:
+			// Once we get in sync, we don't ever expect to not
+			// be in sync.
+			if c.Status == api.InSync {
+				Expect(u).To(Equal(api.InSync))
+			}
+			c.Status = u
 		}
 		c.Lock.Unlock()
 	}
 }
 
-func (c cb) ExpectExists(updates []api.Update) {
+func (c *cb) ExpectExists(updates []api.Update) {
 	// For each Key, wait for it to exist.
 	for _, update := range updates {
 		log.Infof("[TEST] Expecting key: %v", update.Key)
@@ -229,7 +236,7 @@ func (c cb) ExpectExists(updates []api.Update) {
 
 // ExpectDeleted asserts that the provided KVPairs have been deleted
 // via an update over the Syncer.
-func (c cb) ExpectDeleted(kvps []model.KVPair) {
+func (c *cb) ExpectDeleted(kvps []model.KVPair) {
 	for _, kvp := range kvps {
 		log.Infof("[TEST] Not expecting key: %v", kvp.Key)
 		exists := true
@@ -291,7 +298,7 @@ poll:
 //
 // The returned function returns the cached entry or nil if the entry does not
 // exist in the cache.
-func (c cb) GetSyncerValueFunc(key model.Key) func() interface{} {
+func (c *cb) GetSyncerValueFunc(key model.Key) func() interface{} {
 	return func() interface{} {
 		log.Infof("Checking entry in cache: %v", key)
 		c.Lock.Lock()
@@ -312,14 +319,20 @@ func (c cb) GetSyncerValueFunc(key model.Key) func() interface{} {
 // the Value may itself by nil.
 //
 // The returned function returns true if the entry is present.
-func (c cb) GetSyncerValuePresentFunc(key model.Key) func() interface{} {
+func (c *cb) GetSyncerValuePresentFunc(key model.Key) func() interface{} {
 	return func() interface{} {
 		log.Infof("Checking entry in cache: %v", key)
 		c.Lock.Lock()
-		defer func() { c.Lock.Unlock() }()
+		defer c.Lock.Unlock()
 		_, ok := c.State[key.String()]
 		return ok
 	}
+}
+
+func (c *cb) GetStatus() api.SyncStatus {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+	return c.Status
 }
 
 func CreateClientAndSyncer(cfg apiconfig.KubeConfig) (*KubeClient, *cb, api.Syncer) {
@@ -335,22 +348,23 @@ func CreateClientAndSyncer(cfg apiconfig.KubeConfig) (*KubeClient, *cb, api.Sync
 	Expect(err).NotTo(HaveOccurred(), "Failed to initialize the backend.")
 
 	// Start the syncer.
-	updateChan := make(chan api.Update)
-	callback := cb{
+	updateChan := make(chan interface{})
+	callback := &cb{
 		State:      map[string]api.Update{},
-		status:     api.WaitForDatastore,
+		Status:     api.WaitForDatastore,
 		Lock:       &sync.Mutex{},
 		updateChan: updateChan,
 	}
 	syncer := felixsyncer.New(c, caCfg, callback, true)
-	return c.(*KubeClient), &callback, syncer
+	return c.(*KubeClient), callback, syncer
 }
 
 var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend", testutils.DatastoreK8s, func(cfg apiconfig.CalicoAPIConfig) {
 	var (
-		c      *KubeClient
-		cb     *cb
-		syncer api.Syncer
+		kubeCfg apiconfig.KubeConfig
+		c       *KubeClient
+		cb      *cb
+		syncer  api.Syncer
 	)
 
 	ctx := context.Background()
@@ -359,8 +373,8 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		log.SetLevel(log.DebugLevel)
 
 		// Create a Kubernetes client, callbacks, and a syncer.
-		cfg := apiconfig.KubeConfig{Kubeconfig: "/kubeconfig.yaml"}
-		c, cb, syncer = CreateClientAndSyncer(cfg)
+		kubeCfg = apiconfig.KubeConfig{Kubeconfig: "/kubeconfig.yaml"}
+		c, cb, syncer = CreateClientAndSyncer(kubeCfg)
 
 		// Start the syncer.
 		syncer.Start()
@@ -409,6 +423,111 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 			Expect(err).NotTo(HaveOccurred())
 		}
 		syncer.Stop()
+	})
+
+	It("should handle silent disconnection from the API server", func() {
+		// Find the name of the kube-proxy pod.  We'll use it for running iptables commands below.
+		pods, err := c.ClientSet.CoreV1().Pods("kube-system").List(context.Background(), metav1.ListOptions{})
+		Expect(err).NotTo(HaveOccurred())
+		var kubeProxyPodName string
+		for _, p := range pods.Items {
+			if strings.HasPrefix(p.Name, "kube-proxy") {
+				kubeProxyPodName = p.Name
+				break
+			}
+		}
+		Expect(kubeProxyPodName).NotTo(BeEmpty())
+
+		// Wait until the syncer is in-sync so that we should have an open watch.
+		Eventually(cb.GetStatus, "10s").Should(Equal(api.InSync))
+
+		cleanUpBlackholes := func() {
+			By("Cleaning up black-hole iptables rules", func() {
+				args := []string{"exec", "-n", "kube-system", kubeProxyPodName, "--", "iptables",
+					"-t", "raw",
+					"-F", "PREROUTING",
+				}
+				cmd := exec.Command("kubectl", args...)
+				Expect(wrapExecErr(cmd.Run())).NotTo(HaveOccurred(), fmt.Sprintf("Failed to run command kubectl %s", strings.Join(args, " ")))
+				args = []string{"exec", "-n", "kube-system", kubeProxyPodName, "--", "iptables",
+					"-t", "raw",
+					"-F", "OUTPUT",
+				}
+				cmd = exec.Command("kubectl", args...)
+				Expect(wrapExecErr(cmd.Run())).NotTo(HaveOccurred(), fmt.Sprintf("Failed to run command kubectl %s", strings.Join(args, " ")))
+			})
+		}
+		cleanUpBlackholes()
+		defer cleanUpBlackholes()
+		By("Black-holing all external connections to the API server.", func() {
+			cmd := exec.Command("kubectl", "exec", "-n", "kube-system", kubeProxyPodName, "--", "conntrack", "-L")
+			out, err := cmd.Output()
+			Expect(wrapExecErr(err)).NotTo(HaveOccurred())
+			for _, line := range strings.Split(string(out), "\n") {
+				if !strings.Contains(line, "dport=6443") {
+					continue
+				}
+				if strings.Contains(line, "127.0.0.1") {
+					continue
+				}
+				r := regexp.MustCompile(`src=([^ ]+) dst=([^ ]+) sport=(\d+)`)
+				matches := r.FindStringSubmatch(line)
+				if len(matches) == 0 {
+					continue
+				}
+				src := matches[1]
+				dst := matches[2]
+				sport := matches[3]
+				if src == dst {
+					continue
+				}
+
+				// Found an external connection, KILL!
+				args := []string{"exec", "-n", "kube-system", kubeProxyPodName, "--", "iptables",
+					"-t", "raw",
+					"-I", "PREROUTING",
+					"-p", "tcp",
+					"-s", src,
+					"-d", dst,
+					"--source-port", sport,
+					"--destination-port", "6443",
+					"-j", "DROP",
+					"-m", "comment", "--comment", "CALI-TEST-BLACKHOLE"}
+				cmd = exec.Command("kubectl", args...)
+				Expect(wrapExecErr(cmd.Run())).NotTo(HaveOccurred(), fmt.Sprintf("Failed to run command kubectl %s", strings.Join(args, " ")))
+				cmd = exec.Command("kubectl", "exec", "-n", "kube-system", kubeProxyPodName, "--", "iptables",
+					"-t", "raw",
+					"-I", "OUTPUT",
+					"-p", "tcp",
+					"-d", src,
+					"-s", dst,
+					"--source-port", "6443",
+					"--destination-port", sport,
+					"-j", "DROP",
+					"-m", "comment", "--comment", "CALI-TEST-BLACKHOLE",
+				)
+				Expect(wrapExecErr(cmd.Run())).NotTo(HaveOccurred())
+			}
+		})
+
+		// Create a ns via kubectl to avoid touching the kube-client inside our process.  We want to make sure
+		// that the syncer picks up the problem.
+		By("Creating a namespace", func() {
+			cmd := exec.Command("kubectl", "create", "ns", "test-broken-conn-ns")
+			Expect(wrapExecErr(cmd.Run())).NotTo(HaveOccurred())
+		})
+		defer func() {
+			By("Deleting the namespace", func() {
+				cmd := exec.Command("kubectl", "delete", "ns", "test-broken-conn-ns")
+				Expect(wrapExecErr(cmd.Run())).NotTo(HaveOccurred())
+			})
+		}()
+
+		By("Checking the correct entries are in our cache", func() {
+			expectedName := "kns.test-broken-conn-ns"
+			Eventually(cb.GetSyncerValuePresentFunc(model.ProfileRulesKey{ProfileKey: model.ProfileKey{expectedName}}), "120s", "1s").Should(BeTrue())
+			Eventually(cb.GetSyncerValuePresentFunc(model.ProfileLabelsKey{ProfileKey: model.ProfileKey{expectedName}})).Should(BeTrue())
+		})
 	})
 
 	It("should handle a Namespace with DefaultDeny (v1beta annotation for namespace isolation)", func() {
@@ -2345,6 +2464,16 @@ var _ = testutils.E2eDatastoreDescribe("Test Syncer API for Kubernetes backend",
 		})
 	})
 })
+
+func wrapExecErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	if err, ok := err.(*exec.ExitError); ok {
+		return fmt.Errorf("subprocess failed with RC=%d; stderr=%q", err.ExitCode(), string(err.Stderr))
+	}
+	return err
+}
 
 var _ = testutils.E2eDatastoreDescribe("Test Watch support", testutils.DatastoreK8s, func(cfg apiconfig.CalicoAPIConfig) {
 	var (
