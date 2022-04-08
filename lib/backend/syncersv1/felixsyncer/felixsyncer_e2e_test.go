@@ -43,7 +43,6 @@ import (
 )
 
 var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.DatastoreAll, func(config apiconfig.CalicoAPIConfig) {
-
 	var ctx context.Context
 	var c clientv3.Interface
 	var be api.Client
@@ -348,7 +347,7 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 					Key:   model.WireguardKey{NodeName: "127.0.0.1"},
 					Value: &model.Wireguard{InterfaceIPv4Addr: &wip, PublicKey: "jlkVyQYooZYzI2wFfNhSZez5eWh44yfq1wKVjLvSXgY="},
 				})
-				//add one for the node resource
+				// add one for the node resource
 				expectedCacheSize += 6
 			}
 
@@ -379,8 +378,8 @@ var _ = testutils.E2eDatastoreDescribe("Felix syncer tests", testutils.Datastore
 			)
 			Expect(err).NotTo(HaveOccurred())
 			// The pool will add as single entry ( +1 ), plus will also create the default
-			// Felix config with IPIP enabled.
-			expectedCacheSize += 2
+			// Felix config with IPIP enabled + FloatingIPs
+			expectedCacheSize += 3
 			syncTester.ExpectCacheSize(expectedCacheSize)
 			syncTester.ExpectData(model.KVPair{
 				Key: model.IPPoolKey{CIDR: net.MustParseCIDR("192.124.0.0/21")},

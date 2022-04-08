@@ -42,6 +42,7 @@ type felixConfigurations struct {
 // Returns the stored representation of the FelixConfiguration, and an error
 // if there is any.
 func (r felixConfigurations) Create(ctx context.Context, res *apiv3.FelixConfiguration, opts options.SetOptions) (*apiv3.FelixConfiguration, error) {
+	setDefaults(res)
 	if err := validator.Validate(res); err != nil {
 		return nil, err
 	}
@@ -57,6 +58,7 @@ func (r felixConfigurations) Create(ctx context.Context, res *apiv3.FelixConfigu
 // Returns the stored representation of the FelixConfiguration, and an error
 // if there is any.
 func (r felixConfigurations) Update(ctx context.Context, res *apiv3.FelixConfiguration, opts options.SetOptions) (*apiv3.FelixConfiguration, error) {
+	setDefaults(res)
 	if err := validator.Validate(res); err != nil {
 		return nil, err
 	}
@@ -101,4 +103,13 @@ func (r felixConfigurations) List(ctx context.Context, opts options.ListOptions)
 // match the supplied options.
 func (r felixConfigurations) Watch(ctx context.Context, opts options.ListOptions) (watch.Interface, error) {
 	return r.client.resources.Watch(ctx, opts, apiv3.KindFelixConfiguration, nil)
+}
+
+func setDefaults(fc *apiv3.FelixConfiguration) {
+	// Defaulting of the FloatingIPs field is handled via CRD validation in CRD mode, but
+	// requires an explicit defaulting step for etcd.
+	if fc.Spec.FloatingIPs == nil {
+		disabled := apiv3.FloatingIPsDisabled
+		fc.Spec.FloatingIPs = &disabled
+	}
 }
