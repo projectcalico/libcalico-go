@@ -19,7 +19,7 @@ import (
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
-	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/mvcc/mvccpb"
 
 	"github.com/projectcalico/libcalico-go/lib/backend/api"

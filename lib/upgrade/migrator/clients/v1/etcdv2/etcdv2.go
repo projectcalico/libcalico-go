@@ -22,7 +22,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	etcd "go.etcd.io/etcd/client"
+	etcd "go.etcd.io/etcd/client/v2"
 	"go.etcd.io/etcd/pkg/transport"
 	"golang.org/x/net/context"
 
