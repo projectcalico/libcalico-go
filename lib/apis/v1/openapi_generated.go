@@ -20,6 +20,7 @@
 
 package v1
 
+/*
 import (
 	spec "github.com/go-openapi/spec"
 	common "k8s.io/kube-openapi/pkg/common"
@@ -2013,3 +2014,4 @@ func schema_projectcalico_libcalico_go_lib_numorstring_Uint8OrString(ref common.
 		},
 	}
 }
+*/

@@ -23,7 +23,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	etcd "go.etcd.io/etcd/client/v2"
-	"go.etcd.io/etcd/pkg/transport"
+	"go.etcd.io/etcd/client/pkg/v3/transport"
 	"golang.org/x/net/context"
 
 	apiv1 "github.com/projectcalico/libcalico-go/lib/apis/v1"
